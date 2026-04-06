@@ -1,0 +1,137 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  WORKER
+  CLIENT
+}
+
+enum JobStatus {
+  COMPLETED
+  ARCHIVED
+}
+
+enum WorkerEditPolicy {
+  ALWAYS_OPEN
+  UNTIL_ADMIN_INTERVENES
+  UNTIL_PUBLISHED
+  TIME_WINDOW
+}
+
+model Organization {
+  id                        String   @id @default(uuid())
+  name                      String
+  is_active                 Boolean  @default(true)
+  
+  auto_publish_jobs         Boolean  @default(true)
+  worker_edit_policy        WorkerEditPolicy @default(TIME_WINDOW)
+  worker_edit_window_hours  Int?     
+
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+
+  users                     User[]
+  assets                    Asset[]
+  jobs                      Job[]    
+}
+
+model User {
+  id               String   @id @default(uuid())
+  organization_id  String
+  role             Role
+  email            String
+  password_hash    String
+  name             String
+  is_active        Boolean  @default(true)
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  organization     Organization @relation(fields: [organization_id], references: [id])
+  
+  jobs_created     Job[]    @relation("JobWorker")
+  asset_access     ClientAssetAccess[] @relation("GrantedToClient")
+  access_granted   ClientAssetAccess[] @relation("GrantedByAdmin") 
+  
+  @@unique([email, organization_id]) 
+  @@index([organization_id])
+}
+
+model Asset {
+  id               String   @id @default(uuid())
+  organization_id  String
+  name             String
+  description      String?
+  is_active        Boolean  @default(true)
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  organization     Organization @relation(fields: [organization_id], references: [id])
+  jobs             Job[]
+  client_access    ClientAssetAccess[]
+
+  @@index([organization_id])
+}
+
+model ClientAssetAccess {
+  client_id        String
+  asset_id         String
+  granted_by_id    String?   
+
+  created_at       DateTime @default(now())
+
+  client           User   @relation("GrantedToClient", fields: [client_id], references: [id])
+  asset            Asset  @relation(fields: [asset_id], references: [id])
+  granted_by       User?  @relation("GrantedByAdmin", fields: [granted_by_id], references: [id])
+
+  @@id([client_id, asset_id])
+  @@index([asset_id])
+  @@index([client_id])
+}
+
+model Job {
+  id               String   @id @default(uuid())
+  organization_id  String   
+  asset_id         String
+  worker_id        String
+  
+  title            String
+  description      String?
+  
+  status           JobStatus @default(COMPLETED)
+  is_public        Boolean   
+  admin_intervened Boolean   @default(false)
+  
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  organization     Organization @relation(fields: [organization_id], references: [id])
+  asset            Asset     @relation(fields: [asset_id], references: [id])
+  worker           User      @relation("JobWorker", fields: [worker_id], references: [id])
+  attachments      JobAttachment[]
+
+  @@index([organization_id])
+  @@index([asset_id])
+  @@index([worker_id])
+}
+
+model JobAttachment {
+  id               String   @id @default(uuid())
+  job_id           String
+  file_url         String
+  file_type        String?
+
+  created_at       DateTime @default(now())
+
+  job              Job      @relation(fields: [job_id], references: [id])
+  
+  @@index([job_id])
+}

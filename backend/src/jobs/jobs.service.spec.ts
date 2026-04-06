@@ -1,0 +1,98 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { JobsService } from './jobs.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+describe('JobsService.create - Auto Publish Logic', () => {
+  let service: JobsService;
+  let prisma: PrismaService;
+
+  beforeEach(async () => {
+    // Mock del Prisma Service
+    const prismaMock = {
+      organization: { findUnique: jest.fn() },
+      job: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        JobsService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
+    }).compile();
+
+    service = module.get<JobsService>(JobsService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  it('Debería setear is_public = true si la Organization tiene auto_publish_jobs = true', async () => {
+    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+      id: 'org-1',
+      auto_publish_jobs: true,
+      worker_edit_policy: 'TIME_WINDOW',
+    } as any);
+
+    jest.spyOn(prisma.job, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+
+    const result = await service.create(
+      { asset_id: 'asset-1', title: 'Test Job', description: 'Desc' },
+      { id: 'worker-1', orgId: 'org-1' }
+    );
+
+    expect(result.is_public).toBe(true);
+    expect(prisma.job.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ is_public: true })
+    }));
+  });
+
+  it('Debería setear is_public = false si la Organization define visibilidad restringida', async () => {
+    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+      id: 'org-1',
+      auto_publish_jobs: false,
+    } as any);
+
+    jest.spyOn(prisma.job, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+
+    const result = await service.create(
+      { asset_id: 'asset-2', title: 'Test Job 2' },
+      { id: 'worker-1', orgId: 'org-1' }
+    );
+
+    expect(result.is_public).toBe(false);
+  });
+
+  describe('findAll - Role-based Scoping and Tenant Isolation', () => {
+    it('Debería forzar organization_id para cualquier rol (Aislamiento Multi-tenant)', async () => {
+      jest.spyOn(prisma.job, 'findMany').mockResolvedValue([]);
+      await service.findAll({}, { id: 'worker-1', orgId: 'org-tenant-xx', role: 'WORKER' });
+      expect(prisma.job.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ organization_id: 'org-tenant-xx' })
+      }));
+    });
+
+    it('Debería inyectar is_public = true y status = COMPLETED obligatoriamente si es CLIENT', async () => {
+      jest.spyOn(prisma.job, 'findMany').mockResolvedValue([]);
+      await service.findAll({}, { id: 'client-1', orgId: 'org-tenant-xx', role: 'CLIENT' });
+      expect(prisma.job.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ 
+          organization_id: 'org-tenant-xx',
+          is_public: true,
+          status: 'COMPLETED'
+        })
+      }));
+    });
+  });
+
+  describe('update (Admin flow)', () => {
+    it('Debería permitir al Admin actualizar un trabajo y setear admin_intervened = true', async () => {
+      jest.spyOn(prisma.job, 'findUnique').mockResolvedValue({ id: 'job-1', organization_id: 'org-1' } as any);
+      jest.spyOn(prisma.job, 'update').mockResolvedValue({} as any);
+      
+      await service.update('job-1', { title: 'Nuevo', status: 'ARCHIVED' }, 'org-1');
+      
+      expect(prisma.job.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'job-1' },
+        data: expect.objectContaining({ title: 'Nuevo', status: 'ARCHIVED', admin_intervened: true })
+      }));
+    });
+  });
+});

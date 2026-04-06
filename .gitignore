@@ -1,0 +1,48 @@
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment Variables
+.env
+.env.*.local
+.env.local
+.env.test
+.env.development
+.env.production
+
+# Backend (NestJS, TypeScript, Prisma)
+dist/
+**/*.tsbuildinfo
+dev.db
+*.db
+*.db-journal
+
+# Frontend (Next.js - Preparación)
+.next/
+out/
+.vercel/
+next-env.d.ts
+
+# Misc
+*.pem
