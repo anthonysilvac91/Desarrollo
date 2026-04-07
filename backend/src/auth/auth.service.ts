@@ -15,7 +15,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         email: loginDto.email,
-        organization_id: loginDto.organizationId,
+        ...(loginDto.organizationId ? { organization_id: loginDto.organizationId } : {}),
         is_active: true
       }
     });
