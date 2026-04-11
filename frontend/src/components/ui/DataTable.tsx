@@ -14,6 +14,7 @@ interface DataTableProps<T> {
   keyExtractor: (item: T) => string | number;
   emptyMessage?: string;
   footer?: React.ReactNode;
+  onRowClick?: (item: T) => void; // Added onRowClick prop
 }
 
 export default function DataTable<T>({
@@ -22,6 +23,7 @@ export default function DataTable<T>({
   keyExtractor,
   emptyMessage = "No hay resultados disponibles.",
   footer,
+  onRowClick,
 }: DataTableProps<T>) {
   return (
     <div className="flex flex-col min-h-0 bg-white transition-colors">
@@ -52,7 +54,11 @@ export default function DataTable<T>({
               </tr>
             ) : (
               data.map((item) => (
-                <tr key={keyExtractor(item)} className="hover:bg-gray-50/30 transition-colors group">
+                <tr 
+                  key={keyExtractor(item)} 
+                  onClick={() => onRowClick?.(item)}
+                  className={`transition-colors group ${onRowClick ? "cursor-pointer hover:bg-gray-50/50" : "hover:bg-gray-50/30"}`}
+                >
                   {columns.map((col) => (
                     <td
                        key={`${keyExtractor(item)}-${col.key}`}

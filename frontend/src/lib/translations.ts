@@ -29,6 +29,7 @@ export const translations = {
         asset: "Asset",
         client: "Client",
         location: "Location",
+        jobs: "Jobs",
         last_job: "Last Job",
         actions: "Actions",
       },
@@ -36,6 +37,24 @@ export const translations = {
         showing: "Showing",
         of: "of",
         assets: "assets",
+      },
+      filters: {
+        clear_all: "Clear All",
+        by_client: "By Client",
+        by_category: "By Category",
+        apply: "Apply Filters"
+      },
+      drawer: {
+        location: "Location",
+        jobs: "Jobs",
+        total: "Total",
+        maintenance_history: "Maintenance History",
+        full_report: "Full Report",
+        load_more: "Load More",
+        loading: "Loading...",
+        all_loaded: "All history records loaded",
+        see_entire_history: "See entire history",
+        photo: "Photo"
       }
     }
   },
@@ -67,6 +86,7 @@ export const translations = {
         asset: "Activo",
         client: "Cliente",
         location: "Ubicación",
+        jobs: "Trabajos",
         last_job: "Último Trabajo",
         actions: "Acciones",
       },
@@ -74,6 +94,24 @@ export const translations = {
         showing: "Mostrando",
         of: "de",
         assets: "activos",
+      },
+      filters: {
+        clear_all: "Limpiar filtros",
+        by_client: "Por Cliente",
+        by_category: "Por Categoría",
+        apply: "Aplicar Filtros"
+      },
+      drawer: {
+        location: "Ubicación",
+        jobs: "Trabajos",
+        total: "Total",
+        maintenance_history: "Historial de Mantenimiento",
+        full_report: "Reporte Completo",
+        load_more: "Cargar más",
+        loading: "Cargando...",
+        all_loaded: "Todos los registros cargados",
+        see_entire_history: "Ver historial completo",
+        photo: "Foto"
       }
     }
   }

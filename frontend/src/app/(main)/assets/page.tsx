@@ -5,6 +5,7 @@ import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
+import AssetDrawer from "@/components/assets/AssetDrawer";
 import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -14,6 +15,7 @@ interface AssetDisplay {
   name: string;
   category: string;
   location: string;
+  jobs_count: number;
   thumbnail_url: string;
   client: {
     name: string;
@@ -49,6 +51,7 @@ const mockAssets: AssetDisplay[] = [
     name: "Lady Nelly", 
     category: "Motor Yacht - 24m", 
     location: "Marina Ibiza, Amarre 42", 
+    jobs_count: 12,
     thumbnail_url: "", 
     client: { name: "Roberto García", action_type: "Hull maintenance" },
     last_job: { date: "12-10-2023" }
@@ -58,6 +61,7 @@ const mockAssets: AssetDisplay[] = [
     name: "Sea Breeze", 
     category: "Catamaran - 15m", 
     location: "Palma Royal Yacht Club", 
+    jobs_count: 8,
     thumbnail_url: "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&q=80&w=200&h=200",
     client: { name: "Thomas Müller", action_type: "Electrical" },
     last_job: { date: "28-09-2023" }
@@ -67,7 +71,8 @@ const mockAssets: AssetDisplay[] = [
     name: "Azimut 58", 
     category: "Sailing Yacht - 18m", 
     location: "Puerto Banús, Dock 3", 
-    thumbnail_url: "https://images.unsplash.com/photo-1563299284-f7486d3967a6?auto=format&fit=crop&q=80&w=200&h=200", 
+    jobs_count: 125, 
+    thumbnail_url: "https://images.unsplash.com/photo-1621275471769-e6aa3e15bb71?auto=format&fit=crop&q=80&w=200&h=200", 
     client: { name: "Elena Martínez", action_type: "Hull cleaning" },
     last_job: { date: "05-10-2023" }
   },
@@ -76,6 +81,7 @@ const mockAssets: AssetDisplay[] = [
     name: "Polaris", 
     category: "Motor Yacht - 32m", 
     location: "Port de Saint-Tropez", 
+    jobs_count: 21,
     thumbnail_url: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5927?auto=format&fit=crop&q=80&w=200&h=200", 
     client: { name: "Sophie Laurent", action_type: "Maintenance" },
     last_job: { date: "22-09-2023" }
@@ -85,6 +91,7 @@ const mockAssets: AssetDisplay[] = [
     name: "Amaryllis", 
     category: "Classic Yacht - 40m", 
     location: "Marina Port Vell", 
+    jobs_count: 4,
     thumbnail_url: "", 
     client: { name: "Julian Rossi", action_type: "Carpentry" },
     last_job: { date: "15-09-2023" }
@@ -93,22 +100,49 @@ const mockAssets: AssetDisplay[] = [
 
 export default function AssetsPage() {
   const [search, setSearch] = useState("");
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<AssetDisplay | null>(null);
   const { t } = useLanguage();
 
-  // Filter logic for functional search
+  // Extract unique clients and categories for filters
+  const availableClients = useMemo(() => Array.from(new Set(mockAssets.map(a => a.client.name))).sort(), []);
+  const availableCategories = useMemo(() => Array.from(new Set(mockAssets.map(a => a.category))).sort(), []);
+
+  // Filter logic
   const filteredData = useMemo(() => {
     return mockAssets.filter((item) => {
       const searchLower = search.toLowerCase();
-      return (
+      const matchesSearch = search === "" || (
         item.name.toLowerCase().includes(searchLower) ||
         item.client.name.toLowerCase().includes(searchLower) ||
         item.location.toLowerCase().includes(searchLower)
       );
+      const matchesClient = selectedClients.length === 0 || selectedClients.includes(item.client.name);
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(item.category);
+      return matchesSearch && matchesClient && matchesCategory;
     });
-  }, [search]);
+  }, [search, selectedClients, selectedCategories]);
 
-  // Paginated view (only top 5 as requested to fit viewport)
+  // View state handlers
+  const toggleClient = (client: string) => {
+    setSelectedClients(prev => 
+      prev.includes(client) ? prev.filter(c => c !== client) : [...prev, client]
+    );
+  };
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedClients([]);
+    setSelectedCategories([]);
+  };
+
   const displayData = filteredData.slice(0, 5);
 
   const handleAddAsset = (data: any) => {
@@ -148,6 +182,18 @@ export default function AssetsPage() {
       )
     },
     { 
+      key: "jobs", 
+      header: t.assets.table.jobs,
+      align: "center",
+      cell: (item) => (
+        <div className="flex items-center justify-center">
+          <span className="min-w-[50px] h-9 flex items-center justify-center text-[15px] font-bold text-title bg-gray-50 rounded-lg border border-gray-100 px-2 transition-all">
+            {item.jobs_count}
+          </span>
+        </div>
+      )
+    },
+    { 
       key: "last_job", 
       header: t.assets.table.last_job,
       align: "center",
@@ -159,12 +205,18 @@ export default function AssetsPage() {
       key: "actions",
       header: t.assets.table.actions,
       align: "center",
-      cell: () => (
+      cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
-          <button className="p-2.5 text-subtitle/40 hover:text-brand transition-colors">
+          <button 
+            onClick={(e) => { e.stopPropagation(); /* prevent drawer open */ }}
+            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
+          >
             < Pencil className="w-5 h-5" />
           </button>
-          <button className="p-2.5 text-error/40 hover:text-error transition-colors">
+          <button 
+            onClick={(e) => { e.stopPropagation(); /* prevent drawer open */ }}
+            className="p-2.5 text-error/40 hover:text-error transition-colors"
+          >
             <Trash2 className="w-5 h-5" />
           </button>
         </div>
@@ -178,11 +230,11 @@ export default function AssetsPage() {
         {t.assets.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.assets.pagination.of} <span className="text-title font-bold">{filteredData.length}</span> {t.assets.pagination.assets}
       </div>
       <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-md hover:bg-gray-100 text-subtitle/40 transition-colors disabled:opacity-20" disabled>
+        <button className="p-2 rounded-md hover:bg-gray-100 text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center" disabled>
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-gray-100 text-subtitle/40 transition-colors disabled:opacity-20" disabled>
+        <button className="p-2 rounded-md hover:bg-gray-100 text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
@@ -191,9 +243,15 @@ export default function AssetsPage() {
 
   return (
     <div className="flex flex-col space-y-10">
-      {/* Search & Actions */}
       <FiltersBar 
         onSearchChange={setSearch}
+        clients={availableClients}
+        categories={availableCategories}
+        selectedClients={selectedClients}
+        selectedCategories={selectedCategories}
+        onToggleClient={toggleClient}
+        onToggleCategory={toggleCategory}
+        onClearAll={clearFilters}
         actions={
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -205,7 +263,6 @@ export default function AssetsPage() {
         }
       />
 
-      {/* Table section */}
       <div className="flex-1">
         <ModuleContainer>
           <DataTable 
@@ -213,16 +270,21 @@ export default function AssetsPage() {
             columns={columns} 
             keyExtractor={(item) => item.id}
             footer={pagination}
-            emptyMessage={search ? "No matches found for your search." : undefined}
+            onRowClick={(item) => setSelectedAsset(item)}
+            emptyMessage={search || (selectedClients.length > 0 || selectedCategories.length > 0) ? "No matches found for your filter criteria." : undefined}
           />
         </ModuleContainer>
       </div>
 
-      {/* Add New Asset Modal */}
       <AssetModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSubmit={handleAddAsset} 
+      />
+
+      <AssetDrawer 
+        asset={selectedAsset as any} 
+        onClose={() => setSelectedAsset(null)} 
       />
     </div>
   );
