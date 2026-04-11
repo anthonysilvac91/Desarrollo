@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Recall Admin",
-  description: "Backoffice para administración de Recall",
+  title: "Recall",
+  description: "Plataforma de mantenimiento y gestión de activos",
 };
 
 export default function RootLayout({
@@ -26,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
+        className={`${inter.variable} font-sans antialiased bg-app-bg`}
       >
         <Providers>{children}</Providers>
       </body>

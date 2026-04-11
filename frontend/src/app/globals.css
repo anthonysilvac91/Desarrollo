@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Exact Figma Design Tokens (Slide 1-280) */
+  --theme-primary: #0058BC;
+  --theme-bg: #F4F3F8;
+  --theme-surface: #FFFFFF;
+  --theme-title: #1A1B1F;
+  --theme-subtitle: #414755;
+  --theme-border: #F1F5F9;
+  --theme-error: #BA1A1A;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --theme-primary: #3B82F6; 
+    --theme-bg: #0F172A;
+    --theme-surface: #1E293B;
+    --theme-title: #F8FAFC;
+    --theme-subtitle: #94A3B8;
+    --theme-border: #334155;
+    --theme-error: #EF4444;
   }
 }
 
+@theme inline {
+  --color-brand: var(--theme-primary);
+  --color-app-bg: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-title: var(--theme-title);
+  --color-subtitle: var(--theme-subtitle);
+  --color-border-theme: var(--theme-border);
+  --color-error: var(--theme-error);
+  --font-sans: var(--font-inter);
+}
+
+/* Base Styles & Page Scroll allowed */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  width: 100%;
+  /* Removed overflow: hidden to allow general page scrolling */
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--theme-bg);
+  color: var(--theme-title);
+  font-family: var(--font-sans), sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom shadow for Figma-style depth */
+.shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* Custom radius from Figma */
+.rounded-figma {
+  border-radius: 2rem; /* 32px */
+}
+
+/* Custom scrollbars for specific containers */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 10px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-subtitle);
+  opacity: 0.3;
 }
