@@ -36,12 +36,22 @@ async function main() {
     data: { organization_id: org.id, role: Role.CLIENT, email: 'client@test.com', password_hash: hashedPwd, name: 'Carlos Cliente' },
   });
 
-  const asset = await prisma.asset.create({
-    data: { organization_id: org.id, name: 'Tractor T-1000' },
-  });
+  const asset1 = await prisma.asset.create({ data: { organization_id: org.id, name: 'Lady Nelly' } });
+  const asset2 = await prisma.asset.create({ data: { organization_id: org.id, name: 'Azimut 58' } });
+  const asset3 = await prisma.asset.create({ data: { organization_id: org.id, name: 'Naomi' } });
+  const asset4 = await prisma.asset.create({ data: { organization_id: org.id, name: 'Verve 42' } });
   
-  await prisma.clientAssetAccess.create({
-    data: { client_id: client.id, asset_id: asset.id, granted_by_id: admin.id }
+  await prisma.clientAssetAccess.create({ data: { client_id: client.id, asset_id: asset1.id, granted_by_id: admin.id } });
+  await prisma.clientAssetAccess.create({ data: { client_id: client.id, asset_id: asset2.id, granted_by_id: admin.id } });
+
+  // Crear algunos trabajos viejos
+  await prisma.job.createMany({
+    data: [
+      { organization_id: org.id, asset_id: asset1.id, worker_id: worker.id, title: 'Mantenimiento Motor', description: 'Revisión mensual realizada sin problemas.', is_public: true, created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+      { organization_id: org.id, asset_id: asset1.id, worker_id: worker.id, title: 'Limpieza Teca', description: 'Se lavó la teca completa del exterior.', is_public: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
+      { organization_id: org.id, asset_id: asset2.id, worker_id: worker.id, title: 'Cambio baterias', is_public: true, created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+      { organization_id: org.id, asset_id: asset3.id, worker_id: worker.id, title: 'Lavada barco', is_public: true, created_at: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+    ]
   });
 
   console.log('\n--- RECALL MVP SEED Completado ---');

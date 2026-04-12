@@ -38,11 +38,11 @@ export default function Topbar() {
         <div className="flex items-center space-x-6">
           
           {/* Language Switcher */}
-          <div className="flex items-center bg-gray-50/80 p-1 rounded-full border border-border-theme/50">
+          <div className="flex items-center bg-app-bg/80 p-1 rounded-full border border-border-theme/50">
             <button 
               onClick={() => setLanguage("en")}
               className={`px-3 py-1 text-[10px] font-black rounded-full transition-all ${
-                language === "en" ? "bg-white text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle"
+                language === "en" ? "bg-surface text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle"
               }`}
             >
               EN
@@ -50,7 +50,7 @@ export default function Topbar() {
             <button 
               onClick={() => setLanguage("es")}
               className={`px-3 py-1 text-[10px] font-black rounded-full transition-all ${
-                language === "es" ? "bg-white text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle"
+                language === "es" ? "bg-surface text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle"
               }`}
             >
               ES

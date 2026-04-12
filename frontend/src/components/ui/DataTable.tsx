@@ -26,10 +26,10 @@ export default function DataTable<T>({
   onRowClick,
 }: DataTableProps<T>) {
   return (
-    <div className="flex flex-col min-h-0 bg-white transition-colors">
+    <div className="flex flex-col min-h-0 bg-surface transition-colors">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-100">
-          <thead className="bg-[#F8F9FD]">
+          <thead className="bg-app-bg/60 border-b border-border-theme/50">
             <tr>
               {columns.map((col) => (
                 <th
@@ -42,7 +42,7 @@ export default function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50/50">
+          <tbody className="divide-y divide-border-theme/30">
             {data.length === 0 ? (
               <tr>
                 <td
@@ -57,7 +57,7 @@ export default function DataTable<T>({
                 <tr 
                   key={keyExtractor(item)} 
                   onClick={() => onRowClick?.(item)}
-                  className={`transition-colors group ${onRowClick ? "cursor-pointer hover:bg-gray-50/50" : "hover:bg-gray-50/30"}`}
+                  className={`transition-colors group ${onRowClick ? "cursor-pointer hover:bg-app-bg/40" : "hover:bg-app-bg/20"}`}
                 >
                   {columns.map((col) => (
                     <td
@@ -75,7 +75,7 @@ export default function DataTable<T>({
       </div>
       
       {footer && (
-        <div className="px-10 py-6 border-t border-gray-50 flex items-center justify-between bg-white text-subtitle transition-colors">
+        <div className="px-10 py-6 border-t border-border-theme/50 flex items-center justify-between bg-surface text-subtitle transition-colors">
           {footer}
         </div>
       )}

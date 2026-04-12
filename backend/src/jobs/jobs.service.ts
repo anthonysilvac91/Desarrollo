@@ -8,12 +8,17 @@ import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
 export class JobsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createJobDto: CreateJobDto, user: any) {
+  async create(createJobDto: CreateJobDto, user: any, files?: Express.Multer.File[]) {
     const org = await this.prisma.organization.findUnique({
       where: { id: user.orgId },
       select: { auto_publish_jobs: true }
     });
     if (!org) throw new NotFoundException('Organization not found');
+
+    const attachments = files?.map(file => ({
+      file_url: `/uploads/${file.filename}`,
+      file_type: file.mimetype,
+    })) || [];
 
     return this.prisma.job.create({
       data: {
@@ -22,7 +27,11 @@ export class JobsService {
         worker_id: user.id,
         is_public: org.auto_publish_jobs,
         status: 'COMPLETED',
+        attachments: {
+          create: attachments,
+        }
       },
+      include: { attachments: true }
     });
   }
 

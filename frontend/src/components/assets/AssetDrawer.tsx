@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Drawer from "@/components/ui/Drawer";
+import { useRouter } from "next/navigation";
 import { MapPin, Ship, Calendar, Camera, Loader2, Maximize2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -92,6 +93,7 @@ const MOCK_HISTORY_EXTENDED: JobHistory[] = [
 ];
 
 export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
+  const router = useRouter();
   const [visibleCount, setVisibleCount] = useState(2);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { t } = useLanguage();
@@ -110,7 +112,13 @@ export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
 
   // Left action for the drawer (Expand icon)
   const ExpandAction = (
-    <button className="p-2.5 rounded-full hover:bg-gray-100 text-subtitle/40 hover:text-brand transition-all group">
+    <button 
+      onClick={() => {
+        onClose();
+        router.push(`/assets/${asset.id}`);
+      }}
+      className="p-2.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all group"
+    >
       <Maximize2 className="w-6 h-6" />
     </button>
   );

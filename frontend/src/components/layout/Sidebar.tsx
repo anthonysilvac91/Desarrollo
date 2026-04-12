@@ -46,8 +46,8 @@ export default function Sidebar() {
               href={link.href}
               className={`flex items-center px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
                 isActive
-                  ? "bg-border-theme text-title shadow-sm"
-                  : "text-subtitle hover:bg-gray-50 hover:text-title"
+                  ? "bg-brand/10 text-brand shadow-sm"
+                  : "text-subtitle hover:bg-app-bg hover:text-title"
               }`}
             >
               <Icon

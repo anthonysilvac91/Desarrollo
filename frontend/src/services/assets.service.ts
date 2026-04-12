@@ -1,5 +1,20 @@
 import api from "@/lib/api";
 
+export interface JobAttachment {
+  id: string;
+  file_url: string;
+  file_type?: string;
+}
+
+export interface Job {
+  id: string;
+  title: string;
+  description?: string;
+  created_at: string;
+  attachments: JobAttachment[];
+  worker: { name: string; id: string };
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -15,6 +30,7 @@ export interface Asset {
     date: string;
     type?: string;
   };
+  jobs?: Job[];
 }
 
 export const assetsService = {

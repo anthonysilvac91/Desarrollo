@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
@@ -15,8 +18,17 @@ export class JobsController {
 
   @Post()
   @ApiOperation({ summary: 'Registrar un trabajo ejecutado', description: 'Crea el trabajo y le adjunta visibilidad configurada instatáneamente por la Organization.' })
-  create(@Body() createJobDto: CreateJobDto, @Request() req) {
-    return this.jobsService.create(createJobDto, req.user);
+  @UseInterceptors(FilesInterceptor('images', 10, {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+      }
+    })
+  }))
+  create(@Body() createJobDto: CreateJobDto, @Request() req, @UploadedFiles() files: Express.Multer.File[]) {
+    return this.jobsService.create(createJobDto, req.user, files);
   }
 
   @Get()

@@ -155,7 +155,7 @@ export default function AssetsPage() {
       header: t.assets.table.asset,
       cell: (item) => (
         <div className="flex items-center space-x-5">
-          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0 bg-gray-50 flex items-center justify-center relative">
+          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm flex-shrink-0 bg-app-bg flex items-center justify-center relative">
             <AssetImage src={item.thumbnail_url} alt={item.name} />
           </div>
           <div className="flex flex-col">
@@ -187,7 +187,7 @@ export default function AssetsPage() {
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center">
-          <span className="min-w-[50px] h-9 flex items-center justify-center text-[15px] font-bold text-title bg-gray-50 rounded-lg border border-gray-100 px-2 transition-all">
+          <span className="min-w-[50px] h-9 flex items-center justify-center text-[15px] font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
             {item.jobs_count}
           </span>
         </div>
@@ -230,11 +230,11 @@ export default function AssetsPage() {
         {t.assets.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.assets.pagination.of} <span className="text-title font-bold">{filteredData.length}</span> {t.assets.pagination.assets}
       </div>
       <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-md hover:bg-gray-100 text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center" disabled>
+        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center" disabled>
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-gray-100 text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center">
+        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

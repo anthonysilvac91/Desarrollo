@@ -11,17 +11,6 @@
   --theme-error: #BA1A1A;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --theme-primary: #3B82F6; 
-    --theme-bg: #0F172A;
-    --theme-surface: #1E293B;
-    --theme-title: #F8FAFC;
-    --theme-subtitle: #94A3B8;
-    --theme-border: #334155;
-    --theme-error: #EF4444;
-  }
-}
 
 @theme inline {
   --color-brand: var(--theme-primary);
