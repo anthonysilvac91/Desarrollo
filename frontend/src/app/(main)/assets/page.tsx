@@ -6,10 +6,11 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship } from "lucide-react";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship, Calendar } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
-// Types based on the Assets Service for future integration
+// Types
 interface AssetDisplay {
   id: string;
   name: string;
@@ -26,26 +27,17 @@ interface AssetDisplay {
   };
 }
 
-// Asset Image Component with automatic fallback handling
+// Asset Image Component
 const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
   const [error, setError] = useState(false);
-
   if (!src || error) {
     return <Ship className="w-7 h-7 text-brand opacity-30" />;
   }
-
-  return (
-    <img 
-      src={src} 
-      alt={alt} 
-      className="w-full h-full object-cover" 
-      onError={() => setError(true)}
-    />
-  );
+  return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
 };
 
-// Mock Data
-const mockAssets: AssetDisplay[] = [
+// Initial Data
+const INITIAL_ASSETS: AssetDisplay[] = [
   { 
     id: "1", 
     name: "Lady Nelly", 
@@ -99,20 +91,18 @@ const mockAssets: AssetDisplay[] = [
 ];
 
 export default function AssetsPage() {
+  const [assets, setAssets] = useState<AssetDisplay[]>(INITIAL_ASSETS);
   const [search, setSearch] = useState("");
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<AssetDisplay | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<AssetDisplay | null>(null);
   const { t } = useLanguage();
-
-  // Extract unique clients and categories for filters
-  const availableClients = useMemo(() => Array.from(new Set(mockAssets.map(a => a.client.name))).sort(), []);
-  const availableCategories = useMemo(() => Array.from(new Set(mockAssets.map(a => a.category))).sort(), []);
 
   // Filter logic
   const filteredData = useMemo(() => {
-    return mockAssets.filter((item) => {
+    return assets.filter((item) => {
       const searchLower = search.toLowerCase();
       const matchesSearch = search === "" || (
         item.name.toLowerCase().includes(searchLower) ||
@@ -123,19 +113,14 @@ export default function AssetsPage() {
       const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(item.category);
       return matchesSearch && matchesClient && matchesCategory;
     });
-  }, [search, selectedClients, selectedCategories]);
+  }, [search, selectedClients, selectedCategories, assets]);
 
-  // View state handlers
   const toggleClient = (client: string) => {
-    setSelectedClients(prev => 
-      prev.includes(client) ? prev.filter(c => c !== client) : [...prev, client]
-    );
+    setSelectedClients(prev => prev.includes(client) ? prev.filter(c => c !== client) : [...prev, client]);
   };
 
   const toggleCategory = (category: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
-    );
+    setSelectedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]);
   };
 
   const clearFilters = () => {
@@ -143,11 +128,19 @@ export default function AssetsPage() {
     setSelectedCategories([]);
   };
 
-  const displayData = filteredData.slice(0, 5);
-
-  const handleAddAsset = (data: any) => {
-    console.log("Saving new asset:", data);
+  const handleDeleteRequest = (e: React.MouseEvent, asset: AssetDisplay) => {
+    e.stopPropagation();
+    setAssetToDelete(asset);
   };
+
+  const handleConfirmDelete = () => {
+    if (assetToDelete) {
+      setAssets(prev => prev.filter(a => a.id !== assetToDelete.id));
+      setAssetToDelete(null);
+    }
+  };
+
+  const displayData = filteredData.slice(0, 5);
 
   const columns: ColumnDef<AssetDisplay>[] = [
     { 
@@ -168,7 +161,7 @@ export default function AssetsPage() {
       key: "client", 
       header: t.assets.table.client,
       cell: (item) => (
-        <span className="font-semibold text-subtitle/80 text-[15px]">{item.client.name}</span>
+        <span className="font-bold text-subtitle/80 text-[15px]">{item.client.name}</span>
       )
     },
     { 
@@ -198,7 +191,10 @@ export default function AssetsPage() {
       header: t.assets.table.last_job,
       align: "center",
       cell: (item) => (
-        <span className="text-subtitle/70 font-semibold text-[15px]">{item.last_job.date}</span>
+        <div className="flex items-center justify-center text-subtitle/70">
+          <Calendar className="w-4 h-4 mr-2" />
+          <span className="font-semibold text-[15px]">{item.last_job.date}</span>
+        </div>
       )
     },
     {
@@ -208,14 +204,14 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
           <button 
-            onClick={(e) => { e.stopPropagation(); /* prevent drawer open */ }}
+            onClick={(e) => { e.stopPropagation(); }}
             className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
           >
-            < Pencil className="w-5 h-5" />
+            <Pencil className="w-5 h-5" />
           </button>
           <button 
-            onClick={(e) => { e.stopPropagation(); /* prevent drawer open */ }}
-            className="p-2.5 text-error/40 hover:text-error transition-colors"
+            onClick={(e) => handleDeleteRequest(e, item)}
+            className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
           >
             <Trash2 className="w-5 h-5" />
           </button>
@@ -244,14 +240,8 @@ export default function AssetsPage() {
   return (
     <div className="flex flex-col space-y-10">
       <FiltersBar 
+        searchPlaceholder={t.assets.search_placeholder}
         onSearchChange={setSearch}
-        clients={availableClients}
-        categories={availableCategories}
-        selectedClients={selectedClients}
-        selectedCategories={selectedCategories}
-        onToggleClient={toggleClient}
-        onToggleCategory={toggleCategory}
-        onClearAll={clearFilters}
         actions={
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -271,20 +261,23 @@ export default function AssetsPage() {
             keyExtractor={(item) => item.id}
             footer={pagination}
             onRowClick={(item) => setSelectedAsset(item)}
-            emptyMessage={search || (selectedClients.length > 0 || selectedCategories.length > 0) ? "No matches found for your filter criteria." : undefined}
           />
         </ModuleContainer>
       </div>
 
-      <AssetModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleAddAsset} 
-      />
+      <AssetModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={() => {}} />
 
-      <AssetDrawer 
-        asset={selectedAsset as any} 
-        onClose={() => setSelectedAsset(null)} 
+      <AssetDrawer asset={selectedAsset} onClose={() => setSelectedAsset(null)} />
+
+      <ConfirmModal 
+        isOpen={!!assetToDelete}
+        onClose={() => setAssetToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title={t.confirm_modal.delete_asset_title}
+        description={t.confirm_modal.delete_description}
+        confirmText={t.confirm_modal.confirm_delete}
+        cancelText={t.confirm_modal.cancel_delete}
+        variant="danger"
       />
     </div>
   );

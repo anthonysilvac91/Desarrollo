@@ -19,7 +19,7 @@ export default function Sidebar() {
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
     { href: "/assets", label: t.sidebar.assets, icon: Box },
-    { href: "/jobs", label: t.sidebar.jobs, icon: Briefcase },
+    { href: "/service", label: t.sidebar.services, icon: Briefcase },
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },
   ];

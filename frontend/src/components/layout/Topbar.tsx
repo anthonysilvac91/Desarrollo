@@ -10,7 +10,7 @@ export default function Topbar() {
 
   const getTitle = () => {
     if (pathname === "/assets") return t.topbar.titles.assets;
-    if (pathname === "/jobs") return t.topbar.titles.jobs;
+    if (pathname === "/service") return t.topbar.titles.services;
     if (pathname === "/users") return t.topbar.titles.users;
     if (pathname === "/settings") return t.topbar.titles.settings;
     if (pathname === "/dashboard") return t.topbar.titles.dashboard;
