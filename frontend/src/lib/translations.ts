@@ -151,6 +151,61 @@ export const translations = {
         of: "of",
         users: "registered users",
       }
+    },
+    settings: {
+      tabs: {
+        profile: "Company Profile",
+        branding_assets: "Identity & Assets",
+      },
+      company_section: {
+        title: "Company Profile",
+        subtitle: "Manage your business public information",
+        name: "Business Name",
+        email: "Support Email",
+        phone: "Contact Phone",
+        website: "Website",
+        logo: "Company Logo",
+        logo_help: "JPG, PNG or SVG. Max 1MB.",
+        upload_logo: "UPLOAD LOGO",
+      },
+      asset_section: {
+        title: "Asset Defaults",
+        subtitle: "Personalize the icon shown when an asset has no photo.",
+        icons: {
+          ship: "Ship",
+          car: "Vehicle",
+          house: "House",
+          building: "Building",
+          plane: "Aviation",
+          truck: "Logistics",
+          industry: "Industry",
+          tools: "Workshop",
+          construction: "Construction",
+          tech: "Technology",
+          health: "Health",
+          nature: "Environment",
+          corporate: "Corporate",
+          leisure: "Leisure",
+          camera: "Generic",
+        }
+      },
+      branding_section: {
+        palette: "Primary Color",
+        subtitle: "This color is used for buttons, links and platform highlights.",
+        palettes: {
+          recall: "Recall Blue",
+          ocean: "Ocean",
+          teal: "Teal",
+          forest: "Forest",
+          amber: "Amber",
+          orange: "Orange",
+          rose: "Rose",
+          pink: "Pink",
+          indigo: "Indigo",
+          violet: "Violet",
+          slate: "Slate",
+        }
+      }
     }
   },
   es: {
@@ -302,6 +357,61 @@ export const translations = {
         showing: "Mostrando",
         of: "de",
         users: "usuarios registrados",
+      }
+    },
+    settings: {
+      tabs: {
+        profile: "Perfil de Empresa",
+        branding_assets: "Identidad y Activos",
+      },
+      company_section: {
+        title: "Perfil de Empresa",
+        subtitle: "Gestiona la información pública de tu negocio",
+        name: "Nombre del Negocio",
+        email: "Email de Soporte",
+        phone: "Teléfono de Contacto",
+        website: "Sitio Web",
+        logo: "Logo de la Empresa",
+        logo_help: "JPG, PNG o SVG. Máx 1MB.",
+        upload_logo: "SUBIR LOGO",
+      },
+      asset_section: {
+        title: "Valores por Defecto de Activos",
+        subtitle: "Personaliza el icono que se muestra cuando un activo no tiene foto.",
+        icons: {
+          ship: "Barco",
+          car: "Vehículo",
+          house: "Casa",
+          building: "Edificio",
+          plane: "Aviación",
+          truck: "Logística",
+          industry: "Industria",
+          tools: "Taller",
+          construction: "Obra",
+          tech: "Tecnología",
+          health: "Salud",
+          nature: "Ambiente",
+          corporate: "Corporativo",
+          leisure: "Ocio",
+          camera: "Genérico",
+        }
+      },
+      branding_section: {
+        palette: "Color Principal",
+        subtitle: "Este color se usa para botones, enlaces y aspectos destacados de toda la plataforma.",
+        palettes: {
+          recall: "Azul Recall",
+          ocean: "Océano",
+          teal: "Teal",
+          forest: "Bosque",
+          amber: "Ámbar",
+          orange: "Naranja",
+          rose: "Rosa",
+          pink: "Fucsia",
+          indigo: "Índigo",
+          violet: "Violeta",
+          slate: "Pizarra",
+        }
       }
     }
   }
