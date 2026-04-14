@@ -17,10 +17,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  defs,
-  linearGradient,
-  stop
+  ResponsiveContainer
 } from "recharts";
 import { useLanguage } from "@/lib/LanguageContext";
 import ModuleContainer from "@/components/ui/ModuleContainer";
