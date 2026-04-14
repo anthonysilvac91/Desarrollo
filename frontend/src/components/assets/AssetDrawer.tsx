@@ -98,7 +98,7 @@ export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { t } = useLanguage();
 
-  if (!asset) return <Drawer isOpen={false} onClose={onClose} children={<div />} />;
+  if (!asset) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
 
   const handleLoadMore = async () => {
     setIsLoadingMore(true);

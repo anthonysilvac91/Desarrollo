@@ -4,10 +4,10 @@ import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Plus, User, Calendar, Pencil, Trash2, ChevronLeft, ChevronRight, Building2, ShieldCheck, Clock } from "lucide-react";
+import { Plus, Calendar, Pencil, Trash2, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import UserModal from "@/components/users/UserModal";
+import UserModal, { UserFormData } from "@/components/users/UserModal";
 import UserDrawer from "@/components/users/UserDrawer";
 
 // Helper to format Date to dd-mm-yyyy
@@ -104,7 +104,7 @@ export default function UsersPage() {
     });
   }, [search, users]);
 
-  const handleAddUser = (data: any) => {
+  const handleAddUser = (data: UserFormData) => {
     const newUser: UserDisplay = {
       id: Math.random().toString(36).substr(2, 9),
       name: data.name,

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Mail, Building2, Shield, Clock, MapPin, User as UserIcon, Calendar, Key } from "lucide-react";
+import { X, Mail, Building2, Shield, Clock, Key } from "lucide-react";
 
 interface UserDisplay {
   id: string;

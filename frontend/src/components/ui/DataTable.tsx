@@ -64,7 +64,7 @@ export default function DataTable<T>({
                        key={`${keyExtractor(item)}-${col.key}`}
                       className={`px-10 py-7 whitespace-nowrap text-base text-title font-medium text-${col.align || "left"}`}
                     >
-                      {col.cell ? col.cell(item) : (item as any)[col.key]}
+                      {col.cell ? col.cell(item) : (item as Record<string, unknown>)[col.key] as React.ReactNode}
                     </td>
                   ))}
                 </tr>

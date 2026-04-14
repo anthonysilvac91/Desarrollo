@@ -25,7 +25,7 @@ interface ServiceDrawerProps {
 export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) {
   const { t } = useLanguage();
 
-  if (!service) return <Drawer isOpen={false} onClose={onClose} children={<div />} />;
+  if (!service) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
 
   return (
     <Drawer isOpen={!!service} onClose={onClose}>

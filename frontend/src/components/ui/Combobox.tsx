@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 interface Option {
   id: string;
@@ -85,7 +85,7 @@ export default function Combobox({ options, value, onChange, placeholder, label 
               ))
             ) : query !== "" ? (
               <div className="px-5 py-3.5 text-sm text-subtitle italic">
-                No matching clients. Press enter to use "<span className="text-title font-bold">{query}</span>"
+                No matching clients. Press enter to use &quot;<span className="text-title font-bold">{query}</span>&quot;
               </div>
             ) : (
               <div className="px-5 py-3.5 text-sm text-subtitle/40">Start typing to see clients...</div>

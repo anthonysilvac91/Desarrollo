@@ -44,6 +44,7 @@ export const translations = {
     confirm_modal: {
       delete_asset_title: "Delete asset?",
       delete_service_title: "Delete service?",
+      delete_user_title: "Delete user?",
       delete_description: "This action is permanent and cannot be undone.",
       confirm_delete: "Delete",
       cancel_delete: "Cancel",

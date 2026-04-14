@@ -1,13 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, User, Mail, Building2, Shield, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+export interface UserFormData {
+  name: string;
+  email: string;
+  company: string;
+  role: string;
+  password?: string;
+}
 
 interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: UserFormData) => void;
   existingCompanies?: string[];
 }
 

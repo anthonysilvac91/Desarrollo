@@ -6,10 +6,17 @@ import Combobox from "@/components/ui/Combobox";
 import { Camera, Ship, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
+export interface AssetFormData {
+  name: string;
+  client: string;
+  location: string;
+  photo: File | null;
+}
+
 interface AssetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: AssetFormData) => void;
 }
 
 // Mock clients for the combobox
