@@ -11,6 +11,7 @@ interface FiltersBarProps {
   onDateChange?: (preset: string, start?: string, end?: string) => void;
   // Visibility Controls
   showQuickFilters?: boolean;
+  showSearch?: boolean;
   // Others
   actions?: React.ReactNode;
 }
@@ -20,6 +21,7 @@ export default function FiltersBar({
   onSearchChange,
   onDateChange,
   showQuickFilters = false,
+  showSearch = true,
   actions,
 }: FiltersBarProps) {
   const { t } = useLanguage();
@@ -72,17 +74,19 @@ export default function FiltersBar({
     <div className="px-0 py-0 flex flex-col lg:flex-row items-start lg:items-center gap-5 shrink-0 transition-colors">
       
       {/* Search Input */}
-      <div className="relative w-full lg:w-[320px]">
-        <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-subtitle opacity-30" aria-hidden="true" />
+      {showSearch && (
+        <div className="relative w-full lg:w-[320px]">
+          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-subtitle opacity-30" aria-hidden="true" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-14 pr-4 py-3.5 border border-border-theme/60 rounded-2xl leading-5 bg-white text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand sm:text-sm transition-all shadow-sm font-medium"
+            placeholder={searchPlaceholder || t.assets.search_placeholder}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          className="block w-full pl-14 pr-4 py-3.5 border border-border-theme/60 rounded-2xl leading-5 bg-white text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand sm:text-sm transition-all shadow-sm font-medium"
-          placeholder={searchPlaceholder || t.assets.search_placeholder}
-          onChange={(e) => onSearchChange?.(e.target.value)}
-        />
-      </div>
+      )}
 
       <div className="flex-1" />
 

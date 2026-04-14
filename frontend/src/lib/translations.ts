@@ -206,6 +206,26 @@ export const translations = {
           slate: "Slate",
         }
       }
+    },
+    dashboard: {
+      title: "Dashboard",
+      subtitle: "Operational analysis and performance",
+      kpis: {
+        jobs_performed: "Jobs Performed",
+        assets_serviced: "Assets Serviced",
+        clients_reached: "Clients Reached",
+        growth: "Growth",
+        previous_period: "vs previous period",
+      },
+      charts: {
+        evolution_title: "Service Evolution",
+      },
+      rankings: {
+        top_assets: "Top 3 Assets",
+        top_clients: "Top 3 Clients",
+        top_operators: "Top 3 Operators",
+        jobs_count: "serv",
+      }
     }
   },
   es: {
@@ -412,6 +432,26 @@ export const translations = {
           violet: "Violeta",
           slate: "Pizarra",
         }
+      }
+    },
+    dashboard: {
+      title: "Panel de Control",
+      subtitle: "Análisis operacional y rendimiento",
+      kpis: {
+        jobs_performed: "Trabajos Realizados",
+        assets_serviced: "Activos con Servicio",
+        clients_reached: "Clientes Atendidos",
+        growth: "Crecimiento",
+        previous_period: "vs periodo anterior",
+      },
+      charts: {
+        evolution_title: "Evolución de Servicios",
+      },
+      rankings: {
+        top_assets: "Top 3 Activos",
+        top_clients: "Top 3 Clientes",
+        top_operators: "Top 3 Operadores",
+        jobs_count: "serv",
       }
     }
   }
