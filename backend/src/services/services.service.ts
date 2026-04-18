@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class ServicesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService
+  ) {}
 
   async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
     const org = await this.prisma.organization.findUnique({
@@ -15,10 +19,15 @@ export class ServicesService {
     });
     if (!org) throw new NotFoundException('Organization not found');
 
-    const attachments = files?.map(file => ({
-      file_url: `/uploads/${file.filename}`,
-      file_type: file.mimetype,
-    })) || [];
+    const attachmentPromises = files?.map(async (file) => {
+      const file_url = await this.storageService.uploadFile(file, `${user.orgId}/services`);
+      return {
+        file_url,
+        file_type: file.mimetype,
+      };
+    }) || [];
+
+    const attachments = await Promise.all(attachmentPromises);
 
     return this.prisma.service.create({
       data: {

@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { StorageModule } from './storage/storage.module';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -25,6 +26,7 @@ import { ConfigModule } from '@nestjs/config';
     UsersModule,
     InvitationsModule,
     DashboardModule,
+    StorageModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

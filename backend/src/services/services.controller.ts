@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -19,13 +18,7 @@ export class ServicesController {
   @Post()
   @ApiOperation({ summary: 'Registrar un servicio ejecutado', description: 'Crea el servicio y aplica visibilidad según la configuración de la organización.' })
   @UseInterceptors(FilesInterceptor('images', 10, {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-      }
-    })
+    storage: memoryStorage(),
   }))
   create(@Body() createServiceDto: CreateServiceDto, @Request() req, @UploadedFiles() files: Express.Multer.File[]) {
     return this.servicesService.create(createServiceDto, req.user, files);
