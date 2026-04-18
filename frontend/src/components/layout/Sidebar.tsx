@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { 
   Box, 
   LayoutGrid, 
@@ -15,6 +16,7 @@ import {
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { canAccess } = useAuth();
 
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
@@ -23,6 +25,8 @@ export default function Sidebar() {
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },
   ];
+
+  const visibleLinks = links.filter(link => canAccess(link.href));
 
   return (
     <aside className="w-[260px] bg-surface border-r border-border-theme h-screen flex flex-col fixed left-0 top-0 z-20 transition-colors">
@@ -36,7 +40,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scroll">
-        {links.map((link) => {
+        {visibleLinks.map((link) => {
           const isActive = pathname.startsWith(link.href);
           const Icon = link.icon;
           

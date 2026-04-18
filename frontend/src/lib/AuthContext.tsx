@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (token: string) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  canAccess: (path: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,16 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, []);
 
-  // Proteger rutas (excepto login/register)
-  useEffect(() => {
-    if (!loading) {
-      const isPublicPath = pathname === "/login" || pathname === "/register" || pathname === "/";
-      if (!user && !isPublicPath) {
-        router.push("/login");
-      }
-    }
-  }, [user, loading, pathname, router]);
-
   const login = (token: string) => {
     localStorage.setItem("access_token", token);
     refreshUser();
@@ -66,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, canAccess }}>
       {children}
     </AuthContext.Provider>
   );
