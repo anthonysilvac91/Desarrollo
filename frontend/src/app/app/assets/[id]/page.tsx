@@ -6,19 +6,17 @@ import {
   MapPin, 
   Plus, 
   Calendar, 
-  Building2, 
   Camera, 
   Ship, 
   Briefcase, 
   Loader2, 
   AlertCircle, 
-  ChevronRight, 
-  Inbox,
-  History
+  Inbox
 } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
-import { assetsService, Asset, Service } from "@/services/assets.service";
+import { assetsService, Service } from "@/services/assets.service";
 import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "@/lib/LanguageContext";
 
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
@@ -70,6 +68,7 @@ const JobGallery = ({ images }: { images: string[] }) => {
 const JobDescription = ({ description }: { description: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showButton, setShowButton] = useState(false);
+  const { t } = useLanguage();
   const textRef = React.useRef<HTMLParagraphElement>(null);
 
   React.useEffect(() => {
@@ -97,7 +96,7 @@ const JobDescription = ({ description }: { description: string }) => {
           }}
           className="mt-2 text-[9px] font-black uppercase text-brand tracking-widest hover:opacity-70 transition-opacity"
         >
-          {isExpanded ? "See less" : "See more"}
+          {isExpanded ? t.assets.detail.see_less : t.assets.detail.see_more}
         </button>
       )}
     </div>
@@ -108,6 +107,7 @@ export default function WorkerAssetDetailPage() {
   const router = useRouter();
   const params = useParams();
   const assetId = params.id as string;
+  const { t } = useLanguage();
 
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
@@ -119,7 +119,7 @@ export default function WorkerAssetDetailPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-app-bg p-10 text-center animate-pulse">
         <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-        <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">Abriendo bitácora...</p>
+        <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">{t.mobile.asset_detail.loading}</p>
       </div>
     );
   }
@@ -131,21 +131,21 @@ export default function WorkerAssetDetailPage() {
           <AlertCircle className="w-8 h-8 text-error" />
         </div>
         <div>
-          <h3 className="text-xl font-black text-title">Error al cargar</h3>
-          <p className="text-sm font-medium text-subtitle/60">No pudimos sincronizar los datos del activo.</p>
+          <h3 className="text-xl font-black text-title">{t.mobile.asset_detail.error_title}</h3>
+          <p className="text-sm font-medium text-subtitle/60">{t.mobile.asset_detail.error_subtitle}</p>
         </div>
         <div className="w-full space-y-3">
           <button 
             onClick={() => refetch()}
             className="w-full py-4 bg-title text-white rounded-2xl font-black text-sm shadow-xl shadow-title/20"
           >
-            Reintentar
+            {t.mobile.asset_detail.retry}
           </button>
           <button 
             onClick={() => router.back()}
             className="w-full py-4 text-subtitle/60 font-black text-sm uppercase tracking-widest"
           >
-            Regresar
+            {t.mobile.asset_detail.go_back}
           </button>
         </div>
       </div>
@@ -173,11 +173,11 @@ export default function WorkerAssetDetailPage() {
 
            <div className="grid grid-cols-2 gap-4 w-full px-4 max-w-sm">
                 <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 text-left shadow-sm">
-                   <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Client</span>
-                   <span className="text-sm font-bold text-title truncate block">{asset.client?.name || "Sin asignar"}</span>
+                   <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.asset_detail.client_label}</span>
+                   <span className="text-sm font-bold text-title truncate block">{asset.client?.name || t.common.unassigned}</span>
                 </div>
                 <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 text-left shadow-sm">
-                  <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Total Services</span>
+                  <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.asset_detail.total_services}</span>
                   <div className="flex items-center space-x-2">
                     <Briefcase className="w-3.5 h-3.5 text-brand" />
                     <span className="text-sm font-bold text-title">{asset.services?.length || 0}</span>
@@ -188,7 +188,7 @@ export default function WorkerAssetDetailPage() {
 
         {/* Timeline Header */}
         <div className="mb-8 border-b border-border-theme/10 pb-4">
-           <h3 className="text-xs font-black text-title uppercase tracking-[0.3em] text-center opacity-40">Service History</h3>
+           <h3 className="text-xs font-black text-title uppercase tracking-[0.3em] text-center opacity-40">{t.mobile.asset_detail.history_title}</h3>
         </div>
 
         {/* Timeline Cards */}
@@ -224,7 +224,7 @@ export default function WorkerAssetDetailPage() {
         ) : (
           <div className="py-20 text-center bg-surface/30 rounded-[32px] border-2 border-dashed border-border-theme/10">
             <Inbox className="w-10 h-10 text-subtitle/20 mx-auto mb-4" />
-            <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">No history yet</p>
+            <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">{t.mobile.asset_detail.no_history_title}</p>
           </div>
         )}
       </main>
@@ -236,7 +236,7 @@ export default function WorkerAssetDetailPage() {
           className="w-full flex items-center justify-center space-x-2 bg-brand text-white py-4 rounded-full font-black text-base shadow-xl shadow-brand/30 active:scale-95 transition-all"
         >
           <Plus className="w-6 h-6 stroke-[3px]" />
-          <span>Add Service</span>
+          <span>{t.mobile.asset_detail.add_service}</span>
         </button>
       </div>
     </div>

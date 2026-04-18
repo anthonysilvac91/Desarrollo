@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Plus, X, Camera, Ship, Calendar, Check, Loader2, AlertCircle } from "lucide-react";
+import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
-import { assetsService, Asset } from "@/services/assets.service";
+import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export default function WorkerNewServicePage() {
   const router = useRouter();
   const params = useParams();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   
-  const [assetName, setAssetName] = useState("Cargando...");
+  const [assetName, setAssetName] = useState("");
   const [assetError, setAssetError] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -26,12 +28,12 @@ export default function WorkerNewServicePage() {
           setAssetError(false);
         })
         .catch(() => {
-          setAssetName("Error al cargar");
+          setAssetName(t.mobile.new_service.loading_asset);
           setAssetError(true);
-          showToast("No pudimos identificar el activo.", "error");
+          showToast(t.mobile.new_service.error_asset, "error");
         });
     }
-  }, [params.id, showToast]);
+  }, [params.id, showToast, t]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -71,11 +73,11 @@ export default function WorkerNewServicePage() {
       });
 
       await assetsService.createService(formData);
-      showToast("¡Servicio registrado con éxito!", "success");
+      showToast(t.mobile.new_service.success, "success");
       router.back();
     } catch (err) {
       console.error("Error creating service:", err);
-      showToast("Fallo al guardar. Revisa tu conexión.", "error");
+      showToast(t.mobile.new_service.error_save, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,23 +85,23 @@ export default function WorkerNewServicePage() {
 
   return (
     <div className="flex flex-col h-full bg-app-bg">
-      <MobileHeader title="New Service" showBack={true} />
+      <MobileHeader title={t.mobile.new_service.header_title} showBack={true} />
       
       <main className="flex-1 overflow-y-auto px-5 pt-6 pb-28 flex flex-col">
         {/* Context Grid */}
         <div className="grid grid-cols-2 gap-3 mb-8">
            {/* Asset Card */}
            <div className={`rounded-2xl p-4 border transition-all ${assetError ? "bg-error/5 border-error/20" : "bg-surface border-border-theme/20 shadow-sm"}`}>
-              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">Asset</span>
+              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">{t.mobile.new_service.asset_label}</span>
               <div className={`flex items-center space-x-2 ${assetError ? "text-error" : "text-title"}`}>
                  {assetError ? <AlertCircle className="w-3.5 h-3.5" /> : <Ship className="w-3.5 h-3.5 text-brand" />}
-                 <span className="text-sm font-black truncate">{assetName}</span>
+                 <span className="text-sm font-black truncate">{assetName || t.mobile.new_service.loading_asset}</span>
               </div>
            </div>
 
            {/* Date Card */}
            <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 shadow-sm text-center sm:text-left">
-              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">Completed</span>
+              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">{t.mobile.new_service.date_label}</span>
               <div className="flex items-center justify-center sm:justify-start space-x-2 text-title">
                  <Calendar className="w-3.5 h-3.5 text-brand" />
                  <span className="text-sm font-bold">
@@ -113,10 +115,10 @@ export default function WorkerNewServicePage() {
         <div className="space-y-6 flex-1">
           {/* Title Input */}
           <div className="space-y-2">
-            <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest ml-1">Title</span>
+            <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest ml-1">{t.mobile.new_service.title_label}</span>
             <input 
               type="text"
-              placeholder="What work did you perform?"
+              placeholder={t.mobile.new_service.title_placeholder}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isSubmitting}
@@ -126,9 +128,9 @@ export default function WorkerNewServicePage() {
 
           {/* Service Description */}
           <div className="space-y-2">
-            <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest ml-1">Service</span>
+            <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest ml-1">{t.mobile.new_service.description_label}</span>
             <textarea 
-              placeholder="Describe the service perform..."
+              placeholder={t.mobile.new_service.description_placeholder}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isSubmitting}
@@ -139,9 +141,9 @@ export default function WorkerNewServicePage() {
           {/* Photos Carousel */}
           <div>
             <h3 className="text-[11px] font-black text-subtitle/50 uppercase tracking-widest mb-3 flex items-center justify-between">
-              <span>Visual Evidence</span>
+              <span>{t.mobile.new_service.evidence_label}</span>
               {images.length > 0 && <span className="bg-brand/10 text-brand px-2 py-0.5 rounded-full">{images.length}</span>}
-            </h3>
+            </h3>, 
             
             <div className="flex overflow-x-auto pb-4 -mx-5 px-5 space-x-3 custom-scroll">
                <button 
@@ -150,7 +152,7 @@ export default function WorkerNewServicePage() {
                   className="w-[90px] h-[90px] flex-shrink-0 bg-surface border-2 border-dashed border-brand/50 rounded-2xl flex flex-col items-center justify-center text-brand active:scale-95 transition-transform disabled:opacity-30"
                >
                  <Camera className="w-6 h-6 mb-1 opacity-80" />
-                 <span className="text-[10px] font-black uppercase">Add</span>
+                 <span className="text-[10px] font-black uppercase">{t.mobile.new_service.evidence_add}</span>
                  <input 
                    type="file" 
                    accept="image/*" 
@@ -200,7 +202,7 @@ export default function WorkerNewServicePage() {
           ) : (
              <>
                <Check className="w-6 h-6 stroke-[3px]" />
-               <span>Save Service</span>
+               <span>{t.mobile.new_service.save}</span>
              </>
           )}
         </button>

@@ -45,12 +45,11 @@ export default function UsersPage() {
 
   const handleAddUser = async () => {
     try {
-      // Por ahora simulamos la invitación exitosa
-      showToast("Invitación enviada con éxito!", "success");
+      showToast(t.users.states.invite_success, "success");
       setIsModalOpen(false);
       refetch();
     } catch (err) {
-      showToast("Error al procesar la solicitud", "error");
+      showToast(t.users.states.error_invite, "error");
     }
   };
 
@@ -62,11 +61,11 @@ export default function UsersPage() {
   const handleConfirmDelete = async () => {
     if (userToDelete) {
       try {
-        showToast("Usuario eliminado con éxito", "success");
+        showToast(t.users.states.delete_success, "success");
         setUserToDelete(null);
         refetch();
       } catch (err) {
-        showToast("Error al eliminar usuario", "error");
+        showToast(t.users.states.error_delete, "error");
       }
     }
   };
@@ -206,7 +205,7 @@ export default function UsersPage() {
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Conectando con la organización...</p>
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.users.states.loading}</p>
           </div>
         ) : isError ? (
           <ModuleContainer>
@@ -215,14 +214,14 @@ export default function UsersPage() {
                 <AlertCircle className="w-8 h-8 text-error" />
               </div>
               <div className="text-center">
-                <p className="font-black text-title text-xl tracking-tight">Error al cargar equipo</p>
-                <p className="text-subtitle font-medium">No pudimos sincronizar la lista de usuarios</p>
+                <p className="font-black text-title text-xl tracking-tight">{t.users.states.error_title}</p>
+                <p className="text-subtitle font-medium">{t.users.states.error_subtitle}</p>
               </div>
               <button 
                 onClick={() => refetch()}
                 className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/10 transition-all"
               >
-                Reintentar
+                {t.common.retry}
               </button>
             </div>
           </ModuleContainer>
@@ -233,9 +232,9 @@ export default function UsersPage() {
                 <UsersIcon className="w-12 h-12 text-subtitle/20" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-2xl font-black text-title tracking-tight">Directorio vacío</h3>
+                <h3 className="text-2xl font-black text-title tracking-tight">{t.users.states.empty_title}</h3>
                 <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
-                  No se encontraron resultados. Empieza invitando a nuevos miembros a tu equipo de trabajo.
+                  {t.users.states.empty_subtitle}
                 </p>
               </div>
             </div>

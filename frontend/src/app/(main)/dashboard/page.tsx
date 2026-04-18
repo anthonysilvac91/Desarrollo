@@ -33,22 +33,22 @@ export default function DashboardPage() {
   const isWorker = user?.role === "WORKER";
   const isClient = user?.role === "CLIENT";
 
-  // Chart data placeholder (evolución todavía mock en backend)
+  // Chart data placeholder (trend data — backend evolution endpoint pending)
   const CHART_DATA = [
-    { name: "Lun", value: 12 },
-    { name: "Mar", value: 18 },
-    { name: "Mié", value: 15 },
-    { name: "Jue", value: 25 },
-    { name: "Vie", value: 32 },
-    { name: "Sáb", value: 28 },
-    { name: "Dom", value: 20 },
+    { name: "Mon", value: 12 },
+    { name: "Tue", value: 18 },
+    { name: "Wed", value: 15 },
+    { name: "Thu", value: 25 },
+    { name: "Fri", value: 32 },
+    { name: "Sat", value: 28 },
+    { name: "Sun", value: 20 },
   ];
 
-  // Map recent services to top assets for worker/client (as a quick way to reuse the component)
+  // Map recent services for worker/client role views
   const recentItems = stats?.recent_services.slice(0, 3).map(s => ({
     id: s.id,
     name: s.asset_name,
-    metric: isClient ? s.title : 1, // Show service title for clients
+    metric: 1,
     icon: isClient ? Briefcase : Ship
   })) || [];
 
@@ -56,7 +56,7 @@ export default function DashboardPage() {
     return (
       <div className="w-full flex flex-col items-center justify-center py-40 animate-pulse">
         <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-        <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Sincronizando operaciones...</p>
+        <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.dashboard.states.loading}</p>
       </div>
     );
   }
@@ -68,14 +68,14 @@ export default function DashboardPage() {
           <AlertCircle className="w-8 h-8 text-error" />
         </div>
         <div className="text-center">
-          <p className="font-black text-title text-xl">Fallo al conectar</p>
-          <p className="text-subtitle font-medium">No pudimos recuperar las estadísticas reales</p>
+          <p className="font-black text-title text-xl">{t.dashboard.states.error_title}</p>
+          <p className="text-subtitle font-medium">{t.dashboard.states.error_subtitle}</p>
         </div>
         <button 
           onClick={() => refetch()}
           className="px-8 py-3 bg-title text-white rounded-2xl font-black text-sm transition-all hover:scale-105 active:scale-95 shadow-xl shadow-title/20"
         >
-          Reintentar Carga
+          {t.dashboard.states.retry}
         </button>
       </div>
     );
@@ -98,11 +98,11 @@ export default function DashboardPage() {
       {/* KPI Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard 
-          title={isClient ? "Servicios Recibidos" : (isWorker ? "Mis Servicios" : t.dashboard.kpis.jobs_performed)}
+          title={isClient ? t.dashboard.kpis.services_received : (isWorker ? t.dashboard.kpis.my_services : t.dashboard.kpis.jobs_performed)}
           value={stats?.total_services || 0}
         />
         <KPICard 
-          title={isClient ? "Mis Activos" : (isWorker ? "Activos Atendidos" : t.dashboard.kpis.assets_serviced)}
+          title={isClient ? t.dashboard.kpis.my_assets : (isWorker ? t.dashboard.kpis.assets_attended : t.dashboard.kpis.assets_serviced)}
           value={stats?.total_assets || 0}
         />
         {!isWorker && !isClient && (
@@ -126,16 +126,16 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="space-y-0.5">
                 <h2 className="text-xl lg:text-2xl font-black text-title tracking-tight">
-                  {isWorker ? "Mi Rendimiento" : t.dashboard.charts.evolution_title}
+                  {t.dashboard.charts.evolution_title}
                 </h2>
                 <p className="text-[13px] text-subtitle/60 font-medium tracking-tight">
-                  Análisis de rendimiento durante el periodo: {activePreset}
+                  {t.dashboard.charts.period_label}: {activePreset}
                 </p>
               </div>
               
               <div className="flex items-center space-x-2.5 px-4 py-2 bg-brand/5 border border-brand/10 rounded-xl w-fit">
                 <div className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-                <span className="text-[11px] font-black text-brand uppercase tracking-wider">Live Metrics</span>
+                <span className="text-[11px] font-black text-brand uppercase tracking-wider">{t.dashboard.charts.live_badge}</span>
               </div>
             </div>
 
@@ -184,9 +184,9 @@ export default function DashboardPage() {
           <ModuleContainer>
             <div className="p-6">
               <PerformanceList 
-                title={isClient ? "Mis Últimos Servicios" : (isWorker ? "Últimos Activos" : t.dashboard.rankings.top_assets)}
+                title={isClient ? t.dashboard.rankings.my_last_services : (isWorker ? t.dashboard.rankings.my_last_assets : t.dashboard.rankings.top_assets)}
                 items={(isWorker || isClient) ? recentItems : []} 
-                metricLabel={isClient ? "Estado: Listado" : (isWorker ? "Reciente" : t.dashboard.rankings.jobs_count)}
+                metricLabel={isClient ? t.dashboard.rankings.listed_label : (isWorker ? t.dashboard.rankings.recent_label : t.dashboard.rankings.jobs_count)}
               />
             </div>
           </ModuleContainer>
@@ -222,8 +222,8 @@ export default function DashboardPage() {
               <Inbox className="w-10 h-10 text-subtitle/20" />
             </div>
             <div className="text-center">
-              <p className="font-black text-title text-xl">Sin datos todavía</p>
-              <p className="text-subtitle font-medium">Empieza a registrar activos y servicios para ver métricas aquí.</p>
+              <p className="font-black text-title text-xl">{t.dashboard.states.empty_title}</p>
+              <p className="text-subtitle font-medium">{t.dashboard.states.empty_subtitle}</p>
             </div>
           </div>
         </ModuleContainer>

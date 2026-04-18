@@ -246,9 +246,9 @@ export default function AssetDetailPage() {
         </div>
         
         <div className="flex flex-col justify-center items-center lg:items-start space-y-1">
-           <span className="text-[10px] font-black text-subtitle/30 uppercase tracking-widest">{t.assets.detail.total_jobs}</span>
+           <span className="text-[10px] font-black text-subtitle/30 uppercase tracking-widest">{t.assets.detail.total_services}</span>
            <div className="flex items-center space-x-3">
-              <span className="text-2xl font-black text-title">{asset.services?.length || 0} {t.assets.detail.total_jobs.split(" ").slice(-1)[0].toLowerCase()}</span>
+              <span className="text-2xl font-black text-title">{asset.services?.length || 0} {t.assets.detail.total_services}</span>
            </div>
         </div>
 

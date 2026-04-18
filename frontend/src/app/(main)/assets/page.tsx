@@ -74,13 +74,11 @@ export default function AssetsPage() {
   const handleConfirmDelete = async () => {
     if (assetToDelete) {
       try {
-        // En un caso real llamaríamos a assetsService.delete
-        // Por ahora simulamos éxito para mostrar el estado Success
-        showToast("Activo eliminado con éxito", "success");
+        showToast(t.feedback.delete_asset_success, "success");
         setAssetToDelete(null);
         refetch();
       } catch (err) {
-        showToast("Error al eliminar el activo", "error");
+        showToast(t.feedback.delete_asset_error, "error");
       }
     }
   };
@@ -121,7 +119,7 @@ export default function AssetsPage() {
     },
     { 
       key: "jobs", 
-      header: "Servicios", // Fallback si t.assets.table.jobs no está definido todavía
+      header: t.assets.table.services,
       align: "center",
       cell: (item: any) => (
         <div className="flex items-center justify-center">
@@ -133,7 +131,7 @@ export default function AssetsPage() {
     },
     { 
       key: "last_job", 
-      header: "Último", 
+      header: t.assets.table.last_service, 
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
@@ -202,7 +200,7 @@ export default function AssetsPage() {
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-20 animate-pulse">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Cargando activos...</p>
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.assets.states.loading}</p>
           </div>
         ) : isError ? (
           <ModuleContainer>
@@ -211,14 +209,14 @@ export default function AssetsPage() {
                 <AlertCircle className="w-8 h-8 text-error" />
               </div>
               <div className="text-center">
-                <p className="font-black text-title text-xl">Error al cargar datos</p>
-                <p className="text-subtitle font-medium">No pudimos conectar con el servidor</p>
+                <p className="font-black text-title text-xl">{t.assets.states.error_title}</p>
+                <p className="text-subtitle font-medium">{t.assets.states.error_subtitle}</p>
               </div>
               <button 
                 onClick={() => refetch()}
                 className="px-6 py-2 bg-app-bg hover:bg-border-theme/20 border border-border-theme/40 rounded-xl text-title font-bold text-sm transition-all"
               >
-                Reintentar
+                {t.common.retry}
               </button>
             </div>
           </ModuleContainer>
@@ -232,15 +230,15 @@ export default function AssetsPage() {
                 </div>
               </div>
               <div className="text-center space-y-2 max-w-xs">
-                <p className="font-black text-title text-2xl tracking-tight">Sin activos todavía</p>
-                <p className="text-subtitle font-medium leading-relaxed">Comienza registrando el primer activo de tu organización para gestionar servicios.</p>
+                <p className="font-black text-title text-2xl tracking-tight">{t.assets.states.empty_title}</p>
+                <p className="text-subtitle font-medium leading-relaxed">{t.assets.states.empty_subtitle}</p>
               </div>
               <button 
                 onClick={() => setIsModalOpen(true)}
                 className="flex items-center space-x-3 bg-brand text-white px-8 py-4 rounded-full text-base font-black transition-all shadow-xl shadow-brand/20 hover:scale-105 active:scale-95"
               >
                 <Plus className="w-5 h-5 stroke-[3px]" />
-                <span>Registrar Primer Activo</span>
+                <span>{t.assets.add_new}</span>
               </button>
             </div>
           </ModuleContainer>
@@ -261,7 +259,7 @@ export default function AssetsPage() {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSubmit={() => {
-          showToast("Activo registrado con éxito!", "success");
+          showToast(t.feedback.save_success, "success");
           setIsModalOpen(false);
           refetch();
         }} 

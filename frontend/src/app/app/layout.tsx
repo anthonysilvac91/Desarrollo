@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/AuthContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import { Loader2 } from "lucide-react";
 
 export default function MobileAppLayout({
@@ -9,6 +10,7 @@ export default function MobileAppLayout({
   children: React.ReactNode;
 }) {
   const { loading } = useAuth();
+  const { t } = useLanguage();
 
   return (
     // We enforce a mobile-like container centered on desktop for testing, 
@@ -19,7 +21,7 @@ export default function MobileAppLayout({
           <div className="flex-1 flex flex-col items-center justify-center space-y-4">
              <Loader2 className="w-10 h-10 text-brand animate-spin" />
              <p className="font-black text-subtitle/40 tracking-[0.2em] text-[10px] uppercase">
-                Sincronizando...
+                {t.feedback.syncing}
              </p>
           </div>
         ) : (

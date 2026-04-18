@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, ChevronRight, Activity, Calendar, Ship, Search, Loader2, AlertCircle, Inbox } from "lucide-react";
+import { MapPin, ChevronRight, Ship, Search, Loader2, AlertCircle, Inbox } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Asset } from "@/services/assets.service";
 import { useAuth } from "@/lib/AuthContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
@@ -17,6 +18,7 @@ const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
 export default function WorkerHomePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
 
   const { data: assets = [], isLoading, isError, refetch } = useQuery({
@@ -34,7 +36,7 @@ export default function WorkerHomePage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-app-bg px-10 text-center">
         <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-        <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">Sincronizando activos...</p>
+        <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">{t.mobile.home.loading}</p>
       </div>
     );
   }
@@ -46,14 +48,14 @@ export default function WorkerHomePage() {
           <AlertCircle className="w-8 h-8 text-error" />
         </div>
         <div>
-          <h3 className="text-xl font-black text-title">Error de conexión</h3>
-          <p className="text-sm font-medium text-subtitle/60">No pudimos cargar tus activos asignados.</p>
+          <h3 className="text-xl font-black text-title">{t.mobile.home.error_title}</h3>
+          <p className="text-sm font-medium text-subtitle/60">{t.mobile.home.error_subtitle}</p>
         </div>
         <button 
           onClick={() => refetch()}
           className="w-full py-4 bg-title text-white rounded-2xl font-black text-sm shadow-xl shadow-title/20 active:scale-95 transition-all"
         >
-          Reintentar Carga
+          {t.mobile.home.retry}
         </button>
       </div>
     );
@@ -61,14 +63,14 @@ export default function WorkerHomePage() {
 
   return (
     <>
-      <MobileHeader title="My Assets" showBack={false} />
+      <MobileHeader title={t.mobile.nav.assets} showBack={false} />
       
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto px-5 pt-6 pb-24">
         
         <div className="mb-6">
-          <h2 className="text-2xl font-black text-title tracking-tight mb-1">Hello, {user?.name?.split(' ')[0] || 'Worker'} 👋</h2>
-          <p className="text-sm font-bold text-subtitle/60">Here are your assigned assets.</p>
+          <h2 className="text-2xl font-black text-title tracking-tight mb-1">{t.mobile.home.greeting}, {user?.name?.split(' ')[0] || 'Worker'} 👋</h2>
+          <p className="text-sm font-bold text-subtitle/60">{t.mobile.home.subtitle}</p>
         </div>
 
         {/* Search Bar */}
@@ -79,7 +81,7 @@ export default function WorkerHomePage() {
           <input
             type="text"
             className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-[22px] leading-5 bg-surface text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 text-base transition-all shadow-sm font-bold"
-            placeholder="Search boat, location or client..."
+            placeholder={t.mobile.home.search_placeholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -105,7 +107,7 @@ export default function WorkerHomePage() {
                  <span className="truncate">{asset.location}</span>
                </div>
                <div className="text-[10px] font-black text-brand uppercase tracking-widest mt-1">
-                 {asset.client?.name || "Sin Cliente"}
+                 {asset.client?.name || t.common.unassigned}
                </div>
             </div>
 
@@ -123,8 +125,8 @@ export default function WorkerHomePage() {
              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                <Inbox className="w-8 h-8 text-subtitle opacity-20" />
              </div>
-             <p className="text-base font-black text-title">No results found</p>
-             <p className="text-sm font-medium text-subtitle/40 mt-1 px-8">Try searching with other terms or clear the search field.</p>
+             <p className="text-base font-black text-title">{t.mobile.home.no_results_title}</p>
+             <p className="text-sm font-medium text-subtitle/40 mt-1 px-8">{t.mobile.home.no_results_subtitle}</p>
            </div>
         )}
       </main>

@@ -3,6 +3,7 @@
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 import { useAuth } from "@/lib/AuthContext";
+import { useLanguage } from "@/lib/LanguageContext";
 import { Loader2 } from "lucide-react";
 
 export default function MainLayout({
@@ -11,6 +12,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   const { loading } = useAuth();
+  const { t } = useLanguage();
 
   if (loading) {
     return (
@@ -18,7 +20,7 @@ export default function MainLayout({
         <div className="flex flex-col items-center">
           <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
           <p className="font-black text-subtitle/40 tracking-[0.2em] text-[10px] uppercase">
-            Iniciando Recall
+            {t.feedback.loading_app}
           </p>
         </div>
       </div>

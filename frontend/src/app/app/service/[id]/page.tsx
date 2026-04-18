@@ -1,45 +1,42 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, User as UserIcon, Camera, Ship, X, Loader2 } from "lucide-react";
+import { Calendar, User as UserIcon, Camera, X, Loader2, AlertCircle } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Service } from "@/services/assets.service";
+import { useLanguage } from "@/lib/LanguageContext";
+import { useQuery } from "@tanstack/react-query";
 
 export default function WorkerServiceViewPage() {
   const router = useRouter();
   const params = useParams();
+  const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [job, setJob] = useState<Service | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchService = async () => {
-      try {
-        const data = await assetsService.getService(params.id as string);
-        setJob(data);
-      } catch (err) {
-        console.error("Error fetching service:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (params.id) fetchService();
-  }, [params.id]);
+  const { data: job, isLoading, isError, refetch } = useQuery({
+    queryKey: ["service", params.id],
+    queryFn: () => assetsService.getService(params.id as string),
+    enabled: !!params.id
+  });
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-app-bg text-brand">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="flex-1 flex flex-col items-center justify-center bg-app-bg text-center p-10">
+        <Loader2 className="w-8 h-8 text-brand animate-spin mb-4" />
+        <p className="text-xs font-black text-subtitle/40 uppercase tracking-widest">{t.mobile.service_detail.loading}</p>
       </div>
     );
   }
 
-  if (!job) {
+  if (isError || !job) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-        <p className="text-title font-bold text-lg">Service not found</p>
-        <button onClick={() => router.back()} className="mt-4 text-brand font-black text-sm uppercase">Go Back</button>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="p-4 bg-error/10 rounded-full">
+          <AlertCircle className="w-8 h-8 text-error" />
+        </div>
+        <p className="text-title font-bold text-lg">{t.mobile.service_detail.not_found}</p>
+        <button onClick={() => router.back()} className="mt-2 text-brand font-black text-sm uppercase">{t.mobile.service_detail.go_back}</button>
       </div>
     );
   }
@@ -53,15 +50,15 @@ export default function WorkerServiceViewPage() {
         <article className="space-y-8">
            {/* Info Cards - Same style as Asset Detail / Service Drawer */}
            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
-                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Worker</span>
+              <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 shadow-sm text-left">
+                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.service_detail.worker_label}</span>
                 <div className="flex items-center space-x-2">
                   <UserIcon className="w-3.5 h-3.5 text-brand" />
                   <span className="text-sm font-bold text-title truncate">{job.worker.name}</span>
                 </div>
               </div>
-              <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
-                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Completed on</span>
+              <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 shadow-sm text-left">
+                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.service_detail.date_label}</span>
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-3.5 h-3.5 text-brand" />
                   <span className="text-sm font-bold text-title">{new Date(job.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-')}</span>
@@ -82,7 +79,7 @@ export default function WorkerServiceViewPage() {
              <div className="pt-6 border-t border-border-theme/20">
                <h3 className="text-[11px] font-black text-subtitle/50 uppercase tracking-widest mb-4 flex items-center">
                  <Camera className="w-4 h-4 mr-2" />
-                 Attached Evidence ({job.attachments.length})
+                 {t.mobile.service_detail.evidence_label} ({job.attachments.length})
                </h3>
                
                <div className="flex overflow-x-auto space-x-3 pb-2 -mx-5 px-5 no-scrollbar">
