@@ -11,25 +11,38 @@ export class DashboardService {
     currentUser: { id: string; role: Role; orgId?: string },
     organizationId?: string
   ): Promise<DashboardStatsDto> {
-    // Solo ADMIN y SUPER_ADMIN pueden acceder
-    if (currentUser.role !== Role.ADMIN && currentUser.role !== Role.SUPER_ADMIN) {
+    // ADMIN, SUPER_ADMIN y WORKER pueden acceder
+    const authorizedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN, Role.WORKER];
+    if (!authorizedRoles.includes(currentUser.role)) {
       throw new ForbiddenException('No tienes permiso para acceder al dashboard');
     }
 
-    const whereClause: any = {};
+    const baseWhere: any = {};
 
     // Determinar el alcance del tenant
     if (currentUser.role === Role.SUPER_ADMIN) {
-      // Si es SUPER_ADMIN y pasa orgId, filtramos por esa org. Si no, global.
       if (organizationId) {
-        whereClause.organization_id = organizationId;
+        baseWhere.organization_id = organizationId;
       }
     } else {
-      // Si es ADMIN, forzado a su organización
-      whereClause.organization_id = currentUser.orgId;
+      baseWhere.organization_id = currentUser.orgId;
     }
 
-    // Ejecutar conteos en paralelo para mejor performance
+    // Lógica específica para WORKER (Dashboard Operativo)
+    const isWorker = currentUser.role === Role.WORKER;
+    const workerStatsWhere = isWorker ? { ...baseWhere, worker_id: currentUser.id } : baseWhere;
+
+    // Obtener configuración de la org para el conteo de assets si es worker
+    let workerCanSeeAllAssets = true;
+    if (isWorker && currentUser.orgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: currentUser.orgId },
+        select: { worker_restricted_access: true },
+      });
+      workerCanSeeAllAssets = !org?.worker_restricted_access;
+    }
+
+    // Ejecutar conteos en paralelo
     const [
       assetsCount,
       servicesCount,
@@ -40,15 +53,24 @@ export class DashboardService {
       adminsCount,
       recentServices,
     ] = await Promise.all([
-      this.prisma.asset.count({ where: whereClause }),
-      this.prisma.service.count({ where: whereClause }),
-      this.prisma.service.count({ where: { ...whereClause, is_public: true } }),
-      this.prisma.service.count({ where: { ...whereClause, is_public: false } }),
-      this.prisma.user.count({ where: { ...whereClause, role: Role.WORKER } }),
-      this.prisma.user.count({ where: { ...whereClause, role: Role.CLIENT } }),
-      this.prisma.user.count({ where: { ...whereClause, role: Role.ADMIN } }),
+      // Assets: si es worker restingido, solo los suyos. Si no, todos los de su org.
+      isWorker && !workerCanSeeAllAssets
+        ? this.prisma.workerAssetAccess.count({ where: { worker_id: currentUser.id } })
+        : this.prisma.asset.count({ where: baseWhere }),
+
+      // Services: si es worker, solo los suyos
+      this.prisma.service.count({ where: workerStatsWhere }),
+      this.prisma.service.count({ where: { ...workerStatsWhere, is_public: true } }),
+      this.prisma.service.count({ where: { ...workerStatsWhere, is_public: false } }),
+
+      // Conteos de staff: solo para ADMIN/SUPER_ADMIN
+      isWorker ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.WORKER } }),
+      isWorker ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.CLIENT } }),
+      isWorker ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.ADMIN } }),
+
+      // Servicios recientes: si es worker, solo los suyos
       this.prisma.service.findMany({
-        where: whereClause,
+        where: workerStatsWhere,
         take: 5,
         orderBy: { created_at: 'desc' },
         include: {

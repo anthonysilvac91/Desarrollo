@@ -56,6 +56,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   };
 
+  /**
+   * Mapa de permisos por rol para el MVP
+   */
+  const ROUTE_PERMISSIONS: Record<string, string[]> = {
+    "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER"],
+    "/users": ["SUPER_ADMIN", "ADMIN"],
+    "/settings": ["ADMIN"],
+    "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "CLIENT"],
+    "/service": ["SUPER_ADMIN", "ADMIN", "WORKER", "CLIENT"],
+  };
+
+  const canAccess = (path: string): boolean => {
+    if (!user) return false;
+    
+    // Si la ruta no está en el mapa, es pública o no restringida por rol (ej. /login)
+    const protectedPath = Object.keys(ROUTE_PERMISSIONS).find(p => path.startsWith(p));
+    if (!protectedPath) return true;
+
+    return ROUTE_PERMISSIONS[protectedPath].includes(user.role);
+  };
+
+  // Proteger rutas (Auth + Roles)
+  useEffect(() => {
+    if (!loading) {
+      const isPublicPath = pathname === "/login" || pathname === "/register" || pathname === "/";
+      
+      if (!user && !isPublicPath) {
+        router.push("/login");
+        return;
+      }
+
+      if (user && !isPublicPath) {
+        if (!canAccess(pathname)) {
+          console.warn(`Access denied to ${pathname} for role ${user.role}`);
+          // Redirección por defecto según rol
+          const defaultPath = (user.role === "ADMIN" || user.role === "SUPER_ADMIN" || user.role === "WORKER") 
+            ? "/dashboard" 
+            : "/assets";
+          router.push(defaultPath);
+        }
+      }
+    }
+  }, [user, loading, pathname, router]);
+
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, canAccess }}>
       {children}

@@ -108,10 +108,25 @@ describe('Dashboard (e2e)', () => {
     expect(resFiltered.body.total_assets).toBe(1);
   });
 
-  it('WORKER debería recibir 403 Forbidden', async () => {
+  it('WORKER debería ver sus propias métricas operativas (no administrativas)', async () => {
     const org = await testUtils.createTestOrganization('Org1');
-    const worker = await testUtils.createTestUser(Role.WORKER, 'w@org1.com', org.id);
+    const worker = await testUtils.createTestUser(Role.WORKER, 'worker@org1.com', org.id);
     const token = testUtils.getBearerToken(worker);
+
+    const response = await request(app.getHttpServer())
+      .get('/dashboard')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('total_services');
+    expect(response.body.total_workers).toBe(0);
+    expect(response.body.total_clients).toBe(0);
+  });
+
+  it('CLIENT debería recibir 403 Forbidden', async () => {
+    const org = await testUtils.createTestOrganization('Org1');
+    const client = await testUtils.createTestUser(Role.CLIENT, 'client@org1.com', org.id);
+    const token = testUtils.getBearerToken(client);
 
     const response = await request(app.getHttpServer())
       .get('/dashboard')
