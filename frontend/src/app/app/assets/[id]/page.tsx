@@ -113,7 +113,7 @@ const JobDescription = ({ description }: { description: string }) => {
           }}
           className="mt-2 text-[9px] font-black uppercase text-brand tracking-widest hover:opacity-70 transition-opacity"
         >
-          {isExpanded ? "Ver menos" : "Ver más"}
+          {isExpanded ? "See less" : "See more"}
         </button>
       )}
     </div>
@@ -150,15 +150,15 @@ export default function WorkerAssetDetailPage() {
 
            {/* Stats Grid */}
            <div className="grid grid-cols-2 gap-4 w-full px-4 max-w-sm">
-              <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
-                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Cliente</span>
+               <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
+                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Client</span>
                 <div className="flex items-center space-x-2">
                   <Building2 className="w-3.5 h-3.5 text-brand" />
                   <span className="text-sm font-bold text-title truncate">{asset.client_name}</span>
                 </div>
               </div>
               <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
-                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Servicios totales</span>
+                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Total Services</span>
                 <div className="flex items-center space-x-2">
                   <Briefcase className="w-3.5 h-3.5 text-brand" />
                   <span className="text-sm font-bold text-title">{asset.jobs.length}</span>
@@ -169,7 +169,7 @@ export default function WorkerAssetDetailPage() {
 
         {/* Timeline Header */}
         <div className="mb-4">
-           <h3 className="text-sm font-black text-title uppercase tracking-widest text-center opacity-40">Historial de Trabajos</h3>
+           <h3 className="text-sm font-black text-title uppercase tracking-widest text-center opacity-40">Service History</h3>
         </div>
 
         {/* Timeline Cards */}
@@ -177,7 +177,7 @@ export default function WorkerAssetDetailPage() {
            {asset.jobs.map((job) => (
              <div 
                 key={job.id} 
-                onClick={() => router.push(`/app/jobs/${job.id}`)}
+                onClick={() => router.push(`/app/service/${job.id}`)}
                 className="relative flex items-center gap-4 md:odd:flex-row-reverse group is-active active:scale-[0.98] transition-transform cursor-pointer"
              >
                 {/* Timeline dot */}
@@ -190,9 +190,9 @@ export default function WorkerAssetDetailPage() {
                    {/* Date Tag */}
                    <div className="flex items-center bg-brand/5 rounded-full px-3 py-1 w-fit mb-3 border border-brand/5">
                      <Calendar className="w-3 h-3 mr-2 text-brand" />
-                     <span className="text-[10px] font-black uppercase text-brand tracking-widest">
-                        {new Date(job.created_at).toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '').toUpperCase()}
-                     </span>
+                      <span className="text-[10px] font-black uppercase text-brand tracking-widest">
+                         {new Date(job.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-')}
+                      </span>
                    </div>
 
                    <h4 className="text-lg font-semibold text-title mb-1 leading-tight">{job.title}</h4>
@@ -209,11 +209,11 @@ export default function WorkerAssetDetailPage() {
       {/* FAB - Fixed Bottom Area */}
       <div className="absolute flex justify-center bottom-0 w-full p-5 bg-gradient-to-t from-app-bg via-app-bg/90 to-transparent pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <button 
-          onClick={() => router.push(`/app/assets/${asset.id}/new-job`)}
+          onClick={() => router.push(`/app/assets/${asset.id}/new-service`)}
           className="w-full flex items-center justify-center space-x-2 bg-brand text-white py-4 rounded-full font-black text-base shadow-xl shadow-brand/30 active:scale-95 transition-all"
         >
           <Plus className="w-6 h-6 stroke-[3px]" />
-          <span>Agregar Trabajo</span>
+          <span>Add Service</span>
         </button>
       </div>
     </>

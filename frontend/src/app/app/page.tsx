@@ -56,14 +56,14 @@ export default function WorkerHomePage() {
 
   return (
     <>
-      <MobileHeader title="Mis Activos" showBack={false} />
+      <MobileHeader title="My Assets" showBack={false} />
       
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto px-5 pt-6 pb-24">
         
         <div className="mb-6">
-          <h2 className="text-2xl font-black text-title tracking-tight mb-1">Hola, Alex 👋</h2>
-          <p className="text-sm font-bold text-subtitle/60">Aquí están tus activos asignados.</p>
+          <h2 className="text-2xl font-black text-title tracking-tight mb-1">Hello, Alex 👋</h2>
+          <p className="text-sm font-bold text-subtitle/60">Here are your assigned assets.</p>
         </div>
 
         {/* Search Bar - Stylized as in FiltersBar but for mobile */}
@@ -74,7 +74,7 @@ export default function WorkerHomePage() {
           <input
             type="text"
             className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-[22px] leading-5 bg-surface text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 text-base transition-all shadow-sm font-bold"
-            placeholder="Buscar barco, ubicación o cliente..."
+            placeholder="Search boat, location or client..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -118,8 +118,8 @@ export default function WorkerHomePage() {
              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                <Search className="w-8 h-8 text-subtitle opacity-20" />
              </div>
-             <p className="text-base font-bold text-title">No se encontraron resultados</p>
-             <p className="text-sm font-medium text-subtitle/50 mt-1 px-8">Intenta buscar con otros términos o limpia el campo de búsqueda.</p>
+             <p className="text-base font-bold text-title">No results found</p>
+             <p className="text-sm font-medium text-subtitle/50 mt-1 px-8">Try searching with other terms or clear the search field.</p>
            </div>
         )}
       </main>

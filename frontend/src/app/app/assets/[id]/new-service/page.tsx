@@ -2,10 +2,10 @@
 
 import React, { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Plus, X, Camera, Ship } from "lucide-react";
+import { Plus, X, Camera, Ship, Calendar, Check } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 
-export default function WorkerNewJobPage() {
+export default function WorkerNewServicePage() {
   const router = useRouter();
   const params = useParams();
   
@@ -52,47 +52,61 @@ export default function WorkerNewJobPage() {
 
   return (
     <>
-      <MobileHeader title="Nuevo Trabajo" showBack={true} />
+      <MobileHeader title="New Service" showBack={true} />
       
       <main className="flex-1 overflow-y-auto px-5 pt-6 pb-28 flex flex-col">
-        {/* Context / Asset Ref */}
-        <div className="flex items-center space-x-3 mb-6 opacity-60">
-           <div className="w-8 h-8 rounded-lg bg-surface border border-border-theme/40 flex items-center justify-center">
-              <Ship className="w-4 h-4 text-brand" />
+        {/* Context Grid */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+           {/* Asset Card */}
+           <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
+              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">Asset</span>
+              <div className="flex items-center space-x-2 text-title">
+                 <Ship className="w-3.5 h-3.5 text-brand" />
+                 <span className="text-sm font-black truncate">Lady Nelly</span>
+              </div>
            </div>
-           <div>
-             <span className="text-[10px] font-black uppercase tracking-widest block">Activo</span>
-             <span className="text-sm font-bold text-title">Lady Nelly</span>
+
+           {/* Date Card */}
+           <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
+              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">Completed</span>
+              <div className="flex items-center space-x-2 text-title">
+                 <Calendar className="w-3.5 h-3.5 text-brand" />
+                 <span className="text-sm font-bold">
+                   {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-')}
+                 </span>
+              </div>
            </div>
         </div>
 
         {/* Form Fields */}
         <div className="space-y-6 flex-1">
-          {/* Title */}
-          <div>
+          {/* Title Input */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest ml-1">Title</span>
             <input 
               type="text"
-              placeholder="¿Qué trabajo realizaste?"
+              placeholder="What work did you perform?"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-transparent border-b-2 border-border-theme/40 focus:border-brand py-3 text-xl font-bold text-title placeholder:text-subtitle/30 focus:outline-none transition-colors"
+              className="w-full bg-surface border border-border-theme/40 rounded-3xl px-6 py-4 text-base font-bold text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 hover:border-brand/20 shadow-soft transition-all"
             />
           </div>
 
-          {/* Description */}
-          <div>
+          {/* Service Description */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest ml-1">Service</span>
             <textarea 
-              placeholder="Añade detalles sobre el servicio (opcional)..."
+              placeholder="Describe the service perform..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-surface border border-border-theme/40 rounded-3xl p-4 min-h-[140px] text-sm font-semibold text-subtitle leading-relaxed focus:border-brand focus:ring-4 ring-brand/10 transition-all resize-none outline-none"
+              className="w-full bg-surface border border-border-theme/40 rounded-3xl p-6 min-h-[140px] text-sm font-semibold text-subtitle leading-relaxed focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 hover:border-brand/20 shadow-soft transition-all resize-none outline-none"
             />
           </div>
 
           {/* Photos Carousel */}
           <div>
             <h3 className="text-[11px] font-black text-subtitle/50 uppercase tracking-widest mb-3 flex items-center justify-between">
-              <span>Evidencia Visual</span>
+              <span>Visual Evidence</span>
               {images.length > 0 && <span className="bg-brand/10 text-brand px-2 py-0.5 rounded-full">{images.length}</span>}
             </h3>
             
@@ -103,7 +117,7 @@ export default function WorkerNewJobPage() {
                   className="w-[90px] h-[90px] flex-shrink-0 bg-surface border-2 border-dashed border-brand/50 rounded-2xl flex flex-col items-center justify-center text-brand active:scale-95 transition-transform"
                >
                  <Camera className="w-6 h-6 mb-1 opacity-80" />
-                 <span className="text-[10px] font-black uppercase">Añadir</span>
+                 <span className="text-[10px] font-black uppercase">Add</span>
                  <input 
                    type="file" 
                    accept="image/*" 
@@ -127,6 +141,16 @@ export default function WorkerNewJobPage() {
                    </button>
                  </div>
                ))}
+
+               {/* Empty Slots/Placeholders */}
+               {[...Array(Math.max(0, 3 - images.length))].map((_, i) => (
+                 <div 
+                   key={`slot-${i}`}
+                   className="w-[90px] h-[90px] flex-shrink-0 bg-surface/30 border border-dashed border-border-theme rounded-2xl flex items-center justify-center text-subtitle/20"
+                 >
+                   <Camera className="w-5 h-5 opacity-40" />
+                 </div>
+               ))}
             </div>
           </div>
         </div>
@@ -137,16 +161,15 @@ export default function WorkerNewJobPage() {
         <button 
           disabled={!isFormValid || isSubmitting}
           onClick={handleSubmit}
-          className={`w-full flex items-center justify-center space-x-2 py-4 rounded-full font-black text-base transition-all shadow-xl ${
-            isFormValid 
-              ? "bg-brand text-white shadow-brand/30 active:scale-95" 
-              : "bg-surface text-subtitle/30 shadow-none border border-border-theme/40"
-          }`}
+          className={`w-full flex items-center justify-center space-x-2 py-4 rounded-full font-black text-base transition-all shadow-xl bg-brand text-white shadow-brand/30 active:scale-95 disabled:opacity-50`}
         >
           {isSubmitting ? (
              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
           ) : (
-             <span>Guardar Trabajo</span>
+             <>
+               <Check className="w-6 h-6 stroke-[3px]" />
+               <span>Save Service</span>
+             </>
           )}
         </button>
       </div>
