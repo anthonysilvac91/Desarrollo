@@ -1,40 +1,47 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { MapPin, Plus, Calendar, Building2, Camera, Ship, Briefcase } from "lucide-react";
+import { MapPin, Plus, Calendar, Building2, Camera, Ship, Briefcase, Loader2 } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
+import { assetsService, Asset } from "@/services/assets.service";
 
-// --- MOCK DATA ---
-const MOCK_ASSET = {
-  id: "1",
-  name: "Lady Nelly",
-  location: "Marina Ibiza, Amarre 42",
-  thumbnail_url: "https://images.unsplash.com/photo-1567899378494-47b22a2ad96a?auto=format&fit=crop&q=80&w=400&h=400",
-  client_name: "John Doe Smith",
-  jobs: [
-    {
-      id: "j1",
-      title: "Hull Maintenance & Cleaning",
-      description: "Limpieza exterior completa del casco utilizando técnicas de hidro-presión. Full exterior hull cleaning and anti-fouling treatment applied to the lower sections. This ensures maximum protection and performance.",
-      created_at: new Date(2023, 9, 12).toISOString(),
-      worker: "Alex Thompson",
-      images: [
-        "https://images.unsplash.com/photo-1544620347-c4fd4a3d5927?auto=format&fit=crop&q=80&w=200&h=200",
-        "https://images.unsplash.com/photo-1563299284-f7486d3967a6?auto=format&fit=crop&q=80&w=200&h=200",
-        "https://images.unsplash.com/photo-1567899378494-47b22a2ad96a?auto=format&fit=crop&q=80&w=200&h=200"
-      ]
-    },
-    {
-      id: "j2",
-      title: "Revisión de Motores",
-      description: "Chequeo rutinario del sistema de propulsión principal y cambio de filtros. Engine diagnostics and filter replacement were correctly performed.",
-      created_at: new Date(2023, 2, 28).toISOString(),
-      worker: "Alex Thompson",
-      images: []
-    }
-  ]
-};
+export default function WorkerAssetDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [asset, setAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAsset = async () => {
+      try {
+        const data = await assetsService.findOne(params.id as string);
+        setAsset(data);
+      } catch (err) {
+        console.error("Error fetching asset:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (params.id) fetchAsset();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-app-bg text-brand">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!asset) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <p className="text-title font-bold text-lg">Asset not found</p>
+        <button onClick={() => router.back()} className="mt-4 text-brand font-black text-sm uppercase">Go Back</button>
+      </div>
+    );
+  }
 
 const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
   const [error, setError] = useState(false);
@@ -151,17 +158,14 @@ export default function WorkerAssetDetailPage() {
            {/* Stats Grid */}
            <div className="grid grid-cols-2 gap-4 w-full px-4 max-w-sm">
                <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
-                <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Client</span>
-                <div className="flex items-center space-x-2">
-                  <Building2 className="w-3.5 h-3.5 text-brand" />
-                  <span className="text-sm font-bold text-title truncate">{asset.client_name}</span>
+                  <span className="text-sm font-bold text-title truncate">{asset.client?.name || "Sin Cliente"}</span>
                 </div>
               </div>
               <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
                 <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Total Services</span>
                 <div className="flex items-center space-x-2">
                   <Briefcase className="w-3.5 h-3.5 text-brand" />
-                  <span className="text-sm font-bold text-title">{asset.jobs.length}</span>
+                  <span className="text-sm font-bold text-title">{asset.services?.length || 0}</span>
                 </div>
               </div>
            </div>
@@ -174,7 +178,7 @@ export default function WorkerAssetDetailPage() {
 
         {/* Timeline Cards */}
         <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[23px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border-theme/40 before:to-transparent">
-           {asset.jobs.map((job) => (
+           {(asset.services || []).map((job) => (
              <div 
                 key={job.id} 
                 onClick={() => router.push(`/app/service/${job.id}`)}
@@ -197,9 +201,9 @@ export default function WorkerAssetDetailPage() {
 
                    <h4 className="text-lg font-semibold text-title mb-1 leading-tight">{job.title}</h4>
                     
-                   <JobDescription description={job.description} />
+                   <JobDescription description={job.description || ""} />
 
-                   <JobGallery images={job.images} />
+                   <JobGallery images={job.attachments.map(a => a.file_url)} />
                 </div>
              </div>
            ))}

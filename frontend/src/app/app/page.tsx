@@ -1,42 +1,11 @@
-"use client";
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, ChevronRight, Activity, Calendar, Ship, Search } from "lucide-react";
+import { MapPin, ChevronRight, Activity, Calendar, Ship, Search, Loader2 } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
+import { assetsService, Asset } from "@/services/assets.service";
+import { useAuth } from "@/lib/AuthContext";
 
-// --- MOCK DATA ---
-const MOCK_ASSETS = [
-  { 
-    id: "1", 
-    name: "Lady Nelly", 
-    category: "Motor Yacht - 24m", 
-    location: "Marina Ibiza, Amarre 42", 
-    status: "OPERATIVO",
-    thumbnail_url: "https://images.unsplash.com/photo-1567899378494-47b22a2ad96a?auto=format&fit=crop&q=80&w=400&h=400",
-    client: { name: "Roberto García" },
-  },
-  { 
-    id: "2", 
-    name: "Sea Breeze", 
-    category: "Catamaran - 15m", 
-    location: "Palma Royal Yacht Club", 
-    status: "ATENCIÓN",
-    thumbnail_url: "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&q=80&w=400&h=400",
-    client: { name: "Thomas Müller" },
-  },
-  { 
-    id: "3", 
-    name: "Azimut 58", 
-    category: "Sailing Yacht - 18m", 
-    location: "Puerto Banús, Dock 3", 
-    status: "OPERATIVO",
-    thumbnail_url: "https://images.unsplash.com/photo-1621275471769-e6aa3e15bb71?auto=format&fit=crop&q=80&w=400&h=400", 
-    client: { name: "Elena Martínez" },
-  }
-];
-
-const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
+const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
   if (!src || error) {
     return <Ship className="w-6 h-6 text-brand opacity-30" />;
@@ -46,13 +15,31 @@ const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
 
 export default function WorkerHomePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredAssets = MOCK_ASSETS.filter(asset => 
+  useEffect(() => {
+    assetsService.findAll()
+      .then(data => setAssets(data))
+      .catch(err => console.error("Error loading assets:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredAssets = assets.filter(asset => 
     asset.name.toLowerCase().includes(search.toLowerCase()) ||
-    asset.location.toLowerCase().includes(search.toLowerCase()) ||
-    asset.client.name.toLowerCase().includes(search.toLowerCase())
+    (asset.location?.toLowerCase().includes(search.toLowerCase())) ||
+    (asset.client?.name.toLowerCase().includes(search.toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-app-bg text-brand">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -62,7 +49,7 @@ export default function WorkerHomePage() {
       <main className="flex-1 overflow-y-auto px-5 pt-6 pb-24">
         
         <div className="mb-6">
-          <h2 className="text-2xl font-black text-title tracking-tight mb-1">Hello, Alex 👋</h2>
+          <h2 className="text-2xl font-black text-title tracking-tight mb-1">Hello, {user?.name?.split(' ')[0] || 'Worker'} 👋</h2>
           <p className="text-sm font-bold text-subtitle/60">Here are your assigned assets.</p>
         </div>
 
@@ -100,7 +87,7 @@ export default function WorkerHomePage() {
                  <span className="truncate">{asset.location}</span>
                </div>
                <div className="text-[10px] font-black text-brand uppercase tracking-widest mt-1">
-                 {asset.client.name}
+                 {asset.client?.name || "Sin Cliente"}
                </div>
             </div>
 

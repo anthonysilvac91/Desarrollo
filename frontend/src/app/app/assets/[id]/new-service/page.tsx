@@ -1,19 +1,29 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Plus, X, Camera, Ship, Calendar, Check } from "lucide-react";
+import { Plus, X, Camera, Ship, Calendar, Check, Loader2 } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
+import { assetsService, Asset } from "@/services/assets.service";
 
 export default function WorkerNewServicePage() {
   const router = useRouter();
   const params = useParams();
   
+  const [assetName, setAssetName] = useState("Loading...");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (params.id) {
+      assetsService.findOne(params.id as string)
+        .then(a => setAssetName(a.name))
+        .catch(() => setAssetName("Asset not found"));
+    }
+  }, [params.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -23,7 +33,6 @@ export default function WorkerNewServicePage() {
       }));
       setImages(prev => [...prev, ...newFiles]);
     }
-    // reset input so the same file could be picked again if removed
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -39,15 +48,28 @@ export default function WorkerNewServicePage() {
   const isFormValid = title.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!isFormValid) return;
+    if (!isFormValid || isSubmitting) return;
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      // Navigate back to listing after success
+    try {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("asset_id", params.id as string);
+      formData.append("is_public", "true"); // Por defecto público en mobile para visibilidad cliente
+      
+      images.forEach((img) => {
+        formData.append("files", img.file);
+      });
+
+      await assetsService.createService(formData);
       router.back();
-    }, 1500);
+    } catch (err) {
+      console.error("Error creating service:", err);
+      alert("Error saving service. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -62,7 +84,7 @@ export default function WorkerNewServicePage() {
               <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest mb-1 block">Asset</span>
               <div className="flex items-center space-x-2 text-title">
                  <Ship className="w-3.5 h-3.5 text-brand" />
-                 <span className="text-sm font-black truncate">Lady Nelly</span>
+                 <span className="text-sm font-black truncate">{assetName}</span>
               </div>
            </div>
 
