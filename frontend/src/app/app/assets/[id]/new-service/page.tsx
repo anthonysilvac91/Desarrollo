@@ -75,9 +75,14 @@ export default function WorkerNewServicePage() {
       await assetsService.createService(formData);
       showToast(t.mobile.new_service.success, "success");
       router.back();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error creating service:", err);
-      showToast(t.mobile.new_service.error_save, "error");
+      const serverMessage = err.response?.data?.message;
+      if (serverMessage) {
+        showToast(Array.isArray(serverMessage) ? serverMessage[0] : serverMessage, "error");
+      } else {
+        showToast(t.mobile.new_service.error_save, "error");
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { StorageService } from './storage.service';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -7,6 +7,7 @@ import * as path from 'path';
 
 @Injectable()
 export class SupabaseStorageService extends StorageService {
+  private readonly logger = new Logger(SupabaseStorageService.name);
   private supabase: SupabaseClient;
   private readonly bucket: string;
 
@@ -36,7 +37,7 @@ export class SupabaseStorageService extends StorageService {
       });
 
     if (error) {
-      console.error('Error uploading to Supabase:', error);
+      this.logger.error(`Error uploading to Supabase: ${error.message}`, error.stack);
       throw new InternalServerErrorException(`Could not upload file: ${error.message}`);
     }
 
@@ -59,7 +60,7 @@ export class SupabaseStorageService extends StorageService {
         .remove([filePath]);
 
       if (error) {
-        console.error('Error deleting from Supabase:', error);
+        this.logger.error(`Error deleting from Supabase: ${error.message}`, error.stack);
       }
     }
   }

@@ -1,10 +1,12 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvitationDto } from './dto/invitations.dto';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class InvitationsService {
+  private readonly logger = new Logger(InvitationsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateInvitationDto, inviterId: string, inviterRole: string, inviterOrgId?: string) {
@@ -39,6 +41,9 @@ export class InvitationsService {
         expires_at: expiresAt,
       }
     });
+
+    this.logger.log(`Invitation created for ${dto.email} (Role: ${dto.role}, Org: ${finalOrgId}) by User ${inviterId}`);
+    return invitation;
   }
 
   async validate(token: string) {

@@ -32,8 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const userData = await authService.getMe();
       setUser(userData);
-    } catch (error) {
-      console.error("Auth initialization error:", error);
+    } catch (error: any) {
+      const serverMessage = error.response?.data?.message || error.message || "Unknown error";
+      console.warn("Auth initialization error. User logged out. Details:", serverMessage);
       setUser(null);
       localStorage.removeItem("access_token");
     } finally {

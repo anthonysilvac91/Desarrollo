@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOrganizationSettingsDto } from './dto/update-organization-settings.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -7,6 +7,8 @@ import { Role } from '@prisma/client';
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
@@ -43,6 +45,7 @@ export class OrganizationsService {
         }
       });
 
+      this.logger.log(`Organization created: [${org.slug}] ${org.name} - Initial Admin Email: ${dto.admin_email}`);
       return { organization: org, initial_invitation_token: invitation.token };
     });
   }

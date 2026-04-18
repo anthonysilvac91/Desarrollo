@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -6,6 +6,8 @@ import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService
@@ -21,15 +23,18 @@ export class AuthService {
     });
 
     if (!user) {
+      this.logger.warn(`Failed login attempt for email: ${loginDto.email} - User/Org not found`);
       throw new UnauthorizedException('Credenciales inválidas u organización incorrecta');
     }
 
     const isMatch = await bcrypt.compare(loginDto.password, user.password_hash);
     if (!isMatch) {
+      this.logger.warn(`Failed login attempt for email: ${loginDto.email} - Invalid credentials`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     const payload = { sub: user.id, orgId: user.organization_id, role: user.role };
+    this.logger.log(`User ${user.id} logged in successfully`);
     return {
       access_token: this.jwtService.sign(payload),
     };
@@ -63,6 +68,7 @@ export class AuthService {
       });
 
       const payload = { sub: user.id, orgId: user.organization_id, role: user.role };
+      this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
       return {
         access_token: this.jwtService.sign(payload),
         user: { id: user.id, name: user.name, role: user.role, email: user.email }

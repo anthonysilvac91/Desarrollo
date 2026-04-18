@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -7,6 +7,8 @@ import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class ServicesService {
+  private readonly logger = new Logger(ServicesService.name);
+
   constructor(
     private prisma: PrismaService,
     private storageService: StorageService
@@ -29,7 +31,7 @@ export class ServicesService {
 
     const attachments = await Promise.all(attachmentPromises);
 
-    return this.prisma.service.create({
+    const newService = await this.prisma.service.create({
       data: {
         ...createServiceDto,
         organization_id: user.orgId,
@@ -42,6 +44,9 @@ export class ServicesService {
       },
       include: { attachments: true }
     });
+
+    this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
+    return newService;
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
