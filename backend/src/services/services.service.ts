@@ -1,17 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateJobDto } from './dto/create-job.dto';
-import { UpdateJobDto } from './dto/update-job.dto';
-import { ListJobsQueryDto } from './dto/list-jobs-query.dto';
+import { CreateServiceDto } from './dto/create-service.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
+import { ListServicesQueryDto } from './dto/list-services-query.dto';
 
 @Injectable()
-export class JobsService {
+export class ServicesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createJobDto: CreateJobDto, user: any, files?: Express.Multer.File[]) {
+  async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
     const org = await this.prisma.organization.findUnique({
       where: { id: user.orgId },
-      select: { auto_publish_jobs: true }
+      select: { auto_publish_services: true }
     });
     if (!org) throw new NotFoundException('Organization not found');
 
@@ -20,12 +20,12 @@ export class JobsService {
       file_type: file.mimetype,
     })) || [];
 
-    return this.prisma.job.create({
+    return this.prisma.service.create({
       data: {
-        ...createJobDto,
+        ...createServiceDto,
         organization_id: user.orgId,
         worker_id: user.id,
-        is_public: org.auto_publish_jobs,
+        is_public: org.auto_publish_services,
         status: 'COMPLETED',
         attachments: {
           create: attachments,
@@ -35,7 +35,7 @@ export class JobsService {
     });
   }
 
-  async findAll(query: ListJobsQueryDto, user: any) {
+  async findAll(query: ListServicesQueryDto, user: any) {
     const whereClause: any = { organization_id: user.orgId };
     if (query.asset_id) whereClause.asset_id = query.asset_id;
 
@@ -44,23 +44,23 @@ export class JobsService {
       whereClause.status = 'COMPLETED';
     }
 
-    return this.prisma.job.findMany({
+    return this.prisma.service.findMany({
       where: whereClause,
       include: { worker: { select: { id: true, name: true } } },
       orderBy: { created_at: 'desc' }
     });
   }
 
-  async update(id: string, updateJobDto: UpdateJobDto, orgId: string) {
-    const job = await this.prisma.job.findUnique({ where: { id } });
-    if (!job || job.organization_id !== orgId) {
-      throw new NotFoundException('Job no encontrado o no pertenece a tu Organización');
+  async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
+    const service = await this.prisma.service.findUnique({ where: { id } });
+    if (!service || service.organization_id !== orgId) {
+      throw new NotFoundException('Service no encontrado o no pertenece a tu Organización');
     }
 
-    return this.prisma.job.update({
+    return this.prisma.service.update({
       where: { id },
       data: {
-        ...updateJobDto,
+        ...updateServiceDto,
         admin_intervened: true
       }
     });

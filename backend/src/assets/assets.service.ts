@@ -26,6 +26,23 @@ export class AssetsService {
       });
     }
 
+    if (role === 'WORKER') {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { worker_restricted_access: true },
+      });
+
+      if (org?.worker_restricted_access) {
+        return this.prisma.asset.findMany({
+          where: {
+            organization_id: orgId,
+            is_active: true,
+            worker_access: { some: { worker_id: userId } }
+          },
+        });
+      }
+    }
+
     return this.prisma.asset.findMany({
       where: { organization_id: orgId, is_active: true, },
     });

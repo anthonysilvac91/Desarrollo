@@ -57,8 +57,8 @@ export const translations = {
         asset: "Boat",
         client: "Client",
         location: "Location",
-        jobs: "Jobs",
-        last_job: "Last Job",
+        services: "Services",
+        last_service: "Last Service",
         actions: "Actions",
       },
       pagination: {
@@ -74,7 +74,7 @@ export const translations = {
       },
       drawer: {
         location: "Geographic Location",
-        jobs: "Total Activity",
+        services: "Total Activity",
         total: "services performed",
         maintenance_history: "Maintenance History",
         full_report: "Full Report",
@@ -86,7 +86,7 @@ export const translations = {
       },
       detail: {
         owner: "Owner",
-        total_jobs: "Total Jobs",
+        total_services: "Total Services",
         last_service: "Last Service",
         activity_history: "Service History",
         clear_filters: "Clear Filters",
@@ -97,7 +97,7 @@ export const translations = {
         since: "Since",
         until: "Until",
         no_results: "No results matched your search",
-        view_all: "View all jobs",
+        view_all: "View all services",
         export_pdf: "Export History PDF",
         today: "Today",
         week: "Week",
@@ -211,7 +211,7 @@ export const translations = {
       title: "Dashboard",
       subtitle: "Operational analysis and performance",
       kpis: {
-        jobs_performed: "Jobs Performed",
+        services_performed: "Services Performed",
         assets_serviced: "Assets Serviced",
         clients_reached: "Clients Reached",
         growth: "Growth",
@@ -224,7 +224,7 @@ export const translations = {
         top_assets: "Top 3 Assets",
         top_clients: "Top 3 Clients",
         top_operators: "Top 3 Operators",
-        jobs_count: "serv",
+        services_count: "serv",
       }
     }
   },
@@ -284,8 +284,8 @@ export const translations = {
         asset: "Barco",
         client: "Cliente",
         location: "Ubicación",
-        jobs: "Servicios",
-        last_job: "Último Servicio",
+        services: "Servicios",
+        last_service: "Último Servicio",
         actions: "Acciones",
       },
       pagination: {
@@ -301,7 +301,7 @@ export const translations = {
       },
       drawer: {
         location: "Ubicación Geográfica",
-        jobs: "Actividad Total",
+        services: "Actividad Total",
         total: "servicios realizados",
         maintenance_history: "Historial de Mantenimiento",
         full_report: "Reporte Completo",
@@ -313,7 +313,7 @@ export const translations = {
       },
       detail: {
         owner: "Propietario",
-        total_jobs: "Total de Trabajos",
+        total_services: "Total de Servicios",
         last_service: "Último Servicio",
         activity_history: "Historial de Servicios",
         clear_filters: "Limpiar Filtros",
@@ -324,7 +324,7 @@ export const translations = {
         since: "Desde",
         until: "Hasta",
         no_results: "Sin resultados para tu búsqueda",
-        view_all: "Ver todos los trabajos",
+        view_all: "Ver todos los servicios",
         export_pdf: "Exportar Historial PDF",
         today: "Hoy",
         week: "Semana",
@@ -438,7 +438,7 @@ export const translations = {
       title: "Panel de Control",
       subtitle: "Análisis operacional y rendimiento",
       kpis: {
-        jobs_performed: "Trabajos Realizados",
+        services_performed: "Servicios Realizados",
         assets_serviced: "Activos con Servicio",
         clients_reached: "Clientes Atendidos",
         growth: "Crecimiento",
@@ -451,7 +451,7 @@ export const translations = {
         top_assets: "Top 3 Activos",
         top_clients: "Top 3 Clientes",
         top_operators: "Top 3 Operadores",
-        jobs_count: "serv",
+        services_count: "serv",
       }
     }
   }

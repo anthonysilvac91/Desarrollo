@@ -11,4 +11,25 @@ export class CreateAssetDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Categoría del activo (ej: boat, car, machinery).' })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiPropertyOptional({ description: 'Ubicación textual o coordenadas.' })
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @ApiPropertyOptional({ description: 'URL de la foto principal del activo.' })
+  @IsString()
+  @IsOptional()
+  thumbnail_url?: string;
+
+  @ApiPropertyOptional({ description: 'Número de serie o matrícula.' })
+  @IsString()
+  @IsOptional()
+  serial_number?: string;
 }
+

@@ -1,17 +1,17 @@
 import api from "@/lib/api";
 
-export interface JobAttachment {
+export interface ServiceAttachment {
   id: string;
   file_url: string;
   file_type?: string;
 }
 
-export interface Job {
+export interface Service {
   id: string;
   title: string;
   description?: string;
   created_at: string;
-  attachments: JobAttachment[];
+  attachments: ServiceAttachment[];
   worker: { name: string; id: string };
 }
 
@@ -22,15 +22,16 @@ export interface Asset {
   category?: string;
   location?: string;
   thumbnail_url?: string;
+  serial_number?: string;
   client?: {
     name: string;
     action_type?: string; // Subtext for client column in Figma
   };
-  last_job?: {
+  last_service?: {
     date: string;
     type?: string;
   };
-  jobs?: Job[];
+  services?: Service[];
 }
 
 export const assetsService = {

@@ -1,12 +1,12 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { WorkerEditPolicy } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateOrganizationSettingsDto {
-  @ApiPropertyOptional({ description: 'Indica si los Jobs creados se publican directamente al cliente.' })
+  @ApiPropertyOptional({ description: 'Indica si los Services creados se publican directamente al cliente.' })
   @IsBoolean()
   @IsOptional()
-  auto_publish_jobs?: boolean;
+  auto_publish_services?: boolean;
 
   @ApiPropertyOptional({ enum: WorkerEditPolicy, description: 'Política global para controlar si/cuándo el Operario puede editar su Job.' })
   @IsEnum(WorkerEditPolicy)
@@ -17,4 +17,18 @@ export class UpdateOrganizationSettingsDto {
   @IsNumber()
   @IsOptional()
   worker_edit_window_hours?: number;
+  @ApiPropertyOptional({ description: 'Color primario de la marca (Hex).' })
+  @IsString()
+  @IsOptional()
+  brand_color?: string;
+
+  @ApiPropertyOptional({ description: 'URL del logo de la organización.' })
+  @IsString()
+  @IsOptional()
+  logo_url?: string;
+
+  @ApiPropertyOptional({ description: 'Si es true, los workers tendrán acceso restringido configurado por un admin en lugar de ver todos los assets.' })
+  @IsBoolean()
+  @IsOptional()
+  worker_restricted_access?: boolean;
 }

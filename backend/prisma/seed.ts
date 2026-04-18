@@ -8,8 +8,8 @@ async function main() {
   
   // Limpiamos base para que el db push reset fluya limpio con la seed
   await prisma.clientAssetAccess.deleteMany();
-  await prisma.jobAttachment.deleteMany();
-  await prisma.job.deleteMany();
+  await prisma.serviceAttachment.deleteMany();
+  await prisma.service.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.user.deleteMany();
   await prisma.organization.deleteMany();
@@ -17,12 +17,17 @@ async function main() {
   const org = await prisma.organization.create({
     data: {
       name: 'Empresa Test',
-      auto_publish_jobs: true, 
+      slug: 'empresa-test',
+      auto_publish_services: true, 
       worker_edit_policy: WorkerEditPolicy.TIME_WINDOW,
     },
   });
 
   const hashedPwd = await bcrypt.hash('123456', 10);
+
+  const superAdmin = await prisma.user.create({
+    data: { role: Role.SUPER_ADMIN, email: 'super@recall.com', password_hash: hashedPwd, name: 'Super Admin Recall' },
+  });
 
   const admin = await prisma.user.create({
     data: { organization_id: org.id, role: Role.ADMIN, email: 'admin@test.com', password_hash: hashedPwd, name: 'Alfonso Admin' },
@@ -44,12 +49,12 @@ async function main() {
   await prisma.clientAssetAccess.create({ data: { client_id: client.id, asset_id: asset1.id, granted_by_id: admin.id } });
   await prisma.clientAssetAccess.create({ data: { client_id: client.id, asset_id: asset2.id, granted_by_id: admin.id } });
 
-  // Crear algunos trabajos viejos
-  await prisma.job.createMany({
+  // Crear algunos servicios de ejemplo
+  await prisma.service.createMany({
     data: [
       { organization_id: org.id, asset_id: asset1.id, worker_id: worker.id, title: 'Mantenimiento Motor', description: 'Revisión mensual realizada sin problemas.', is_public: true, created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
       { organization_id: org.id, asset_id: asset1.id, worker_id: worker.id, title: 'Limpieza Teca', description: 'Se lavó la teca completa del exterior.', is_public: true, created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
-      { organization_id: org.id, asset_id: asset2.id, worker_id: worker.id, title: 'Cambio baterias', is_public: true, created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+      { organization_id: org.id, asset_id: asset2.id, worker_id: worker.id, title: 'Cambio baterías', is_public: true, created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
       { organization_id: org.id, asset_id: asset3.id, worker_id: worker.id, title: 'Lavada barco', is_public: true, created_at: new Date(Date.now() - 12 * 60 * 60 * 1000) },
     ]
   });
