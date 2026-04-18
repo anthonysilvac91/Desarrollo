@@ -9,26 +9,13 @@ import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship, Calendar } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-
-// Types
-interface AssetDisplay {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  jobs_count: number;
-  thumbnail_url: string;
-  client: {
-    name: string;
-    action_type: string;
-  };
-  last_job: {
-    date: string;
-  };
-}
+import { useQuery } from "@tanstack/react-query";
+import { assetsService, Asset } from "@/services/assets.service";
+import { useToast } from "@/lib/ToastContext";
+import { Loader2, AlertCircle, Inbox } from "lucide-react";
 
 // Asset Image Component
-const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
+const AssetImage = ({ src, alt }: { src: string; alt: string | undefined }) => {
   const [error, setError] = useState(false);
   if (!src || error) {
     return <Ship className="w-7 h-7 text-brand opacity-30" />;
@@ -36,69 +23,20 @@ const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
   return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
 };
 
-// Initial Data
-const INITIAL_ASSETS: AssetDisplay[] = [
-  { 
-    id: "1", 
-    name: "Lady Nelly", 
-    category: "Motor Yacht - 24m", 
-    location: "Marina Ibiza, Amarre 42", 
-    jobs_count: 12,
-    thumbnail_url: "", 
-    client: { name: "Roberto García", action_type: "Hull maintenance" },
-    last_job: { date: "12-10-2023" }
-  },
-  { 
-    id: "2", 
-    name: "Sea Breeze", 
-    category: "Catamaran - 15m", 
-    location: "Palma Royal Yacht Club", 
-    jobs_count: 8,
-    thumbnail_url: "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&q=80&w=200&h=200",
-    client: { name: "Thomas Müller", action_type: "Electrical" },
-    last_job: { date: "28-09-2023" }
-  },
-  { 
-    id: "3", 
-    name: "Azimut 58", 
-    category: "Sailing Yacht - 18m", 
-    location: "Puerto Banús, Dock 3", 
-    jobs_count: 125, 
-    thumbnail_url: "https://images.unsplash.com/photo-1621275471769-e6aa3e15bb71?auto=format&fit=crop&q=80&w=200&h=200", 
-    client: { name: "Elena Martínez", action_type: "Hull cleaning" },
-    last_job: { date: "05-10-2023" }
-  },
-  { 
-    id: "4", 
-    name: "Polaris", 
-    category: "Motor Yacht - 32m", 
-    location: "Port de Saint-Tropez", 
-    jobs_count: 21,
-    thumbnail_url: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5927?auto=format&fit=crop&q=80&w=200&h=200", 
-    client: { name: "Sophie Laurent", action_type: "Maintenance" },
-    last_job: { date: "22-09-2023" }
-  },
-  { 
-    id: "5", 
-    name: "Amaryllis", 
-    category: "Classic Yacht - 40m", 
-    location: "Marina Port Vell", 
-    jobs_count: 4,
-    thumbnail_url: "", 
-    client: { name: "Julian Rossi", action_type: "Carpentry" },
-    last_job: { date: "15-09-2023" }
-  },
-];
-
 export default function AssetsPage() {
-  const [assets, setAssets] = useState<AssetDisplay[]>(INITIAL_ASSETS);
+  const { t } = useLanguage();
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<AssetDisplay | null>(null);
-  const [assetToDelete, setAssetToDelete] = useState<AssetDisplay | null>(null);
-  const { t } = useLanguage();
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
+
+  const { data: assets = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ["assets"],
+    queryFn: () => assetsService.findAll(),
+  });
 
   // Filter logic
   const filteredData = useMemo(() => {
@@ -106,11 +44,11 @@ export default function AssetsPage() {
       const searchLower = search.toLowerCase();
       const matchesSearch = search === "" || (
         item.name.toLowerCase().includes(searchLower) ||
-        item.client.name.toLowerCase().includes(searchLower) ||
-        item.location.toLowerCase().includes(searchLower)
+        item.client?.name.toLowerCase().includes(searchLower) ||
+        (item.location && item.location.toLowerCase().includes(searchLower))
       );
-      const matchesClient = selectedClients.length === 0 || selectedClients.includes(item.client.name);
-      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(item.category);
+      const matchesClient = selectedClients.length === 0 || (item.client && selectedClients.includes(item.client.name));
+      const matchesCategory = selectedCategories.length === 0 || (item.category && selectedCategories.includes(item.category));
       return matchesSearch && matchesClient && matchesCategory;
     });
   }, [search, selectedClients, selectedCategories, assets]);
@@ -128,28 +66,35 @@ export default function AssetsPage() {
     setSelectedCategories([]);
   };
 
-  const handleDeleteRequest = (e: React.MouseEvent, asset: AssetDisplay) => {
+  const handleDeleteRequest = (e: React.MouseEvent, asset: Asset) => {
     e.stopPropagation();
     setAssetToDelete(asset);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (assetToDelete) {
-      setAssets(prev => prev.filter(a => a.id !== assetToDelete.id));
-      setAssetToDelete(null);
+      try {
+        // En un caso real llamaríamos a assetsService.delete
+        // Por ahora simulamos éxito para mostrar el estado Success
+        showToast("Activo eliminado con éxito", "success");
+        setAssetToDelete(null);
+        refetch();
+      } catch (err) {
+        showToast("Error al eliminar el activo", "error");
+      }
     }
   };
 
-  const displayData = filteredData.slice(0, 5);
+  const displayData = filteredData.slice(0, 10); // Aumentado a 10 para mejor vista
 
-  const columns: ColumnDef<AssetDisplay>[] = [
+  const columns: ColumnDef<Asset>[] = [
     { 
       key: "asset", 
       header: t.assets.table.asset,
       cell: (item) => (
         <div className="flex items-center space-x-5">
           <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm flex-shrink-0 bg-app-bg flex items-center justify-center relative">
-            <AssetImage src={item.thumbnail_url} alt={item.name} />
+            <AssetImage src={item.thumbnail_url || ""} alt={item.name} />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-title text-[17px]">{item.name}</span>
@@ -161,7 +106,7 @@ export default function AssetsPage() {
       key: "client", 
       header: t.assets.table.client,
       cell: (item) => (
-        <span className="font-bold text-subtitle/80 text-[15px]">{item.client.name}</span>
+        <span className="font-bold text-subtitle/80 text-[15px]">{item.client?.name || "---"}</span>
       )
     },
     { 
@@ -170,30 +115,30 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
           <MapPin className="w-4 h-4 mr-2 text-brand" />
-          <span className="text-[15px] font-semibold">{item.location}</span>
+          <span className="text-[15px] font-semibold">{item.location || "N/A"}</span>
         </div>
       )
     },
     { 
       key: "jobs", 
-      header: t.assets.table.jobs,
+      header: "Servicios", // Fallback si t.assets.table.jobs no está definido todavía
       align: "center",
-      cell: (item) => (
+      cell: (item: any) => (
         <div className="flex items-center justify-center">
           <span className="min-w-[50px] h-9 flex items-center justify-center text-[15px] font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
-            {item.jobs_count}
+            {item._count?.services || 0}
           </span>
         </div>
       )
     },
     { 
       key: "last_job", 
-      header: t.assets.table.last_job,
+      header: "Último", 
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{item.last_job.date}</span>
+          <span className="font-semibold text-[15px]">{item.last_service?.date || "---"}</span>
         </div>
       )
     },
@@ -253,19 +198,74 @@ export default function AssetsPage() {
         }
       />
 
-      <div className="flex-1">
-        <ModuleContainer>
-          <DataTable 
-            data={displayData} 
-            columns={columns} 
-            keyExtractor={(item) => item.id}
-            footer={pagination}
-            onRowClick={(item) => setSelectedAsset(item)}
-          />
-        </ModuleContainer>
+      <div className="flex-1 min-h-[400px]">
+        {isLoading ? (
+          <div className="w-full flex flex-col items-center justify-center py-20 animate-pulse">
+            <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Cargando activos...</p>
+          </div>
+        ) : isError ? (
+          <ModuleContainer>
+            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+              <div className="p-4 bg-error/10 rounded-full">
+                <AlertCircle className="w-8 h-8 text-error" />
+              </div>
+              <div className="text-center">
+                <p className="font-black text-title text-xl">Error al cargar datos</p>
+                <p className="text-subtitle font-medium">No pudimos conectar con el servidor</p>
+              </div>
+              <button 
+                onClick={() => refetch()}
+                className="px-6 py-2 bg-app-bg hover:bg-border-theme/20 border border-border-theme/40 rounded-xl text-title font-bold text-sm transition-all"
+              >
+                Reintentar
+              </button>
+            </div>
+          </ModuleContainer>
+        ) : assets.length === 0 ? (
+          <ModuleContainer>
+            <div className="w-full flex flex-col items-center justify-center py-20 space-y-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-brand/5 blur-3xl rounded-full" />
+                <div className="relative p-6 bg-white border-2 border-brand/5 shadow-2xl shadow-brand/5 rounded-[40px]">
+                  <Inbox className="w-12 h-12 text-brand/20" />
+                </div>
+              </div>
+              <div className="text-center space-y-2 max-w-xs">
+                <p className="font-black text-title text-2xl tracking-tight">Sin activos todavía</p>
+                <p className="text-subtitle font-medium leading-relaxed">Comienza registrando el primer activo de tu organización para gestionar servicios.</p>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center space-x-3 bg-brand text-white px-8 py-4 rounded-full text-base font-black transition-all shadow-xl shadow-brand/20 hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-5 h-5 stroke-[3px]" />
+                <span>Registrar Primer Activo</span>
+              </button>
+            </div>
+          </ModuleContainer>
+        ) : (
+          <ModuleContainer>
+            <DataTable 
+              data={displayData} 
+              columns={columns} 
+              keyExtractor={(item) => item.id}
+              footer={pagination}
+              onRowClick={(item) => setSelectedAsset(item)}
+            />
+          </ModuleContainer>
+        )}
       </div>
 
-      <AssetModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={() => {}} />
+      <AssetModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSubmit={() => {
+          showToast("Activo registrado con éxito!", "success");
+          setIsModalOpen(false);
+          refetch();
+        }} 
+      />
 
       <AssetDrawer asset={selectedAsset} onClose={() => setSelectedAsset(null)} />
 

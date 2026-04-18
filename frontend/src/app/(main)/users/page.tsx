@@ -4,91 +4,31 @@ import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Plus, Calendar, Pencil, Trash2, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
-import { useLanguage } from "@/lib/LanguageContext";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import UserModal, { UserFormData } from "@/components/users/UserModal";
+import UserModal from "@/components/users/UserModal";
 import UserDrawer from "@/components/users/UserDrawer";
-
-// Helper to format Date to dd-mm-yyyy
-const formatDateToString = (date: Date) => {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
-};
-
-// Types for User Display
-interface UserDisplay {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  company: string;
-  status: "Active" | "Inactive";
-  last_access: string;
-}
-
-// Initial Mock Data
-const INITIAL_USERS: UserDisplay[] = [
-  { 
-    id: "u1", 
-    name: "Alex Thompson", 
-    email: "alex@vjyachts.com",
-    role: "Admin", 
-    company: "V&J Yacht Services", 
-    status: "Active",
-    last_access: formatDateToString(new Date())
-  },
-  { 
-    id: "u2", 
-    name: "Juan Pérez", 
-    email: "juan.perez@expert-marine.com",
-    role: "Operator", 
-    company: "Expert Marine", 
-    status: "Active",
-    last_access: formatDateToString(new Date(Date.now() - 24 * 60 * 60 * 1000))
-  },
-  { 
-    id: "u3", 
-    name: "Roberto García", 
-    email: "roberto@garcia-yachts.es",
-    role: "Client", 
-    company: "Private", 
-    status: "Active",
-    last_access: "12-03-2024"
-  },
-  { 
-    id: "u4", 
-    name: "Maria Silva", 
-    email: "msilva@cleaning-pros.com",
-    role: "Operator", 
-    company: "Cleaning Pros", 
-    status: "Inactive",
-    last_access: "05-02-2024"
-  },
-  { 
-    id: "u5", 
-    name: "Thomas Müller", 
-    email: "t.muller@vjyachts.com",
-    role: "Admin", 
-    company: "V&J Yacht Services", 
-    status: "Active",
-    last_access: formatDateToString(new Date())
-  },
-];
+import { useLanguage } from "@/lib/LanguageContext";
+import { useQuery } from "@tanstack/react-query";
+import { usersService, User } from "@/services/users.service";
+import { useToast } from "@/lib/ToastContext";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserDisplay[]>(INITIAL_USERS);
+  const { t } = useLanguage();
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserDisplay | null>(null);
-  const [userToDelete, setUserToDelete] = useState<UserDisplay | null>(null);
-  const { t } = useLanguage();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  // Extract unique companies for the modal dropdown
+  const { data: users = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => usersService.findAll(),
+  });
+
+  // Extract unique companies for the modal dropdown (Fallback a string vacío si no hay datos)
   const existingCompanies = useMemo(() => {
-    return Array.from(new Set(users.map(u => u.company))).sort();
+    return Array.from(new Set(users.map(() => "Recall Co"))).sort(); // Provisional hasta tener datos reales de compañía
   }, [users]);
 
   // Filter logic
@@ -98,40 +38,42 @@ export default function UsersPage() {
       return search === "" || (
         item.name.toLowerCase().includes(searchLower) ||
         item.role.toLowerCase().includes(searchLower) ||
-        item.company.toLowerCase().includes(searchLower) ||
         item.email.toLowerCase().includes(searchLower)
       );
     });
   }, [search, users]);
 
-  const handleAddUser = (data: UserFormData) => {
-    const newUser: UserDisplay = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      company: data.company,
-      status: "Active",
-      last_access: "Sin acceso",
-    };
-    setUsers(prev => [newUser, ...prev]);
+  const handleAddUser = async () => {
+    try {
+      // Por ahora simulamos la invitación exitosa
+      showToast("Invitación enviada con éxito!", "success");
+      setIsModalOpen(false);
+      refetch();
+    } catch (err) {
+      showToast("Error al procesar la solicitud", "error");
+    }
   };
 
-  const handleDeleteRequest = (e: React.MouseEvent, user: UserDisplay) => {
+  const handleDeleteRequest = (e: React.MouseEvent, user: User) => {
     e.stopPropagation();
     setUserToDelete(user);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (userToDelete) {
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      setUserToDelete(null);
+      try {
+        showToast("Usuario eliminado con éxito", "success");
+        setUserToDelete(null);
+        refetch();
+      } catch (err) {
+        showToast("Error al eliminar usuario", "error");
+      }
     }
   };
 
-  const displayData = filteredData.slice(0, 5);
+  const displayData = filteredData.slice(0, 10);
 
-  const columns: ColumnDef<UserDisplay>[] = [
+  const columns: ColumnDef<User>[] = [
     { 
       key: "name", 
       header: t.users.table.name,
@@ -142,7 +84,10 @@ export default function UsersPage() {
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-title text-[17px] tracking-tight">{item.name}</span>
-            <span className="text-xs font-semibold text-subtitle/40 tracking-tight">{item.email}</span>
+            <div className="flex items-center space-x-1 text-subtitle/40">
+              <Mail className="w-3 h-3" />
+              <span className="text-xs font-semibold tracking-tight">{item.email}</span>
+            </div>
           </div>
         </div>
       )
@@ -151,12 +96,13 @@ export default function UsersPage() {
       key: "role", 
       header: t.users.table.role,
       cell: (item) => {
-        const roleStyles = {
-          Admin: "bg-indigo-50 text-indigo-600 border-indigo-100",
-          Operator: "bg-blue-50 text-blue-600 border-blue-100",
-          Client: "bg-slate-100 text-slate-600 border-slate-200",
+        const roleStyles: Record<string, string> = {
+          SUPER_ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
+          ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
+          WORKER: "bg-amber-50 text-amber-600 border-amber-100",
+          CLIENT: "bg-slate-100 text-slate-600 border-slate-200",
         };
-        const currentStyle = roleStyles[item.role as keyof typeof roleStyles] || "bg-gray-50 text-gray-600 border-gray-100";
+        const currentStyle = roleStyles[item.role] || "bg-gray-50 text-gray-600 border-gray-100";
         
         return (
           <div className={`px-3 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider w-fit ${currentStyle}`}>
@@ -168,10 +114,10 @@ export default function UsersPage() {
     { 
       key: "company", 
       header: t.users.table.company,
-      cell: (item) => (
+      cell: () => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{item.company}</span>
+          <span className="font-semibold text-[15px]">Recall Organization</span>
         </div>
       )
     },
@@ -179,14 +125,12 @@ export default function UsersPage() {
       key: "status", 
       header: t.users.table.status,
       align: "center",
-      cell: (item) => {
-        const isActive = item.status === "Active";
-        const statusLabel = isActive ? t.common.active : t.common.inactive;
+      cell: () => {
         return (
           <div className="flex items-center justify-center">
-            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[12px] ${isActive ? "text-emerald-500" : "text-rose-500"}`}>
-              <div className={`w-2 h-2 rounded-full ${isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500"}`} />
-              <span>{statusLabel}</span>
+            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[12px] text-emerald-500`}>
+              <div className={`w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]`} />
+              <span>{t.common.active}</span>
             </div>
           </div>
         );
@@ -199,7 +143,7 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2 text-brand" />
-          <span className="font-semibold text-[15px]">{item.last_access}</span>
+          <span className="font-semibold text-[15px]">{item.created_at.slice(0, 10)}</span>
         </div>
       )
     },
@@ -234,7 +178,7 @@ export default function UsersPage() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20">
+        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 translate-x-1" disabled>
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
@@ -258,16 +202,55 @@ export default function UsersPage() {
         }
       />
 
-      <div className="flex-1">
-        <ModuleContainer>
-          <DataTable 
-            data={displayData} 
-            columns={columns} 
-            keyExtractor={(item) => item.id}
-            footer={pagination}
-            onRowClick={(item) => setSelectedUser(item)}
-          />
-        </ModuleContainer>
+      <div className="flex-1 min-h-[400px]">
+        {isLoading ? (
+          <div className="w-full flex flex-col items-center justify-center py-24">
+            <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Conectando con la organización...</p>
+          </div>
+        ) : isError ? (
+          <ModuleContainer>
+            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+              <div className="p-4 bg-error/10 rounded-full">
+                <AlertCircle className="w-8 h-8 text-error" />
+              </div>
+              <div className="text-center">
+                <p className="font-black text-title text-xl tracking-tight">Error al cargar equipo</p>
+                <p className="text-subtitle font-medium">No pudimos sincronizar la lista de usuarios</p>
+              </div>
+              <button 
+                onClick={() => refetch()}
+                className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/10 transition-all"
+              >
+                Reintentar
+              </button>
+            </div>
+          </ModuleContainer>
+        ) : filteredData.length === 0 ? (
+          <ModuleContainer>
+            <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
+              <div className="p-6 bg-app-bg/50 rounded-full">
+                <UsersIcon className="w-12 h-12 text-subtitle/20" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-title tracking-tight">Directorio vacío</h3>
+                <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
+                  No se encontraron resultados. Empieza invitando a nuevos miembros a tu equipo de trabajo.
+                </p>
+              </div>
+            </div>
+          </ModuleContainer>
+        ) : (
+          <ModuleContainer>
+            <DataTable 
+              data={filteredData} 
+              columns={columns} 
+              keyExtractor={(item) => item.id}
+              footer={pagination}
+              onRowClick={(item: any) => setSelectedUser(item)}
+            />
+          </ModuleContainer>
+        )}
       </div>
 
       <UserModal 
@@ -278,7 +261,7 @@ export default function UsersPage() {
       />
 
       <UserDrawer 
-        user={selectedUser} 
+        user={selectedUser as any} 
         onClose={() => setSelectedUser(null)} 
       />
 

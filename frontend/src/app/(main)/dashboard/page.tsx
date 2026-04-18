@@ -1,15 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { 
-  Briefcase, 
-  Box, 
-  Users, 
-  TrendingUp, 
-  UserCircle,
-  Ship,
-  Building2
-} from "lucide-react";
+import React, { useState } from "react";
 import { 
   AreaChart, 
   Area, 
@@ -21,32 +12,23 @@ import {
 } from "recharts";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
-import { dashboardService, DashboardStats } from "@/services/dashboard.service";
+import { useQuery } from "@tanstack/react-query";
+import { dashboardService } from "@/services/dashboard.service";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import KPICard from "@/components/dashboard/KPICard";
 import PerformanceList from "@/components/dashboard/PerformanceList";
+import { Loader2, AlertCircle, Briefcase, Ship, Inbox } from "lucide-react";
 
 export default function DashboardPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [activePreset, setActivePreset] = useState("Mes");
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const data = await dashboardService.getStats();
-        setStats(data);
-      } catch (err) {
-        console.error("Error loading stats:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadStats();
-  }, []);
+  const { data: stats, isLoading, isError, refetch } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: () => dashboardService.getStats(),
+  });
 
   const isWorker = user?.role === "WORKER";
   const isClient = user?.role === "CLIENT";
@@ -70,7 +52,36 @@ export default function DashboardPage() {
     icon: isClient ? Briefcase : Ship
   })) || [];
 
-  if (loading) return <div className="p-8 text-subtitle">Cargando dashboard...</div>;
+  if (isLoading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-40 animate-pulse">
+        <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+        <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Sincronizando operaciones...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="w-full flex-1 flex flex-col items-center justify-center py-32 space-y-4">
+        <div className="p-4 bg-error/10 rounded-full">
+          <AlertCircle className="w-8 h-8 text-error" />
+        </div>
+        <div className="text-center">
+          <p className="font-black text-title text-xl">Fallo al conectar</p>
+          <p className="text-subtitle font-medium">No pudimos recuperar las estadísticas reales</p>
+        </div>
+        <button 
+          onClick={() => refetch()}
+          className="px-8 py-3 bg-title text-white rounded-2xl font-black text-sm transition-all hover:scale-105 active:scale-95 shadow-xl shadow-title/20"
+        >
+          Reintentar Carga
+        </button>
+      </div>
+    );
+  }
+
+  const hasData = (stats?.total_assets || 0) > 0 || (stats?.total_services || 0) > 0;
 
   return (
     <div className="flex flex-col space-y-5">
@@ -102,14 +113,14 @@ export default function DashboardPage() {
             />
             <KPICard 
               title={t.dashboard.kpis.growth}
-              value="+12%" // Placeholder trend
+              value={hasData ? "+12%" : "---"} 
             />
           </>
         )}
       </div>
 
       {/* Evolution Chart Section (Hide for Client) */}
-      {!isClient && (
+      {!isClient && hasData && (
         <ModuleContainer>
           <div className="p-6 lg:p-7 space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -168,41 +179,55 @@ export default function DashboardPage() {
       )}
 
       {/* Rankings Section */}
-      <div className={`grid grid-cols-1 ${ (isWorker || isClient) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
+      {hasData ? (
+        <div className={`grid grid-cols-1 ${ (isWorker || isClient) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
+          <ModuleContainer>
+            <div className="p-6">
+              <PerformanceList 
+                title={isClient ? "Mis Últimos Servicios" : (isWorker ? "Últimos Activos" : t.dashboard.rankings.top_assets)}
+                items={(isWorker || isClient) ? recentItems : []} 
+                metricLabel={isClient ? "Estado: Listado" : (isWorker ? "Reciente" : t.dashboard.rankings.jobs_count)}
+              />
+            </div>
+          </ModuleContainer>
+
+          {!isWorker && !isClient && (
+            <>
+              <ModuleContainer>
+                <div className="p-6">
+                  <PerformanceList 
+                    title={t.dashboard.rankings.top_clients}
+                    items={[]}
+                    metricLabel={t.dashboard.rankings.jobs_count}
+                  />
+                </div>
+              </ModuleContainer>
+
+              <ModuleContainer>
+                <div className="p-6">
+                  <PerformanceList 
+                    title={t.dashboard.rankings.top_operators}
+                    items={[]}
+                    metricLabel={t.dashboard.rankings.jobs_count}
+                  />
+                </div>
+              </ModuleContainer>
+            </>
+          )}
+        </div>
+      ) : (
         <ModuleContainer>
-          <div className="p-6">
-            <PerformanceList 
-              title={isClient ? "Mis Últimos Servicios" : (isWorker ? "Últimos Activos" : t.dashboard.rankings.top_assets)}
-              items={(isWorker || isClient) ? recentItems : []} 
-              metricLabel={isClient ? "Estado: Listado" : (isWorker ? "Reciente" : t.dashboard.rankings.jobs_count)}
-            />
+          <div className="w-full flex flex-col items-center justify-center py-24 space-y-4">
+            <div className="p-5 bg-app-bg rounded-full">
+              <Inbox className="w-10 h-10 text-subtitle/20" />
+            </div>
+            <div className="text-center">
+              <p className="font-black text-title text-xl">Sin datos todavía</p>
+              <p className="text-subtitle font-medium">Empieza a registrar activos y servicios para ver métricas aquí.</p>
+            </div>
           </div>
         </ModuleContainer>
-
-        {!isWorker && !isClient && (
-          <>
-            <ModuleContainer>
-              <div className="p-6">
-                <PerformanceList 
-                  title={t.dashboard.rankings.top_clients}
-                  items={[]}
-                  metricLabel={t.dashboard.rankings.jobs_count}
-                />
-              </div>
-            </ModuleContainer>
-
-            <ModuleContainer>
-              <div className="p-6">
-                <PerformanceList 
-                  title={t.dashboard.rankings.top_operators}
-                  items={[]}
-                  metricLabel={t.dashboard.rankings.jobs_count}
-                />
-              </div>
-            </ModuleContainer>
-          </>
-        )}
-      </div>
+      )}
       
     </div>
   );

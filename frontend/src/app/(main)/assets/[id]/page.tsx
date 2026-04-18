@@ -1,81 +1,8 @@
-"use client";
-
-import React, { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  ChevronLeft, 
-  Search, 
-  MapPin, 
-  Clock, 
-  Activity, 
-  ShieldCheck, 
-  History,
-  Info,
-  ExternalLink,
-  User as UserIcon,
-  Ship,
-  Calendar,
-  Filter,
-  Users,
-  Briefcase,
-  Camera
-} from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-
-// --- MOCK DATA (HIGH FIDELITY) ---
-const MOCK_ASSET_DETAIL = {
-  id: "1",
-  name: "Lady Nelly",
-  category: "Motor Yacht - 24m",
-  location: "Marina Ibiza, Amarre 42",
-  thumbnail_url: "https://images.unsplash.com/photo-1567899378494-47b22a2ad96a?auto=format&fit=crop&q=80&w=400&h=400",
-  client: { name: "Roberto García", id: "c1" },
-  jobs: [
-    {
-      id: "j1",
-      title: "Limpieza de Casco y Tratamiento Anti-fouling Completo",
-      description: "Limpieza exterior completa del casco utilizando técnicas de hidro-presión controlada para eliminar incrustaciones calcáreas y depósitos de salitre. Se aplicó una capa de tratamiento anti-incrustante (anti-fouling) de alta calidad en todas las secciones sumergidas, asegurando una protección óptima para la próxima temporada. Durante el proceso, el equipo técnico realizó una inspección visual exhaustiva de todo el casco, verificando la ausencia de grietas, ampollas de ósmosis o cualquier signo de fatiga estructural en la línea de flotación y en la pala del timón. El acabado final fue sellado con un polímero protector UV para mantener el brillo de la obra muerta.",
-      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      type: "Mecánica",
-      worker: { name: "Alex Thompson", id: "w1" },
-      attachments: [
-        { id: "a1", file_url: "https://broken-link-example.com/image.jpg" },
-        { id: "a2", file_url: "https://images.unsplash.com/photo-1563299284-f7486d3967a6?auto=format&fit=crop&q=80&w=200&h=200" }
-      ]
-    },
-    {
-      id: "j2",
-      title: "Revisión de Motores y Cambio de Aceite",
-      description: "Chequeo rutinario del sistema de propulsión principal y cambio de filtros. Presión de aceite estable.",
-      created_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-      type: "Mecánica",
-      worker: { name: "Juan Pérez", id: "w2" },
-      attachments: [
-        { id: "a3", file_url: "https://images.unsplash.com/photo-1589139225-33ec7c8ec19d?auto=format&fit=crop&q=80&w=200&h=200" }
-      ]
-    },
-    {
-      id: "j3",
-      title: "Actualización de Sistema Eléctrico (Cabina)",
-      description: "Mejora del cuadro de distribución interna y sustitución de cableado antiguo. Integración de nuevo sistema LED.",
-      created_at: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-      type: "Electrónica",
-      worker: { name: "Alex Thompson", id: "w1" },
-      attachments: []
-    },
-    {
-       id: "j4",
-       title: "Pulido de Cubierta de Teca",
-       description: "Restauración del acabado de madera natural mediante lijado y aceitado manual cuidadoso.",
-       created_at: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString(),
-       type: "Cosmética",
-       worker: { name: "Maria Silva", id: "w3" },
-       attachments: [
-         { id: "a4", file_url: "https://images.unsplash.com/photo-1540946484617-452a3bccf974?auto=format&fit=crop&q=80&w=200&h=200" }
-       ]
-    }
-  ]
-};
+import { useQuery } from "@tanstack/react-query";
+import { assetsService, Asset, Service } from "@/services/assets.service";
+import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Camera, Building2 } from "lucide-react";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
   const styles = {
@@ -113,7 +40,7 @@ const JobImage = ({ src }: { src: string }) => {
   );
 };
 
-const JobCard = ({ job }: { job: any }) => {
+const JobCard = ({ job }: { job: Service }) => {
   const { t, language } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -178,17 +105,24 @@ const JobCard = ({ job }: { job: any }) => {
 
 export default function AssetDetailPage() {
   const router = useRouter();
+  const params = useParams();
+  const assetId = params.id as string;
   const { t } = useLanguage();
+  
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  
-  const asset = MOCK_ASSET_DETAIL;
+
+  const { data: asset, isLoading, isError, refetch } = useQuery({
+    queryKey: ["asset", assetId],
+    queryFn: () => assetsService.findOne(assetId),
+    enabled: !!assetId
+  });
 
   const statusInfo = useMemo(() => {
-    if (!asset || !asset.jobs || asset.jobs.length === 0) return { status: "PENDIENTE" as const, days: 999 };
-    const lastJobDate = new Date(asset.jobs[0].created_at);
+    if (!asset || !asset.services || asset.services.length === 0) return { status: "PENDIENTE" as const, days: 999 };
+    const lastJobDate = new Date(asset.services[0].created_at);
     const now = new Date();
     const diffDays = Math.ceil(Math.abs(now.getTime() - lastJobDate.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays < 15) return { status: "OPERATIVO" as const, days: diffDays };
@@ -197,14 +131,13 @@ export default function AssetDetailPage() {
   }, [asset]);
 
   const filteredJobs = useMemo(() => {
-    let jobs = asset.jobs;
+    if (!asset?.services) return [];
+    let jobs = asset.services;
 
-    // Filter by Multiple Workers
     if (selectedWorkers.length > 0) {
       jobs = jobs.filter(j => selectedWorkers.includes(j.worker.name));
     }
 
-    // Filter by Date Preset OR Custom Range
     if (datePreset) {
       const now = new Date();
       const oneDay = 24 * 60 * 60 * 1000;
@@ -229,7 +162,7 @@ export default function AssetDetailPage() {
     }
 
     return jobs;
-  }, [selectedWorkers, datePreset, startDate, endDate, asset.jobs]);
+  }, [selectedWorkers, datePreset, startDate, endDate, asset?.services]);
 
   const toggleWorker = (workerName: string) => {
     setSelectedWorkers(prev => 
@@ -245,6 +178,35 @@ export default function AssetDetailPage() {
     setStartDate("");
     setEndDate("");
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-40">
+        <Loader2 className="w-12 h-12 text-brand animate-spin mb-4" />
+        <p className="font-black text-subtitle/40 tracking-widest text-xs uppercase">Sincronizando bitácora...</p>
+      </div>
+    );
+  }
+
+  if (isError || !asset) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-40 space-y-4">
+        <div className="p-4 bg-error/10 rounded-full">
+          <AlertCircle className="w-8 h-8 text-error" />
+        </div>
+        <div className="text-center">
+          <p className="font-black text-title text-xl">Recurso no disponible</p>
+          <p className="text-subtitle font-medium">No pudimos cargar la información de este activo.</p>
+        </div>
+        <button 
+          onClick={() => refetch()}
+          className="px-8 py-3 bg-title text-white rounded-2xl font-black text-sm"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col space-y-8 pb-20 animate-in fade-in duration-500">
@@ -264,16 +226,20 @@ export default function AssetDetailPage() {
       {/* 2. ASSET SUMMARY (Mantenimiento de Barco ARRIBA) */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 bg-surface p-8 rounded-[40px] border border-border-theme/40 shadow-soft">
         <div className="flex items-center space-x-6 lg:col-span-2 border-r border-border-theme/20 pr-6">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg flex-shrink-0">
-            <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
+          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg flex-shrink-0 bg-app-bg flex items-center justify-center">
+            {asset.thumbnail_url ? (
+              <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
+            ) : (
+              <Ship className="w-10 h-10 text-brand/20" />
+            )}
           </div>
           <div>
             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-1 block">{t.assets.detail.owner}</span>
-            <h4 className="text-xl font-black text-title leading-tight">{asset.client.name}</h4>
+            <h4 className="text-xl font-black text-title leading-tight">{asset.client?.name || "Sin asignar"}</h4>
             <div className="mt-2 flex items-center space-x-6">
               <div className="text-[12px] font-bold text-subtitle/60 flex items-center">
                  <MapPin className="w-3.5 h-3.5 text-brand mr-1.5" />
-                 <span className="font-black text-title mr-1">{t.assets.table.location}:</span> {asset.location}
+                 <span className="font-black text-title mr-1">{t.assets.table.location}:</span> {asset.location || "N/A"}
               </div>
             </div>
           </div>
@@ -282,7 +248,7 @@ export default function AssetDetailPage() {
         <div className="flex flex-col justify-center items-center lg:items-start space-y-1">
            <span className="text-[10px] font-black text-subtitle/30 uppercase tracking-widest">{t.assets.detail.total_jobs}</span>
            <div className="flex items-center space-x-3">
-              <span className="text-2xl font-black text-title">{asset.jobs.length} {t.assets.detail.total_jobs.split(" ").slice(-1)[0].toLowerCase()}</span>
+              <span className="text-2xl font-black text-title">{asset.services?.length || 0} {t.assets.detail.total_jobs.split(" ").slice(-1)[0].toLowerCase()}</span>
            </div>
         </div>
 
@@ -291,7 +257,9 @@ export default function AssetDetailPage() {
            <span className="text-2xl font-black text-title">
              {statusInfo.days === 0 
                ? t.assets.detail.today 
-               : `${t.assets.pagination.of === "de" ? "Hace" : ""} ${statusInfo.days} ${t.assets.detail.days_ago}`
+               : statusInfo.days > 365 
+                 ? "---" 
+                 : `${t.assets.pagination.of === "de" ? "Hace" : ""} ${statusInfo.days} ${t.assets.detail.days_ago}`
              }
            </span>
         </div>
@@ -358,7 +326,8 @@ export default function AssetDetailPage() {
                       </div>
                       <div className={`w-5 h-5 rounded-full border-2 ${selectedWorkers.length === 0 ? "border-white/40 bg-white/20" : "border-border-theme/40"}`}></div>
                     </button>
-                    {["Alex Thompson", "Juan Pérez", "Maria Silva"].map(worker => {
+                    {/* Extraemos trabajadores únicos de los servicios reales */}
+                    {Array.from(new Set(asset.services?.map(s => s.worker.name) || [])).map(worker => {
                       const isActive = selectedWorkers.includes(worker);
                       return (
                         <button 

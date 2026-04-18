@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, ChevronRight, Activity, Calendar, Ship, Search, Loader2 } from "lucide-react";
+import { MapPin, ChevronRight, Activity, Calendar, Ship, Search, Loader2, AlertCircle, Inbox } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Asset } from "@/services/assets.service";
 import { useAuth } from "@/lib/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
@@ -17,15 +18,11 @@ export default function WorkerHomePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    assetsService.findAll()
-      .then(data => setAssets(data))
-      .catch(err => console.error("Error loading assets:", err))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: assets = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ["assets"],
+    queryFn: () => assetsService.findAll(),
+  });
 
   const filteredAssets = assets.filter(asset => 
     asset.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -33,10 +30,31 @@ export default function WorkerHomePage() {
     (asset.client?.name.toLowerCase().includes(search.toLowerCase()))
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-app-bg text-brand">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="flex-1 flex flex-col items-center justify-center bg-app-bg px-10 text-center">
+        <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+        <p className="text-sm font-black text-subtitle/40 uppercase tracking-widest">Sincronizando activos...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-app-bg px-10 text-center space-y-4">
+        <div className="p-4 bg-error/10 rounded-full">
+          <AlertCircle className="w-8 h-8 text-error" />
+        </div>
+        <div>
+          <h3 className="text-xl font-black text-title">Error de conexión</h3>
+          <p className="text-sm font-medium text-subtitle/60">No pudimos cargar tus activos asignados.</p>
+        </div>
+        <button 
+          onClick={() => refetch()}
+          className="w-full py-4 bg-title text-white rounded-2xl font-black text-sm shadow-xl shadow-title/20 active:scale-95 transition-all"
+        >
+          Reintentar Carga
+        </button>
       </div>
     );
   }
@@ -53,7 +71,7 @@ export default function WorkerHomePage() {
           <p className="text-sm font-bold text-subtitle/60">Here are your assigned assets.</p>
         </div>
 
-        {/* Search Bar - Stylized as in FiltersBar but for mobile */}
+        {/* Search Bar */}
         <div className="relative w-full mb-8">
           <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-subtitle opacity-30" />
@@ -101,12 +119,12 @@ export default function WorkerHomePage() {
 
         {/* Empty State */}
         {filteredAssets.length === 0 && (
-           <div className="py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-               <Search className="w-8 h-8 text-subtitle opacity-20" />
+           <div className="py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-500 bg-surface/30 rounded-[32px] border-2 border-dashed border-border-theme/20">
+             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+               <Inbox className="w-8 h-8 text-subtitle opacity-20" />
              </div>
-             <p className="text-base font-bold text-title">No results found</p>
-             <p className="text-sm font-medium text-subtitle/50 mt-1 px-8">Try searching with other terms or clear the search field.</p>
+             <p className="text-base font-black text-title">No results found</p>
+             <p className="text-sm font-medium text-subtitle/40 mt-1 px-8">Try searching with other terms or clear the search field.</p>
            </div>
         )}
       </main>
