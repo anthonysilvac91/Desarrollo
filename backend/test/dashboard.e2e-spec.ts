@@ -123,15 +123,19 @@ describe('Dashboard (e2e)', () => {
     expect(response.body.total_clients).toBe(0);
   });
 
-  it('CLIENT debería recibir 403 Forbidden', async () => {
-    const org = await testUtils.createTestOrganization('Org1');
-    const client = await testUtils.createTestUser(Role.CLIENT, 'client@org1.com', org.id);
+  it('CLIENT debería ver sus propios activos y servicios públicos (no administrativos)', async () => {
+    const org = await testUtils.createTestOrganization('OrgClient');
+    const client = await testUtils.createTestUser(Role.CLIENT, 'client@orgclient.com', org.id);
     const token = testUtils.getBearerToken(client);
 
     const response = await request(app.getHttpServer())
       .get('/dashboard')
       .set('Authorization', `Bearer ${token}`);
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('total_assets');
+    expect(response.body.total_workers).toBe(0);
+    expect(response.body.total_clients).toBe(0);
+    expect(response.body.total_admins).toBe(0);
   });
 });

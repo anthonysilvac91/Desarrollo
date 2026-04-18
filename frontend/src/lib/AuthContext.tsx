@@ -60,11 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Mapa de permisos por rol para el MVP
    */
   const ROUTE_PERMISSIONS: Record<string, string[]> = {
-    "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER"],
+    "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER", "CLIENT"],
     "/users": ["SUPER_ADMIN", "ADMIN"],
     "/settings": ["ADMIN"],
     "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "CLIENT"],
-    "/service": ["SUPER_ADMIN", "ADMIN", "WORKER", "CLIENT"],
+    "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
   };
 
   const canAccess = (path: string): boolean => {
@@ -91,9 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!canAccess(pathname)) {
           console.warn(`Access denied to ${pathname} for role ${user.role}`);
           // Redirección por defecto según rol
-          const defaultPath = (user.role === "ADMIN" || user.role === "SUPER_ADMIN" || user.role === "WORKER") 
-            ? "/dashboard" 
-            : "/assets";
+          const canDashboard = canAccess("/dashboard");
+          const defaultPath = canDashboard ? "/dashboard" : "/assets";
           router.push(defaultPath);
         }
       }
