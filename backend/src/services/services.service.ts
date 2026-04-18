@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -64,5 +64,26 @@ export class ServicesService {
         admin_intervened: true
       }
     });
+  }
+
+  async findOne(id: string, user: any) {
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      include: {
+        attachments: true,
+        worker: { select: { name: true, id: true } },
+        asset: { select: { name: true, id: true, category: true } }
+      }
+    });
+
+    if (!service || service.organization_id !== user.orgId) {
+      throw new NotFoundException('Service no encontrado');
+    }
+
+    if (user.role === 'CLIENT' && !service.is_public) {
+      throw new ForbiddenException('No tienes permiso para ver este servicio privado');
+    }
+
+    return service;
   }
 }

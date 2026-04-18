@@ -1,29 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, User as UserIcon, Camera, Ship, X } from "lucide-react";
+import { Calendar, User as UserIcon, Camera, Ship, X, Loader2 } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
-
-// --- MOCK DATA ---
-const MOCK_SERVICE = {
-  id: "j1",
-  title: "Limpieza de Casco y Tratamiento Anti-fouling Completo",
-  description: "Limpieza exterior completa del casco utilizando técnicas de hidro-presión controlada para eliminar incrustaciones calcáreas y depósitos de salitre. Se aplicó una capa de tratamiento anti-incrustante (anti-fouling) de alta calidad en todas las secciones sumergidas, asegurando una protección óptima para la próxima temporada. Durante el proceso, el equipo técnico realizó una inspección visual exhaustiva de todo el casco, verificando la ausencia de grietas, ampollas de ósmosis o cualquier signo de fatiga estructural en la línea de flotación y en la pala del timón. El acabado final fue sellado con un polímero protector UV para mantener el brillo de la obra muerta.",
-  created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  worker: "Alex Thompson",
-  asset: { id: "1", name: "Lady Nelly" },
-  attachments: [
-    "https://images.unsplash.com/photo-1563299284-f7486d3967a6?auto=format&fit=crop&q=80&w=600&h=600",
-    "https://images.unsplash.com/photo-1589139225-33ec7c8ec19d?auto=format&fit=crop&q=80&w=600&h=600"
-  ]
-};
+import { assetsService, Service } from "@/services/assets.service";
 
 export default function WorkerServiceViewPage() {
   const router = useRouter();
   const params = useParams();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const job = MOCK_SERVICE;
+  const [job, setJob] = useState<Service | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        const data = await assetsService.getService(params.id as string);
+        setJob(data);
+      } catch (err) {
+        console.error("Error fetching service:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (params.id) fetchService();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-app-bg text-brand">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!job) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <p className="text-title font-bold text-lg">Service not found</p>
+        <button onClick={() => router.back()} className="mt-4 text-brand font-black text-sm uppercase">Go Back</button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -38,7 +57,7 @@ export default function WorkerServiceViewPage() {
                 <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Worker</span>
                 <div className="flex items-center space-x-2">
                   <UserIcon className="w-3.5 h-3.5 text-brand" />
-                  <span className="text-sm font-bold text-title truncate">{job.worker}</span>
+                  <span className="text-sm font-bold text-title truncate">{job.worker.name}</span>
                 </div>
               </div>
               <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
@@ -67,13 +86,13 @@ export default function WorkerServiceViewPage() {
                </h3>
                
                <div className="flex overflow-x-auto space-x-3 pb-2 -mx-5 px-5 no-scrollbar">
-                 {job.attachments.map((url, idx) => (
+                 {job.attachments.map((att, idx) => (
                    <div 
-                    key={idx} 
-                    onClick={() => setSelectedImage(url)}
+                    key={(att as any).id || idx} 
+                    onClick={() => setSelectedImage((att as any).file_url)}
                     className="w-24 h-24 flex-shrink-0 rounded-2xl overflow-hidden border border-border-theme/40 bg-surface active:scale-95 transition-transform"
                    >
-                     <img src={url} className="w-full h-full object-cover" alt={`Evidencia ${idx + 1}`} />
+                     <img src={(att as any).file_url} className="w-full h-full object-cover" alt={`Evidencia ${idx + 1}`} />
                    </div>
                  ))}
                </div>

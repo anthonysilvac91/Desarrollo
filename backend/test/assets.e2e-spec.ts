@@ -92,4 +92,32 @@ describe('Assets Visibility (e2e)', () => {
       expect(res.body[0].id).toBe(assetVinculado.id);
     });
   });
+
+  describe('GET /assets/:id', () => {
+    it('ADMIN puede ver detalle completo con historial y clientes vinculados.', async () => {
+      const org = await testUtils.createTestOrganization();
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Admin' } });
+      
+      const token = testUtils.getBearerToken(admin);
+      const res = await request(app.getHttpServer()).get(`/assets/${asset.id}`).set('Authorization', `Bearer ${token}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('Bote Admin');
+      expect(res.body.services).toBeDefined();
+      expect(res.body.client_access).toBeDefined();
+    });
+
+    it('No permite ver activos de otro tenant.', async () => {
+      const org1 = await testUtils.createTestOrganization('T1');
+      const org2 = await testUtils.createTestOrganization('T2');
+      const admin1 = await testUtils.createTestUser(Role.ADMIN, 'admin@t1.com', org1.id);
+      const asset2 = await prisma.asset.create({ data: { organization_id: org2.id, name: 'Bote Foráneo' } });
+      
+      const token = testUtils.getBearerToken(admin1);
+      const res = await request(app.getHttpServer()).get(`/assets/${asset2.id}`).set('Authorization', `Bearer ${token}`);
+      
+      expect(res.status).toBe(404);
+    });
+  });
 });

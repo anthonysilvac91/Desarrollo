@@ -14,9 +14,8 @@ async function bootstrap() {
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
-  const config = new DocumentBuilder()
     .setTitle('Recall MVP API')
-    .setDescription('API central del sistema Recall. Por defecto consume un mock de Auth, enviar los headers en Request para testear roles.')
+    .setDescription('API central del sistema Recall. Gestión multitenant de activos y servicios.')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

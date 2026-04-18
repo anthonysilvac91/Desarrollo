@@ -1,33 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
 import { MapPin, Ship, Calendar, Camera, Loader2, Maximize2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-
-interface JobHistory {
-  id: string;
-  date: string;
-  title: string;
-  description: string;
-  images: string[];
-}
-
-interface AssetDetail {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  jobs_count: number;
-  thumbnail_url: string;
-  client: {
-    name: string;
-  };
-}
+import { Asset, assetsService, Service } from "@/services/assets.service";
 
 interface AssetDrawerProps {
-  asset: AssetDetail | null;
+  asset: Asset | null;
   onClose: () => void;
 }
 
@@ -53,62 +34,29 @@ const JobThumbnail = ({ src }: { src: string }) => {
   );
 };
 
-// Mock History Data
-const MOCK_HISTORY_EXTENDED: JobHistory[] = [
-  {
-    id: "j1",
-    date: "12 Oct 2023",
-    title: "Hull Maintenance & Cleaning",
-    description: "Full exterior hull cleaning and anti-fouling treatment applied to the lower sections. This ensures maximum speed and efficiency during navigation while preventing marine growth accumulating on the surface.",
-    images: [
-      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5927?auto=format&fit=crop&q=80&w=200&h=200",
-      "https://images.unsplash.com/photo-1563299284-f7486d3967a6?auto=format&fit=crop&q=80&w=200&h=200",
-      "https://images.unsplash.com/photo-1567899378494-47b22a2ad96a?auto=format&fit=crop&q=80&w=200&h=200"
-    ]
-  },
-  {
-    id: "j2",
-    date: "28 Sep 2023",
-    title: "Engine Diagnostics & Oil Change",
-    description: "Routine check of the main propulsion system and replacement of all filters. Checked cooling system for leaks and validated sensor outputs on the main control panel.",
-    images: [
-      "https://images.unsplash.com/photo-1589139225-33ec7c8ec19d?auto=format&fit=crop&q=80&w=200&h=200",
-      "https://images.unsplash.com/broken-link-test"
-    ]
-  },
-  {
-    id: "j3",
-    date: "15 Aug 2023",
-    title: "Electrical System Refit",
-    description: "Upgraded the internal distribution board and replaced aging wiring in the main cabin. Integrated new LED lighting system for better energy efficiency.",
-    images: ["https://images.unsplash.com/photo-1540946484617-452a3bccf974?auto=format&fit=crop&q=80&w=200&h=200"]
-  },
-  {
-    id: "j4",
-    date: "02 Jul 2023",
-    title: "Teak Deck Sanding",
-    description: "Restored the natural wood finish of the upper deck area through careful hand sanding and oiling. Protected the surface with UV resistant coating.",
-    images: []
-  }
-];
-
-export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
+export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawerProps) {
   const router = useRouter();
-  const [visibleCount, setVisibleCount] = useState(2);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [fullAsset, setFullAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(false);
   const { t } = useLanguage();
 
-  if (!asset) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
+  useEffect(() => {
+    if (initialAsset?.id) {
+      setLoading(true);
+      assetsService.findOne(initialAsset.id)
+        .then(data => setFullAsset(data))
+        .catch(err => console.error("Error loading asset detail:", err))
+        .finally(() => setLoading(false));
+    } else {
+      setFullAsset(null);
+    }
+  }, [initialAsset?.id]);
 
-  const handleLoadMore = async () => {
-    setIsLoadingMore(true);
-    await new Promise(r => setTimeout(r, 600));
-    setVisibleCount(prev => Math.min(prev + 2, MOCK_HISTORY_EXTENDED.length));
-    setIsLoadingMore(false);
-  };
+  if (!initialAsset) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
 
-  const history = MOCK_HISTORY_EXTENDED.slice(0, visibleCount);
-  const hasMore = visibleCount < MOCK_HISTORY_EXTENDED.length;
+  // Usar fullAsset si está disponible, si no el inicial
+  const currentAsset = fullAsset || initialAsset;
+  const history = currentAsset.services || [];
 
   // Left action for the drawer (Expand icon)
   const ExpandAction = (
@@ -139,7 +87,7 @@ export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
           <div className="flex flex-col space-y-1">
             <h2 className="text-3xl font-black text-title tracking-tight mb-1">{asset.name}</h2>
             <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
-              {asset.client.name}
+              {currentAsset.client?.name || "No Client"}
             </span>
           </div>
         </div>
@@ -170,29 +118,37 @@ export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
           </div>
 
           <div className="space-y-6">
-            {history.map((job) => (
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-brand/20" /></div>
+            ) : history.map((service) => (
               <div 
-                key={job.id} 
-                className="group p-5 bg-white border border-border-theme/50 rounded-2xl hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all min-h-[180px] flex flex-col"
+                key={service.id} 
+                onClick={() => router.push(`/app/service/${service.id}`)}
+                className="group p-5 bg-white border border-border-theme/50 rounded-2xl hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all min-h-[140px] flex flex-col cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="bg-brand/10 px-3 py-1 rounded-full flex items-center">
                     <Calendar className="w-3 h-3 text-brand mr-2" />
-                    <span className="text-[10px] font-black text-brand uppercase tracking-wider">{job.date}</span>
+                    <span className="text-[10px] font-black text-brand uppercase tracking-wider">
+                      {new Date(service.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-')}
+                    </span>
                   </div>
                 </div>
-                <h4 className="text-base font-bold text-title mb-2 group-hover:text-brand transition-colors truncate">{job.title}</h4>
+                <h4 className="text-base font-bold text-title mb-2 group-hover:text-brand transition-colors truncate">{service.title}</h4>
                 <p className="text-sm text-subtitle/70 leading-relaxed mb-4 font-medium line-clamp-2 overflow-hidden">
-                  {job.description}
+                  {service.description}
                 </p>
                 {/* Image Thumbnails */}
-                {job.images.length > 0 && (
+                {service.attachments && service.attachments.length > 0 && (
                   <div className="flex items-center gap-2.5 mt-auto">
-                    {job.images.map((img, idx) => (
+                    {service.attachments.slice(0, 4).map((att, idx) => (
                       <div key={idx} className="w-12 h-12 rounded-lg border border-border-theme/20 overflow-hidden shadow-sm hover:scale-110 transition-transform bg-white">
-                        <JobThumbnail src={img} />
+                        <JobThumbnail src={att.file_url} />
                       </div>
                     ))}
+                    {service.attachments.length > 4 && (
+                      <div className="text-[10px] font-black text-subtitle opacity-30">+{service.attachments.length - 4}</div>
+                    )}
                   </div>
                 )}
               </div>
@@ -200,28 +156,10 @@ export default function AssetDrawer({ asset, onClose }: AssetDrawerProps) {
           </div>
         </div>
 
-        {/* Footer Link - Load More */}
         <div className="p-10 pt-4">
-          {hasMore ? (
-            <button 
-              onClick={handleLoadMore}
-              disabled={isLoadingMore}
-              className="w-full py-4 text-sm font-black text-brand border-2 border-brand/20 bg-brand/5 hover:bg-brand/10 rounded-2xl transition-all flex items-center justify-center space-x-2 active:scale-[0.98]"
-            >
-              {isLoadingMore ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-brand" />
-                  <span>{t.assets.drawer.loading}</span>
-                </>
-              ) : (
-                <span>{t.assets.drawer.load_more}</span>
-              )}
-            </button>
-          ) : (
-            <div className="w-full py-4 text-center text-xs font-bold text-subtitle/30 border-2 border-dashed border-border-theme/40 rounded-2xl">
-              {t.assets.drawer.all_loaded}
-            </div>
-          )}
+          <div className="w-full py-4 text-center text-xs font-bold text-subtitle/30 border-2 border-dashed border-border-theme/40 rounded-2xl">
+            {t.assets.drawer.all_loaded}
+          </div>
         </div>
 
       </div>

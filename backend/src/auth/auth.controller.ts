@@ -1,8 +1,9 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from './auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -20,6 +21,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Registro mediante token de invitación' })
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtener perfil del usuario actual' })
+  @ApiResponse({ status: 200, description: 'Retorna los datos del usuario autenticado' })
+  getMe(@Request() req) {
+    return this.authService.getMe(req.user.id);
   }
 }
 

@@ -45,4 +45,10 @@ export class ServicesController {
     }
     return this.servicesService.update(id, updateServiceDto, req.user.orgId);
   }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener detalle de un servicio', description: 'Retorna el servicio con sus adjuntos, operario y activo relacionado.' })
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.servicesService.findOne(id, req.user);
+  }
 }

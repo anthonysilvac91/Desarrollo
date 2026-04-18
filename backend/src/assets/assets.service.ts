@@ -48,6 +48,35 @@ export class AssetsService {
     });
   }
 
+  async findOne(id: string, user: any) {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id },
+      include: {
+        services: {
+          include: { worker: { select: { name: true, id: true } } },
+          orderBy: { created_at: 'desc' }
+        },
+        client_access: {
+          include: { client: { select: { name: true, id: true, email: true } } }
+        }
+      }
+    });
+
+    if (!asset || asset.organization_id !== user.orgId) {
+      throw new NotFoundException('Activo no encontrado');
+    }
+
+    if (user.role === 'CLIENT') {
+      const hasAccess = asset.client_access.some(ca => ca.client_id === user.id);
+      if (!hasAccess) throw new NotFoundException('No tienes acceso a este activo');
+      
+      // Filtrar servicios privados para clientes
+      asset.services = asset.services.filter(s => s.is_public);
+    }
+
+    return asset;
+  }
+
   async assignClient(assetId: string, clientId: string, orgId: string, adminId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId }});
     const client = await this.prisma.user.findFirst({ where: { id: clientId, role: 'CLIENT', organization_id: orgId }});

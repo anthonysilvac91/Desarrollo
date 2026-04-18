@@ -23,6 +23,12 @@ export class AssetsController {
     return this.assetsService.findAll(req.user.orgId, req.user.role, req.user.id);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Detalle de un activo', description: 'Incluye historial de servicios y accesos de clientes. Filtra por tenant y permisos.' })
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.assetsService.findOne(id, req.user);
+  }
+
   @Post(':id/clients/:clientId')
   @ApiOperation({ summary: 'Vincular cliente a un Activo (Solo Admin)' })
   assignClient(@Param('id') assetId: string, @Param('clientId') clientId: string, @Request() req) {

@@ -69,5 +69,30 @@ export class AuthService {
       };
     });
   }
+
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, is_active: true },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            brand_color: true,
+            logo_url: true,
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password_hash, ...result } = user;
+    return result;
+  }
 }
 

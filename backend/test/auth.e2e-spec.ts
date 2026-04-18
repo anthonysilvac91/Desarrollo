@@ -4,12 +4,14 @@ const request = require('supertest');
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { TestUtils } from './helpers/test-utils';
+import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 
 describe('Auth & Register (e2e)', () => {
   let app: INestApplication;
   let testUtils: TestUtils;
   let prisma: PrismaService;
+  let jwtService: JwtService;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -21,7 +23,8 @@ describe('Auth & Register (e2e)', () => {
     await app.init();
 
     prisma = app.get(PrismaService);
-    testUtils = new TestUtils(prisma);
+    jwtService = app.get(JwtService);
+    testUtils = new TestUtils(prisma, jwtService);
   });
 
   afterAll(async () => {
@@ -98,6 +101,29 @@ describe('Auth & Register (e2e)', () => {
 
       expect(response.status).toBe(401);
       expect(response.body.message).toContain('expirado');
+    });
+  });
+
+  describe('GET /auth/me', () => {
+    it('debería fallar (401) si no se envía token', async () => {
+      const response = await request(app.getHttpServer()).get('/auth/me');
+      expect(response.status).toBe(401);
+    });
+
+    it('debería retornar el perfil completo del usuario si el token es válido', async () => {
+      const org = await testUtils.createTestOrganization('Branding');
+      const user = await testUtils.createTestUser(Role.ADMIN, 'me@test.com', org.id);
+      const token = testUtils.getBearerToken(user);
+
+      const response = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.email).toBe('me@test.com');
+      expect(response.body.role).toBe(Role.ADMIN);
+      expect(response.body.organization.slug).toBe(org.slug);
+      expect(response.body.password_hash).toBeUndefined(); // Seguridad: NO devolver el hash
     });
   });
 });

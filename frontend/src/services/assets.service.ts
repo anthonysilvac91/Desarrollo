@@ -45,6 +45,11 @@ export const assetsService = {
     return res.data;
   },
 
+  getService: async (id: string): Promise<Service> => {
+    const res = await api.get(`/services/${id}`);
+    return res.data;
+  },
+
   create: async (data: Partial<Asset>) => {
     const res = await api.post("/assets", data);
     return res.data;

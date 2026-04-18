@@ -93,4 +93,39 @@ describe('Services (e2e)', () => {
       expect(res.body.title).toBe('Nuevo Título');
     });
   });
+
+  describe('GET /services/:id', () => {
+    it('WORKER puede ver el detalle con attachments y datos de operario.', async () => {
+      const org = await testUtils.createTestOrganization();
+      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote' } });
+      const srv = await prisma.service.create({ 
+        data: { title: 'Test', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true },
+        include: { attachments: true }
+      });
+      
+      const token = testUtils.getBearerToken(worker);
+      const res = await request(app.getHttpServer()).get(`/services/${srv.id}`).set('Authorization', `Bearer ${token}`);
+      
+      expect(res.status).toBe(200);
+      expect(res.body.title).toBe('Test');
+      expect(res.body.worker.name).toBe(worker.name);
+      expect(res.body.attachments).toBeInstanceOf(Array);
+    });
+
+    it('CLIENT no puede ver un servicio privado.', async () => {
+      const org = await testUtils.createTestOrganization();
+      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
+      const client = await testUtils.createTestUser(Role.CLIENT, 'client@test.com', org.id);
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote' } });
+      const srv = await prisma.service.create({ 
+        data: { title: 'Privado', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: false }
+      });
+      
+      const token = testUtils.getBearerToken(client);
+      const res = await request(app.getHttpServer()).get(`/services/${srv.id}`).set('Authorization', `Bearer ${token}`);
+      
+      expect(res.status).toBe(403); // Forbidden
+    });
+  });
 });

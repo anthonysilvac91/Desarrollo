@@ -7,4 +7,8 @@ export const authService = {
     const res = await api.post<{ access_token: string }>("/auth/login", credentials);
     return res.data;
   },
+  getMe: async () => {
+    const res = await api.get("/auth/me");
+    return res.data;
+  },
 };
