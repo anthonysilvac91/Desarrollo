@@ -1,36 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Recall Frontend (Next.js)
 
-## Getting Started
+Interfaz de usuario para Recall, incluyendo el Dashboard de escritorio y la App móvil operativa.
 
-First, run the development server:
+## 🔗 Documentación Principal
+- [Arquitectura del Sistema](../ARCHITECTURE.md)
+- [README Principal](../README.md)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Guía Local
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Setup
+1. `npm install`
+2. Configurar `.env.local` (apuntando a `NEXT_PUBLIC_API_URL=http://localhost:3001`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Ejecución
+- `npm run dev`: Inicia el servidor de desarrollo en `http://localhost:3000`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Estructura Clave
+- `src/app/(main)`: Dashboard principal (Admin/Worker/Client).
+- `src/app/app`: Experiencia mobile optimizada para Workers.
+- `src/lib/AuthContext.tsx`: Guardián de sesión y permisos.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+Para más detalles técnicos, consulta el [README de la raíz](../README.md).
