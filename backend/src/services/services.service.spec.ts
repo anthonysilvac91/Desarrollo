@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServicesService } from './services.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 describe('ServicesService.create - Auto Publish Logic', () => {
   let service: ServicesService;
@@ -16,6 +17,7 @@ describe('ServicesService.create - Auto Publish Logic', () => {
       providers: [
         ServicesService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: StorageService, useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() } },
       ],
     }).compile();
 

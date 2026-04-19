@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const API_URL = process.env.API_URL || 'http://localhost:3000';
+
 async function main() {
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' }});
   const worker = await prisma.user.findFirst({ where: { role: 'WORKER' }});
@@ -18,12 +20,12 @@ async function main() {
   
   // Swagger Check
   try {
-     const swRes = await fetch('http://localhost:3000/api-json');
+     const swRes = await fetch(`${API_URL}/api-json`);
      console.log('✅ Swagger status:', swRes.status);
   } catch(e) { console.error('❌ Swagger failed', e.message); }
 
   console.log('\n--- Testing WORKER creating a new Asset ---');
-  let res = await fetch('http://localhost:3000/assets', {
+  let res = await fetch(`${API_URL}/assets`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-user-id': worker!.id, 'x-org-id': org!.id, 'x-role': 'WORKER' },
     body: JSON.stringify({ name: 'Generador Alpha' })
@@ -31,7 +33,7 @@ async function main() {
   console.log('Status:', res.status, await res.json());
 
   console.log('\n--- Testing WORKER creating a Job ---');
-  res = await fetch('http://localhost:3000/jobs', {
+  res = await fetch(`${API_URL}/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-user-id': worker!.id, 'x-org-id': org!.id, 'x-role': 'WORKER' },
     body: JSON.stringify({ asset_id: asset!.id, title: 'Limpieza de filtro' })
@@ -42,7 +44,7 @@ async function main() {
   await new Promise(r => setTimeout(r, 1000));
 
   console.log('\n--- Testing ADMIN Listing Jobs ---');
-  res = await fetch('http://localhost:3000/jobs?asset_id=' + asset!.id, {
+  res = await fetch(`${API_URL}/jobs?asset_id=` + asset!.id, {
     method: 'GET',
     headers: { 'x-user-id': admin!.id, 'x-org-id': org!.id, 'x-role': 'ADMIN' }
   });
@@ -50,7 +52,7 @@ async function main() {
   console.log('Status:', res.status, 'Count:', adminJobs.length, adminJobs.map((j:any)=>j.title));
 
   console.log('\n--- Testing CLIENT Listing Jobs ---');
-  res = await fetch('http://localhost:3000/jobs?asset_id=' + asset!.id, {
+  res = await fetch(`${API_URL}/jobs?asset_id=` + asset!.id, {
     method: 'GET',
     headers: { 'x-user-id': client!.id, 'x-org-id': org!.id, 'x-role': 'CLIENT' }
   });
