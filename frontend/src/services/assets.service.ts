@@ -57,9 +57,7 @@ export const assetsService = {
   },
 
   createService: async (formData: FormData): Promise<Service> => {
-    const res = await api.post("/services", formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
+    const res = await api.post("/services", formData);
     return res.data;
   }
 };

@@ -1,5 +1,4 @@
 import axios from "axios";
-import Cookies from "js-cookie";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
@@ -9,10 +8,19 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = Cookies.get("access_token");
+  // Alineado con AuthContext que usa localStorage
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Soporte automático para Multipart (FormData)
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers["Content-Type"];
+    }
+  }
+
   return config;
 });
 
@@ -23,11 +31,13 @@ api.interceptors.response.use(
   (error) => {
     // Si el error es 401 Unauthorized
     if (error.response && error.response.status === 401) {
-      Cookies.remove("access_token");
-      // Evitamos redundancia de redirección en SSR, middleware.ts cubrirá las rutas.
-      // Pero si estamos en cliente (window definido), y no estamos en login, redirigimos
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("access_token");
+        
+        // Redirigimos a login si no estamos ya ahí
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
       }
     }
     return Promise.reject(error);
