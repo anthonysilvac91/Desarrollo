@@ -13,6 +13,7 @@ export interface Service {
   created_at: string;
   attachments: ServiceAttachment[];
   worker: { name: string; id: string };
+  asset?: { name: string; id: string; category?: string };
 }
 
 export interface Asset {

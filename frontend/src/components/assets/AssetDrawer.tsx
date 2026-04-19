@@ -63,7 +63,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
     <button 
       onClick={() => {
         onClose();
-        router.push(`/assets/${asset.id}`);
+        router.push(`/assets/${initialAsset.id}`);
       }}
       className="p-2.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all group"
     >
@@ -72,20 +72,20 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   );
 
   return (
-    <Drawer isOpen={!!asset} onClose={onClose} leftAction={ExpandAction}>
+    <Drawer isOpen={!!initialAsset} onClose={onClose} leftAction={ExpandAction}>
       <div className="flex flex-col min-h-full">
         
         {/* Header Section */}
         <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5 bg-gradient-to-b from-gray-50/50 to-white pt-24">
           <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center relative ring-1 ring-border-theme/20">
-            {asset.thumbnail_url ? (
-              <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
+            {currentAsset.thumbnail_url ? (
+              <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
             ) : (
               <Ship className="w-10 h-10 text-brand/30" />
             )}
           </div>
           <div className="flex flex-col space-y-1">
-            <h2 className="text-3xl font-black text-title tracking-tight mb-1">{asset.name}</h2>
+            <h2 className="text-3xl font-black text-title tracking-tight mb-1">{currentAsset.name}</h2>
             <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
               {currentAsset.client?.name || "No Client"}
             </span>
@@ -98,13 +98,13 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">
               {t.assets.drawer.location}
             </span>
-            <span className="text-sm font-bold text-title">{asset.location}</span>
+            <span className="text-sm font-bold text-title">{currentAsset.location}</span>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">
-              {t.assets.drawer.jobs}
+              {t.assets.drawer.services}
             </span>
-            <span className="text-sm font-bold text-title">{asset.jobs_count || 0} {t.assets.drawer.total}</span>
+            <span className="text-sm font-bold text-title">{currentAsset.services?.length || 0} {t.assets.drawer.total}</span>
           </div>
         </div>
 

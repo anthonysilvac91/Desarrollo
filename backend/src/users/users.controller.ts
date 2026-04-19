@@ -18,9 +18,9 @@ export class UsersController {
   @ApiQuery({ name: 'organizationId', required: false, description: 'Solo para SUPER_ADMIN' })
   @ApiResponse({ type: [UserResponseDto] })
   findAll(
+    @Request() req: any,
     @Query('role') role?: Role,
-    @Query('organizationId') organizationId?: string,
-    @Request() req: any
+    @Query('organizationId') organizationId?: string
   ) {
     return this.usersService.findAll(
       { role, organizationId },

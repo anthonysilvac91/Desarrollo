@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle } from "lucide-react";
@@ -148,7 +150,7 @@ export default function WorkerNewServicePage() {
             <h3 className="text-[11px] font-black text-subtitle/50 uppercase tracking-widest mb-3 flex items-center justify-between">
               <span>{t.mobile.new_service.evidence_label}</span>
               {images.length > 0 && <span className="bg-brand/10 text-brand px-2 py-0.5 rounded-full">{images.length}</span>}
-            </h3>, 
+            </h3>
             
             <div className="flex overflow-x-auto pb-4 -mx-5 px-5 space-x-3 custom-scroll">
                <button 

@@ -1,4 +1,4 @@
-import { authService } from "./auth.service";
+import api from "@/lib/api";
 
 export interface DashboardStats {
   total_assets: number;
@@ -20,10 +20,7 @@ export interface DashboardStats {
 export const dashboardService = {
   async getStats(organizationId?: string): Promise<DashboardStats> {
     const query = organizationId ? `?organizationId=${organizationId}` : "";
-    const response = await authService.fetchWithAuth(`/dashboard${query}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch dashboard stats");
-    }
-    return response.json();
+    const response = await api.get<DashboardStats>(`/dashboard${query}`);
+    return response.data;
   },
 };

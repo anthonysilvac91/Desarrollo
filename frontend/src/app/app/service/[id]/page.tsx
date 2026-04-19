@@ -43,7 +43,7 @@ export default function WorkerServiceViewPage() {
 
   return (
     <>
-      <MobileHeader title={job.asset.name} showBack={true} />
+      <MobileHeader title={job.asset?.name || ""} showBack={true} />
       
       <main className="flex-1 overflow-y-auto px-5 pt-6 pb-12">
         {/* Job Details */}
