@@ -35,7 +35,7 @@ export default function DataTable<T>({
                 <th
                   key={col.key}
                   scope="col"
-                  className={`px-10 py-6 text-${col.align || "left"} text-[13.5px] font-bold text-subtitle uppercase tracking-[0.1em] ${col.width || ""}`}
+                  className={`px-4 sm:px-10 py-6 text-${col.align || "left"} text-[13.5px] font-bold text-subtitle uppercase tracking-[0.1em] ${col.width || ""}`}
                 >
                   {col.header}
                 </th>
@@ -62,7 +62,7 @@ export default function DataTable<T>({
                   {columns.map((col) => (
                     <td
                        key={`${keyExtractor(item)}-${col.key}`}
-                      className={`px-10 py-7 whitespace-nowrap text-base text-title font-medium text-${col.align || "left"}`}
+                      className={`px-4 sm:px-10 py-7 whitespace-nowrap text-base text-title font-medium text-${col.align || "left"}`}
                     >
                       {col.cell ? col.cell(item) : (item as Record<string, unknown>)[col.key] as React.ReactNode}
                     </td>

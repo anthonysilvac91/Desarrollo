@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
   const { user, logout } = useAuth();
-
   const getTitle = () => {
     if (pathname === "/assets") return t.topbar.titles.assets;
     if (pathname === "/service") return t.topbar.titles.services;
@@ -22,13 +25,17 @@ export default function Topbar() {
 
   return (
     <header className="h-20 bg-surface border-b border-border-theme/50 sticky top-0 z-20 w-full shrink-0 transition-colors">
-      <div className="max-w-[1700px] w-full mx-auto h-full flex items-center justify-between px-8 lg:px-14">
+      <div className="max-w-[1700px] w-full mx-auto h-full flex items-center justify-between px-6 sm:px-8 lg:px-14">
         
-        {/* Mobile menu button */}
-        <div className="flex items-center lg:hidden">
-          <button className="text-subtitle hover:text-title focus:outline-none">
+        {/* Mobile menu button & Title */}
+        <div className="flex items-center space-x-4 lg:hidden">
+          <button 
+            onClick={onMenuClick}
+            className="p-2 -ml-2 text-subtitle hover:text-title focus:outline-none bg-app-bg/50 rounded-xl active:scale-90 transition-all"
+          >
             <Menu className="w-6 h-6" />
           </button>
+          <h1 className="text-lg font-black text-title tracking-tight truncate max-w-[140px] lowercase first-letter:uppercase">{getTitle()}</h1>
         </div>
 
         {/* Page Title */}

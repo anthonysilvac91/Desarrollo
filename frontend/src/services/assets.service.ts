@@ -51,13 +51,21 @@ export const assetsService = {
     return res.data;
   },
 
-  create: async (data: Partial<Asset>) => {
-    const res = await api.post("/assets", data);
+  create: async (data: FormData | Partial<Asset>) => {
+    const headers = data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
+    const res = await api.post("/assets", data, { headers });
+    return res.data;
+  },
+
+  assignClient: async (assetId: string, clientId: string) => {
+    const res = await api.post(`/assets/${assetId}/clients/${clientId}`);
     return res.data;
   },
 
   createService: async (formData: FormData): Promise<Service> => {
-    const res = await api.post("/services", formData);
+    const res = await api.post("/services", formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return res.data;
   }
 };

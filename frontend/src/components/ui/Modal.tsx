@@ -41,18 +41,18 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         className="relative bg-white w-full max-w-[560px] rounded-[32px] shadow-2xl shadow-title/10 overflow-hidden transform transition-all animate-in zoom-in-95 fade-in duration-300"
       >
         {/* Header */}
-        <div className="px-10 pt-10 pb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-black text-title tracking-tight">{title}</h2>
+        <div className="px-6 sm:px-10 pt-8 sm:pt-10 pb-6 flex items-center justify-between">
+          <h2 className="text-xl sm:text-2xl font-black text-title tracking-tight">{title}</h2>
           <button 
             onClick={onClose}
             className="p-2.5 rounded-full hover:bg-gray-100 text-subtitle/40 hover:text-title transition-all"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="px-10 pb-10">
+        <div className="px-6 sm:px-10 pb-10 max-h-[80vh] overflow-y-auto custom-scroll">
           {children}
         </div>
       </div>

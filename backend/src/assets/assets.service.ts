@@ -1,15 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateAssetDto } from './dto/create-asset.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class AssetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService
+  ) {}
 
-  async create(createAssetDto: CreateAssetDto, orgId: string) {
+  async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
+    let thumbnail_url = createAssetDto.thumbnail_url;
+
+    if (photo) {
+      thumbnail_url = await this.storageService.uploadFile(photo, `${orgId}/assets`);
+    }
+
     return this.prisma.asset.create({
       data: {
         ...createAssetDto,
+        thumbnail_url,
         organization_id: orgId,
       },
     });

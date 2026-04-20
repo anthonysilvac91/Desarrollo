@@ -265,8 +265,7 @@ export default function AssetsPage() {
       <AssetModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={() => {
-          showToast(t.feedback.save_success, "success");
+        onSuccess={() => {
           setIsModalOpen(false);
           refetch();
         }} 

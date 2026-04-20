@@ -27,7 +27,7 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
     name: "",
     email: "",
     company: "",
-    role: "Operator",
+    role: "WORKER",
     password: ""
   });
 
@@ -166,21 +166,25 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsRoleDropdownOpen(false)} />
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border-theme/40 rounded-2xl shadow-2xl z-20 py-2 animate-in fade-in zoom-in-95 duration-200">
-                    {["Admin", "Operator", "Client"].map((role) => (
+                    {[
+                      { id: "ADMIN", label: "Administrador" },
+                      { id: "WORKER", label: "Operador/Trabajador" },
+                      { id: "CLIENT", label: "Cliente Final" }
+                    ].map((role) => (
                       <button
-                        key={role}
+                        key={role.id}
                         type="button"
                         onClick={() => {
-                          setFormData({ ...formData, role });
+                          setFormData({ ...formData, role: role.id });
                           setIsRoleDropdownOpen(false);
                         }}
                         className={`w-full px-6 py-3 text-left text-sm font-bold transition-colors hover:bg-brand/5 ${
-                          formData.role === role ? "text-brand bg-brand/5" : "text-title/70"
+                          formData.role === role.id ? "text-brand bg-brand/5" : "text-title/70"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span>{role}</span>
-                          {formData.role === role && <div className="w-1.5 h-1.5 rounded-full bg-brand" />}
+                          <span>{role.label}</span>
+                          {formData.role === role.id && <div className="w-1.5 h-1.5 rounded-full bg-brand" />}
                         </div>
                       </button>
                     ))}

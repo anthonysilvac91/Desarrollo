@@ -5,10 +5,14 @@ import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
 import { Camera, Ship, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useQuery } from "@tanstack/react-query";
+import { usersService } from "@/services/users.service";
+import { assetsService } from "@/services/assets.service";
+import { useToast } from "@/lib/ToastContext";
 
 export interface AssetFormData {
   name: string;
-  client: string;
+  client_id: string;
   location: string;
   photo: File | null;
 }
@@ -16,28 +20,30 @@ export interface AssetFormData {
 interface AssetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: AssetFormData) => void;
+  onSuccess: () => void;
 }
 
-// Mock clients for the combobox
-const MOCK_CLIENTS = [
-  { id: "1", name: "Roberto García" },
-  { id: "2", name: "Elena Martínez" },
-  { id: "3", name: "Thomas Müller" },
-  { id: "4", name: "Sophie Laurent" },
-];
-
-export default function AssetModal({ isOpen, onClose, onSubmit }: AssetModalProps) {
+export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalProps) {
   const { t } = useLanguage();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    client: "",
+    client_id: "",
     location: "",
     photo: null as File | null,
   });
 
   const [preview, setPreview] = useState<string | null>(null);
+
+  // Fetch real clients from the database
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => usersService.findAll("CLIENT"),
+    enabled: isOpen
+  });
+
+  const clientOptions = clients.map(c => ({ id: c.id, name: c.name }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,18 +56,42 @@ export default function AssetModal({ isOpen, onClose, onSubmit }: AssetModalProp
   };
 
   const handleSave = async () => {
-    // Basic validation
-    if (!formData.name || !formData.client) return;
+    if (!formData.name) {
+      showToast("El nombre es obligatorio", "error");
+      return;
+    }
 
-    setLoading(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1000));
-    onSubmit(formData);
-    setLoading(false);
-    onClose();
-    // Reset form
-    setFormData({ name: "", client: "", location: "", photo: null });
-    setPreview(null);
+    try {
+      setLoading(true);
+
+      const data = new FormData();
+      data.append("name", formData.name);
+      data.append("location", formData.location);
+      if (formData.photo) {
+        data.append("photo", formData.photo);
+      }
+
+      // 1. Create Asset
+      const newAsset = await assetsService.create(data);
+
+      // 2. Assign client if selected
+      if (formData.client_id) {
+        await assetsService.assignClient(newAsset.id, formData.client_id);
+      }
+
+      showToast(t.feedback.save_success, "success");
+      onSuccess();
+      onClose();
+      
+      // Reset form
+      setFormData({ name: "", client_id: "", location: "", photo: null });
+      setPreview(null);
+    } catch (err) {
+      console.error(err);
+      showToast(t.feedback.generic_error, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -92,24 +122,24 @@ export default function AssetModal({ isOpen, onClose, onSubmit }: AssetModalProp
           {/* Asset Name */}
           <div className="flex flex-col space-y-2">
             <label className="text-[13px] font-bold text-subtitle uppercase tracking-widest pl-1">
-              {t.assets.table.asset} Name
+              Nombre de la embarcación
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-5 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm"
-              placeholder="e.g. Blue Horizon"
+              placeholder="Ej. Black Pearl"
             />
           </div>
 
           {/* Client (Combobox) */}
           <Combobox
             label={t.assets.table.client}
-            options={MOCK_CLIENTS}
-            value={formData.client}
-            onChange={(val) => setFormData({ ...formData, client: val })}
-            placeholder="Search or type a new client..."
+            options={clientOptions}
+            value={formData.client_id}
+            onChange={(val) => setFormData({ ...formData, client_id: val })}
+            placeholder="Selecciona un cliente..."
           />
 
           {/* Location */}
@@ -122,7 +152,7 @@ export default function AssetModal({ isOpen, onClose, onSubmit }: AssetModalProp
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               className="w-full px-5 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm"
-              placeholder="e.g. Marina Ibiza, Dock 5"
+              placeholder="Ej. Marina Ibiza, Pantalán 5"
             />
           </div>
         </div>
@@ -133,17 +163,17 @@ export default function AssetModal({ isOpen, onClose, onSubmit }: AssetModalProp
             onClick={onClose}
             className="flex-1 py-4 px-6 rounded-2xl text-sm font-bold text-subtitle hover:bg-gray-100 transition-all"
           >
-            Cancel
+            Cancelar
           </button>
           <button
             onClick={handleSave}
-            disabled={loading || !formData.name || !formData.client}
+            disabled={loading || !formData.name}
             className="flex-[2] py-4 px-6 rounded-2xl text-sm font-black text-white bg-brand shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center space-x-2"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <span>Save Asset</span>
+              <span>Crear Embarcación</span>
             )}
           </button>
         </div>

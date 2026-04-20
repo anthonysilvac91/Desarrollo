@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +14,7 @@ export default function MainLayout({
 }) {
   const { loading } = useAuth();
   const { t } = useLanguage();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (loading) {
     return (
@@ -28,13 +30,17 @@ export default function MainLayout({
   }
 
   return (
-    <div className="font-sans min-h-screen bg-app-bg transition-colors flex">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 ml-[260px]">
-        <Topbar />
+    <div className="font-sans min-h-screen bg-app-bg transition-colors flex overflow-x-hidden">
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+      
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-[260px] transition-all duration-300">
+        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         
-        {/* Main Content Area - Scroll is now allowed on the page level if content is long */}
-        <main className="flex-1 px-8 pb-8 lg:px-14 lg:pb-12 pt-10 max-w-[1700px] w-full mx-auto">
+        {/* Main Content Area */}
+        <main className="flex-1 px-4 pb-8 sm:px-8 lg:px-14 lg:pb-12 pt-6 sm:pt-10 max-w-[1700px] w-full mx-auto">
           {children}
         </main>
       </div>

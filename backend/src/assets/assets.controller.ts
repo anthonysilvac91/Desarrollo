@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
@@ -12,9 +13,15 @@ export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Crear un nuevo activo', description: 'Disponible para Worker y Admin. El activo nace sin cliente.' })
-  create(@Body() createAssetDto: CreateAssetDto, @Request() req) {
-    return this.assetsService.create(createAssetDto, req.user.orgId);
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Crear un nuevo activo', description: 'Disponible para Worker y Admin.' })
+  create(
+    @Body() createAssetDto: CreateAssetDto, 
+    @Request() req,
+    @UploadedFile() photo?: Express.Multer.File
+  ) {
+    return this.assetsService.create(createAssetDto, req.user.orgId, photo);
   }
 
   @Get()
