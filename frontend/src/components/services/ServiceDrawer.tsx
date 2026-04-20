@@ -5,20 +5,10 @@ import Drawer from "@/components/ui/Drawer";
 import { Ship, Calendar, User, MapPin, Camera } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
-interface ServiceDetail {
-  id: string;
-  title: string;
-  asset_name: string;
-  asset_location: string;
-  worker_name: string;
-  client_name: string;
-  date: string;
-  description: string;
-  images: string[];
-}
+import { Service } from "@/services/services.service";
 
 interface ServiceDrawerProps {
-  service: ServiceDetail | null;
+  service: Service | null;
   onClose: () => void;
 }
 
@@ -39,10 +29,10 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             </div>
           </div>
           <div className="flex flex-col space-y-1">
-            <h2 className="text-3xl font-black text-title tracking-tight">{service.asset_name}</h2>
+            <h2 className="text-3xl font-black text-title tracking-tight">{service.asset?.name || "---"}</h2>
             <div className="flex items-center justify-center text-brand font-black text-sm uppercase tracking-[0.2em]">
               <MapPin className="w-3.5 h-3.5 mr-2" />
-              {service.asset_location}
+              {service.asset?.location || "N/A"}
             </div>
           </div>
         </div>
@@ -53,14 +43,14 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Responsable</span>
             <div className="flex items-center space-x-2">
               <User className="w-3.5 h-3.5 text-brand" />
-              <span className="text-sm font-bold text-title">{service.worker_name}</span>
+              <span className="text-sm font-bold text-title">{service.worker?.name || "---"}</span>
             </div>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Realizado el</span>
             <div className="flex items-center space-x-2">
               <Calendar className="w-3.5 h-3.5 text-brand" />
-              <span className="text-sm font-bold text-title">{service.date}</span>
+              <span className="text-sm font-bold text-title">{new Date(service.created_at).toLocaleDateString()}</span>
             </div>
           </div>
         </div>
@@ -82,11 +72,11 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em]">Evidencia Visual</h3>
           </div>
           
-          {service.images.length > 0 ? (
+          {service.attachments && service.attachments.length > 0 ? (
             <div className="grid grid-cols-2 gap-4">
-              {service.images.map((img, idx) => (
+              {service.attachments.map((att, idx) => (
                 <div key={idx} className="aspect-square rounded-2xl overflow-hidden border border-border-theme/20 shadow-sm hover:scale-[1.02] transition-transform group relative cursor-pointer">
-                  <img src={img} alt="Work proof" className="w-full h-full object-cover" />
+                  <img src={att.file_url} alt="Work proof" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Camera className="w-6 h-6 text-white" />
                   </div>

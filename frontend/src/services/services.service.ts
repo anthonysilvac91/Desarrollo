@@ -8,11 +8,16 @@ export interface Service {
   asset?: {
     id: string;
     name: string;
+    location?: string;
   };
   worker?: {
     id: string;
     name: string;
   };
+  attachments?: {
+    file_url: string;
+    file_type?: string;
+  }[];
   is_public: boolean;
   status: string;
   created_at: string;

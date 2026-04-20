@@ -144,13 +144,16 @@ export default function MasterOrganizationsPage() {
     <ModuleContainer>
       <ModuleHeader
         title={t.sidebar.organizations}
-        description="Gestión multitenant de la plataforma Recall"
-        icon={Building2}
-        action={{
-          label: "Nueva Organización",
-          icon: Plus,
-          onClick: () => setIsModalOpen(true),
-        }}
+        subtitle="Gestión multitenant de la plataforma Recall"
+        actions={
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+          >
+            <Plus className="w-5 h-5 stroke-[4px]" />
+            <span>Nueva Organización</span>
+          </button>
+        }
       />
 
       <div className="bg-surface rounded-figma shadow-soft border border-border-theme/40 overflow-hidden mt-6">

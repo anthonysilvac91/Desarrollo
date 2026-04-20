@@ -6,6 +6,7 @@ export interface Organization {
   slug: string;
   brand_color?: string;
   logo_url?: string;
+  default_asset_icon?: string;
 }
 
 export interface User {
@@ -14,6 +15,7 @@ export interface User {
   role: Role;
   name: string;
   is_active: boolean;
+  avatar_url?: string;
   organization_id?: string;
   organization?: Organization;
 }

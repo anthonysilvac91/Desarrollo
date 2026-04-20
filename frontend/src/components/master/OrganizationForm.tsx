@@ -41,7 +41,7 @@ export default function OrganizationForm({ onSuccess }: OrganizationFormProps) {
     try {
       const response = await organizationsService.create(data);
       showToast("Organización creada exitosamente", "success");
-      setInvitationToken(response.initial_invitation_token);
+      setInvitationToken(response.initial_invitation_token || null);
       // No cerramos inmediatamente para que el Maestro vea el token generado
     } catch (error: any) {
       console.error("Error creating org:", error);

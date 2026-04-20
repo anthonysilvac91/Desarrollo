@@ -47,8 +47,8 @@ export default function AssetsPage() {
       const searchLower = search.toLowerCase();
       const matchesSearch = search === "" || (
         item.name.toLowerCase().includes(searchLower) ||
-        item.client?.name.toLowerCase().includes(searchLower) ||
-        (item.location && item.location.toLowerCase().includes(searchLower))
+        (item.client?.name || "").toLowerCase().includes(searchLower) ||
+        (item.location || "").toLowerCase().includes(searchLower)
       );
       const matchesClient = selectedClients.length === 0 || (item.client && selectedClients.includes(item.client.name));
       const matchesCategory = selectedCategories.length === 0 || (item.category && selectedCategories.includes(item.category));

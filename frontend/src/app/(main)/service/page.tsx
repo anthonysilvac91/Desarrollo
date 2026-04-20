@@ -32,9 +32,8 @@ export default function ServicesPage() {
       const searchLower = search.toLowerCase();
       const matchesSearch = search === "" || (
         item.title.toLowerCase().includes(searchLower) ||
-        item.asset_name.toLowerCase().includes(searchLower) ||
-        item.worker_name.toLowerCase().includes(searchLower) ||
-        item.client_name.toLowerCase().includes(searchLower)
+        (item.asset?.name || "").toLowerCase().includes(searchLower) ||
+        (item.worker?.name || "").toLowerCase().includes(searchLower)
       );
 
       if (!matchesSearch) return false;
@@ -86,6 +85,11 @@ export default function ServicesPage() {
         showToast(t.feedback.generic_error, "error");
       }
     }
+  };
+
+  const handleDeleteRequest = (e: React.MouseEvent, service: Service) => {
+    e.stopPropagation();
+    setServiceToDelete(service);
   };
 
   const displayData = filteredData.slice(0, 10);

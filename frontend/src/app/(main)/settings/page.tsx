@@ -87,7 +87,7 @@ export default function SettingsPage() {
   const mutation = useMutation({
     mutationFn: (fd: FormData) => organizationsService.updateSettings(fd),
     onSuccess: () => {
-      showToast(t.common?.success_message || "Cambios guardados", "success");
+      showToast(t.feedback.save_success, "success");
       queryClient.invalidateQueries({ queryKey: ["my-organization"] });
       refreshUser();
     },
