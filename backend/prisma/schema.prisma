@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -40,9 +41,10 @@ model Organization {
   slug                      String           @unique  // Identificador URL único (ej: marina-azul)
   is_active                 Boolean          @default(true)
 
-  // Branding
+  // Configuración de branding y assets
   logo_url                  String?
   brand_color               String?          // Hex (ej: #1a73e8) para personalización UI
+  default_asset_icon        String?          // ID del icono por defecto (ej: ship, car...)
 
   // Configuración de services
   auto_publish_services     Boolean          @default(true)

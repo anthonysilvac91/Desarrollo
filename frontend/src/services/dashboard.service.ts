@@ -15,12 +15,19 @@ export interface DashboardStats {
     asset_name: string;
     worker_name: string;
   }>;
+  evolution: Array<{ name: string; value: number }>;
+  top_assets: Array<{ id: string; name: string; metric: number }>;
+  top_workers: Array<{ id: string; name: string; metric: number; avatar_url?: string }>;
 }
 
 export const dashboardService = {
-  async getStats(organizationId?: string): Promise<DashboardStats> {
-    const query = organizationId ? `?organizationId=${organizationId}` : "";
-    const response = await api.get<DashboardStats>(`/dashboard${query}`);
+  async getStats(args?: { organizationId?: string; startDate?: string; endDate?: string }): Promise<DashboardStats> {
+    const params = new URLSearchParams();
+    if (args?.organizationId) params.append("organizationId", args.organizationId);
+    if (args?.startDate) params.append("startDate", args.startDate);
+    if (args?.endDate) params.append("endDate", args.endDate);
+    
+    const response = await api.get<DashboardStats>(`/dashboard?${params.toString()}`);
     return response.data;
   },
 };

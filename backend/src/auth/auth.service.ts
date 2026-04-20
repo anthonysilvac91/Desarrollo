@@ -87,6 +87,7 @@ export class AuthService {
             slug: true,
             brand_color: true,
             logo_url: true,
+            default_asset_icon: true,
           }
         }
       }

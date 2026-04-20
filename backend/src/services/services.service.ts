@@ -60,7 +60,10 @@ export class ServicesService {
 
     return this.prisma.service.findMany({
       where: whereClause,
-      include: { worker: { select: { id: true, name: true } } },
+      include: { 
+        worker: { select: { id: true, name: true } },
+        asset: { select: { id: true, name: true } }
+      },
       orderBy: { created_at: 'desc' }
     });
   }

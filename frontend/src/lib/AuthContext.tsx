@@ -5,6 +5,8 @@ import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
 import { useRouter, usePathname } from "next/navigation";
 
+import Cookies from "js-cookie";
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn("Auth initialization error. User logged out. Details:", serverMessage);
       setUser(null);
       localStorage.removeItem("access_token");
+      Cookies.remove("access_token");
     } finally {
       setLoading(false);
     }
@@ -48,11 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (token: string) => {
     localStorage.setItem("access_token", token);
+    Cookies.set("access_token", token, { expires: 7 }); // Sincronizado para middleware
     refreshUser();
   };
 
   const logout = () => {
     localStorage.removeItem("access_token");
+    Cookies.remove("access_token");
     setUser(null);
     router.push("/login");
   };
@@ -82,19 +87,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!loading) {
       const isPublicPath = pathname === "/login" || pathname === "/register" || pathname === "/";
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
       
       if (!user && !isPublicPath) {
         router.push("/login");
         return;
       }
 
-      if (user && !isPublicPath) {
+      if (user) {
+        // Redirección si intenta entrar a login ya autenticado o al home "/"
+        if (isPublicPath) {
+          if (user.role === "SUPER_ADMIN") {
+            router.push("/master");
+          } else if (user.role === "WORKER" && isMobile) {
+            router.push("/app");
+          } else if (user.role === "ADMIN") {
+            router.push("/dashboard");
+          } else {
+            router.push("/assets");
+          }
+          return;
+        }
+
+        // Validación de permisos por ruta
         if (!canAccess(pathname)) {
           console.warn(`Access denied to ${pathname} for role ${user.role}`);
-          // Redirección por defecto según rol
-          const canDashboard = canAccess("/dashboard");
-          const defaultPath = canDashboard ? "/dashboard" : "/assets";
-          router.push(defaultPath);
+          
+          if (user.role === "SUPER_ADMIN") {
+            router.push("/master");
+          } else if (user.role === "WORKER" && isMobile) {
+            router.push("/app");
+          } else {
+            const canDashboard = canAccess("/dashboard");
+            router.push(canDashboard ? "/dashboard" : "/assets");
+          }
         }
       }
     }

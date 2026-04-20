@@ -1,9 +1,11 @@
-import { Controller, Get, Query, Param, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Query, Param, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Role } from '@prisma/client';
 import { UserResponseDto } from './dto/users.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('Users Management')
 @ApiBearerAuth()
@@ -26,6 +28,45 @@ export class UsersController {
       { role, organizationId },
       { id: req.user.id, role: req.user.role, orgId: req.user.orgId }
     );
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Crear nuevo usuario manual' })
+  @ApiBody({ type: CreateUserDto })
+  @ApiResponse({ status: 201, type: UserResponseDto })
+  create(@Body() dto: CreateUserDto, @Request() req: any) {
+    return this.usersService.create(dto, {
+      id: req.user.id,
+      role: req.user.role,
+      orgId: req.user.orgId,
+    });
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar perfil de usuario' })
+  @ApiBody({ type: UpdateUserDto })
+  @ApiResponse({ type: UserResponseDto })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @Request() req: any
+  ) {
+    return this.usersService.update(id, dto, {
+      id: req.user.id,
+      role: req.user.role,
+      orgId: req.user.orgId,
+    });
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Activar/Desactivar usuario' })
+  @ApiResponse({ type: UserResponseDto })
+  toggleStatus(@Param('id') id: string, @Request() req: any) {
+    return this.usersService.toggleStatus(id, {
+      id: req.user.id,
+      role: req.user.role,
+      orgId: req.user.orgId,
+    });
   }
 
   @Get(':id')

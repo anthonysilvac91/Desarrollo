@@ -24,55 +24,104 @@ import {
   Stethoscope,
   Leaf,
   Briefcase,
-  Trophy
+  Trophy,
+  Loader2
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import ModuleContainer from "@/components/ui/ModuleContainer";
+import { organizationsService } from "@/services/organizations.service";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/lib/ToastContext";
+import { useAuth } from "@/lib/AuthContext";
 
-// Color Palettes from the reference image style
 const BRAND_PALETTES = [
-  { id: "recall", name: "Recall Blue", base: "bg-blue-500", shades: ["bg-blue-300", "bg-blue-400", "bg-blue-600", "bg-blue-700"] },
-  { id: "ocean", name: "Ocean", base: "bg-cyan-500", shades: ["bg-cyan-300", "bg-cyan-400", "bg-cyan-600", "bg-cyan-700"] },
-  { id: "teal", name: "Teal", base: "bg-teal-500", shades: ["bg-teal-300", "bg-teal-400", "bg-teal-600", "bg-teal-700"] },
-  { id: "forest", name: "Forest", base: "bg-emerald-500", shades: ["bg-emerald-300", "bg-emerald-400", "bg-emerald-600", "bg-emerald-700"] },
-  { id: "amber", name: "Amber", base: "bg-amber-500", shades: ["bg-amber-300", "bg-amber-400", "bg-amber-600", "bg-amber-700"] },
-  { id: "orange", name: "Orange", base: "bg-orange-500", shades: ["bg-orange-300", "bg-orange-400", "bg-orange-600", "bg-orange-700"] },
-  { id: "rose", name: "Rose", base: "bg-rose-500", shades: ["bg-rose-300", "bg-rose-400", "bg-rose-600", "bg-rose-700"] },
-  { id: "pink", name: "Pink", base: "bg-pink-500", shades: ["bg-pink-300", "bg-pink-400", "bg-pink-600", "bg-pink-700"] },
-  { id: "indigo", name: "Indigo", base: "bg-indigo-500", shades: ["bg-indigo-300", "bg-indigo-400", "bg-indigo-600", "bg-indigo-700"] },
-  { id: "violet", name: "Violet", base: "bg-violet-500", shades: ["bg-violet-300", "bg-violet-400", "bg-violet-600", "bg-violet-700"] },
-  { id: "slate", name: "Slate", base: "bg-slate-500", shades: ["bg-slate-300", "bg-slate-400", "bg-slate-600", "bg-slate-700"] },
+  { id: "recall", name: "Recall Blue", base: "bg-blue-600", shades: ["bg-blue-400", "bg-blue-700", "bg-blue-900"] },
+  { id: "ocean", name: "Ocean Breeze", base: "bg-cyan-500", shades: ["bg-cyan-300", "bg-cyan-600", "bg-cyan-800"] },
+  { id: "teal", name: "Teal Green", base: "bg-teal-500", shades: ["bg-teal-300", "bg-teal-600", "bg-teal-800"] },
+  { id: "forest", name: "Forest", base: "bg-emerald-600", shades: ["bg-emerald-400", "bg-emerald-700", "bg-emerald-900"] },
+  { id: "amber", name: "Amber Sun", base: "bg-amber-500", shades: ["bg-amber-300", "bg-amber-600", "bg-amber-800"] },
+  { id: "orange", name: "Sunset Orange", base: "bg-orange-500", shades: ["bg-orange-300", "bg-orange-600", "bg-orange-800"] },
+  { id: "rose", name: "Rose Petal", base: "bg-rose-500", shades: ["bg-rose-300", "bg-rose-600", "bg-rose-800"] },
+  { id: "pink", name: "Hot Pink", base: "bg-pink-500", shades: ["bg-pink-300", "bg-pink-600", "bg-pink-800"] },
+  { id: "indigo", name: "Indigo Night", base: "bg-indigo-600", shades: ["bg-indigo-400", "bg-indigo-700", "bg-indigo-900"] },
+  { id: "violet", name: "Royal Violet", base: "bg-violet-600", shades: ["bg-violet-400", "bg-violet-700", "bg-violet-900"] },
+  { id: "slate", name: "Slate Grey", base: "bg-slate-600", shades: ["bg-slate-400", "bg-slate-700", "bg-slate-900"] },
 ];
 
 const ASSET_ICONS = [
-  { id: "ship", icon: Ship, label: "Barco" },
-  { id: "car", icon: Car, label: "Vehículo" },
-  { id: "house", icon: Home, label: "Casa" },
-  { id: "building", icon: Square, label: "Edificio" },
-  { id: "plane", icon: Plane, label: "Aviación" },
-  { id: "truck", icon: Truck, label: "Logística" },
-  { id: "industry", icon: Factory, label: "Industria" },
-  { id: "tools", icon: Wrench, label: "Taller" },
-  { id: "construction", icon: HardHat, label: "Obra" },
-  { id: "tech", icon: Cpu, label: "Tecnología" },
-  { id: "health", icon: Stethoscope, label: "Salud" },
-  { id: "nature", icon: Leaf, label: "Ambiente" },
-  { id: "corporate", icon: Briefcase, label: "Corporativo" },
-  { id: "leisure", icon: Trophy, label: "Ocio" },
-  { id: "camera", icon: Camera, label: "Genérico" },
+  { id: "ship", label: "Barco / Yacht", icon: Ship },
+  { id: "car", label: "Automóvil", icon: Car },
+  { id: "house", label: "Inmobiliaria", icon: Home },
+  { id: "building", label: "Edificio", icon: Square },
+  { id: "plane", label: "Aeronave", icon: Plane },
+  { id: "truck", label: "Transporte", icon: Truck },
+  { id: "industry", label: "Industria", icon: Factory },
+  { id: "tools", label: "Servicios", icon: Wrench },
+  { id: "construction", label: "Obra", icon: HardHat },
+  { id: "tech", label: "Tecnología", icon: Cpu },
+  { id: "health", label: "Salud", icon: Stethoscope },
+  { id: "nature", label: "Ambiente", icon: Leaf },
+  { id: "corporate", label: "Corporativo", icon: Briefcase },
+  { id: "leisure", label: "Ocio", icon: Trophy },
+  { id: "camera", label: "Inspección", icon: Camera },
 ];
 
 export default function SettingsPage() {
   const { t } = useLanguage();
+  const { showToast } = useToast();
+  const { refreshUser } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab ] = useState("profile");
-  const [selectedPalette, setSelectedPalette] = useState("recall");
-  const [selectedIcon, setSelectedIcon] = useState("ship");
+  
+  // States for changes
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [selectedPalette, setSelectedPalette] = useState<string | null>(null);
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
+
+  const { data: org, isLoading } = useQuery({
+    queryKey: ["my-organization"],
+    queryFn: () => organizationsService.getMyOrganization(),
+  });
+
+  const mutation = useMutation({
+    mutationFn: (fd: FormData) => organizationsService.updateSettings(fd),
+    onSuccess: () => {
+      showToast(t.common?.success_message || "Cambios guardados", "success");
+      queryClient.invalidateQueries({ queryKey: ["my-organization"] });
+      refreshUser();
+    },
+    onError: () => showToast("Error al guardar cambios", "error"),
+  });
+
+  // Effect to sync initial state
+  React.useEffect(() => {
+    if (org) {
+      if (org.logo_url) setLogoPreview(org.logo_url);
+      if (org.brand_color) {
+        const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
+        setSelectedPalette(found?.id || "recall");
+      }
+      if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
+    }
+  }, [org]);
+
+  const handleSave = async () => {
+    const fd = new FormData();
+    if (logoFile) fd.append("logo", logoFile);
+    if (selectedPalette) fd.append("brand_color", selectedPalette);
+    if (selectedIcon) fd.append("default_asset_icon", selectedIcon);
+    
+    // Also include text fields if you want to make them dynamic (currently they are hardcoded placeholders)
+    mutation.mutate(fd);
+  };
 
   const tabs = [
     { id: "profile", label: t.settings.tabs.profile, icon: Building2 },
     { id: "branding_assets", label: t.settings.tabs.branding_assets, icon: Palette },
   ];
+
+  if (isLoading) return <div className="p-20 text-center animate-pulse text-subtitle/40 font-black uppercase">Cargando...</div>;
 
   return (
     <div className="flex flex-col space-y-6">
@@ -121,6 +170,7 @@ export default function SettingsPage() {
                         <input type="file" className="hidden" accept="image/*" onChange={e => {
                           const file = e.target.files?.[0];
                           if (file) {
+                            setLogoFile(file);
                             const r = new FileReader();
                             r.onloadend = () => setLogoPreview(r.result as string);
                             r.readAsDataURL(file);
@@ -138,25 +188,18 @@ export default function SettingsPage() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                     <div className="space-y-3">
                       <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.company_section.name}</label>
-                      <input type="text" defaultValue="V&J Yacht Services" className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold focus:bg-white focus:border-brand transition-all outline-none" />
+                      <input type="text" readOnly defaultValue={org?.name} className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold opacity-70 outline-none" />
                     </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.company_section.email}</label>
-                      <input type="email" defaultValue="operaciones@vjyachts.com" className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold focus:bg-white focus:border-brand transition-all outline-none" />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.company_section.phone}</label>
-                      <input type="text" defaultValue="+34 600 000 000" className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold focus:bg-white focus:border-brand transition-all outline-none" />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.company_section.website}</label>
-                      <input type="text" defaultValue="www.vjyachts.com" className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold focus:bg-white focus:border-brand transition-all outline-none" />
-                    </div>
+                    {/* (Website, Email, etc could be added to schema later if needed) */}
                  </div>
 
                  <div className="pt-6 flex justify-end">
-                    <button className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25">
-                      <Save className="w-5 h-5 stroke-[3px]" />
+                    <button 
+                      onClick={handleSave}
+                      disabled={mutation.isPending}
+                      className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25 disabled:opacity-50"
+                    >
+                      {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 stroke-[3px]" />}
                       <span>{t.common.save}</span>
                     </button>
                  </div>
@@ -236,8 +279,12 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="pt-6 flex justify-end">
-                    <button className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25">
-                      <Save className="w-5 h-5 stroke-[3px]" />
+                    <button 
+                      onClick={handleSave}
+                      disabled={mutation.isPending}
+                      className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25 disabled:opacity-50"
+                    >
+                      {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 stroke-[3px]" />}
                       <span>{t.common.save}</span>
                     </button>
                  </div>

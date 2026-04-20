@@ -9,6 +9,8 @@ export const translations = {
       users: "Users",
       settings: "Settings",
       admin_console: "Admin Console",
+      organizations: "Organizations",
+      master_console: "Master Console",
     },
     topbar: {
       notifications: "Notifications",
@@ -347,6 +349,21 @@ export const translations = {
       save_success: "Saved successfully!",
       save_error: "Failed to save. Please try again.",
       generic_error: "Something went wrong. Please retry.",
+    },
+    auth: {
+      login: {
+        title: "Welcome Back",
+        subtitle: "Access your operational dashboard",
+        email_label: "Email Address",
+        email_placeholder: "name@company.com",
+        password_label: "Password",
+        password_placeholder: "••••••••",
+        submit: "Sign In",
+        forgot_password: "Forgot password?",
+        signing_in: "Signing in...",
+        error_title: "Authentication Failed",
+        error_invalid: "Invalid email or password. Please try again.",
+      }
     }
   },
   es: {
@@ -357,6 +374,8 @@ export const translations = {
       users: "Usuarios",
       settings: "Configuración",
       admin_console: "Administración",
+      organizations: "Organizaciones",
+      master_console: "Consola Maestra",
     },
     topbar: {
       notifications: "Notificaciones",
@@ -695,6 +714,21 @@ export const translations = {
       save_success: "¡Guardado con éxito!",
       save_error: "Error al guardar. Inténtalo de nuevo.",
       generic_error: "Algo salió mal. Por favor intenta de nuevo.",
+    },
+    auth: {
+      login: {
+        title: "Bienvenido",
+        subtitle: "Accede a tu panel operacional",
+        email_label: "Correo Electrónico",
+        email_placeholder: "nombre@empresa.com",
+        password_label: "Contraseña",
+        password_placeholder: "••••••••",
+        submit: "Iniciar Sesión",
+        forgot_password: "¿Olvidaste tu contraseña?",
+        signing_in: "Iniciando sesión...",
+        error_title: "Fallo de Autenticación",
+        error_invalid: "Correo o contraseña incorrectos. Inténtalo de nuevo.",
+      }
     }
   }
 };

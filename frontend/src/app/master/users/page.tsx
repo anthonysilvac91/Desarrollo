@@ -10,10 +10,11 @@ import UserDrawer from "@/components/users/UserDrawer";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
+import { organizationsService } from "@/services/organizations.service";
 import { useToast } from "@/lib/ToastContext";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 
-export default function UsersPage() {
+export default function MasterUsersPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
@@ -22,14 +23,18 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const { data: users = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["users"],
+    queryKey: ["master-users"],
     queryFn: () => usersService.findAll(),
   });
 
-  // Extract unique companies for the modal dropdown (Fallback a string vacío si no hay datos)
+  const { data: organizations = [] } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: () => organizationsService.findAll(),
+  });
+
   const existingCompanies = useMemo(() => {
-    return Array.from(new Set(users.map(() => "Recall Co"))).sort(); // Provisional hasta tener datos reales de compañía
-  }, [users]);
+    return organizations.map(org => org.name);
+  }, [organizations]);
 
   // Filter logic
   const filteredData = useMemo(() => {
@@ -43,42 +48,37 @@ export default function UsersPage() {
     });
   }, [search, users]);
 
-  const handleAddUser = async (data: any) => {
+  const handleCreateUser = async (data: any) => {
     try {
-      // Mapeo simple de roles para compatibilidad con backend
-      const mappedRole = data.role.toUpperCase();
+      // Encontrar el orgId basado en el nombre de la empresa seleccionado
+      const selectedOrg = organizations.find(o => o.name === data.company);
+      
       await usersService.create({
         ...data,
-        role: mappedRole
+        role: data.role.toUpperCase(),
+        organization_id: selectedOrg?.id
       });
       
-      showToast(t.users.states.invite_success, "success");
+      showToast("Usuario creado correctamente", "success");
       setIsModalOpen(false);
       refetch();
     } catch (err) {
-      showToast(t.users.states.error_invite, "error");
+      showToast("Error al crear usuario", "error");
     }
   };
 
-  const handleDeleteRequest = (e: React.MouseEvent, user: User) => {
-    e.stopPropagation();
-    setUserToDelete(user);
-  };
-
-  const handleConfirmDelete = async () => {
+  const handleToggleStatus = async () => {
     if (userToDelete) {
       try {
         await usersService.toggleStatus(userToDelete.id);
-        showToast(t.users.states.delete_success, "success");
+        showToast("Estado de usuario actualizado", "success");
         setUserToDelete(null);
         refetch();
       } catch (err) {
-        showToast(t.users.states.error_delete, "error");
+        showToast("Error al actualizar estado", "error");
       }
     }
   };
-
-  const displayData = filteredData.slice(0, 10);
 
   const columns: ColumnDef<User>[] = [
     { 
@@ -121,23 +121,26 @@ export default function UsersPage() {
     { 
       key: "company", 
       header: t.users.table.company,
-      cell: () => (
-        <div className="flex items-center text-subtitle/80">
-          <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">Recall Organization</span>
-        </div>
-      )
+      cell: (item) => {
+        const orgName = organizations.find(o => o.id === item.organization_id)?.name || "Sistema (Global)";
+        return (
+          <div className="flex items-center text-subtitle/80">
+            <Building2 className="w-4 h-4 mr-2" />
+            <span className="font-semibold text-[15px]">{orgName}</span>
+          </div>
+        );
+      }
     },
     { 
       key: "status", 
       header: t.users.table.status,
       align: "center",
-      cell: () => {
+      cell: (item) => {
         return (
           <div className="flex items-center justify-center">
-            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[12px] text-emerald-500`}>
-              <div className={`w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]`} />
-              <span>{t.common.active}</span>
+            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[12px] ${item.is_active ? 'text-emerald-500' : 'text-error/40'}`}>
+              <div className={`w-2 h-2 rounded-full ${item.is_active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-error/40'}`} />
+              <span>{item.is_active ? t.common.active : t.common.inactive}</span>
             </div>
           </div>
         );
@@ -160,13 +163,22 @@ export default function UsersPage() {
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
-          <button className="p-2.5 text-subtitle/40 hover:text-brand transition-colors">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedUser(item);
+            }}
+            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
+          >
             <Pencil className="w-5 h-5" />
           </button>
           <button 
-            onClick={(e) => handleDeleteRequest(e, item)}
-            className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
-            title="Eliminar usuario"
+            onClick={(e) => {
+              e.stopPropagation();
+              setUserToDelete(item);
+            }}
+            className={`p-2.5 rounded-full transition-all ${item.is_active ? 'text-error/40 hover:text-error hover:bg-error/5' : 'text-brand/40 hover:text-brand hover:bg-brand/5'}`}
+            title={item.is_active ? "Desactivar" : "Activar"}
           >
             <Trash2 className="w-5 h-5" />
           </button>
@@ -175,76 +187,40 @@ export default function UsersPage() {
     }
   ];
 
-  const pagination = (
-    <>
-      <div className="text-[15px] text-subtitle font-medium">
-        {t.users.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.users.pagination.of} <span className="text-title font-bold">{filteredData.length}</span> {t.users.pagination.users}
-      </div>
-      <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20" disabled>
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 translate-x-1" disabled>
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-    </>
-  );
-
   return (
     <div className="flex flex-col space-y-8">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-black text-title tracking-tight">Gestión Global de Usuarios</h2>
+          <p className="text-subtitle/60 font-medium">Control maestro de todos los operadores del sistema</p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+        >
+          <Plus className="w-5 h-5 stroke-[4px]" />
+          <span>Nuevo Usuario</span>
+        </button>
+      </div>
+
       <FiltersBar 
-        searchPlaceholder={t.users.search_placeholder}
+        searchPlaceholder="Buscar por nombre, email o rol..."
         onSearchChange={setSearch}
         showQuickFilters={false}
-        actions={
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
-          >
-            <Plus className="w-5 h-5 stroke-[4px]" />
-            <span>{t.users.add_new}</span>
-          </button>
-        }
       />
 
       <div className="flex-1 min-h-[400px]">
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.users.states.loading}</p>
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Buscando usuarios...</p>
           </div>
         ) : isError ? (
           <ModuleContainer>
-            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
-              <div className="p-4 bg-error/10 rounded-full">
-                <AlertCircle className="w-8 h-8 text-error" />
-              </div>
-              <div className="text-center">
-                <p className="font-black text-title text-xl tracking-tight">{t.users.states.error_title}</p>
-                <p className="text-subtitle font-medium">{t.users.states.error_subtitle}</p>
-              </div>
-              <button 
-                onClick={() => refetch()}
-                className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/10 transition-all"
-              >
-                {t.common.retry}
-              </button>
-            </div>
-          </ModuleContainer>
-        ) : filteredData.length === 0 ? (
-          <ModuleContainer>
-            <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
-              <div className="p-6 bg-app-bg/50 rounded-full">
-                <UsersIcon className="w-12 h-12 text-subtitle/20" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-2xl font-black text-title tracking-tight">{t.users.states.empty_title}</h3>
-                <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
-                  {t.users.states.empty_subtitle}
-                </p>
-              </div>
+            <div className="w-full flex flex-col items-center justify-center py-20 text-center">
+              <AlertCircle className="w-10 h-10 text-error mb-4" />
+              <p className="font-bold text-title">Error al cargar usuarios globales</p>
+              <button onClick={() => refetch()} className="mt-4 text-brand font-bold uppercase text-xs tracking-widest">Reintentar</button>
             </div>
           </ModuleContainer>
         ) : (
@@ -253,7 +229,6 @@ export default function UsersPage() {
               data={filteredData} 
               columns={columns} 
               keyExtractor={(item) => item.id}
-              footer={pagination}
               onRowClick={(item: any) => setSelectedUser(item)}
             />
           </ModuleContainer>
@@ -263,7 +238,7 @@ export default function UsersPage() {
       <UserModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleAddUser} 
+        onSubmit={handleCreateUser} 
         existingCompanies={existingCompanies}
       />
 
@@ -275,12 +250,12 @@ export default function UsersPage() {
       <ConfirmModal 
         isOpen={!!userToDelete}
         onClose={() => setUserToDelete(null)}
-        onConfirm={handleConfirmDelete}
-        title={t.confirm_modal.delete_user_title}
-        description={t.confirm_modal.delete_description}
-        confirmText={t.confirm_modal.confirm_delete}
-        cancelText={t.confirm_modal.cancel_delete}
-        variant="danger"
+        onConfirm={handleToggleStatus}
+        title={userToDelete?.is_active ? "Desactivar Usuario" : "Activar Usuario"}
+        description={`¿Estás seguro de que deseas ${userToDelete?.is_active ? 'desactivar' : 'activar'} a este usuario?`}
+        confirmText={userToDelete?.is_active ? "Desactivar" : "Activar"}
+        cancelText="Cancelar"
+        variant={userToDelete?.is_active ? "danger" : "primary"}
       />
     </div>
   );

@@ -31,4 +31,9 @@ export class UpdateOrganizationSettingsDto {
   @IsBoolean()
   @IsOptional()
   worker_restricted_access?: boolean;
+
+  @ApiPropertyOptional({ description: 'ID del icono por defecto para activos (yacht, car, etc.)' })
+  @IsString()
+  @IsOptional()
+  default_asset_icon?: string;
 }

@@ -17,7 +17,7 @@ export class ServicesController {
 
   @Post()
   @ApiOperation({ summary: 'Registrar un servicio ejecutado', description: 'Crea el servicio y aplica visibilidad según la configuración de la organización.' })
-  @UseInterceptors(FilesInterceptor('images', 10, {
+  @UseInterceptors(FilesInterceptor('files', 10, {
     storage: memoryStorage(),
   }))
   create(@Body() createServiceDto: CreateServiceDto, @Request() req, @UploadedFiles() files: Express.Multer.File[]) {

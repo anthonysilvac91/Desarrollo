@@ -23,28 +23,64 @@ import { Loader2, AlertCircle, Briefcase, Ship, Inbox } from "lucide-react";
 export default function DashboardPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const [dateRange, setDateRange] = useState<{ start?: string; end?: string }>({});
   const [activePreset, setActivePreset] = useState("Mes");
 
   const { data: stats, isLoading, isError, refetch } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: () => dashboardService.getStats(),
+    queryKey: ["dashboard-stats", dateRange],
+    queryFn: () => dashboardService.getStats({
+      startDate: dateRange.start,
+      endDate: dateRange.end
+    }),
   });
 
   const isWorker = user?.role === "WORKER";
   const isClient = user?.role === "CLIENT";
 
-  // Chart data placeholder (trend data — backend evolution endpoint pending)
-  const CHART_DATA = [
-    { name: "Mon", value: 12 },
-    { name: "Tue", value: 18 },
-    { name: "Wed", value: 15 },
-    { name: "Thu", value: 25 },
-    { name: "Fri", value: 32 },
-    { name: "Sat", value: 28 },
-    { name: "Sun", value: 20 },
-  ];
+  const handleDateChange = (preset: string, start?: string, end?: string) => {
+    setActivePreset(preset);
+    
+    if (preset === "Todo" || preset === null) {
+      setDateRange({});
+      return;
+    }
 
-  // Map recent services for worker/client role views
+    if (preset === "Personalizado" && start && end) {
+      setDateRange({ start, end });
+      return;
+    }
+
+    const now = new Date();
+    let startDate = new Date();
+
+    if (preset === "Hoy") {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (preset === "Mes") {
+      startDate.setDate(now.getDate() - 30);
+    } else if (preset === "Año") {
+      startDate.setFullYear(now.getFullYear() - 1);
+    }
+
+    setDateRange({ start: startDate.toISOString(), end: now.toISOString() });
+  };
+
+  // Maps for rankings
+  const topAssets = stats?.top_assets.map(a => ({
+    id: a.id,
+    name: a.name,
+    metric: a.metric,
+    icon: Ship
+  })) || [];
+
+  const topWorkers = stats?.top_workers.map(w => ({
+    id: w.id,
+    name: w.name,
+    metric: w.metric,
+    avatar: w.avatar_url,
+    icon: Briefcase
+  })) || [];
+
+  // Recent items for workers/clients
   const recentItems = stats?.recent_services.slice(0, 3).map(s => ({
     id: s.id,
     name: s.asset_name,
@@ -86,12 +122,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col space-y-5">
       
-      {/* Filters Header (Hide for client for extra simplicity) */}
       {!isClient && (
         <FiltersBar 
           showQuickFilters={true}
           showSearch={false}
-          onDateChange={(preset) => setActivePreset(preset)}
+          onDateChange={handleDateChange}
         />
       )}
 
@@ -113,13 +148,13 @@ export default function DashboardPage() {
             />
             <KPICard 
               title={t.dashboard.kpis.growth}
-              value={hasData ? "+12%" : "---"} 
+              value={hasData ? "+100%" : "---"} 
             />
           </>
         )}
       </div>
 
-      {/* Evolution Chart Section (Hide for Client) */}
+      {/* Evolution Chart Section */}
       {!isClient && hasData && (
         <ModuleContainer>
           <div className="p-6 lg:p-7 space-y-8">
@@ -141,7 +176,7 @@ export default function DashboardPage() {
 
             <div className="h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={CHART_DATA} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <AreaChart data={stats?.evolution || []} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
@@ -185,7 +220,7 @@ export default function DashboardPage() {
             <div className="p-6">
               <PerformanceList 
                 title={isClient ? t.dashboard.rankings.my_last_services : (isWorker ? t.dashboard.rankings.my_last_assets : t.dashboard.rankings.top_assets)}
-                items={(isWorker || isClient) ? recentItems : []} 
+                items={(isWorker || isClient) ? recentItems : topAssets} 
                 metricLabel={isClient ? t.dashboard.rankings.listed_label : (isWorker ? t.dashboard.rankings.recent_label : t.dashboard.rankings.jobs_count)}
               />
             </div>
@@ -196,8 +231,8 @@ export default function DashboardPage() {
               <ModuleContainer>
                 <div className="p-6">
                   <PerformanceList 
-                    title={t.dashboard.rankings.top_clients}
-                    items={[]}
+                    title={t.dashboard.rankings.top_operators}
+                    items={topWorkers}
                     metricLabel={t.dashboard.rankings.jobs_count}
                   />
                 </div>
@@ -206,8 +241,8 @@ export default function DashboardPage() {
               <ModuleContainer>
                 <div className="p-6">
                   <PerformanceList 
-                    title={t.dashboard.rankings.top_operators}
-                    items={[]}
+                    title={t.dashboard.rankings.top_clients}
+                    items={[]} // Pendiente integración con Prisma groupBy client_id si aplica
                     metricLabel={t.dashboard.rankings.jobs_count}
                   />
                 </div>

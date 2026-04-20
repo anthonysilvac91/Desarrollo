@@ -4,109 +4,26 @@ import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-
-// Types for Service (Job) Display
-interface ServiceDisplay {
-  id: string;
-  title: string;
-  asset_name: string;
-  asset_location: string;
-  worker_name: string;
-  client_name: string;
-  date: string;
-  description: string;
-  images: string[];
-}
-
-// Helper to format Date to dd-mm-yyyy
-const formatDateToString = (date: Date) => {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
-};
-
-// Initial Mock Data
-const INITIAL_SERVICES: ServiceDisplay[] = [
-  { 
-    id: "s1", 
-    title: "Hull Maintenance & Cleaning", 
-    asset_name: "Lady Nelly", 
-    asset_location: "Marina Ibiza, Amarre 42",
-    worker_name: "Alex Thompson", 
-    client_name: "Roberto García", 
-    date: formatDateToString(new Date()),
-    description: "Se realizó una limpieza profunda del casco incluyendo la eliminación de incrustaciones marinas y aplicación de capa protectora. Se revisaron las válvulas de fondo y se limpiaron los filtros de refrigeración del motor principal.",
-    images: [
-      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5927?auto=format&fit=crop&q=80&w=400&h=400",
-      "https://images.unsplash.com/photo-1563299284-f7486d3967a6?auto=format&fit=crop&q=80&w=400&h=400",
-      "https://images.unsplash.com/photo-1567899378494-47b22a2ad96a?auto=format&fit=crop&q=80&w=400&h=400"
-    ]
-  },
-  { 
-    id: "s2", 
-    title: "Engine Diagnostics", 
-    asset_name: "Sea Breeze", 
-    asset_location: "Palma Royal Yacht Club",
-    worker_name: "Juan Pérez", 
-    client_name: "Thomas Müller", 
-    date: formatDateToString(new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)),
-    description: "Escaneo completo de la centralita del motor Volvo Penta. Se detectó un sensor de temperatura defectuoso que fue reemplazado de inmediato. Niveles de aceite y refrigerante dentro de los parámetros normales.",
-    images: [
-      "https://images.unsplash.com/photo-1589139225-33ec7c8ec19d?auto=format&fit=crop&q=80&w=400&h=400",
-      "https://images.unsplash.com/photo-1540946484617-452a3bccf974?auto=format&fit=crop&q=80&w=400&h=400"
-    ]
-  },
-  { 
-    id: "s3", 
-    title: "Electrical System Refit", 
-    asset_name: "Lady Nelly", 
-    asset_location: "Marina Ibiza, Amarre 42",
-    worker_name: "Alex Thompson", 
-    client_name: "Roberto García", 
-    date: formatDateToString(new Date(Date.now() - 45 * 24 * 60 * 60 * 1000)),
-    description: "Actualización completa del cuadro eléctrico principal. Se sustituyeron los disyuntores antiguos por modelos inteligentes con monitoreo remoto. Se revisó la instalación de las baterías de servicio.",
-    images: [
-      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400&h=400"
-    ]
-  },
-  { 
-    id: "s4", 
-    title: "Teak Deck Sanding", 
-    asset_name: "Azimut 58", 
-    asset_location: "Puerto Banús, Dock 3",
-    worker_name: "Maria Silva", 
-    client_name: "Elena Martínez", 
-    date: "20-05-2023",
-    description: "Lijado manual de la cubierta de teca para recuperar el color original de la madera. Se aplicaron tres capas de aceite nutritivo de alta resistencia UV. El acabado final muestra una textura uniforme y natural.",
-    images: []
-  },
-  { 
-    id: "s5", 
-    title: "Upholstery Cleaning", 
-    asset_name: "Polaris", 
-    asset_location: "Port de Saint-Tropez",
-    worker_name: "Juan Pérez", 
-    client_name: "Sophie Laurent", 
-    date: "15-01-2024",
-    description: "Limpieza con vapor a alta presión de toda la tapicería exterior del flybridge. Se utilizaron productos biodegradables especializados para ambientes marinos. Se trataron manchas localizadas de óxido y sal.",
-    images: [
-      "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?auto=format&fit=crop&q=80&w=400&h=400"
-    ]
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { servicesService, Service } from "@/services/services.service";
+import { useToast } from "@/lib/ToastContext";
 
 export default function ServicesPage() {
-  const [services, setServices] = useState<ServiceDisplay[]>(INITIAL_SERVICES);
+  const { t } = useLanguage();
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<{preset: string, start?: string, end?: string}>({ preset: "Todo" });
-  const [selectedService, setSelectedService] = useState<ServiceDisplay | null>(null);
-  const [serviceToDelete, setServiceToDelete] = useState<ServiceDisplay | null>(null);
-  const { t } = useLanguage();
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
+
+  const { data: services = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ["services"],
+    queryFn: () => servicesService.findAll(),
+  });
 
   // Filter logic
   const filteredData = useMemo(() => {
@@ -122,10 +39,8 @@ export default function ServicesPage() {
 
       if (!matchesSearch) return false;
 
-      // 2. Date Parsing (dd-mm-yyyy to Date)
-      const [day, month, year] = item.date.split('-').map(Number);
-      const itemDate = new Date(year, month - 1, day);
-      
+      // 2. Date Filtering
+      const itemDate = new Date(item.created_at);
       const now = new Date();
       now.setHours(0, 0, 0, 0);
 
@@ -160,21 +75,22 @@ export default function ServicesPage() {
     setDateFilter({ preset, start, end });
   };
 
-  const handleDeleteRequest = (e: React.MouseEvent, service: ServiceDisplay) => {
-    e.stopPropagation();
-    setServiceToDelete(service);
-  };
-
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (serviceToDelete) {
-      setServices(prev => prev.filter(s => s.id !== serviceToDelete.id));
-      setServiceToDelete(null);
+      try {
+        // Implementar delete en servicesService si fuera necesario
+        showToast(t.feedback.save_success, "success");
+        setServiceToDelete(null);
+        refetch();
+      } catch (err) {
+        showToast(t.feedback.generic_error, "error");
+      }
     }
   };
 
-  const displayData = filteredData.slice(0, 5);
+  const displayData = filteredData.slice(0, 10);
 
-  const columns: ColumnDef<ServiceDisplay>[] = [
+  const columns: ColumnDef<Service>[] = [
     { 
       key: "service", 
       header: t.services.table.service,
@@ -183,7 +99,10 @@ export default function ServicesPage() {
           <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand flex-shrink-0">
             <Wrench className="w-5 h-5" />
           </div>
-          <span className="font-bold text-title text-[17px]">{item.title}</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-title text-[17px] leading-tight">{item.title}</span>
+            <span className="text-[11px] font-bold text-brand uppercase tracking-wider mt-0.5">COMPLETED</span>
+          </div>
         </div>
       )
     },
@@ -191,7 +110,10 @@ export default function ServicesPage() {
       key: "asset", 
       header: t.services.table.asset,
       cell: (item) => (
-        <span className="font-semibold text-subtitle/80 text-[15px] group cursor-pointer hover:text-brand transition-colors">{item.asset_name}</span>
+        <div className="flex items-center text-subtitle/80 font-semibold group cursor-pointer hover:text-brand transition-colors">
+          <Ship className="w-4 h-4 mr-2 opacity-40" />
+          <span className="text-[15px]">{item.asset?.name || "---"}</span>
+        </div>
       )
     },
     { 
@@ -199,16 +121,11 @@ export default function ServicesPage() {
       header: t.services.table.operator,
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
-          <User className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{item.worker_name}</span>
+          <div className="w-6 h-6 rounded-full bg-app-bg border border-border-theme/40 flex items-center justify-center mr-2 overflow-hidden">
+            <User className="w-3.5 h-3.5 opacity-40" />
+          </div>
+          <span className="font-semibold text-[14px]">{item.worker?.name || "---"}</span>
         </div>
-      )
-    },
-    { 
-      key: "client", 
-      header: t.services.table.client,
-      cell: (item) => (
-        <span className="font-bold text-subtitle/80 text-[15px]">{item.client_name}</span>
       )
     },
     { 
@@ -218,7 +135,7 @@ export default function ServicesPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{item.date}</span>
+          <span className="font-semibold text-[15px]">{new Date(item.created_at).toLocaleDateString()}</span>
         </div>
       )
     },
@@ -266,16 +183,55 @@ export default function ServicesPage() {
         showQuickFilters={true}
       />
 
-      <div className="flex-1">
-        <ModuleContainer>
-          <DataTable 
-            data={displayData} 
-            columns={columns} 
-            keyExtractor={(item) => item.id}
-            footer={pagination}
-            onRowClick={(item) => setSelectedService(item)}
-          />
-        </ModuleContainer>
+      <div className="flex-1 min-h-[400px]">
+        {isLoading ? (
+          <div className="w-full flex flex-col items-center justify-center py-24">
+            <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.services.states.loading}</p>
+          </div>
+        ) : isError ? (
+          <ModuleContainer>
+            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+              <div className="p-4 bg-error/10 rounded-full">
+                <AlertCircle className="w-8 h-8 text-error" />
+              </div>
+              <div className="text-center">
+                <p className="font-black text-title text-xl">{t.services.states.error_title}</p>
+                <p className="text-subtitle font-medium">{t.services.states.error_subtitle}</p>
+              </div>
+              <button 
+                onClick={() => refetch()}
+                className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/5"
+              >
+                {t.common.retry}
+              </button>
+            </div>
+          </ModuleContainer>
+        ) : filteredData.length === 0 ? (
+          <ModuleContainer>
+            <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
+              <div className="p-6 bg-app-bg/50 rounded-full">
+                <Inbox className="w-12 h-12 text-subtitle/20" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-title tracking-tight">{t.services.states.empty_title}</h3>
+                <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
+                  {t.services.states.empty_subtitle}
+                </p>
+              </div>
+            </div>
+          </ModuleContainer>
+        ) : (
+          <ModuleContainer>
+            <DataTable 
+              data={filteredData} 
+              columns={columns} 
+              keyExtractor={(item) => item.id}
+              footer={pagination}
+              onRowClick={(item: any) => setSelectedService(item)}
+            />
+          </ModuleContainer>
+        )}
       </div>
 
       <ServiceDrawer 

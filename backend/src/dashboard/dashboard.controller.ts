@@ -14,14 +14,19 @@ export class DashboardController {
   @Get()
   @ApiOperation({ summary: 'Obtener métricas del dashboard (Solo ADMIN/SUPER_ADMIN)' })
   @ApiQuery({ name: 'organizationId', required: false, description: 'Filtro opcional solo permitido para SUPER_ADMIN' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
   @ApiResponse({ type: DashboardStatsDto })
   getStats(
     @Query('organizationId') organizationId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
     @Request() req: any
   ) {
     return this.dashboardService.getStats(
       { id: req.user.id, role: req.user.role, orgId: req.user.orgId },
-      organizationId
+      organizationId,
+      { startDate, endDate }
     );
   }
 }

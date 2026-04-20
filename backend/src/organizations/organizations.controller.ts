@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { 
+  Controller, Get, Post, Patch, Body, Param, UseGuards, Request, 
+  ForbiddenException, UseInterceptors, UploadedFile 
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { OrganizationsService } from './organizations.service';
 import { UpdateOrganizationSettingsDto } from './dto/update-organization-settings.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -17,6 +21,13 @@ export class OrganizationsController {
   findAll(@Request() req) {
     if (req.user.role !== 'SUPER_ADMIN') throw new ForbiddenException('Solo SUPER_ADMIN puede listar las organizaciones');
     return this.orgService.findAll();
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Obtener datos de la organización propia (Solo Admin/Worker/Client)' })
+  findOneMe(@Request() req) {
+    if (!req.user.orgId) throw new ForbiddenException('El usuario no pertenece a ninguna organización');
+    return this.orgService.findOne(req.user.orgId);
   }
 
   @Post()
@@ -35,9 +46,15 @@ export class OrganizationsController {
   }
 
   @Patch('settings')
+  @UseInterceptors(FileInterceptor('logo'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar parámetros de la Organización (Solo Admin)' })
-  updateSettings(@Body() dto: UpdateOrganizationSettingsDto, @Request() req) {
+  updateSettings(
+    @Body() dto: UpdateOrganizationSettingsDto, 
+    @Request() req,
+    @UploadedFile() file?: Express.Multer.File
+  ) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede cambiar configuraciones');
-    return this.orgService.updateSettings(req.user.orgId, dto);
+    return this.orgService.updateSettings(req.user.orgId, dto, file);
   }
 }

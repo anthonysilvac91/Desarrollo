@@ -11,14 +11,16 @@ import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship, Calendar
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { assetsService, Asset } from "@/services/assets.service";
+import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/lib/ToastContext";
+import AssetIcon from "@/components/ui/AssetIcon";
 import { Loader2, AlertCircle, Inbox } from "lucide-react";
 
 // Asset Image Component
-const AssetImage = ({ src, alt }: { src: string; alt: string | undefined }) => {
+const AssetImage = ({ src, alt, iconId }: { src: string; alt: string | undefined; iconId?: string | null }) => {
   const [error, setError] = useState(false);
   if (!src || error) {
-    return <Ship className="w-7 h-7 text-brand opacity-30" />;
+    return <AssetIcon iconId={iconId} className="w-7 h-7 text-brand opacity-30" />;
   }
   return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
 };
@@ -26,6 +28,7 @@ const AssetImage = ({ src, alt }: { src: string; alt: string | undefined }) => {
 export default function AssetsPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -92,7 +95,11 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center space-x-5">
           <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm flex-shrink-0 bg-app-bg flex items-center justify-center relative">
-            <AssetImage src={item.thumbnail_url || ""} alt={item.name} />
+            <AssetImage 
+              src={item.thumbnail_url || ""} 
+              alt={item.name} 
+              iconId={user?.organization?.default_asset_icon}
+            />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-title text-[17px]">{item.name}</span>

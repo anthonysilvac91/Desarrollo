@@ -1,12 +1,14 @@
 "use client";
 
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Topbar() {
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
+  const { user, logout } = useAuth();
 
   const getTitle = () => {
     if (pathname === "/assets") return t.topbar.titles.assets;
@@ -14,12 +16,12 @@ export default function Topbar() {
     if (pathname === "/users") return t.topbar.titles.users;
     if (pathname === "/settings") return t.topbar.titles.settings;
     if (pathname === "/dashboard") return t.topbar.titles.dashboard;
+    if (pathname.startsWith("/master")) return t.sidebar.master_console;
     return t.topbar.titles.dashboard;
   };
 
   return (
-    <header className="h-20 bg-surface border-b border-border-theme/50 sticky top-0 z-10 w-full shrink-0 transition-colors">
-      {/* Container matching the main area max-width and padding */}
+    <header className="h-20 bg-surface border-b border-border-theme/50 sticky top-0 z-20 w-full shrink-0 transition-colors">
       <div className="max-w-[1700px] w-full mx-auto h-full flex items-center justify-between px-8 lg:px-14">
         
         {/* Mobile menu button */}
@@ -29,7 +31,7 @@ export default function Topbar() {
           </button>
         </div>
 
-        {/* Page Title - Perfectly aligned with page content using matching margins */}
+        {/* Page Title */}
         <div className="hidden lg:flex flex-1 items-center">
           <h1 className="text-2xl font-black text-title tracking-tight">{getTitle()}</h1>
         </div>
@@ -63,19 +65,32 @@ export default function Topbar() {
           </button>
 
           {/* User profile section */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 pl-4 border-l border-border-theme/40">
             <div className="flex flex-col items-end hidden sm:flex">
-              <span className="text-sm font-bold text-title leading-tight">Alex Thompson</span>
-              <span className="text-[11px] text-subtitle/50 mt-1 font-semibold uppercase tracking-wider">{t.topbar.account_manager}</span>
+              <span className="text-sm font-bold text-title leading-tight">{user?.name || "User"}</span>
+              <span className="text-[11px] text-subtitle/50 mt-1 font-semibold uppercase tracking-wider">{user?.role || t.topbar.account_manager}</span>
             </div>
-            <button className="flex items-center group relative cursor-default">
-              <div className="w-11 h-11 rounded-full bg-brand/10 flex items-center justify-center border-2 border-white ring-1 ring-border-theme/50 overflow-hidden shadow-sm transition-transform">
+            
+            <div className="w-11 h-11 rounded-full bg-brand/10 flex items-center justify-center border-2 border-white ring-1 ring-border-theme/50 overflow-hidden shadow-sm transition-transform">
+              {user?.avatar_url ? (
                 <img 
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=100&h=100&q=80" 
-                  alt="Alex Thompson profile" 
+                  src={user.avatar_url} 
+                  alt={user.name} 
                   className="w-full h-full object-cover"
                 />
-              </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-brand font-black">
+                  {user?.name?.charAt(0) || "U"}
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={logout}
+              className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-xl transition-all"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>

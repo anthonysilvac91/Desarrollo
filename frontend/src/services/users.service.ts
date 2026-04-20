@@ -5,7 +5,10 @@ export interface User {
   name: string;
   email: string;
   role: "SUPER_ADMIN" | "ADMIN" | "WORKER" | "CLIENT";
-  organization_id: string;
+  organization_id: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -21,10 +24,18 @@ export const usersService = {
     return res.data;
   },
 
-  create: async (data: any) => {
-    // Nota: Por ahora no hay endpoint de creación explícita en el plan previo, 
-    // usualmente se hace vía Invitaciones.
+  create: async (data: any): Promise<User> => {
     const res = await api.post("/users", data);
+    return res.data;
+  },
+
+  update: async (id: string, data: any): Promise<User> => {
+    const res = await api.patch(`/users/${id}`, data);
+    return res.data;
+  },
+
+  toggleStatus: async (id: string): Promise<User> => {
+    const res = await api.patch(`/users/${id}/status`);
     return res.data;
   }
 };
