@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { StorageService } from '../storage/storage.service';
+@Injectable()
 export class AssetsService {
   constructor(
     private prisma: PrismaService,
@@ -9,22 +10,43 @@ export class AssetsService {
   ) {}
 
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
+    const { client_id, ...assetData } = createAssetDto;
     let thumbnail_url = createAssetDto.thumbnail_url;
 
     if (photo) {
       thumbnail_url = await this.storageService.uploadFile(photo, `${orgId}/assets`);
     }
 
-    return this.prisma.asset.create({
+    const newAsset = await this.prisma.asset.create({
       data: {
-        ...createAssetDto,
+        ...assetData,
         thumbnail_url,
-        organization_id: orgId,
+        organization_id: orgId || createAssetDto.organization_id // Support direct org selection if super admin
       },
     });
+
+    // Si se especificó un cliente, crear el acceso automáticamente
+    if (client_id) {
+      await this.prisma.clientAssetAccess.create({
+        data: {
+          asset_id: newAsset.id,
+          client_id: client_id,
+        }
+      });
+    }
+
+    return newAsset;
   }
 
   async findAll(orgId: string, role: string, userId: string) {
+    // Si es Super Admin, no filtrar por organización (ver todo)
+    if (role === 'SUPER_ADMIN') {
+      return this.prisma.asset.findMany({
+        where: { is_active: true },
+        include: { organization: { select: { name: true } } }
+      });
+    }
+
     if (role === 'CLIENT') {
       return this.prisma.asset.findMany({
         where: {

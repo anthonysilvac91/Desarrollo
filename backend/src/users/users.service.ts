@@ -10,9 +10,14 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(query: { role?: Role; organizationId?: string }, currentUser: { id: string; role: Role; orgId?: string }) {
-    // Solo SUPER_ADMIN y ADMIN pueden listar usuarios
+    // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
+    // WORKER puede listar pero solo si es para buscar CLIENTES.
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
-      throw new ForbiddenException('No tienes permiso para gestionar usuarios');
+      if (currentUser.role === Role.WORKER) {
+        query.role = Role.CLIENT; // Forzamos que solo vea clientes
+      } else {
+        throw new ForbiddenException('No tienes permiso para gestionar usuarios');
+      }
     }
 
     const where: any = {};

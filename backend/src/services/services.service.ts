@@ -50,7 +50,12 @@ export class ServicesService {
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
-    const whereClause: any = { organization_id: user.orgId };
+    const whereClause: any = {};
+    
+    if (user.role !== 'SUPER_ADMIN') {
+      whereClause.organization_id = user.orgId;
+    }
+    
     if (query.asset_id) whereClause.asset_id = query.asset_id;
 
     if (user.role === 'CLIENT') {
