@@ -6,10 +6,15 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
-    const secret = configService.get<string>('JWT_SECRET');
+    const secret = configService.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
+    
     if (!secret) {
+      console.error('--- ERROR CRÍTICO ---');
+      console.error('JWT_SECRET no encontrada en ConfigService ni en process.env');
+      console.error('Variables disponibles:', Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')));
       throw new Error('CRITICAL ERROR: JWT_SECRET environment variable is missing.');
     }
+    
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,

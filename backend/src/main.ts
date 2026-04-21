@@ -5,6 +5,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
+console.log('>>> [PRE-BOOTSTRAP] JWT_SECRET en process.env:', !!process.env.JWT_SECRET);
+console.log('>>> [PRE-BOOTSTRAP] DATABASE_URL en process.env:', !!process.env.DATABASE_URL);
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
