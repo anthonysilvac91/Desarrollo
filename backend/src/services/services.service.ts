@@ -98,8 +98,12 @@ export class ServicesService {
       }
     });
 
-    if (!service || service.organization_id !== user.orgId) {
+    if (!service) {
       throw new NotFoundException('Service no encontrado');
+    }
+
+    if (user.role !== 'SUPER_ADMIN' && service.organization_id !== user.orgId) {
+      throw new NotFoundException('Service no encontrado o acceso denegado');
     }
 
     if (user.role === 'CLIENT' && !service.is_public) {

@@ -9,6 +9,7 @@ import {
   LayoutGrid, 
   Briefcase, 
   Users, 
+  Users2,
   Settings,
   LayoutDashboard
 } from "lucide-react";
@@ -27,8 +28,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
     { href: "/assets", label: t.sidebar.assets, icon: Box },
     { href: "/service", label: t.sidebar.services, icon: Briefcase },
-    { href: "/users", label: t.sidebar.users, icon: Users },
-    { href: "/settings", label: t.sidebar.settings, icon: Settings },
+    { id: 'users', label: t.sidebar.users, icon: Users, href: '/users' },
+    { id: 'clients', label: t.sidebar.clients, icon: Users2, href: '/clients' },
+    { id: 'settings', label: t.sidebar.settings, icon: Settings, href: '/settings' },
   ];
 
   const visibleLinks = links.filter(link => canAccess(link.href));

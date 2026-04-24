@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useToast } from "@/lib/ToastContext";
+import { usersService } from "@/services/users.service";
+
 export interface UserFormData {
   name: string;
   email: string;
@@ -14,12 +17,14 @@ export interface UserFormData {
 interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: UserFormData) => void;
+  onSuccess: () => void;
   existingCompanies?: string[];
 }
 
-export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies = [] }: UserModalProps) {
+export default function UserModal({ isOpen, onClose, onSuccess, existingCompanies = [] }: UserModalProps) {
   const { t } = useLanguage();
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
@@ -33,27 +38,33 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    onClose();
+    setLoading(true);
+    try {
+      await usersService.create(formData);
+      showToast(t.users.states.invite_success, "success");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      showToast(t.users.states.error, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-title/40 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
       
-      {/* Modal Content */}
       <div className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-        {/* Header */}
         <div className="px-8 pt-10 pb-6 flex justify-between items-center border-b border-gray-50">
           <div>
             <h2 className="text-2xl font-black text-title tracking-tight">{t.users.modal.title}</h2>
-            <p className="text-subtitle/50 text-xs font-bold uppercase tracking-widest mt-1">Configuración de nuevo perfil</p>
+            <p className="text-subtitle/50 text-xs font-bold uppercase tracking-widest mt-1">{t.users.modal.subtitle}</p>
           </div>
           <button 
             onClick={onClose}
@@ -64,7 +75,6 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          {/* Full Name */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.full_name}</label>
             <div className="relative group">
@@ -75,14 +85,13 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
                 required
                 type="text"
                 className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm"
-                placeholder="Ej. Roberto García"
+                placeholder={t.users.modal.full_name_placeholder}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
           </div>
 
-          {/* Email */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.email}</label>
             <div className="relative group">
@@ -93,14 +102,13 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
                 required
                 type="email"
                 className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm"
-                placeholder="roberto@empresa.com"
+                placeholder={t.users.modal.email_placeholder}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
           </div>
 
-          {/* Company (Combo-Box style) */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
             <div className="relative group">
@@ -112,7 +120,7 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
                 type="text"
                 autoComplete="off"
                 className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm"
-                placeholder="Escribe o selecciona una empresa..."
+                placeholder={t.users.modal.company_placeholder}
                 value={formData.company}
                 onFocus={() => setIsCompanyDropdownOpen(true)}
                 onChange={(e) => {
@@ -138,18 +146,12 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
                         {company}
                       </button>
                     ))}
-                    {existingCompanies.filter(c => c.toLowerCase().includes(formData.company.toLowerCase())).length === 0 && (
-                      <div className="px-6 py-3 text-xs font-bold text-subtitle/40 italic uppercase tracking-widest text-center">
-                        Empresa nueva detectada
-                      </div>
-                    )}
                   </div>
                 </>
               )}
             </div>
           </div>
 
-          {/* Role Custom Dropdown */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.role}</label>
             <div className="relative">
@@ -194,7 +196,6 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
             </div>
           </div>
 
-          {/* Password */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.password}</label>
             <div className="relative group">
@@ -215,12 +216,12 @@ export default function UserModal({ isOpen, onClose, onSubmit, existingCompanies
             </div>
           </div>
 
-          {/* Submit Button */}
           <button 
             type="submit"
-            className="w-full py-5 bg-brand text-white rounded-[20px] text-lg font-black shadow-xl shadow-brand/20 hover:bg-brand/90 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4"
+            disabled={loading}
+            className="w-full py-5 bg-brand text-white rounded-[20px] text-lg font-black shadow-xl shadow-brand/20 hover:bg-brand/90 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4 flex items-center justify-center"
           >
-            {t.users.modal.submit}
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : t.users.modal.submit}
           </button>
         </form>
       </div>

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AssetsService } from './assets.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 describe('AssetsService.create - Worker Roles', () => {
   let service: AssetsService;
@@ -11,10 +12,15 @@ describe('AssetsService.create - Worker Roles', () => {
       asset: { create: jest.fn() },
     };
 
+    const storageMock = {
+      uploadFile: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AssetsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: StorageService, useValue: storageMock },
       ],
     }).compile();
 

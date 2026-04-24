@@ -28,8 +28,13 @@ export const organizationsService = {
   },
 
   async create(data: any): Promise<Organization> {
-    const response = await api.post<Organization>("/organizations", data);
-    return response.data;
+    const response = await api.post<any>("/organizations", data);
+    // El backend devuelve { organization: {...}, initial_invitation_token: "..." }
+    // Lo aplanamos para que el frontend lo use directamente
+    return {
+      ...response.data.organization,
+      initial_invitation_token: response.data.initial_invitation_token
+    };
   },
 
   async updateSettings(formData: FormData): Promise<Organization> {

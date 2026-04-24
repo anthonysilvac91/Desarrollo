@@ -11,17 +11,21 @@ export interface ColumnDef<T> {
 interface DataTableProps<T> {
   data: T[];
   columns: ColumnDef<T>[];
-  keyExtractor: (item: T) => string | number;
+  keyExtractor?: (item: T) => string | number;
   emptyMessage?: string;
+  emptyState?: { title: string; subtitle: string }; // Support for rich empty states
+  isLoading?: boolean; // Support for loading states
   footer?: React.ReactNode;
-  onRowClick?: (item: T) => void; // Added onRowClick prop
+  onRowClick?: (item: T) => void;
 }
 
 export default function DataTable<T>({
   data,
   columns,
-  keyExtractor,
+  keyExtractor = (item: any) => item.id || Math.random(),
   emptyMessage = "No hay resultados disponibles.",
+  emptyState,
+  isLoading,
   footer,
   onRowClick,
 }: DataTableProps<T>) {
@@ -43,13 +47,30 @@ export default function DataTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-border-theme/30">
-            {data.length === 0 ? (
+            {isLoading ? (
+              // Loading Skeletons
+              Array.from({ length: 5 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`}>
+                  {columns.map((col) => (
+                    <td key={`skeleton-cell-${col.key}`} className="px-10 py-7">
+                      <div className="h-5 bg-gray-100 rounded-lg animate-pulse w-3/4" />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : data.length === 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-10 py-16 text-center text-base text-subtitle/60 font-medium"
-                >
-                  {emptyMessage}
+                <td colSpan={columns.length} className="px-10 py-24">
+                  <div className="flex flex-col items-center justify-center text-center space-y-2">
+                    {emptyState ? (
+                      <>
+                        <h3 className="text-xl font-black text-title">{emptyState.title}</h3>
+                        <p className="text-subtitle/60 font-medium max-w-xs">{emptyState.subtitle}</p>
+                      </>
+                    ) : (
+                      <p className="text-subtitle/60 font-medium">{emptyMessage}</p>
+                    )}
+                  </div>
                 </td>
               </tr>
             ) : (

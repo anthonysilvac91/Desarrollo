@@ -1,6 +1,5 @@
-"use client";
-
-import { Bell, Menu, LogOut } from "lucide-react";
+import React, { useState } from "react";
+import { Bell, Menu, LogOut, User, ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +12,8 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
   const { user, logout } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   const getTitle = () => {
     if (pathname === "/assets") return t.topbar.titles.assets;
     if (pathname === "/service") return t.topbar.titles.services;
@@ -44,61 +45,86 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4">
           
           {/* Language Switcher */}
-          <div className="flex items-center bg-app-bg/80 p-1 rounded-full border border-border-theme/50">
+          <div className="flex items-center bg-app-bg/80 p-0.5 rounded-full border border-border-theme/50">
             <button 
               onClick={() => setLanguage("en")}
-              className={`px-3 py-1 text-[10px] font-black rounded-full transition-all ${
-                language === "en" ? "bg-surface text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle"
+              className={`px-2.5 py-1 text-[9px] font-black rounded-full transition-all ${
+                language === "en" ? "bg-surface text-brand shadow-sm" : "text-subtitle/40 hover:text-subtitle"
               }`}
             >
               EN
             </button>
             <button 
               onClick={() => setLanguage("es")}
-              className={`px-3 py-1 text-[10px] font-black rounded-full transition-all ${
-                language === "es" ? "bg-surface text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle"
+              className={`px-2.5 py-1 text-[9px] font-black rounded-full transition-all ${
+                language === "es" ? "bg-surface text-brand shadow-sm" : "text-subtitle/40 hover:text-subtitle"
               }`}
             >
               ES
             </button>
           </div>
 
-          <button className="p-2 text-subtitle opacity-60 hover:opacity-100 rounded-full hover:bg-app-bg transition-colors">
+          <button className="p-2 text-subtitle opacity-40 hover:opacity-100 rounded-xl hover:bg-app-bg transition-all">
             <span className="sr-only">{t.topbar.notifications}</span>
-            <Bell className="w-5 h-5 px-0.5" />
+            <Bell className="w-5 h-5" />
           </button>
 
-          {/* User profile section */}
-          <div className="flex items-center space-x-4 pl-4 border-l border-border-theme/40">
-            <div className="flex flex-col items-end hidden sm:flex">
-              <span className="text-sm font-bold text-title leading-tight">{user?.name || "User"}</span>
-              <span className="text-[11px] text-subtitle/50 mt-1 font-semibold uppercase tracking-wider">{user?.role || t.topbar.account_manager}</span>
-            </div>
-            
-            <div className="w-11 h-11 rounded-full bg-brand/10 flex items-center justify-center border-2 border-white ring-1 ring-border-theme/50 overflow-hidden shadow-sm transition-transform">
-              {user?.avatar_url ? (
-                <img 
-                  src={user.avatar_url} 
-                  alt={user.name} 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-brand font-black">
-                  {user?.name?.charAt(0) || "U"}
-                </div>
-              )}
-            </div>
-
+          {/* User Profile Dropdown */}
+          <div className="relative ml-2">
             <button 
-              onClick={logout}
-              className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-xl transition-all"
-              title="Logout"
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className={`flex items-center space-x-3 p-1.5 pl-3 rounded-2xl transition-all border border-transparent ${
+                isProfileOpen ? "bg-app-bg border-border-theme/40" : "hover:bg-app-bg"
+              }`}
             >
-              <LogOut className="w-5 h-5" />
+              <div className="flex flex-col items-end hidden sm:flex">
+                <span className="text-xs font-black text-title leading-tight">{user?.name || "User"}</span>
+                <span className="text-[9px] text-subtitle/40 font-bold uppercase tracking-widest">{user?.role || "Admin"}</span>
+              </div>
+              
+              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center border border-brand/20 overflow-hidden shadow-inner">
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-brand text-xs font-black">{user?.name?.charAt(0) || "U"}</span>
+                )}
+              </div>
+              <ChevronDown className={`w-4 h-4 text-subtitle/30 transition-transform duration-300 ${isProfileOpen ? "rotate-180" : ""}`} />
             </button>
+
+            {isProfileOpen && (
+              <>
+                {/* Overlay for closing */}
+                <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute right-0 mt-3 w-56 bg-white border border-border-theme/30 rounded-3xl shadow-2xl shadow-title/10 z-40 py-2 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="px-4 py-3 border-b border-gray-50 mb-1">
+                    <p className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em] mb-1">Cuenta</p>
+                    <p className="text-xs font-bold text-title truncate">{user?.email}</p>
+                  </div>
+                  
+                  <button className="w-full flex items-center space-x-3 px-4 py-3 text-subtitle/70 hover:text-brand hover:bg-brand/5 transition-all text-sm font-bold group">
+                    <User className="w-4 h-4 opacity-40 group-hover:opacity-100" />
+                    <span>Mi Perfil</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center space-x-3 px-4 py-3 text-error/60 hover:text-error hover:bg-error/5 transition-all text-sm font-black group mt-1"
+                  >
+                    <LogOut className="w-4 h-4 opacity-40 group-hover:opacity-100" />
+                    <span>{t.auth.login.submit === "Sign In" ? "Logout" : "Cerrar Sesión"}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

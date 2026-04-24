@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationsService } from './organizations.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 describe('OrganizationsService', () => {
   let service: OrganizationsService;
@@ -8,8 +9,14 @@ describe('OrganizationsService', () => {
 
   beforeEach(async () => {
     const prismaMock = { organization: { update: jest.fn() } };
+    const storageMock = { uploadFile: jest.fn() };
+    
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ OrganizationsService, { provide: PrismaService, useValue: prismaMock } ],
+      providers: [ 
+        OrganizationsService, 
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: StorageService, useValue: storageMock }
+      ],
     }).compile();
 
     service = module.get(OrganizationsService);

@@ -35,8 +35,8 @@ echo.
 echo ========================================================
 echo  Todo preparado. Levantando Servidores Simultaneamente...
 echo ========================================================
-echo El Backend estara en: http://localhost:3000
-echo El Frontend estara en: http://localhost:3001 (o 3000 si esta libre)
+echo El Backend estara en: http://localhost:3001
+echo El Frontend estara en: http://localhost:3000
 echo.
 
 :: Utilizamos concurrently via npx para correr ambos en una misma terminal

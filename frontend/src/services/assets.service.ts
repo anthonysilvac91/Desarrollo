@@ -24,6 +24,10 @@ export interface Asset {
   location?: string;
   thumbnail_url?: string;
   serial_number?: string;
+  is_active: boolean;
+  client_access?: {
+    client: { id: string; name: string };
+  }[];
   client?: {
     name: string;
     action_type?: string; // Subtext for client column in Figma
@@ -66,6 +70,17 @@ export const assetsService = {
     const res = await api.post("/services", formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
+    return res.data;
+  },
+
+  delete: async (id: string) => {
+    const res = await api.delete(`/assets/${id}`);
+    return res.data;
+  },
+
+  update: async (id: string, data: FormData | Partial<Asset>) => {
+    const headers = data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
+    const res = await api.patch(`/assets/${id}`, data, { headers });
     return res.data;
   }
 };

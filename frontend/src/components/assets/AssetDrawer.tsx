@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MapPin, Ship, Calendar, Camera, Loader2, Maximize2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Asset, assetsService, Service } from "@/services/assets.service";
+import ServiceDrawer from "@/components/services/ServiceDrawer";
 
 interface AssetDrawerProps {
   asset: Asset | null;
@@ -38,6 +39,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const router = useRouter();
   const [fullAsset, setFullAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedService, setSelectedService] = useState<any>(null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -123,7 +125,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             ) : history.map((service) => (
               <div 
                 key={service.id} 
-                onClick={() => router.push(`/app/service/${service.id}`)}
+                onClick={() => setSelectedService(service)}
                 className="group p-5 bg-white border border-border-theme/50 rounded-2xl hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all min-h-[140px] flex flex-col cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
@@ -163,6 +165,11 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         </div>
 
       </div>
+
+      <ServiceDrawer 
+        service={selectedService} 
+        onClose={() => setSelectedService(null)} 
+      />
     </Drawer>
   );
 }

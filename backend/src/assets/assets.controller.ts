@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Param, Body, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { AuthGuard } from '../auth/auth.guard';
@@ -46,7 +46,27 @@ export class AssetsController {
   @Delete(':id/clients/:clientId')
   @ApiOperation({ summary: 'Desvincular cliente de un Activo (Solo Admin)' })
   removeClient(@Param('id') assetId: string, @Param('clientId') clientId: string, @Request() req) {
-    if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede desasignar');
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') throw new ForbiddenException('Solo ADMIN puede desasignar');
     return this.assetsService.removeClient(assetId, clientId, req.user.orgId);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un activo permanentemente' })
+  remove(@Param('id') id: string, @Request() req) {
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') throw new ForbiddenException('No tienes permiso para borrar activos');
+    return this.assetsService.remove(id, req.user);
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Actualizar un activo existente' })
+  update(
+    @Param('id') id: string,
+    @Body() updateAssetDto: any,
+    @Request() req,
+    @UploadedFile() photo?: Express.Multer.File
+  ) {
+    return this.assetsService.update(id, updateAssetDto, req.user.orgId, req.user.role, photo);
   }
 }

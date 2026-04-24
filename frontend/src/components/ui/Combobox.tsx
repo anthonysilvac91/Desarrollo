@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 
 interface Option {
   id: string;
@@ -14,15 +14,28 @@ interface ComboboxProps {
   onChange: (value: string) => void;
   placeholder?: string;
   label: string;
+  onCreate?: (name: string) => void;
 }
 
-export default function Combobox({ options, value, onChange, placeholder, label }: ComboboxProps) {
+export default function Combobox({ options, value, onChange, placeholder, label, onCreate }: ComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState(value);
+  const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Sincronizar el query con el nombre de la opción seleccionada (cuando cambia el value desde fuera)
+  useEffect(() => {
+    const selectedOption = options.find(opt => opt.id === value);
+    if (selectedOption) {
+      setQuery(selectedOption.name);
+    } else if (!value) {
+      setQuery("");
+    }
+  }, [value, options]);
+
   // Filter options based on query
-  const filteredOptions = query === "" 
+  // Si el query coincide exactamente con la opción seleccionada, mostramos todas al abrir
+  const isSelected = options.some(opt => opt.id === value && opt.name === query);
+  const filteredOptions = (query === "" || isSelected)
     ? options 
     : options.filter((opt) => opt.name.toLowerCase().includes(query.toLowerCase()));
 
@@ -31,22 +44,26 @@ export default function Combobox({ options, value, onChange, placeholder, label 
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        // Reset translation: if they clicked outside without selecting, snap back to current value
+        const currentOpt = options.find(o => o.id === value);
+        if (currentOpt) setQuery(currentOpt.name);
+        else if (!value) setQuery("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [value, options]);
 
-  const handleSelect = (name: string) => {
-    setQuery(name);
-    onChange(name);
+  const handleSelect = (option: Option) => {
+    setQuery(option.name);
+    onChange(option.id);
     setIsOpen(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    onChange(val);
+    if (val === "") onChange(""); // Clear selection if input is cleared
     setIsOpen(true);
   };
 
@@ -77,18 +94,37 @@ export default function Combobox({ options, value, onChange, placeholder, label 
               filteredOptions.map((opt) => (
                 <button
                   key={opt.id}
-                  onClick={() => handleSelect(opt.name)}
+                  onClick={() => handleSelect(opt)}
                   className="w-full text-left px-5 py-3.5 text-sm font-semibold text-title hover:bg-gray-50 transition-colors"
                 >
                   {opt.name}
                 </button>
               ))
-            ) : query !== "" ? (
-              <div className="px-5 py-3.5 text-sm text-subtitle italic">
-                No matching clients. Press enter to use &quot;<span className="text-title font-bold">{query}</span>&quot;
+            ) : null}
+
+            {/* Create option */}
+            {onCreate && query !== "" && !isSelected && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreate(query);
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-5 py-3.5 text-sm font-black text-brand bg-brand/5 hover:bg-brand/10 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear &quot;{query}&quot;</span>
+              </button>
+            )}
+
+            {filteredOptions.length === 0 && !onCreate && query !== "" && (
+              <div className="px-5 py-3.5 text-sm text-subtitle/40 italic">
+                Sin resultados para &quot;{query}&quot;
               </div>
-            ) : (
-              <div className="px-5 py-3.5 text-sm text-subtitle/40">Start typing to see clients...</div>
+            )}
+
+            {query === "" && options.length === 0 && (
+              <div className="px-5 py-3.5 text-sm text-subtitle/40">Comienza a escribir...</div>
             )}
           </div>
         </div>

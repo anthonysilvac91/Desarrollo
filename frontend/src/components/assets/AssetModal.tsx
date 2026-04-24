@@ -6,9 +6,11 @@ import Combobox from "@/components/ui/Combobox";
 import { Camera, Ship, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
-import { usersService } from "@/services/users.service";
 import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { usersService } from "@/services/users.service";
+import { useAuth } from "@/lib/AuthContext";
 
 export interface AssetFormData {
   name: string;
@@ -21,10 +23,12 @@ interface AssetModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  asset?: any | null; // El activo a editar (si existe)
 }
 
-export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalProps) {
+export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetModalProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,6 +38,30 @@ export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalPro
     photo: null as File | null,
   });
 
+  const queryClient = useQueryClient();
+
+  const handleQuickCreateClient = async (name: string) => {
+    try {
+      setLoading(true);
+      const finalEmail = `${name.toLowerCase().replace(/\s+/g, '.')}.${Math.random().toString(36).slice(-4)}@recall.app`;
+      const newClient = await usersService.create({
+        name,
+        role: "CLIENT",
+        email: finalEmail,
+        password: Math.random().toString(36).slice(-12) + "A1!", // 12 chars + extra safety
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setFormData(prev => ({ ...prev, client_id: newClient.id }));
+      showToast(t.clients?.states?.save_success || "Cliente creado", "success");
+    } catch (error) {
+      console.error(error);
+      showToast(t.feedback?.generic_error || "Algo salió mal", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const [preview, setPreview] = useState<string | null>(null);
 
   // Fetch real clients from the database
@@ -42,6 +70,23 @@ export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalPro
     queryFn: () => usersService.findAll("CLIENT"),
     enabled: isOpen
   });
+
+  // Hydrate form when editing
+  React.useEffect(() => {
+    if (isOpen && asset) {
+      setFormData({
+        name: asset.name || "",
+        client_id: asset.client?.id || "",
+        location: asset.location || "",
+        photo: null,
+      });
+      setPreview(asset.thumbnail_url || null);
+    } else if (isOpen && !asset) {
+      // Reset form if opening for creation
+      setFormData({ name: "", client_id: "", location: "", photo: null });
+      setPreview(null);
+    }
+  }, [isOpen, asset]);
 
   const clientOptions = clients.map(c => ({ id: c.id, name: c.name }));
 
@@ -67,19 +112,30 @@ export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalPro
       const data = new FormData();
       data.append("name", formData.name);
       data.append("location", formData.location);
+      
+      if (formData.client_id && formData.client_id !== "") {
+        data.append("client_id", formData.client_id);
+      }
+
       if (formData.photo) {
         data.append("photo", formData.photo);
       }
 
-      // 1. Create Asset
-      const newAsset = await assetsService.create(data);
+      console.log('📤 Enviando barco:', { 
+        name: formData.name, 
+        client_id: formData.client_id 
+      });
 
-      // 2. Assign client if selected
-      if (formData.client_id) {
-        await assetsService.assignClient(newAsset.id, formData.client_id);
+      if (asset?.id) {
+        // Modo Edición
+        await assetsService.update(asset.id, data);
+        showToast(t.feedback?.save_success || "Cambios guardados", "success");
+      } else {
+        // Modo Creación
+        await assetsService.create(data);
+        showToast(t.feedback?.save_success || "Embarcación creada", "success");
       }
 
-      showToast(t.feedback.save_success, "success");
       onSuccess();
       onClose();
       
@@ -95,7 +151,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalPro
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t.assets.add_new}>
+    <Modal isOpen={isOpen} onClose={onClose} title={asset ? "Editar Embarcación" : t.assets.add_new}>
       <div className="flex flex-col space-y-8 mt-2">
         {/* Photo Upload Area */}
         <div className="flex justify-center">
@@ -140,6 +196,11 @@ export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalPro
             value={formData.client_id}
             onChange={(val) => setFormData({ ...formData, client_id: val })}
             placeholder="Selecciona un cliente..."
+            onCreate={
+              (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") 
+                ? handleQuickCreateClient 
+                : undefined
+            }
           />
 
           {/* Location */}
@@ -173,7 +234,7 @@ export default function AssetModal({ isOpen, onClose, onSuccess }: AssetModalPro
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <span>Crear Embarcación</span>
+              <span>{asset ? "Guardar Cambios" : "Crear Embarcación"}</span>
             )}
           </button>
         </div>

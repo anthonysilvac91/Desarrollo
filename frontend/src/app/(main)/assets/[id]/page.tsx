@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { assetsService, Asset, Service } from "@/services/assets.service";
 import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Camera, Building2, Ship } from "lucide-react";
+import ServiceDrawer from "@/components/services/ServiceDrawer";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
   const styles = {
@@ -43,7 +44,7 @@ const JobImage = ({ src }: { src: string }) => {
   );
 };
 
-const JobCard = ({ job }: { job: Service }) => {
+const JobCard = ({ job, onClick }: { job: Service, onClick?: () => void }) => {
   const { t, language } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -57,7 +58,10 @@ const JobCard = ({ job }: { job: Service }) => {
   }, [job.description]);
 
   return (
-    <div className="group flex flex-col bg-surface rounded-[32px] border border-border-theme/40 overflow-hidden hover:border-brand/40 hover:shadow-2xl transition-all duration-300">
+    <div 
+      onClick={onClick}
+      className="group flex flex-col bg-surface rounded-[32px] border border-border-theme/40 overflow-hidden hover:border-brand/40 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+    >
       <div className="flex-1 p-8">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -116,6 +120,7 @@ export default function AssetDetailPage() {
   const [datePreset, setDatePreset] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [selectedService, setSelectedService] = useState<any>(null);
 
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
@@ -290,7 +295,11 @@ export default function AssetDetailPage() {
         {/* Timeline (8 cols) */}
         <div className="lg:col-span-8 space-y-6">
             {filteredJobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobCard 
+                key={job.id} 
+                job={job} 
+                onClick={() => setSelectedService(job)}
+              />
             ))}
             
             {filteredJobs.length === 0 && (
@@ -411,6 +420,10 @@ export default function AssetDetailPage() {
 
       </div>
 
+      <ServiceDrawer 
+        service={selectedService} 
+        onClose={() => setSelectedService(null)} 
+      />
     </div>
   );
 }

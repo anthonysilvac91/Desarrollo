@@ -35,6 +35,7 @@ export default function AssetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
+  const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
 
   const { data: assets = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["assets"],
@@ -45,9 +46,10 @@ export default function AssetsPage() {
   const filteredData = useMemo(() => {
     return assets.filter((item) => {
       const searchLower = search.toLowerCase();
+      const clientName = item.client?.name || item.client_access?.[0]?.client?.name || "";
       const matchesSearch = search === "" || (
         item.name.toLowerCase().includes(searchLower) ||
-        (item.client?.name || "").toLowerCase().includes(searchLower) ||
+        clientName.toLowerCase().includes(searchLower) ||
         (item.location || "").toLowerCase().includes(searchLower)
       );
       const matchesClient = selectedClients.length === 0 || (item.client && selectedClients.includes(item.client.name));
@@ -77,6 +79,7 @@ export default function AssetsPage() {
   const handleConfirmDelete = async () => {
     if (assetToDelete) {
       try {
+        await assetsService.delete(assetToDelete.id);
         showToast(t.feedback.delete_asset_success, "success");
         setAssetToDelete(null);
         refetch();
@@ -94,7 +97,7 @@ export default function AssetsPage() {
       header: t.assets.table.asset,
       cell: (item) => (
         <div className="flex items-center space-x-5">
-          <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm flex-shrink-0 bg-app-bg flex items-center justify-center relative">
+          <div className={`w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm flex-shrink-0 bg-app-bg flex items-center justify-center relative ${!item.is_active ? 'grayscale opacity-40' : ''}`}>
             <AssetImage 
               src={item.thumbnail_url || ""} 
               alt={item.name} 
@@ -102,7 +105,14 @@ export default function AssetsPage() {
             />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-title text-[17px]">{item.name}</span>
+            <div className="flex items-center gap-2">
+              <span className={`font-bold text-title text-[17px] ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
+              {!item.is_active && (
+                <span className="px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-black uppercase tracking-wider border border-error/20">
+                  {t.common?.inactive || "INACTIVO"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )
@@ -110,9 +120,10 @@ export default function AssetsPage() {
     { 
       key: "client", 
       header: t.assets.table.client,
-      cell: (item) => (
-        <span className="font-bold text-subtitle/80 text-[15px]">{item.client?.name || "---"}</span>
-      )
+      cell: (item) => {
+        const clientName = item.client?.name || item.client_access?.[0]?.client?.name || "---";
+        return <span className="font-bold text-subtitle/80 text-[15px]">{clientName}</span>;
+      }
     },
     { 
       key: "location", 
@@ -154,7 +165,11 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
           <button 
-            onClick={(e) => { e.stopPropagation(); }}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              setAssetToEdit(item);
+              setIsModalOpen(true);
+            }}
             className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
           >
             <Pencil className="w-5 h-5" />
@@ -264,9 +279,14 @@ export default function AssetsPage() {
 
       <AssetModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setAssetToEdit(null);
+        }} 
+        asset={assetToEdit}
         onSuccess={() => {
           setIsModalOpen(false);
+          setAssetToEdit(null);
           refetch();
         }} 
       />
