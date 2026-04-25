@@ -112,4 +112,27 @@ export class ServicesService {
 
     return service;
   }
+
+  async remove(id: string, user: any) {
+    const service = await this.prisma.service.findUnique({ where: { id } });
+    
+    if (!service) {
+      throw new NotFoundException('Service no encontrado');
+    }
+
+    // Seguridad: Si no es Super Admin, debe pertenecer a su organización
+    if (user.role !== 'SUPER_ADMIN' && service.organization_id !== user.orgId) {
+      throw new ForbiddenException('Acceso denegado para eliminar este servicio');
+    }
+
+    // Eliminar primero los archivos adjuntos relacionados (Foreign Key)
+    await this.prisma.serviceAttachment.deleteMany({
+      where: { service_id: id }
+    });
+
+    // Eliminar el servicio
+    return this.prisma.service.delete({
+      where: { id }
+    });
+  }
 }

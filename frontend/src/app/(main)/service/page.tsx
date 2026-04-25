@@ -77,8 +77,8 @@ export default function ServicesPage() {
   const handleConfirmDelete = async () => {
     if (serviceToDelete) {
       try {
-        // Implementar delete en servicesService si fuera necesario
-        showToast(t.feedback.save_success, "success");
+        await servicesService.delete(serviceToDelete.id);
+        showToast("Servicio eliminado con éxito.", "success");
         setServiceToDelete(null);
         refetch();
       } catch (err) {

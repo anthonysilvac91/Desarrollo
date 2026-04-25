@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsUUID, IsBoolean, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateServiceDto {
@@ -16,4 +16,14 @@ export class CreateServiceDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Indica si es visible para los clientes' })
+  @IsOptional()
+  @IsBoolean()
+  is_public?: boolean;
+
+  @ApiPropertyOptional({ description: 'Estado del servicio' })
+  @IsOptional()
+  @IsEnum(['COMPLETED', 'ARCHIVED'])
+  status?: any;
 }

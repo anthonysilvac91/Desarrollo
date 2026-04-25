@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ServicesService } from './services.service';
@@ -43,5 +43,11 @@ export class ServicesController {
   @ApiOperation({ summary: 'Obtener detalle de un servicio', description: 'Retorna el servicio con sus adjuntos, operario y activo relacionado.' })
   findOne(@Param('id') id: string, @Request() req) {
     return this.servicesService.findOne(id, req.user);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un servicio', description: 'Elimina un servicio de forma permanente.' })
+  remove(@Param('id') id: string, @Request() req) {
+    return this.servicesService.remove(id, req.user);
   }
 }

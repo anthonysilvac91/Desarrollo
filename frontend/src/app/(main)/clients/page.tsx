@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usersService } from "@/services/users.service";
-import DataTable, { Column } from "@/components/ui/DataTable";
+import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import FiltersBar from "@/components/ui/FiltersBar";
 import { Plus, Search, MoreHorizontal, User, Mail, Phone, Trash2, Edit2, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import ClientModal from "@/components/clients/ClientModal";
@@ -28,7 +28,7 @@ export default function ClientsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => usersService.delete(id),
+    mutationFn: (id: string) => usersService.toggleStatus(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       showToast(t.clients.states.delete_success, "success");
@@ -64,7 +64,7 @@ export default function ClientsPage() {
     </>
   );
 
-  const columns: Column[] = [
+  const columns: ColumnDef<any>[] = [
     { 
       key: "name", 
       header: t.clients.table.name,
@@ -135,7 +135,6 @@ export default function ClientsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <FiltersBar 
           searchPlaceholder={t.clients.search_placeholder}
-          searchValue={search}
           onSearchChange={setSearch}
         />
         

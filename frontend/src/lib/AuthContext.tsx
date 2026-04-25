@@ -71,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     "/settings": ["ADMIN"],
     "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "CLIENT"],
     "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
+    "/app": ["WORKER"]
   };
 
   const canAccess = (path: string): boolean => {
@@ -83,11 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return ROUTE_PERMISSIONS[protectedPath].includes(user.role);
   };
 
-  // Proteger rutas (Auth + Roles)
+  // Proteger rutas (Auth + Roles + Dispositivos)
   useEffect(() => {
     if (!loading) {
       const isPublicPath = pathname === "/login" || pathname === "/register" || pathname === "/";
       const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+      const isPWA = typeof window !== "undefined" && (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone);
       
       if (!user && !isPublicPath) {
         router.push("/login");
@@ -95,32 +97,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (user) {
-        // Redirección si intenta entrar a login ya autenticado o al home "/"
-        if (isPublicPath) {
-          if (user.role === "SUPER_ADMIN") {
-            router.push("/master");
-          } else if (user.role === "WORKER" && isMobile) {
-            router.push("/app");
-          } else if (user.role === "ADMIN") {
-            router.push("/dashboard");
+        const isWorker = user.role === "WORKER";
+
+        // A. Forzar aislamiento estricto de Worker por dispositivo
+        if (isWorker) {
+          if (!isMobile) {
+            // Worker en PC -> Web normal
+            if (pathname.startsWith("/app")) {
+              router.replace("/assets");
+              return;
+            }
           } else {
-            router.push("/assets");
+            // Worker en Teléfono -> Obligar PWA
+            if (!isPWA && pathname !== "/app/install") {
+              router.replace("/app/install");
+              return;
+            } else if (isPWA && pathname === "/app/install") {
+              router.replace("/app");
+              return;
+            } else if (isPWA && !pathname.startsWith("/app") && !isPublicPath) {
+              router.replace("/app");
+              return;
+            }
           }
+        } else {
+          // Otros roles -> Prohibido entrar a /app
+          if (pathname.startsWith("/app")) {
+            router.replace(user.role === "ADMIN" ? "/dashboard" : "/assets");
+            return;
+          }
+        }
+
+        // B. Redirección desde login o home
+        if (isPublicPath) {
+          if (user.role === "SUPER_ADMIN") router.push("/master");
+          else if (user.role === "ADMIN") router.push("/dashboard");
+          else if (user.role === "WORKER") router.push(isMobile ? (isPWA ? "/app" : "/app/install") : "/assets");
+          else router.push("/assets"); // CLIENT
           return;
         }
 
-        // Validación de permisos por ruta
+        // C. Validación de permisos genérica
         if (!canAccess(pathname)) {
-          console.warn(`Access denied to ${pathname} for role ${user.role}`);
-          
-          if (user.role === "SUPER_ADMIN") {
-            router.push("/master");
-          } else if (user.role === "WORKER" && isMobile) {
-            router.push("/app");
-          } else {
-            const canDashboard = canAccess("/dashboard");
-            router.push(canDashboard ? "/dashboard" : "/assets");
-          }
+          const fallback = user.role === "WORKER" ? (isMobile ? (isPWA ? "/app" : "/app/install") : "/assets") : "/assets";
+          router.replace(fallback);
         }
       }
     }

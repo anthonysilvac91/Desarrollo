@@ -263,7 +263,10 @@ export default function UsersPage() {
       <UserModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleAddUser} 
+        onSuccess={() => {
+          setIsModalOpen(false);
+          refetch();
+        }}
         existingCompanies={existingCompanies}
       />
 

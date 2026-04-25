@@ -47,7 +47,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
       onSuccess();
       onClose();
     } catch (error) {
-      showToast(t.users.states.error, "error");
+      showToast(t.users.states.error_invite, "error");
     } finally {
       setLoading(false);
     }
