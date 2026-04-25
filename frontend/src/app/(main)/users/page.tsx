@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight } from "lucide-react";
 
 export default function UsersPage() {
   const { t } = useLanguage();
@@ -47,21 +47,35 @@ export default function UsersPage() {
   const displayData = usersList;
 
 
-  const handleDeleteRequest = (e: React.MouseEvent, user: User) => {
-    e.stopPropagation();
-    setUserToDelete(user);
-  };
 
   const handleConfirmDelete = async () => {
-    if (userToDelete) {
-      try {
+    if (!userToDelete) return;
+    
+    try {
+      // Si el usuario ya está inactivo, el toggle lo activaría.
+      // En un sistema sin DELETE físico, "Eliminar" debe asegurar la desactivación.
+      if (userToDelete.is_active) {
         await usersService.toggleStatus(userToDelete.id);
         showToast(t.users.states.delete_success, "success");
-        setUserToDelete(null);
-        refetch();
-      } catch (err) {
-        showToast(t.users.states.error_delete, "error");
+      } else {
+        // Si ya está inactivo, informamos que ya ha sido "eliminado" lógicamente
+        showToast("El usuario ya se encuentra desactivado", "info");
       }
+      refetch();
+    } catch (err) {
+      showToast(t.users.states.error_delete, "error");
+    } finally {
+      setUserToDelete(null);
+    }
+  };
+
+  const handleToggleStatus = async (user: User) => {
+    try {
+      await usersService.toggleStatus(user.id);
+      showToast(user.is_active ? "Usuario desactivado" : "Usuario activado", "success");
+      refetch();
+    } catch (err) {
+      showToast("Error al cambiar estado", "error");
     }
   };
 
@@ -119,12 +133,13 @@ export default function UsersPage() {
       key: "status", 
       header: t.users.table.status,
       align: "center",
-      cell: () => {
+      cell: (item) => {
+        const isActive = item.is_active;
         return (
           <div className="flex items-center justify-center">
-            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[13px] text-emerald-500`}>
-              <div className={`w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]`} />
-              <span>{t.common.active}</span>
+            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[13px] ${isActive ? 'text-emerald-500' : 'text-subtitle/30'}`}>
+              <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-subtitle/20'}`} />
+              <span>{isActive ? t.common.active : t.common.inactive}</span>
             </div>
           </div>
         );
@@ -137,7 +152,9 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2 text-brand" />
-          <span className="font-semibold text-sm">{item.created_at.slice(0, 10)}</span>
+          <span className="font-semibold text-sm">
+            {item.last_login_at ? item.last_login_at.slice(0, 10) : "---"}
+          </span>
         </div>
       )
     },
@@ -148,13 +165,25 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
           <button
+            onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
+            className={`p-2.5 transition-all rounded-full ${item.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50'}`}
+            title={item.is_active ? "Desactivar" : "Activar"}
+          >
+            {item.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); setEditingUser(item); setIsModalOpen(true); }}
             className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
           >
             <Pencil className="w-5 h-5" />
           </button>
           <button 
-            onClick={(e) => handleDeleteRequest(e, item)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setUserToDelete(item);
+            }}
             className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
             title="Eliminar usuario"
           >

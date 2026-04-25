@@ -157,9 +157,9 @@ export const translations = {
       table: {
         name: "Name",
         role: "Role",
-        company: "Organization",
+        company: "Company",
         status: "Status",
-        last_access: "Member Since",
+        last_access: "Last access",
         actions: "Actions",
       },
       modal: {
@@ -572,9 +572,9 @@ export const translations = {
       table: {
         name: "Nombre",
         role: "Rol",
-        company: "Organización",
+        company: "Company",
         status: "Estatus",
-        last_access: "Miembro desde",
+        last_access: "Último acceso",
         actions: "Acciones",
       },
       modal: {

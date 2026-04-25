@@ -10,6 +10,7 @@ export interface User {
   avatar_url?: string | null;
   customer?: { name: string };
   is_active: boolean;
+  last_login_at?: string | null;
   created_at: string;
 }
 
