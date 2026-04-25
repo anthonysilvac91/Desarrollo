@@ -243,7 +243,7 @@ export default function AssetDetailPage() {
           </div>
           <div>
             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-1 block">{t.assets.detail.owner}</span>
-            <h4 className="text-xl font-black text-title leading-tight">{asset.client?.name || "Sin asignar"}</h4>
+            <h4 className="text-[22px] font-black text-title leading-tight">{asset.customer?.name || "Sin asignar"}</h4>
             <div className="mt-2 flex items-center space-x-6">
               <div className="text-[12px] font-bold text-subtitle/60 flex items-center">
                  <MapPin className="w-3.5 h-3.5 text-brand mr-1.5" />

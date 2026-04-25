@@ -72,12 +72,27 @@ describe('ServicesService.create - Auto Publish Logic', () => {
 
     it('Debería inyectar is_public = true y status = COMPLETED obligatoriamente si es CLIENT', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      await service.findAll({}, { id: 'client-1', orgId: 'org-tenant-xx', role: 'CLIENT' });
+      await service.findAll({}, { id: 'client-1', orgId: 'org-tenant-xx', role: 'CLIENT', customer_id: 'cust-123' });
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({ 
           organization_id: 'org-tenant-xx',
           is_public: true,
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          asset: { customer_id: 'cust-123' }
+        })
+      }));
+    });
+
+    it('Un CLIENT no debería ver servicios de otros clientes aunque compartan Organización', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      const myCustomerId = 'empresa-a';
+      
+      await service.findAll({}, { id: 'user-a', orgId: 'org-1', role: 'CLIENT', customer_id: myCustomerId });
+      
+      // Verificamos que el filtro de activo por customer_id esté presente y sea el correcto
+      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          asset: { customer_id: myCustomerId }
         })
       }));
     });

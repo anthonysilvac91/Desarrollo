@@ -73,16 +73,15 @@ describe('Assets Visibility (e2e)', () => {
       expect(res.body[0].id).toBe(assetVinculado.id);
     });
 
-    it('CLIENTE solo ve los assets explícitamente autorizados.', async () => {
+    it('CLIENTE solo ve los assets vinculados a su empresa (Customer).', async () => {
       const org = await testUtils.createTestOrganization();
-      const client = await testUtils.createTestUser(Role.CLIENT, 'client@org.com', org.id);
+      const customer = await testUtils.createTestCustomer('Empresa A', org.id);
+      const client = await testUtils.createTestUser(Role.CLIENT, 'client@org.com', org.id, customer.id);
       
-      const assetVinculado = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Cliente' } });
-      await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Aislado' } });
-
-      await prisma.clientAssetAccess.create({
-        data: { client_id: client.id, asset_id: assetVinculado.id }
+      const assetVinculado = await prisma.asset.create({ 
+        data: { organization_id: org.id, name: 'Bote Cliente', customer_id: customer.id } 
       });
+      await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Aislado' } });
 
       const token = testUtils.getBearerToken(client);
       const res = await request(app.getHttpServer()).get('/assets').set('Authorization', `Bearer ${token}`);
@@ -105,7 +104,7 @@ describe('Assets Visibility (e2e)', () => {
       expect(res.status).toBe(200);
       expect(res.body.name).toBe('Bote Admin');
       expect(res.body.services).toBeDefined();
-      expect(res.body.client_access).toBeDefined();
+      expect(res.body.customer).toBeDefined();
     });
 
     it('No permite ver activos de otro tenant.', async () => {

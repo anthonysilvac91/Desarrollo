@@ -9,7 +9,10 @@ describe('AssetsService.create - Worker Roles', () => {
 
   beforeEach(async () => {
     const prismaMock = {
-      asset: { create: jest.fn() },
+      asset: { 
+        create: jest.fn(),
+        findUnique: jest.fn()
+      },
     };
 
     const storageMock = {
@@ -29,7 +32,9 @@ describe('AssetsService.create - Worker Roles', () => {
   });
 
   it('Debería inyectar el organization_id del Worker al crear un activo', async () => {
-    jest.spyOn(prisma.asset, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+    const mockAsset = { id: 'asset-1', name: 'Nuevo Activo de Terreno', organization_id: 'org-tenant-123' };
+    jest.spyOn(prisma.asset, 'create').mockResolvedValue(mockAsset as any);
+    jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(mockAsset as any);
 
     const result = await service.create({ name: 'Nuevo Activo de Terreno' }, 'org-tenant-123');
 

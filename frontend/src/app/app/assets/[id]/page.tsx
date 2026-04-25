@@ -174,7 +174,7 @@ export default function WorkerAssetDetailPage() {
            <div className="grid grid-cols-2 gap-4 w-full px-4 max-w-sm">
                 <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 text-left shadow-sm">
                    <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.asset_detail.client_label}</span>
-                   <span className="text-sm font-bold text-title truncate block">{asset.client?.name || t.common.unassigned}</span>
+                   <span className="text-sm font-bold text-title truncate block">{asset.customer?.name || t.common.unassigned}</span>
                 </div>
                 <div className="bg-surface rounded-2xl p-4 border border-border-theme/20 text-left shadow-sm">
                   <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.asset_detail.total_services}</span>

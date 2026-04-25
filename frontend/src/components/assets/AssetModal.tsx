@@ -83,7 +83,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
     }
   }, [isOpen, asset]);
 
-  const customerOptions = customers.map(c => ({ id: c.id, name: c.name }));
+  const customerOptions = customers.map((c: any) => ({ id: c.id, name: c.name }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

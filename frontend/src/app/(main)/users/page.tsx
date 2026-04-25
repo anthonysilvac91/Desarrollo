@@ -41,7 +41,7 @@ export default function UsersPage() {
   }, [debouncedSearch]);
 
   const existingCompanies = useMemo(() => {
-    return Array.from(new Set(usersList.map(() => "Recall Co"))).sort();
+    return Array.from(new Set<string>(usersList.map(() => "Recall Co"))).sort();
   }, [usersList]);
 
   // .slice(0,10) was removed since backend paginates
@@ -125,10 +125,10 @@ export default function UsersPage() {
     { 
       key: "company", 
       header: t.users.table.company,
-      cell: () => (
+      cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">Recall Organization</span>
+          <span className="font-semibold text-[15px]">{item.customer?.name || "Recall Organization"}</span>
         </div>
       )
     },

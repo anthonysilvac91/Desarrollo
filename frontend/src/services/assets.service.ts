@@ -28,9 +28,10 @@ export interface Asset {
   client_access?: {
     client: { id: string; name: string };
   }[];
-  client?: {
+  customer?: {
+    id: string;
     name: string;
-    action_type?: string; // Subtext for client column in Figma
+    action_type?: string;
   };
   last_service?: {
     date: string;

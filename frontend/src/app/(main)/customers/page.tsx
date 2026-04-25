@@ -7,8 +7,8 @@ import { useToast } from "@/lib/ToastContext";
 import { customersService, Customer } from "@/services/customers.service";
 import CustomerModal from "@/components/customers/CustomerModal";
 import DataTable from "@/components/ui/DataTable";
-import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
-import useDebounce from "@/hooks/useDebounce";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function CustomersPage() {
@@ -59,7 +59,7 @@ export default function CustomersPage() {
   const columns = [
     {
       header: "EMPRESA",
-      accessor: "name" as keyof Customer,
+      key: "name",
       cell: (item: Customer) => (
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center flex-shrink-0">
@@ -74,7 +74,7 @@ export default function CustomersPage() {
     },
     {
       header: "ESTADO",
-      accessor: "is_active" as keyof Customer,
+      key: "is_active",
       cell: (item: Customer) => (
         <div className="flex items-center space-x-2">
           {item.is_active ? (
@@ -93,7 +93,7 @@ export default function CustomersPage() {
     },
     {
       header: "ACCIONES",
-      accessor: "id" as keyof Customer,
+      key: "id",
       cell: (item: Customer) => (
         <div className="flex justify-end space-x-2">
           <button 
@@ -216,13 +216,15 @@ export default function CustomersPage() {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
       />
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={!!customerToDelete}
         onClose={() => setCustomerToDelete(null)}
         onConfirm={() => customerToDelete && deleteMutation.mutate(customerToDelete.id)}
         title="Eliminar Empresa"
-        message={`¿Estás seguro de que deseas eliminar la empresa "${customerToDelete?.name}"? Sus usuarios y activos asociados quedarán huérfanos.`}
-        isDeleting={deleteMutation.isPending}
+        description={`¿Estás seguro de que deseas eliminar la empresa "${customerToDelete?.name}"? Sus usuarios y activos asociados quedarán huérfanos.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
       />
     </div>
   );

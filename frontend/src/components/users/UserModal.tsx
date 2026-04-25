@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";

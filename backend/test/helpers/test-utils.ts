@@ -16,10 +16,10 @@ export class TestUtils {
       this.prisma.serviceAttachment.deleteMany(),
       this.prisma.service.deleteMany(),
       this.prisma.workerAssetAccess.deleteMany(),
-      this.prisma.clientAssetAccess.deleteMany(),
       this.prisma.invitation.deleteMany(),
       this.prisma.asset.deleteMany(),
       this.prisma.user.deleteMany(),
+      this.prisma.customer.deleteMany(),
       this.prisma.organization.deleteMany(),
     ]);
   }
@@ -41,7 +41,7 @@ export class TestUtils {
   /**
    * Crea un usuario con rol específico. Si no se manda orgId asume SUPER_ADMIN
    */
-  async createTestUser(role: Role, email: string, orgId?: string) {
+  async createTestUser(role: Role, email: string, orgId?: string, customerId?: string) {
     const password_hash = await bcrypt.hash('123456', 10);
     return this.prisma.user.create({
       data: {
@@ -50,6 +50,16 @@ export class TestUtils {
         password_hash,
         name: `User ${role} ${email}`,
         organization_id: orgId || null,
+        customer_id: customerId || null,
+      }
+    });
+  }
+
+  async createTestCustomer(name: string, orgId: string) {
+    return this.prisma.customer.create({
+      data: {
+        name,
+        organization_id: orgId
       }
     });
   }
@@ -59,7 +69,7 @@ export class TestUtils {
    */
   getBearerToken(user: any) {
     if (!this.jwtService) throw new Error('Se requiere inyectar JwtService en TestUtils');
-    const payload = { sub: user.id, orgId: user.organization_id, role: user.role };
+    const payload = { sub: user.id, orgId: user.organization_id, role: user.role, customer_id: user.customer_id };
     return this.jwtService.sign(payload, { secret: process.env.JWT_SECRET || 'RECALL_TEST_STRICT_SAFE_SECRET' });
   }
 

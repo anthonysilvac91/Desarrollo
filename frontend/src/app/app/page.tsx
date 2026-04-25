@@ -28,10 +28,10 @@ export default function WorkerHomePage() {
     queryFn: () => assetsService.findAll(),
   });
 
-  const filteredAssets = assets.filter(asset => 
+  const filteredAssets = assets.filter((asset: any) => 
     asset.name.toLowerCase().includes(search.toLowerCase()) ||
     (asset.location?.toLowerCase().includes(search.toLowerCase())) ||
-    (asset.client?.name.toLowerCase().includes(search.toLowerCase()))
+    (asset.customer?.name?.toLowerCase().includes(search.toLowerCase()))
   );
 
   if (isLoading) {
@@ -90,7 +90,7 @@ export default function WorkerHomePage() {
         </div>
 
         <div className="space-y-4">
-          {filteredAssets.map((asset) => (
+          {filteredAssets.map((asset: any) => (
           <div 
             key={asset.id}
             onClick={() => router.push(`/app/assets/${asset.id}`)}
@@ -109,7 +109,7 @@ export default function WorkerHomePage() {
                  <span className="truncate">{asset.location}</span>
                </div>
                <div className="text-[10px] font-black text-brand uppercase tracking-widest mt-1">
-                 {asset.client?.name || t.common.unassigned}
+                 {asset.customer?.name || t.common.unassigned}
                </div>
             </div>
 

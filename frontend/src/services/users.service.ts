@@ -8,6 +8,7 @@ export interface User {
   organization_id: string | null;
   phone?: string | null;
   avatar_url?: string | null;
+  customer?: { name: string };
   is_active: boolean;
   created_at: string;
 }

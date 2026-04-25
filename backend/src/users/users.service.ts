@@ -57,6 +57,7 @@ export class UsersService {
       is_active: true,
       created_at: true,
       updated_at: true,
+      customer: { select: { name: true } },
     };
 
     if (query.page && query.limit) {
