@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { authService } from "@/services/auth.service";
-import { Loader2, Mail, Lock, Eye, EyeOff, Ship } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, Ship, Download } from "lucide-react";
+import { usePWA } from "@/hooks/usePWA";
 
 export default function LoginPage() {
   const { t } = useLanguage();
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const { showToast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isMobile, triggerInstall } = usePWA();
 
   const {
     register,
@@ -145,6 +147,20 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
+
+        {/* Install App Button (Mobile Only) */}
+        {isMobile && (
+          <div className="mt-6">
+            <button
+              onClick={triggerInstall}
+              type="button"
+              className="w-full flex items-center justify-center space-x-2 py-4 border-2 border-brand/20 bg-brand/5 text-brand rounded-2xl font-black text-sm active:scale-95 transition-all"
+            >
+              <Download className="w-5 h-5" />
+              <span>Instalar app</span>
+            </button>
+          </div>
+        )}
 
         {/* Footer info */}
         <div className="mt-12 text-center">

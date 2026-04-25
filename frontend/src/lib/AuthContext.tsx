@@ -99,26 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         const isWorker = user.role === "WORKER";
 
-        // A. Forzar aislamiento estricto de Worker por dispositivo
+        // A. Redirecciones basadas en rol para /app (aislamiento)
         if (isWorker) {
-          if (!isMobile) {
+          if (!isMobile && pathname.startsWith("/app")) {
             // Worker en PC -> Web normal
-            if (pathname.startsWith("/app")) {
-              router.replace("/assets");
-              return;
-            }
-          } else {
-            // Worker en Teléfono -> Obligar PWA
-            if (!isPWA && pathname !== "/app/install") {
-              router.replace("/app/install");
-              return;
-            } else if (isPWA && pathname === "/app/install") {
-              router.replace("/app");
-              return;
-            } else if (isPWA && !pathname.startsWith("/app") && !isPublicPath) {
-              router.replace("/app");
-              return;
-            }
+            router.replace("/assets");
+            return;
+          } else if (isMobile && !pathname.startsWith("/app") && !isPublicPath) {
+            // Worker en Teléfono -> Obligar /app
+            router.replace("/app");
+            return;
           }
         } else {
           // Otros roles -> Prohibido entrar a /app
@@ -132,14 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isPublicPath) {
           if (user.role === "SUPER_ADMIN") router.push("/master");
           else if (user.role === "ADMIN") router.push("/dashboard");
-          else if (user.role === "WORKER") router.push(isMobile ? (isPWA ? "/app" : "/app/install") : "/assets");
+          else if (user.role === "WORKER") router.push(isMobile ? "/app" : "/assets");
           else router.push("/assets"); // CLIENT
           return;
         }
 
         // C. Validación de permisos genérica
         if (!canAccess(pathname)) {
-          const fallback = user.role === "WORKER" ? (isMobile ? (isPWA ? "/app" : "/app/install") : "/assets") : "/assets";
+          const fallback = user.role === "WORKER" ? (isMobile ? "/app" : "/assets") : "/assets";
           router.replace(fallback);
         }
       }
