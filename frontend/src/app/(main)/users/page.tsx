@@ -46,22 +46,6 @@ export default function UsersPage() {
   // .slice(0,10) was removed since backend paginates
   const displayData = usersList;
 
-  const handleAddUser = async (data: any) => {
-    try {
-      // Mapeo simple de roles para compatibilidad con backend
-      const mappedRole = data.role.toUpperCase();
-      await usersService.create({
-        ...data,
-        role: mappedRole
-      });
-      
-      showToast(t.users.states.invite_success, "success");
-      setIsModalOpen(false);
-      refetch();
-    } catch (err) {
-      showToast(t.users.states.error_invite, "error");
-    }
-  };
 
   const handleDeleteRequest = (e: React.MouseEvent, user: User) => {
     e.stopPropagation();

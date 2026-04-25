@@ -69,16 +69,36 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
     try {
       if (isEditMode) {
         const { password, ...updateData } = formData;
+        // Omit empty customer_id to avoid UUID validator rejection
+        if (!updateData.customer_id) delete (updateData as any).customer_id;
         await usersService.update(userToEdit.id, updateData);
         showToast(t.users.states.update_success, "success");
       } else {
-        await usersService.create(formData);
+        // Build clean payload: omit empty optional fields
+        const payload: any = {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          password: formData.password,
+        };
+        if (formData.customer_id) payload.customer_id = formData.customer_id;
+        await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }
       onSuccess();
       onClose();
-    } catch (error) {
-      showToast(isEditMode ? t.users.states.error_update : t.users.states.error_invite, "error");
+    } catch (error: any) {
+      // Extract backend validation message if available
+      const backendMsg =
+        error?.response?.data?.message ||
+        (Array.isArray(error?.response?.data?.message)
+          ? error.response.data.message.join(", ")
+          : null);
+      showToast(
+        backendMsg ||
+        (isEditMode ? t.users.states.error_update : t.users.states.error_invite),
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -222,6 +242,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
               <div className="relative group">
                 <input
                   required
+                  minLength={8}
                   type={showPassword ? "text" : "password"}
                   className="block w-full px-6 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:border-brand transition-all text-sm"
                   value={formData.password}
@@ -235,6 +256,11 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {formData.password.length > 0 && formData.password.length < 8 && (
+                <p className="text-[11px] font-bold text-error/70 ml-1">
+                  Minimum 8 characters ({formData.password.length}/8)
+                </p>
+              )}
             </div>
           )}
 
