@@ -10,10 +10,15 @@ echo ""
 
 # 1. LEVANTAR DOCKER
 echo "[1/4] Iniciando Base de Datos local (Docker)..."
-if ! docker-compose up -d; then
-    echo ""
-    echo "❌ ERROR: Docker no esta iniciado o docker-compose no esta instalado."
+if ! docker ps --format '{{.Names}}' | grep -q '^recall-postgres$'; then
+  echo "⚠️ recall-postgres no está corriendo. Intentando iniciarlo..."
+  
+  if docker start recall-postgres; then
+    echo "✅ Contenedor iniciado correctamente"
+  else
+    echo "❌ ERROR: No se pudo iniciar recall-postgres"
     exit 1
+  fi
 fi
 sleep 3
 
@@ -44,11 +49,13 @@ cd frontend
 npm install
 cd ..
 
+
+
 echo ""
 echo "========================================================"
 echo " SISTEMA LISTO. Levantando Servidores..."
 echo "========================================================"
-echo "API Backend: http://localhost:4000"
+echo "API Backend: http://localhost:3001"
 echo "Frontend UI: http://localhost:3000"
 echo "========================================================"
 echo ""
