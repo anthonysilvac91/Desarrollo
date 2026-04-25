@@ -11,6 +11,10 @@ export interface Customer {
 
 export interface CustomerFormData {
   name: string;
+  is_active?: boolean;
+  address?: string;
+  email?: string;
+  phone?: string;
 }
 
 export const customersService = {

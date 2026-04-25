@@ -20,15 +20,16 @@ interface UserModalProps {
   onClose: () => void;
   onSuccess: () => void;
   existingCompanies?: string[];
+  userToEdit?: any | null;
 }
 
-export default function UserModal({ isOpen, onClose, onSuccess, existingCompanies = [] }: UserModalProps) {
+export default function UserModal({ isOpen, onClose, onSuccess, existingCompanies = [], userToEdit }: UserModalProps) {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const isEditMode = !!userToEdit;
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -45,8 +46,20 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         const list = Array.isArray(data) ? data : data.data || [];
         setCustomers(list);
       }).catch(() => {});
+
+      if (userToEdit) {
+        setFormData({
+          name: userToEdit.name || "",
+          email: userToEdit.email || "",
+          customer_id: userToEdit.customer_id || "",
+          role: userToEdit.role || "WORKER",
+          password: ""
+        });
+      } else {
+        setFormData({ name: "", email: "", customer_id: "", role: "WORKER", password: "" });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, userToEdit]);
 
   if (!isOpen) return null;
 
@@ -54,12 +67,18 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
     e.preventDefault();
     setLoading(true);
     try {
-      await usersService.create(formData);
-      showToast(t.users.states.invite_success, "success");
+      if (isEditMode) {
+        const { password, ...updateData } = formData;
+        await usersService.update(userToEdit.id, updateData);
+        showToast(t.users.states.update_success, "success");
+      } else {
+        await usersService.create(formData);
+        showToast(t.users.states.invite_success, "success");
+      }
       onSuccess();
       onClose();
     } catch (error) {
-      showToast(t.users.states.error_invite, "error");
+      showToast(isEditMode ? t.users.states.error_update : t.users.states.error_invite, "error");
     } finally {
       setLoading(false);
     }
@@ -72,21 +91,24 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         onClick={onClose}
       />
       
-      <div className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-        <div className="px-8 pt-10 pb-6 flex justify-between items-center border-b border-gray-50">
+      <div className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 max-h-[90vh] flex flex-col">
+        <div className="px-8 pt-10 pb-6 flex justify-between items-center border-b border-gray-50 flex-shrink-0">
           <div>
-            <h2 className="text-2xl font-black text-title tracking-tight">{t.users.modal.title}</h2>
+            <h2 className="text-2xl font-black text-title tracking-tight">
+              {isEditMode ? t.users.modal.title_edit : t.users.modal.title}
+            </h2>
             <p className="text-subtitle/50 text-xs font-bold uppercase tracking-widest mt-1">{t.users.modal.subtitle}</p>
           </div>
           <button 
             onClick={onClose}
-            className="w-12 h-12 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center text-subtitle transition-all"
+            className="w-12 h-12 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center text-subtitle transition-all flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto">
+          {/* Name */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.full_name}</label>
             <div className="relative group">
@@ -104,6 +126,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
+          {/* Email */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.email}</label>
             <div className="relative group">
@@ -121,9 +144,10 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
+          {/* Company — solo si rol es CLIENT */}
           {formData.role === "CLIENT" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">Empresa Cliente</label>
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
                   <Building2 className="h-5 w-5 opacity-30" />
@@ -146,6 +170,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           )}
 
+          {/* Role */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.role}</label>
             <div className="relative">
@@ -165,7 +190,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                     {[
                       { id: "ADMIN", label: "Administrador" },
                       { id: "WORKER", label: "Operador/Trabajador" },
-                      { id: "CLIENT", label: "Cliente Final" }
+                      { id: "CLIENT", label: "Usuario Final" }
                     ].map((role) => (
                       <button
                         key={role.id}
@@ -190,32 +215,38 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.password}</label>
-            <div className="relative group">
-              <input
-                required
-                type={showPassword ? "text" : "password"}
-                className="block w-full px-6 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:border-brand transition-all text-sm"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
-              <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-6 flex items-center text-subtitle/30 hover:text-brand transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+          {/* Password — solo en modo creación */}
+          {!isEditMode && (
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.password}</label>
+              <div className="relative group">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  className="block w-full px-6 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:border-brand transition-all text-sm"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-6 flex items-center text-subtitle/30 hover:text-brand transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <button 
             type="submit"
             disabled={loading}
             className="w-full py-5 bg-brand text-white rounded-[20px] text-lg font-black shadow-xl shadow-brand/20 hover:bg-brand/90 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4 flex items-center justify-center"
           >
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : t.users.modal.submit}
+            {loading
+              ? <Loader2 className="w-6 h-6 animate-spin" />
+              : (isEditMode ? t.users.modal.submit_edit : t.users.modal.submit)
+            }
           </button>
         </form>
       </div>

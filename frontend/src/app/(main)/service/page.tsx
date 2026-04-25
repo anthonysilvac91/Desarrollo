@@ -23,7 +23,7 @@ export default function ServicesPage() {
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
 
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(5);
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -64,7 +64,7 @@ export default function ServicesPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, dateFilter]);
+  }, [debouncedSearch, dateFilter, limit]);
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setDateFilter({ preset, start, end });
@@ -98,7 +98,7 @@ export default function ServicesPage() {
             <Wrench className="w-5 h-5" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-title text-[17px] leading-tight">{item.title}</span>
+            <span className="font-bold text-title text-sm leading-tight">{item.title}</span>
             <span className="text-[11px] font-bold text-brand uppercase tracking-wider mt-0.5">COMPLETED</span>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function ServicesPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/80 font-semibold group cursor-pointer hover:text-brand transition-colors">
           <Ship className="w-4 h-4 mr-2 opacity-40" />
-          <span className="text-[15px]">{item.asset?.name || "---"}</span>
+          <span className="text-sm">{item.asset?.name || "---"}</span>
         </div>
       )
     },
@@ -122,7 +122,7 @@ export default function ServicesPage() {
           <div className="w-6 h-6 rounded-full bg-app-bg border border-border-theme/40 flex items-center justify-center mr-2 overflow-hidden">
             <User className="w-3.5 h-3.5 opacity-40" />
           </div>
-          <span className="font-semibold text-[14px]">{item.worker?.name || "---"}</span>
+          <span className="font-semibold text-sm">{item.worker?.name || "---"}</span>
         </div>
       )
     },
@@ -133,7 +133,7 @@ export default function ServicesPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{new Date(item.created_at).toLocaleDateString()}</span>
+          <span className="font-semibold text-sm">{new Date(item.created_at).toLocaleDateString()}</span>
         </div>
       )
     },
@@ -157,8 +157,17 @@ export default function ServicesPage() {
 
   const pagination = (
     <>
-      <div className="text-[15px] text-subtitle font-medium">
-        {t.services.pagination.showing} <span className="text-title font-bold">{servicesList.length}</span> {t.services.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.services.pagination.services}
+      <div className="flex items-center space-x-3">
+        <div className="text-[15px] text-subtitle font-medium">
+          {t.services.pagination.showing} <span className="text-title font-bold">{servicesList.length}</span> {t.services.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.services.pagination.services}
+        </div>
+        <select
+          value={limit}
+          onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+          className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
+        >
+          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
+        </select>
       </div>
       <div className="flex items-center space-x-2">
         <button 

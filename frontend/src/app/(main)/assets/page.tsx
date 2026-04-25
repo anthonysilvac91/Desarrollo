@@ -40,7 +40,7 @@ export default function AssetsPage() {
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
 
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(5);
 
   const queryParams = { page, limit, search: debouncedSearch };
 
@@ -54,7 +54,7 @@ export default function AssetsPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, limit]);
 
   // Client and Category filtering is still local for the current page
   const filteredData = useMemo(() => {
@@ -114,7 +114,7 @@ export default function AssetsPage() {
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className={`font-bold text-title text-[17px] ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
+              <span className={`font-bold text-title text-sm ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
               {!item.is_active && (
                 <span className="px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-black uppercase tracking-wider border border-error/20">
                   {t.common?.inactive || "INACTIVO"}
@@ -130,7 +130,7 @@ export default function AssetsPage() {
       header: t.assets.table.client,
       cell: (item) => {
         const clientName = item.customer?.name || "---";
-        return <span className="font-bold text-subtitle/80 text-[15px]">{clientName}</span>;
+        return <span className="font-bold text-subtitle/80 text-sm">{clientName}</span>;
       }
     },
     { 
@@ -139,7 +139,7 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
           <MapPin className="w-4 h-4 mr-2 text-brand" />
-          <span className="text-[15px] font-semibold">{item.location || "N/A"}</span>
+          <span className="text-sm font-semibold">{item.location || "N/A"}</span>
         </div>
       )
     },
@@ -149,7 +149,7 @@ export default function AssetsPage() {
       align: "center",
       cell: (item: any) => (
         <div className="flex items-center justify-center">
-          <span className="min-w-[50px] h-9 flex items-center justify-center text-[15px] font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
+          <span className="min-w-[50px] h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
             {item._count?.services || 0}
           </span>
         </div>
@@ -162,7 +162,7 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{item.last_service?.date || "---"}</span>
+          <span className="font-semibold text-sm">{item.last_service?.date || "---"}</span>
         </div>
       )
     },
@@ -195,8 +195,17 @@ export default function AssetsPage() {
 
   const pagination = (
     <>
-      <div className="text-[15px] text-subtitle font-medium tracking-tight">
-        {t.assets.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.assets.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.assets.pagination.assets}
+      <div className="flex items-center space-x-3">
+        <div className="text-[15px] text-subtitle font-medium tracking-tight">
+          {t.assets.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.assets.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.assets.pagination.assets}
+        </div>
+        <select
+          value={limit}
+          onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+          className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
+        >
+          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
+        </select>
       </div>
       <div className="flex items-center space-x-2">
         <button 

@@ -82,7 +82,7 @@ export default function ClientModal({ isOpen, onClose, onSuccess, client, initia
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
-      title={client ? t.common.edit : t.clients.modal.title}
+      title={client ? t.clients.modal.title_edit : t.clients.modal.title_new}
     >
       <form onSubmit={handleSubmit} className="flex flex-col space-y-6 mt-2">
         {/* Full Name / Business Name */}

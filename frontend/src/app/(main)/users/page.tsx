@@ -6,7 +6,6 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import UserModal from "@/components/users/UserModal";
-import UserDrawer from "@/components/users/UserDrawer";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
@@ -20,11 +19,11 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(5);
 
   const queryParams = { page, limit, search: debouncedSearch };
 
@@ -38,7 +37,7 @@ export default function UsersPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, limit]);
 
   const existingCompanies = useMemo(() => {
     return Array.from(new Set<string>(usersList.map(() => "Recall Co"))).sort();
@@ -94,7 +93,7 @@ export default function UsersPage() {
             {item.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-title text-[17px] tracking-tight">{item.name}</span>
+            <span className="font-bold text-title text-sm tracking-tight">{item.name}</span>
             <div className="flex items-center space-x-1 text-subtitle/40">
               <Mail className="w-3 h-3" />
               <span className="text-xs font-semibold tracking-tight">{item.email}</span>
@@ -128,7 +127,7 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-[15px]">{item.customer?.name || "Recall Organization"}</span>
+          <span className="font-semibold text-sm">{item.customer?.name || "Recall Organization"}</span>
         </div>
       )
     },
@@ -139,7 +138,7 @@ export default function UsersPage() {
       cell: () => {
         return (
           <div className="flex items-center justify-center">
-            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[12px] text-emerald-500`}>
+            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[13px] text-emerald-500`}>
               <div className={`w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]`} />
               <span>{t.common.active}</span>
             </div>
@@ -154,7 +153,7 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2 text-brand" />
-          <span className="font-semibold text-[15px]">{item.created_at.slice(0, 10)}</span>
+          <span className="font-semibold text-sm">{item.created_at.slice(0, 10)}</span>
         </div>
       )
     },
@@ -164,7 +163,10 @@ export default function UsersPage() {
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
-          <button className="p-2.5 text-subtitle/40 hover:text-brand transition-colors">
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditingUser(item); setIsModalOpen(true); }}
+            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
+          >
             <Pencil className="w-5 h-5" />
           </button>
           <button 
@@ -181,8 +183,17 @@ export default function UsersPage() {
 
   const pagination = (
     <>
-      <div className="text-[15px] text-subtitle font-medium">
-        {t.users.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.users.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.users.pagination.users}
+      <div className="flex items-center space-x-3">
+        <div className="text-[15px] text-subtitle font-medium">
+          {t.users.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.users.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.users.pagination.users}
+        </div>
+        <select
+          value={limit}
+          onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+          className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
+        >
+          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
+        </select>
       </div>
       <div className="flex items-center space-x-2">
         <button 
@@ -212,7 +223,7 @@ export default function UsersPage() {
         showQuickFilters={false}
         actions={
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setEditingUser(null); setIsModalOpen(true); }}
             className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
           >
             <Plus className="w-5 h-5 stroke-[4px]" />
@@ -266,7 +277,6 @@ export default function UsersPage() {
               columns={columns} 
               keyExtractor={(item) => item.id}
               footer={pagination}
-              onRowClick={(item: any) => setSelectedUser(item)}
             />
           </ModuleContainer>
         )}
@@ -274,18 +284,16 @@ export default function UsersPage() {
 
       <UserModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => { setIsModalOpen(false); setEditingUser(null); }} 
         onSuccess={() => {
           setIsModalOpen(false);
+          setEditingUser(null);
           refetch();
         }}
         existingCompanies={existingCompanies}
+        userToEdit={editingUser}
       />
 
-      <UserDrawer 
-        user={selectedUser as any} 
-        onClose={() => setSelectedUser(null)} 
-      />
 
       <ConfirmModal 
         isOpen={!!userToDelete}

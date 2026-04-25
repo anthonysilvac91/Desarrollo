@@ -186,7 +186,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
           {/* Client (Combobox) */}
           <Combobox
-            label="Empresa (Cliente)"
+            label="Empresa"
             options={customerOptions}
             value={formData.customer_id}
             onChange={(val) => setFormData({ ...formData, customer_id: val })}
