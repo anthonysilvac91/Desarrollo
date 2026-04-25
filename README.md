@@ -1,52 +1,80 @@
-# Recall MVP: Gestión de Activos y Mantenimiento
+# Recall MVP: Gestion de Activos y Mantenimiento
 
-Recall es una solución SaaS multitenant diseñada para centralizar el historial de mantenimiento y servicios de activos físicos (especialmente en el sector náutico y de maquinaria), permitiendo una comunicación fluida entre administradores, trabajadores y clientes.
+Recall es una solucion SaaS multitenant para centralizar el historial de mantenimiento y servicios de activos fisicos, con una configuracion local oficial unica y consistente.
 
-## 🚀 Documentación Técnica Central
+## Documentacion Tecnica Central
 
-Para entender cómo funciona el sistema a nivel profundo, consulta los siguientes documentos:
+Para entender el sistema en detalle:
 
-- 🏗️ **[Arquitectura del Sistema (ARCHITECTURE.md)](ARCHITECTURE.md)**: Actores, roles, multi-tenancia y flujo de datos.
-- 🔌 **[Contratos API (API_CONTRACTS.md)](API_CONTRACTS.md)**: Endpoints, métodos y esquemas de comunicación.
+- **[Arquitectura del Sistema](ARCHITECTURE.md)**: actores, roles, multi-tenencia y flujo de datos.
+- **[Contratos API](API_CONTRACTS.md)**: endpoints, metodos y esquemas.
+- **[Guia de Inicio](START_GUIDE.md)**: arranque local oficial.
 
----
+## Stack Tecnologico
 
-## 🛠️ Stack Tecnológico
+El proyecto esta estructurado como monorepo:
 
-El proyecto está estructurado como un monorepositorio con dos paquetes principales:
+- **Frontend (`/frontend`)**: Next.js, React, TypeScript, Tailwind CSS. Puerto oficial local: `3000`.
+- **Backend (`/backend`)**: NestJS, Prisma ORM, PostgreSQL. Puerto oficial local: `3001`.
+- **Base de datos local**: PostgreSQL via Docker Compose en `backend/docker-compose.yml`, expuesto en `5433`.
 
-- **Frontend (`/frontend`)**: Next.js 14, Tailwind CSS, TypeScript. Port: `3000`.
-- **Backend (`/backend`)**: NestJS, Prisma ORM, PostgreSQL. Port: `3001`.
+## Configuracion Local Oficial
 
-## 🏃 Guía Rápida de Inicio
+La unica configuracion local soportada oficialmente es:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3001`
+- API del frontend: `NEXT_PUBLIC_API_URL=http://localhost:3001`
+- PostgreSQL: `localhost:5433`
+- Compose oficial de DB: `backend/docker-compose.yml`
+
+## Guia Rapida de Inicio
 
 ### Requisitos
+
 - Node.js 18+
-- Docker & Docker-compose (para PostgreSQL local)
+- Docker Desktop o Docker Engine con Compose
+
+### Base de datos
+
+1. Entra a `backend/`.
+2. Copia `.env.example` a `.env`.
+3. Levanta Postgres con el compose oficial:
+   `docker-compose up -d`
 
 ### Backend
-1. Entra a `/backend`.
-2. Copia `.env.example` a `.env` y configura el puerto `5433` para DB.
-3. Levanta la DB: `docker-compose up -d`.
-4. Instala y migra: `npm install && npx prisma db push`.
-5. Inyecta datos demo: `npx prisma db seed`.
-6. Corre en dev: `npm run start:dev`.
+
+1. Entra a `backend/`.
+2. Instala dependencias:
+   `npm install`
+3. Genera Prisma Client:
+   `npx prisma generate`
+4. Aplica migraciones:
+   `npx prisma migrate dev`
+5. Carga datos demo:
+   `npx prisma db seed`
+6. Inicia el backend:
+   `npm run start:dev`
 
 ### Frontend
-1. Entra a `/frontend`.
+
+1. Entra a `frontend/`.
 2. Copia `.env.example` a `.env.local`.
-3. Instala: `npm install`.
-4. Corre en dev: `npm run dev`.
+3. Instala dependencias:
+   `npm install`
+4. Inicia el frontend:
+   `npm run dev`
 
----
+## Credenciales de Prueba
 
-## 🔒 Credenciales de Prueba (Seed Realista)
-Todas las cuentas de prueba creadas mediante el script de `seed` usan la contraseña: `password123`.
+Todas las cuentas creadas por `seed` usan la contrasena `password123`.
 
 - **Super Admin**: `sys@recall.app`
 - **Admin (Oceanic)**: `admin@oceanic.app`
 - **Worker (Oceanic)**: `roberto@oceanic.app`
-- **Client (Oceanic)**: `owner.a@mail.com`
+- **Cliente Charter**: `gestor.charter@mail.com`
+- **Cliente Owners**: `propietario@mail.com`
 
----
-© 2024 Recall Project. MVP enfocado en confiabilidad y robustez.
+## Nota Legacy
+
+El archivo `docker-compose.yml` en la raiz queda marcado como legacy. Para entorno local usa solo `backend/docker-compose.yml`.

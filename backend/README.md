@@ -2,26 +2,34 @@
 
 Esta es la API central del sistema Recall.
 
-## 🔗 Documentación Principal
+## Documentacion Principal
+
 - [Arquitectura del Sistema](../ARCHITECTURE.md)
 - [Contratos API](../API_CONTRACTS.md)
 - [README Principal](../README.md)
+- [Guia de Inicio](../START_GUIDE.md)
 
-## 🚀 Guía Local
+## Configuracion Local Oficial
 
-### Setup
+- Puerto backend: `3001`
+- PostgreSQL local: `5433`
+- Compose oficial: `backend/docker-compose.yml`
+
+## Setup
+
 1. `npm install`
-2. Configurar `.env` (basado en `.env.example`).
-3. Port 5433 en la URL de Prisma si usas Docker local.
+2. Crear `.env` desde `.env.example`
+3. Levantar DB con `docker-compose up -d`
+4. Ejecutar `npx prisma generate`
+5. Ejecutar `npx prisma migrate dev`
+6. Ejecutar `npx prisma db seed`
 
-### Base de Datos
-- `npx prisma db push`: Sincronizar esquema.
-- `npx prisma db seed`: Cargar datos realistas para demos.
-- `npx prisma studio`: Explorador visual de datos.
+## Scripts
 
-### Scripts
-- `npm run start:dev`: Servidor en desarrollo con hot-reload.
-- `npm run test:e2e`: Ejecutar suite de pruebas integrales.
+- `npm run start:dev`: servidor de desarrollo en `http://localhost:3001`
+- `npm run db:up`: levanta la DB oficial local desde `backend/docker-compose.yml`
+- `npm run test:e2e`: ejecuta pruebas e2e
 
----
-Para más detalles técnicos, consulta el [README de la raíz](../README.md).
+## Nota
+
+No usar el `docker-compose.yml` de la raiz para el entorno local oficial.

@@ -19,7 +19,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "db:safe-check": "node scripts/check-safe-db.js",
-    "db:up": "docker-compose -f ../docker-compose.yml up -d",
+    "db:up": "docker-compose up -d",
     "db:migrate:local": "npm run db:safe-check && prisma migrate dev",
     "test:e2e": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- jest --config ./test/jest-e2e.json --runInBand"
   },

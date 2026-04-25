@@ -1,8 +1,10 @@
+// LEGACY: este script no representa la API actual y se conserva solo como referencia historica.
+// Si se ejecuta manualmente en local, el backend oficial corre en http://localhost:3001.
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 async function main() {
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' }});

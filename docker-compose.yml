@@ -1,3 +1,5 @@
+# LEGACY: no usar este compose para el entorno local oficial.
+# El compose soportado es backend/docker-compose.yml con PostgreSQL en localhost:5433.
 services:
   db:
     image: postgres:15-alpine

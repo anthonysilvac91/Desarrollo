@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
@@ -9,10 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Recall | Gestión de Activos",
-  description: "Plataforma de mantenimiento y gestión de activos",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
-  themeColor: "#3b82f6",
+  title: "Recall | Gestion de Activos",
+  description: "Plataforma de mantenimiento y gestion de activos",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -27,6 +25,14 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#3b82f6",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,9 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body
-        className={`${inter.variable} font-sans antialiased bg-app-bg`}
-      >
+      <body className={`${inter.variable} font-sans antialiased bg-app-bg`}>
         <Providers>{children}</Providers>
       </body>
     </html>

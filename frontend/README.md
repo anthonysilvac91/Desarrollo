@@ -1,24 +1,30 @@
 # Recall Frontend (Next.js)
 
-Interfaz de usuario para Recall, incluyendo el Dashboard de escritorio y la App móvil operativa.
+Interfaz de usuario para Recall, incluyendo dashboard web y experiencia movil operativa.
 
-## 🔗 Documentación Principal
+## Documentacion Principal
+
 - [Arquitectura del Sistema](../ARCHITECTURE.md)
 - [README Principal](../README.md)
+- [Guia de Inicio](../START_GUIDE.md)
 
-## 🚀 Guía Local
+## Configuracion Local Oficial
 
-### Setup
+- Frontend: `http://localhost:3000`
+- API backend: `http://localhost:3001`
+- Variable requerida: `NEXT_PUBLIC_API_URL=http://localhost:3001`
+
+## Setup
+
 1. `npm install`
-2. Configurar `.env.local` (apuntando a `NEXT_PUBLIC_API_URL=http://localhost:3001`).
+2. Crear `.env.local` desde `.env.example`
 
-### Ejecución
-- `npm run dev`: Inicia el servidor de desarrollo en `http://localhost:3000`.
+## Ejecucion
 
-### Estructura Clave
-- `src/app/(main)`: Dashboard principal (Admin/Worker/Client).
-- `src/app/app`: Experiencia mobile optimizada para Workers.
-- `src/lib/AuthContext.tsx`: Guardián de sesión y permisos.
+- `npm run dev`: inicia el servidor en `http://localhost:3000`
 
----
-Para más detalles técnicos, consulta el [README de la raíz](../README.md).
+## Estructura Clave
+
+- `src/app/(main)`: dashboard principal
+- `src/app/app`: experiencia mobile para workers
+- `src/lib/AuthContext.tsx`: sesion, permisos y redirecciones
