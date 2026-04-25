@@ -5,4 +5,10 @@ export class ListServicesQueryDto extends PaginationQueryDto {
   @IsUUID()
   @IsOptional()
   asset_id?: string;
+
+  @IsOptional()
+  startDate?: string;
+
+  @IsOptional()
+  endDate?: string;
 }

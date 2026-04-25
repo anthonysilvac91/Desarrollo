@@ -8,7 +8,7 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async getStats(
-    currentUser: { id: string; role: Role; orgId?: string },
+    currentUser: { id: string; role: Role; orgId?: string; customer_id?: string },
     organizationId?: string,
     query?: { startDate?: string; endDate?: string }
   ): Promise<DashboardStatsDto> {
