@@ -11,37 +11,41 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 
 export default function UsersPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const { data: users = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => usersService.findAll(),
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const queryParams = { page, limit, search: debouncedSearch };
+
+  const { data: responseData, isLoading, isError, refetch } = useQuery({
+    queryKey: ["users", queryParams],
+    queryFn: () => usersService.findAll(queryParams),
   });
 
-  // Extract unique companies for the modal dropdown (Fallback a string vacío si no hay datos)
-  const existingCompanies = useMemo(() => {
-    return Array.from(new Set(users.map(() => "Recall Co"))).sort(); // Provisional hasta tener datos reales de compañía
-  }, [users]);
+  const usersList = Array.isArray(responseData) ? responseData : responseData?.data || [];
+  const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: usersList.length, page: 1, limit: 10, totalPages: 1 };
 
-  // Filter logic
-  const filteredData = useMemo(() => {
-    return users.filter((item) => {
-      const searchLower = search.toLowerCase();
-      return search === "" || (
-        item.name.toLowerCase().includes(searchLower) ||
-        item.role.toLowerCase().includes(searchLower) ||
-        item.email.toLowerCase().includes(searchLower)
-      );
-    });
-  }, [search, users]);
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const existingCompanies = useMemo(() => {
+    return Array.from(new Set(usersList.map(() => "Recall Co"))).sort();
+  }, [usersList]);
+
+  // .slice(0,10) was removed since backend paginates
+  const displayData = usersList;
 
   const handleAddUser = async (data: any) => {
     try {
@@ -78,7 +82,7 @@ export default function UsersPage() {
     }
   };
 
-  const displayData = filteredData.slice(0, 10);
+
 
   const columns: ColumnDef<User>[] = [
     { 
@@ -178,14 +182,22 @@ export default function UsersPage() {
   const pagination = (
     <>
       <div className="text-[15px] text-subtitle font-medium">
-        {t.users.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.users.pagination.of} <span className="text-title font-bold">{filteredData.length}</span> {t.users.pagination.users}
+        {t.users.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.users.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.users.pagination.users}
       </div>
       <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20" disabled>
+        <button 
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20"
+        >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 translate-x-1" disabled>
+        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">{page}</button>
+        <button 
+          onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+          disabled={page >= meta.totalPages}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 translate-x-1"
+        >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
@@ -233,7 +245,7 @@ export default function UsersPage() {
               </button>
             </div>
           </ModuleContainer>
-        ) : filteredData.length === 0 ? (
+        ) : usersList.length === 0 ? (
           <ModuleContainer>
             <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
               <div className="p-6 bg-app-bg/50 rounded-full">
@@ -250,7 +262,7 @@ export default function UsersPage() {
         ) : (
           <ModuleContainer>
             <DataTable 
-              data={filteredData} 
+              data={displayData} 
               columns={columns} 
               keyExtractor={(item) => item.id}
               footer={pagination}

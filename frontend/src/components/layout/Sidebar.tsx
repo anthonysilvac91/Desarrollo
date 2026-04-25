@@ -29,7 +29,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { href: "/assets", label: t.sidebar.assets, icon: Box },
     { href: "/service", label: t.sidebar.services, icon: Briefcase },
     { id: 'users', label: t.sidebar.users, icon: Users, href: '/users' },
-    { id: 'clients', label: t.sidebar.clients, icon: Users2, href: '/clients' },
+    { id: 'customers', label: t.sidebar.clients || "Empresas", icon: Users2, href: '/customers' },
     { id: 'settings', label: t.sidebar.settings, icon: Settings, href: '/settings' },
   ];
 

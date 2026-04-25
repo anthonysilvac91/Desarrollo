@@ -33,7 +33,7 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payload = { sub: user.id, orgId: user.organization_id, role: user.role };
+    const payload = { sub: user.id, orgId: user.organization_id, role: user.role, customer_id: user.customer_id };
     this.logger.log(`User ${user.id} logged in successfully`);
     return {
       access_token: this.jwtService.sign(payload),
@@ -67,7 +67,7 @@ export class AuthService {
         data: { is_used: true }
       });
 
-      const payload = { sub: user.id, orgId: user.organization_id, role: user.role };
+      const payload = { sub: user.id, orgId: user.organization_id, role: user.role, customer_id: user.customer_id };
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
       return {
         access_token: this.jwtService.sign(payload),

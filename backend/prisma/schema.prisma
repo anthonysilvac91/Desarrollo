@@ -13,10 +13,10 @@ generator client {
 // ─────────────────────────────────────────
 
 enum Role {
-  SUPER_ADMIN  // Cuenta maestra de Recall. No pertenece a ninguna organización.
-  ADMIN        // Administrador de una organización.
-  WORKER       // Operario / trabajador de una organización.
-  CLIENT       // Cliente final de una organización.
+  SUPER_ADMIN // Cuenta maestra de Recall. No pertenece a ninguna organización.
+  ADMIN // Administrador de una organización.
+  WORKER // Operario / trabajador de una organización.
+  CLIENT // Cliente final de una organización.
 }
 
 enum ServiceStatus {
@@ -25,10 +25,10 @@ enum ServiceStatus {
 }
 
 enum WorkerEditPolicy {
-  ALWAYS_OPEN             // El worker siempre puede editar su service.
-  UNTIL_ADMIN_INTERVENES  // Solo antes de que un admin lo modifique.
-  UNTIL_PUBLISHED         // Solo mientras is_public = false.
-  TIME_WINDOW             // Solo durante N horas desde la creación.
+  ALWAYS_OPEN // El worker siempre puede editar su service.
+  UNTIL_ADMIN_INTERVENES // Solo antes de que un admin lo modifique.
+  UNTIL_PUBLISHED // Solo mientras is_public = false.
+  TIME_WINDOW // Solo durante N horas desde la creación.
 }
 
 // ─────────────────────────────────────────
@@ -36,34 +36,35 @@ enum WorkerEditPolicy {
 // ─────────────────────────────────────────
 
 model Organization {
-  id                        String           @id @default(uuid())
-  name                      String
-  slug                      String           @unique  // Identificador URL único (ej: marina-azul)
-  is_active                 Boolean          @default(true)
+  id        String  @id @default(uuid())
+  name      String
+  slug      String  @unique // Identificador URL único (ej: marina-azul)
+  is_active Boolean @default(true)
 
   // Configuración de branding y assets
-  logo_url                  String?
-  brand_color               String?          // Hex (ej: #1a73e8) para personalización UI
-  default_asset_icon        String?          // ID del icono por defecto (ej: ship, car...)
+  logo_url           String?
+  brand_color        String? // Hex (ej: #1a73e8) para personalización UI
+  default_asset_icon String? // ID del icono por defecto (ej: ship, car...)
 
   // Configuración de services
-  auto_publish_services     Boolean          @default(true)
-  worker_edit_policy        WorkerEditPolicy @default(TIME_WINDOW)
-  worker_edit_window_hours  Int?
+  auto_publish_services    Boolean          @default(true)
+  worker_edit_policy       WorkerEditPolicy @default(TIME_WINDOW)
+  worker_edit_window_hours Int?
 
   // Control de acceso de workers
   // false = workers ven todos los assets (default MVP)
   // true  = workers solo ven assets asignados en WorkerAssetAccess
-  worker_restricted_access  Boolean          @default(false)
+  worker_restricted_access Boolean @default(false)
 
-  created_at                DateTime         @default(now())
-  updated_at                DateTime         @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relaciones
-  users           User[]
-  assets          Asset[]
-  services        Service[]
-  invitations     Invitation[]
+  users       User[]
+  assets      Asset[]
+  services    Service[]
+  customers   Customer[]
+  invitations Invitation[]
 
   @@index([is_active])
 }
@@ -73,26 +74,26 @@ model Organization {
 // ─────────────────────────────────────────
 
 model User {
-  id               String    @id @default(uuid())
-  organization_id  String?   // NULL si el role es SUPER_ADMIN
-  role             Role
-  email            String
-  password_hash    String
-  name             String
-  phone            String?
-  avatar_url       String?
-  is_active        Boolean   @default(true)
-  last_login_at    DateTime?
+  id              String    @id @default(uuid())
+  organization_id String? // NULL si el role es SUPER_ADMIN
+  role            Role
+  email           String
+  password_hash   String
+  name            String
+  phone           String?
+  avatar_url      String?
+  customer_id     String?
+  is_active       Boolean   @default(true)
+  last_login_at   DateTime?
 
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relaciones
   organization        Organization?       @relation(fields: [organization_id], references: [id])
+  customer            Customer?           @relation(fields: [customer_id], references: [id])
   services_created    Service[]           @relation("ServiceWorker")
-  client_asset_access ClientAssetAccess[] @relation("GrantedToClient")
   worker_asset_access WorkerAssetAccess[] @relation("GrantedToWorker")
-  access_granted_c    ClientAssetAccess[] @relation("GrantedByAdminC")
   access_granted_w    WorkerAssetAccess[] @relation("GrantedByAdminW")
   invitations_sent    Invitation[]        @relation("InvitedBy")
 
@@ -109,24 +110,25 @@ model User {
 // ─────────────────────────────────────────
 
 model Asset {
-  id               String   @id @default(uuid())
-  organization_id  String
-  name             String
-  description      String?
-  category         String?        // boat, car, machinery, building, etc.
-  location         String?        // Ubicación textual o coordenadas
-  thumbnail_url    String?
-  serial_number    String?        // Número de serie o matrícula (opcional)
-  is_active        Boolean  @default(true)
+  id              String  @id @default(uuid())
+  organization_id String
+  name            String
+  description     String?
+  category        String? // boat, car, machinery, building, etc.
+  location        String? // Ubicación textual o coordenadas
+  thumbnail_url   String?
+  serial_number   String? // Número de serie o matrícula (opcional)
+  customer_id     String?
+  is_active       Boolean @default(true)
 
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relaciones
-  organization    Organization        @relation(fields: [organization_id], references: [id])
-  services        Service[]
-  client_access   ClientAssetAccess[]
-  worker_access   WorkerAssetAccess[]
+  organization  Organization        @relation(fields: [organization_id], references: [id])
+  customer      Customer?           @relation(fields: [customer_id], references: [id])
+  services      Service[]
+  worker_access WorkerAssetAccess[]
 
   @@index([organization_id])
   @@index([is_active])
@@ -138,7 +140,7 @@ model Asset {
 
 model Service {
   id               String        @id @default(uuid())
-  organization_id  String        // Desnormalizado intencionalmente para queries multi-tenant eficientes
+  organization_id  String // Desnormalizado intencionalmente para queries multi-tenant eficientes
   asset_id         String
   worker_id        String
   title            String
@@ -147,14 +149,14 @@ model Service {
   is_public        Boolean       @default(false) // El backend resuelve esto desde auto_publish_services
   admin_intervened Boolean       @default(false) // Flag cuando un admin modifica post-creación
 
-  created_at       DateTime      @default(now())
-  updated_at       DateTime      @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relaciones
-  organization   Organization      @relation(fields: [organization_id], references: [id])
-  asset          Asset             @relation(fields: [asset_id], references: [id])
-  worker         User              @relation("ServiceWorker", fields: [worker_id], references: [id])
-  attachments    ServiceAttachment[]
+  organization Organization        @relation(fields: [organization_id], references: [id])
+  asset        Asset               @relation(fields: [asset_id], references: [id])
+  worker       User                @relation("ServiceWorker", fields: [worker_id], references: [id])
+  attachments  ServiceAttachment[]
 
   @@index([organization_id])
   @@index([asset_id])
@@ -168,14 +170,14 @@ model Service {
 // ─────────────────────────────────────────
 
 model ServiceAttachment {
-  id              String   @id @default(uuid())
+  id              String  @id @default(uuid())
   service_id      String
   file_url        String
-  file_type       String?          // MIME type (image/jpeg, application/pdf…)
-  file_name       String?          // Nombre original del archivo
-  file_size_bytes Int?             // Tamaño en bytes
+  file_type       String? // MIME type (image/jpeg, application/pdf…)
+  file_name       String? // Nombre original del archivo
+  file_size_bytes Int? // Tamaño en bytes
 
-  created_at      DateTime @default(now())
+  created_at DateTime @default(now())
 
   service Service @relation(fields: [service_id], references: [id])
 
@@ -183,23 +185,24 @@ model ServiceAttachment {
 }
 
 // ─────────────────────────────────────────
-// CLIENT ASSET ACCESS — Visibilidad de clientes
+// CUSTOMER — Empresa Cliente
 // ─────────────────────────────────────────
-// Un cliente solo ve los assets que le fueron asignados explícitamente.
 
-model ClientAssetAccess {
-  client_id     String
-  asset_id      String
-  granted_by_id String?  // Admin que otorgó el acceso
-  created_at    DateTime @default(now())
+model Customer {
+  id              String  @id @default(uuid())
+  organization_id String
+  name            String
+  is_active       Boolean @default(true)
 
-  client     User   @relation("GrantedToClient", fields: [client_id], references: [id])
-  asset      Asset  @relation(fields: [asset_id], references: [id])
-  granted_by User?  @relation("GrantedByAdminC", fields: [granted_by_id], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  @@id([client_id, asset_id])
-  @@index([client_id])
-  @@index([asset_id])
+  organization Organization @relation(fields: [organization_id], references: [id])
+  users        User[]
+  assets       Asset[]
+
+  @@index([organization_id])
+  @@index([is_active])
 }
 
 // ─────────────────────────────────────────
@@ -211,12 +214,12 @@ model ClientAssetAccess {
 model WorkerAssetAccess {
   worker_id     String
   asset_id      String
-  granted_by_id String?  // Admin que otorgó el acceso
+  granted_by_id String? // Admin que otorgó el acceso
   created_at    DateTime @default(now())
 
-  worker     User   @relation("GrantedToWorker", fields: [worker_id], references: [id])
-  asset      Asset  @relation(fields: [asset_id], references: [id])
-  granted_by User?  @relation("GrantedByAdminW", fields: [granted_by_id], references: [id])
+  worker     User  @relation("GrantedToWorker", fields: [worker_id], references: [id])
+  asset      Asset @relation(fields: [asset_id], references: [id])
+  granted_by User? @relation("GrantedByAdminW", fields: [granted_by_id], references: [id])
 
   @@id([worker_id, asset_id])
   @@index([worker_id])
@@ -233,13 +236,13 @@ model Invitation {
   id              String   @id @default(uuid())
   organization_id String
   email           String
-  role            Role     // Solo ADMIN, WORKER o CLIENT. SUPER_ADMIN queda excluido por lógica de app.
-  token           String   @unique  // Token seguro (UUID v4 / CSPRNG hex)
+  role            Role // Solo ADMIN, WORKER o CLIENT. SUPER_ADMIN queda excluido por lógica de app.
+  token           String   @unique // Token seguro (UUID v4 / CSPRNG hex)
   invited_by_id   String
   is_used         Boolean  @default(false)
   expires_at      DateTime
 
-  created_at      DateTime @default(now())
+  created_at DateTime @default(now())
 
   organization Organization @relation(fields: [organization_id], references: [id])
   invited_by   User         @relation("InvitedBy", fields: [invited_by_id], references: [id])

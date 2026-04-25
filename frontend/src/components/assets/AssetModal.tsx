@@ -5,16 +5,15 @@ import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
 import { Camera, Ship, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
-import { useQueryClient } from "@tanstack/react-query";
-import { usersService } from "@/services/users.service";
+import { customersService } from "@/services/customers.service";
 import { useAuth } from "@/lib/AuthContext";
 
 export interface AssetFormData {
   name: string;
-  client_id: string;
+  customer_id: string;
   location: string;
   photo: File | null;
 }
@@ -33,30 +32,24 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    client_id: "",
+    customer_id: "",
     location: "",
     photo: null as File | null,
   });
 
   const queryClient = useQueryClient();
 
-  const handleQuickCreateClient = async (name: string) => {
+  const handleQuickCreateCustomer = async (name: string) => {
     try {
       setLoading(true);
-      const finalEmail = `${name.toLowerCase().replace(/\s+/g, '.')}.${Math.random().toString(36).slice(-4)}@recall.app`;
-      const newClient = await usersService.create({
-        name,
-        role: "CLIENT",
-        email: finalEmail,
-        password: Math.random().toString(36).slice(-12) + "A1!", // 12 chars + extra safety
-      });
+      const newCustomer = await customersService.create({ name });
       
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      setFormData(prev => ({ ...prev, client_id: newClient.id }));
-      showToast(t.clients?.states?.save_success || "Cliente creado", "success");
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      setFormData(prev => ({ ...prev, customer_id: newCustomer.id }));
+      showToast("Empresa creada", "success");
     } catch (error) {
       console.error(error);
-      showToast(t.feedback?.generic_error || "Algo salió mal", "error");
+      showToast("Error al crear empresa", "error");
     } finally {
       setLoading(false);
     }
@@ -64,31 +57,33 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
   const [preview, setPreview] = useState<string | null>(null);
 
-  // Fetch real clients from the database
-  const { data: clients = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: () => usersService.findAll("CLIENT"),
+  // Fetch real customers from the database
+  const { data: customersData = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: () => customersService.findAll(),
     enabled: isOpen
   });
+  
+  const customers = Array.isArray(customersData) ? customersData : customersData.data || [];
 
   // Hydrate form when editing
   React.useEffect(() => {
     if (isOpen && asset) {
       setFormData({
         name: asset.name || "",
-        client_id: asset.client?.id || "",
+        customer_id: asset.customer?.id || "",
         location: asset.location || "",
         photo: null,
       });
       setPreview(asset.thumbnail_url || null);
     } else if (isOpen && !asset) {
       // Reset form if opening for creation
-      setFormData({ name: "", client_id: "", location: "", photo: null });
+      setFormData({ name: "", customer_id: "", location: "", photo: null });
       setPreview(null);
     }
   }, [isOpen, asset]);
 
-  const clientOptions = clients.map(c => ({ id: c.id, name: c.name }));
+  const customerOptions = customers.map(c => ({ id: c.id, name: c.name }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -113,8 +108,8 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       data.append("name", formData.name);
       data.append("location", formData.location);
       
-      if (formData.client_id && formData.client_id !== "") {
-        data.append("client_id", formData.client_id);
+      if (formData.customer_id && formData.customer_id !== "") {
+        data.append("customer_id", formData.customer_id);
       }
 
       if (formData.photo) {
@@ -123,7 +118,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
       console.log('📤 Enviando barco:', { 
         name: formData.name, 
-        client_id: formData.client_id 
+        customer_id: formData.customer_id 
       });
 
       if (asset?.id) {
@@ -140,7 +135,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       onClose();
       
       // Reset form
-      setFormData({ name: "", client_id: "", location: "", photo: null });
+      setFormData({ name: "", customer_id: "", location: "", photo: null });
       setPreview(null);
     } catch (err) {
       console.error(err);
@@ -191,14 +186,14 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
           {/* Client (Combobox) */}
           <Combobox
-            label={t.assets.table.client}
-            options={clientOptions}
-            value={formData.client_id}
-            onChange={(val) => setFormData({ ...formData, client_id: val })}
-            placeholder="Selecciona un cliente..."
+            label="Empresa (Cliente)"
+            options={customerOptions}
+            value={formData.customer_id}
+            onChange={(val) => setFormData({ ...formData, customer_id: val })}
+            placeholder="Selecciona una empresa..."
             onCreate={
               (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") 
-                ? handleQuickCreateClient 
+                ? handleQuickCreateCustomer 
                 : undefined
             }
           />

@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { assetsService, Asset } from "@/services/assets.service";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/lib/ToastContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import AssetIcon from "@/components/ui/AssetIcon";
 import { Loader2, AlertCircle, Inbox } from "lucide-react";
 
@@ -30,6 +31,7 @@ export default function AssetsPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,26 +39,31 @@ export default function AssetsPage() {
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
 
-  const { data: assets = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["assets"],
-    queryFn: () => assetsService.findAll(),
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const queryParams = { page, limit, search: debouncedSearch };
+
+  const { data: responseData, isLoading, isError, refetch } = useQuery({
+    queryKey: ["assets", queryParams],
+    queryFn: () => assetsService.findAll(queryParams),
   });
 
-  // Filter logic
+  const rawAssets = Array.isArray(responseData) ? responseData : responseData?.data || [];
+  const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: rawAssets.length, page: 1, limit: 10, totalPages: 1 };
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  // Client and Category filtering is still local for the current page
   const filteredData = useMemo(() => {
-    return assets.filter((item) => {
-      const searchLower = search.toLowerCase();
-      const clientName = item.client?.name || item.client_access?.[0]?.client?.name || "";
-      const matchesSearch = search === "" || (
-        item.name.toLowerCase().includes(searchLower) ||
-        clientName.toLowerCase().includes(searchLower) ||
-        (item.location || "").toLowerCase().includes(searchLower)
-      );
+    return rawAssets.filter((item: any) => {
       const matchesClient = selectedClients.length === 0 || (item.client && selectedClients.includes(item.client.name));
       const matchesCategory = selectedCategories.length === 0 || (item.category && selectedCategories.includes(item.category));
-      return matchesSearch && matchesClient && matchesCategory;
+      return matchesClient && matchesCategory;
     });
-  }, [search, selectedClients, selectedCategories, assets]);
+  }, [selectedClients, selectedCategories, rawAssets]);
 
   const toggleClient = (client: string) => {
     setSelectedClients(prev => prev.includes(client) ? prev.filter(c => c !== client) : [...prev, client]);
@@ -89,7 +96,8 @@ export default function AssetsPage() {
     }
   };
 
-  const displayData = filteredData.slice(0, 10); // Aumentado a 10 para mejor vista
+  // Eliminated .slice(0, 10) since backend handles it
+  const displayData = filteredData;
 
   const columns: ColumnDef<Asset>[] = [
     { 
@@ -188,14 +196,22 @@ export default function AssetsPage() {
   const pagination = (
     <>
       <div className="text-[15px] text-subtitle font-medium tracking-tight">
-        {t.assets.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.assets.pagination.of} <span className="text-title font-bold">{filteredData.length}</span> {t.assets.pagination.assets}
+        {t.assets.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.assets.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.assets.pagination.assets}
       </div>
       <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center" disabled>
+        <button 
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
+        >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center">
+        <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">{page}</button>
+        <button 
+          onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+          disabled={page >= meta.totalPages}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
+        >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
@@ -242,7 +258,7 @@ export default function AssetsPage() {
               </button>
             </div>
           </ModuleContainer>
-        ) : assets.length === 0 ? (
+        ) : rawAssets.length === 0 ? (
           <ModuleContainer>
             <div className="w-full flex flex-col items-center justify-center py-20 space-y-6">
               <div className="relative">

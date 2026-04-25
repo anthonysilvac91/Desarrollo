@@ -34,9 +34,7 @@ export class DashboardService {
       statsWhere.worker_id = currentUser.id;
     } else if (isClient) {
       statsWhere.is_public = true;
-      statsWhere.asset = {
-        client_access: { some: { client_id: currentUser.id } }
-      };
+      statsWhere.asset = { customer_id: currentUser.customer_id };
     }
 
     // Filtros de fecha si se proveen
@@ -61,7 +59,7 @@ export class DashboardService {
     ] = await Promise.all([
       // Assets Count
       isClient
-        ? this.prisma.clientAssetAccess.count({ where: { client_id: currentUser.id } })
+        ? this.prisma.asset.count({ where: { ...baseWhere, customer_id: currentUser.customer_id } })
         : this.prisma.asset.count({ where: baseWhere }),
 
       // Services Count

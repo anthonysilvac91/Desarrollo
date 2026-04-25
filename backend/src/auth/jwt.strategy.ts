@@ -24,6 +24,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     // Passport inyectará este objeto en `req.user` para todos los controllers.
-    return { id: payload.sub, orgId: payload.orgId, role: payload.role };
+    return { id: payload.sub, orgId: payload.orgId, role: payload.role, customer_id: payload.customer_id };
   }
 }

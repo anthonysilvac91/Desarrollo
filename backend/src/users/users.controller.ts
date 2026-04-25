@@ -6,6 +6,7 @@ import { Role } from '@prisma/client';
 import { UserResponseDto } from './dto/users.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @ApiTags('Users Management')
 @ApiBearerAuth()
@@ -22,10 +23,11 @@ export class UsersController {
   findAll(
     @Request() req: any,
     @Query('role') role?: Role,
-    @Query('organizationId') organizationId?: string
+    @Query('organizationId') organizationId?: string,
+    @Query() pagination?: PaginationQueryDto
   ) {
     return this.usersService.findAll(
-      { role, organizationId },
+      { role, organizationId, search: pagination?.search, page: pagination?.page, limit: pagination?.limit },
       { id: req.user.id, role: req.user.role, orgId: req.user.orgId }
     );
   }

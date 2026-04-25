@@ -11,64 +11,60 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useQuery } from "@tanstack/react-query";
 import { servicesService, Service } from "@/services/services.service";
 import { useToast } from "@/lib/ToastContext";
+import { useDebounce } from "@/hooks/useDebounce";
 
 export default function ServicesPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [dateFilter, setDateFilter] = useState<{preset: string, start?: string, end?: string}>({ preset: "Todo" });
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
 
-  const { data: services = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["services"],
-    queryFn: () => servicesService.findAll(),
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const getQueryParams = () => {
+    const params: any = { page, limit };
+    if (debouncedSearch) params.search = debouncedSearch;
+    
+    if (dateFilter.preset !== "Todo") {
+      const now = new Date();
+      if (dateFilter.preset === "Hoy") {
+        params.startDate = now.toISOString();
+        params.endDate = now.toISOString();
+      } else if (dateFilter.preset === "Mes") {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        params.startDate = start.toISOString();
+        params.endDate = end.toISOString();
+      } else if (dateFilter.preset === "Año") {
+        const start = new Date(now.getFullYear(), 0, 1);
+        const end = new Date(now.getFullYear(), 11, 31);
+        params.startDate = start.toISOString();
+        params.endDate = end.toISOString();
+      } else if (dateFilter.preset === "Personalizado" && dateFilter.start && dateFilter.end) {
+        params.startDate = dateFilter.start;
+        params.endDate = dateFilter.end;
+      }
+    }
+    return params;
+  };
+
+  const queryParams = getQueryParams();
+
+  const { data: responseData, isLoading, isError, refetch } = useQuery({
+    queryKey: ["services", queryParams],
+    queryFn: () => servicesService.findAll(queryParams),
   });
 
-  // Filter logic
-  const filteredData = useMemo(() => {
-    return services.filter((item) => {
-      // 1. Text Search
-      const searchLower = search.toLowerCase();
-      const matchesSearch = search === "" || (
-        item.title.toLowerCase().includes(searchLower) ||
-        (item.asset?.name || "").toLowerCase().includes(searchLower) ||
-        (item.worker?.name || "").toLowerCase().includes(searchLower)
-      );
+  const servicesList = Array.isArray(responseData) ? responseData : responseData?.data || [];
+  const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: servicesList.length, page: 1, limit: 10, totalPages: 1 };
 
-      if (!matchesSearch) return false;
-
-      // 2. Date Filtering
-      const itemDate = new Date(item.created_at);
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      const itemDateNoTime = new Date(itemDate);
-      itemDateNoTime.setHours(0, 0, 0, 0);
-
-      if (dateFilter.preset === "Hoy") {
-        return itemDateNoTime.getTime() === now.getTime();
-      }
-      
-      if (dateFilter.preset === "Mes") {
-        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
-      }
-      
-      if (dateFilter.preset === "Año") {
-        return itemDate.getFullYear() === now.getFullYear();
-      }
-      
-      if (dateFilter.preset === "Personalizado" && dateFilter.start && dateFilter.end) {
-        const start = new Date(dateFilter.start);
-        const end = new Date(dateFilter.end);
-        start.setHours(0,0,0,0);
-        end.setHours(23,59,59,999);
-        return itemDate >= start && itemDate <= end;
-      }
-
-      return true;
-    });
-  }, [search, dateFilter, services]);
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, dateFilter]);
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setDateFilter({ preset, start, end });
@@ -91,8 +87,6 @@ export default function ServicesPage() {
     e.stopPropagation();
     setServiceToDelete(service);
   };
-
-  const displayData = filteredData.slice(0, 10);
 
   const columns: ColumnDef<Service>[] = [
     { 
@@ -164,14 +158,22 @@ export default function ServicesPage() {
   const pagination = (
     <>
       <div className="text-[15px] text-subtitle font-medium">
-        {t.services.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.services.pagination.of} <span className="text-title font-bold">{filteredData.length}</span> {t.services.pagination.services}
+        {t.services.pagination.showing} <span className="text-title font-bold">{servicesList.length}</span> {t.services.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.services.pagination.services}
       </div>
       <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20" disabled>
+        <button 
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20"
+        >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">1</button>
-        <button className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20">
+        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">{page}</button>
+        <button 
+          onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+          disabled={page >= meta.totalPages}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20"
+        >
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
@@ -211,7 +213,7 @@ export default function ServicesPage() {
               </button>
             </div>
           </ModuleContainer>
-        ) : filteredData.length === 0 ? (
+        ) : servicesList.length === 0 ? (
           <ModuleContainer>
             <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
               <div className="p-6 bg-app-bg/50 rounded-full">
@@ -228,7 +230,7 @@ export default function ServicesPage() {
         ) : (
           <ModuleContainer>
             <DataTable 
-              data={filteredData} 
+              data={servicesList} 
               columns={columns} 
               keyExtractor={(item) => item.id}
               footer={pagination}

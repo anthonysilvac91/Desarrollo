@@ -58,9 +58,42 @@ export class ServicesService {
     
     if (query.asset_id) whereClause.asset_id = query.asset_id;
 
+    if (query.startDate && query.endDate) {
+      const start = new Date(query.startDate);
+      const end = new Date(query.endDate);
+      start.setHours(0,0,0,0);
+      end.setHours(23,59,59,999);
+      whereClause.created_at = { gte: start, lte: end };
+    }
+
     if (user.role === 'CLIENT') {
       whereClause.is_public = true;
       whereClause.status = 'COMPLETED';
+      whereClause.asset = { customer_id: user.customer_id };
+    }
+
+    if (query.search) {
+      whereClause.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { worker: { name: { contains: query.search, mode: 'insensitive' } } },
+        { asset: { name: { contains: query.search, mode: 'insensitive' } } }
+      ];
+    }
+
+    if (query.page && query.limit) {
+      const page = Number(query.page);
+      const limit = Number(query.limit);
+      const [data, total] = await Promise.all([
+        this.prisma.service.findMany({
+          where: whereClause,
+          include: { worker: { select: { id: true, name: true } }, asset: { select: { id: true, name: true } } },
+          orderBy: { created_at: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        this.prisma.service.count({ where: whereClause })
+      ]);
+      return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
     }
 
     return this.prisma.service.findMany({

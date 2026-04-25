@@ -24,8 +24,8 @@ export interface Service {
 }
 
 export const servicesService = {
-  findAll: async () => {
-    const res = await api.get<Service[]>("/services");
+  findAll: async (params?: { page?: number, limit?: number, search?: string }): Promise<any> => {
+    const res = await api.get("/services", { params });
     return res.data;
   },
   findOne: async (id: string) => {

@@ -40,8 +40,8 @@ export interface Asset {
 }
 
 export const assetsService = {
-  findAll: async (): Promise<Asset[]> => {
-    const res = await api.get("/assets");
+  findAll: async (params?: { page?: number, limit?: number, search?: string }): Promise<any> => {
+    const res = await api.get("/assets", { params });
     return res.data;
   },
   

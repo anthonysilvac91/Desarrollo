@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Delete, Patch, Param, Body, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Param, Body, Query, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -26,8 +27,8 @@ export class AssetsController {
 
   @Get()
   @ApiOperation({ summary: 'Listar activos según rol', description: 'El backend filtra: Admin/Worker ven todo, Client ve vinculados.' })
-  findAll(@Request() req) {
-    return this.assetsService.findAll(req.user.orgId, req.user.role, req.user.id);
+  findAll(@Query() query: PaginationQueryDto, @Request() req) {
+    return this.assetsService.findAll(query, req.user.orgId, req.user.role, req.user.id);
   }
 
   @Get(':id')

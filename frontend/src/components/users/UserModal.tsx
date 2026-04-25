@@ -5,11 +5,12 @@ import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2 } from "luc
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { usersService } from "@/services/users.service";
+import { customersService } from "@/services/customers.service";
 
 export interface UserFormData {
   name: string;
   email: string;
-  company: string;
+  customer_id: string;
   role: string;
   password?: string;
 }
@@ -31,10 +32,21 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    company: "",
+    customer_id: "",
     role: "WORKER",
     password: ""
   });
+  
+  const [customers, setCustomers] = useState<{id: string, name: string}[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      customersService.findAll().then((data: any) => {
+        const list = Array.isArray(data) ? data : data.data || [];
+        setCustomers(list);
+      }).catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -109,48 +121,30 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
-                <Building2 className="h-5 w-5 opacity-30" />
+          {formData.role === "CLIENT" && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">Empresa Cliente</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
+                  <Building2 className="h-5 w-5 opacity-30" />
+                </div>
+                <select
+                  required
+                  className="block w-full pl-14 pr-10 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm appearance-none"
+                  value={formData.customer_id}
+                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                >
+                  <option value="" disabled>Selecciona una empresa...</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-subtitle/50" />
+                </div>
               </div>
-              <input
-                required
-                type="text"
-                autoComplete="off"
-                className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm"
-                placeholder={t.users.modal.company_placeholder}
-                value={formData.company}
-                onFocus={() => setIsCompanyDropdownOpen(true)}
-                onChange={(e) => {
-                  setFormData({ ...formData, company: e.target.value });
-                  setIsCompanyDropdownOpen(true);
-                }}
-              />
-              
-              {isCompanyDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsCompanyDropdownOpen(false)} />
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border-theme/40 rounded-2xl shadow-2xl z-20 py-2 max-h-48 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-                    {existingCompanies.filter(c => c.toLowerCase().includes(formData.company.toLowerCase())).map((company, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setFormData({ ...formData, company });
-                          setIsCompanyDropdownOpen(false);
-                        }}
-                        className="w-full px-6 py-3 text-left text-sm font-bold text-title/70 hover:bg-brand/5 hover:text-brand transition-colors"
-                      >
-                        {company}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.role}</label>

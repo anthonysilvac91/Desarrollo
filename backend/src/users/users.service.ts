@@ -9,7 +9,7 @@ import * as bcrypt from 'bcryptjs';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(query: { role?: Role; organizationId?: string }, currentUser: { id: string; role: Role; orgId?: string }) {
+  async findAll(query: { role?: Role; organizationId?: string; search?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
     // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
     // WORKER puede listar pero solo si es para buscar CLIENTES.
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
@@ -38,21 +38,47 @@ export class UsersService {
       where.organization_id = currentUser.orgId;
     }
 
+    if (query.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+        { phone: { contains: query.search, mode: 'insensitive' } }
+      ];
+    }
+
+    const selectFields = {
+      id: true,
+      organization_id: true,
+      role: true,
+      email: true,
+      name: true,
+      phone: true,
+      avatar_url: true,
+      is_active: true,
+      created_at: true,
+      updated_at: true,
+    };
+
+    if (query.page && query.limit) {
+      const page = Number(query.page);
+      const limit = Number(query.limit);
+      const [data, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          orderBy: { created_at: 'desc' },
+          select: selectFields,
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        this.prisma.user.count({ where })
+      ]);
+      return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    }
+
     const users = await this.prisma.user.findMany({
       where,
       orderBy: { created_at: 'desc' },
-      select: {
-        id: true,
-        organization_id: true,
-        role: true,
-        email: true,
-        name: true,
-        phone: true,
-        avatar_url: true,
-        is_active: true,
-        created_at: true,
-        updated_at: true,
-      },
+      select: selectFields,
     });
 
     return users;
@@ -73,6 +99,7 @@ export class UsersService {
         name: true,
         phone: true,
         avatar_url: true,
+        customer_id: true,
         is_active: true,
         created_at: true,
         updated_at: true,
@@ -127,6 +154,7 @@ export class UsersService {
         name: dto.name,
         role: dto.role,
         organization_id: dto.organization_id || null,
+        customer_id: dto.customer_id || null,
         is_active: true,
       },
       select: {
@@ -135,6 +163,7 @@ export class UsersService {
         name: true,
         role: true,
         organization_id: true,
+        customer_id: true,
         is_active: true,
         created_at: true,
       }

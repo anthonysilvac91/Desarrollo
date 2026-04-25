@@ -13,9 +13,8 @@ export interface User {
 }
 
 export const usersService = {
-  findAll: async (role?: string): Promise<User[]> => {
-    const query = role ? `?role=${role}` : "";
-    const res = await api.get(`/users${query}`);
+  findAll: async (params?: { role?: string, page?: number, limit?: number, search?: string }): Promise<any> => {
+    const res = await api.get("/users", { params });
     return res.data;
   },
 
