@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 
@@ -8,7 +9,8 @@ import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-
 export class AssetsService {
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService
+    private storageService: StorageService,
+    private storageGovernance: StorageGovernanceService,
   ) {}
 
   private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
@@ -75,6 +77,7 @@ export class AssetsService {
         label: 'Thumbnail del activo',
       });
       photo.mimetype = detectedMime;
+      await this.storageGovernance.assertCanStore(targetOrgId, photo.size);
       thumbnail_url = await this.storageService.uploadFile(photo, {
         folder: `${targetOrgId}/assets`,
         visibility: 'private',
@@ -318,6 +321,11 @@ export class AssetsService {
         label: 'Thumbnail del activo',
       });
       photo.mimetype = detectedMime;
+      await this.storageGovernance.assertCanStore(
+        asset.organization_id,
+        photo.size,
+        asset.thumbnail_url ? [asset.thumbnail_url] : [],
+      );
       thumbnail_url = await this.storageService.uploadFile(photo, {
         folder: `${asset.organization_id}/assets`,
         visibility: 'private',

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOrganizationSettingsDto } from './dto/update-organization-settings.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
@@ -13,7 +14,8 @@ export class OrganizationsService {
 
   constructor(
     private prisma: PrismaService,
-    private storage: StorageService
+    private storage: StorageService,
+    private storageGovernance: StorageGovernanceService,
   ) {}
 
   async findAll() {
@@ -26,6 +28,14 @@ export class OrganizationsService {
     return this.prisma.organization.findUnique({
       where: { id }
     });
+  }
+
+  async getStorageUsage(orgId: string) {
+    return this.storageGovernance.getOrganizationUsage(orgId);
+  }
+
+  async reconcileStorage(orgId: string, deleteOrphans = false) {
+    return this.storageGovernance.reconcileOrganizationFiles(orgId, deleteOrphans);
   }
 
   async create(dto: CreateOrganizationDto, superAdminId: string) {
@@ -83,6 +93,11 @@ export class OrganizationsService {
         label: 'Logo de organizacion',
       });
       logoFile.mimetype = detectedMime;
+      await this.storageGovernance.assertCanStore(
+        orgId,
+        logoFile.size,
+        currentOrg?.logo_url ? [currentOrg.logo_url] : [],
+      );
 
       this.logger.log(`Uploading logo for organization ${orgId}...`);
       const logoUrl = await this.storage.uploadFile(logoFile, {

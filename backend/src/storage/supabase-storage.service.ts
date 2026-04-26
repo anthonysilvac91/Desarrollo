@@ -75,6 +75,10 @@ export class SupabaseStorageService extends StorageService {
     }
   }
 
+  canHandleFileRef(fileRef: string): boolean {
+    return this.parsePrivateRef(fileRef) !== null || this.parsePublicUrl(fileRef) !== null;
+  }
+
   async uploadFile(file: Express.Multer.File, options: UploadFileOptions = {}): Promise<string> {
     const folder = options.folder ?? '';
     const visibility = options.visibility ?? 'private';
@@ -150,5 +154,95 @@ export class SupabaseStorageService extends StorageService {
     if (error) {
       this.logger.error(`Error deleting public file from Supabase: ${error.message}`, error.stack);
     }
+  }
+
+  async getFileSize(fileRef: string): Promise<number | null> {
+    if (!this.canHandleFileRef(fileRef)) {
+      return null;
+    }
+
+    const privateRef = this.parsePrivateRef(fileRef);
+    if (privateRef) {
+      return this.fetchObjectSize(privateRef.bucket, privateRef.filePath);
+    }
+
+    const publicRef = this.parsePublicUrl(fileRef);
+    if (publicRef) {
+      return this.fetchObjectSize(publicRef.bucket, publicRef.filePath);
+    }
+
+    return null;
+  }
+
+  async listFileRefs(prefix = ''): Promise<string[]> {
+    const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, '');
+    const publicRefs = await this.listBucketRefs(this.publicBucket, normalizedPrefix, 'public');
+    const privateRefs = await this.listBucketRefs(this.privateBucket, normalizedPrefix, 'private');
+    return [...publicRefs, ...privateRefs];
+  }
+
+  private async fetchObjectSize(bucket: string, filePath: string): Promise<number | null> {
+    const normalizedFilePath = filePath.replace(/^\/+/, '');
+    const lastSlashIndex = normalizedFilePath.lastIndexOf('/');
+    const directory = lastSlashIndex === -1 ? '' : normalizedFilePath.slice(0, lastSlashIndex);
+    const fileName = lastSlashIndex === -1 ? normalizedFilePath : normalizedFilePath.slice(lastSlashIndex + 1);
+
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .list(directory, {
+        limit: 100,
+        search: fileName,
+      });
+
+    if (error) {
+      this.logger.error(`Error listing Supabase object size for ${bucket}/${filePath}: ${error.message}`, error.stack);
+      return null;
+    }
+
+    const exactMatch = data?.find((entry: any) => entry.name === fileName);
+    return typeof exactMatch?.metadata?.size === 'number' ? exactMatch.metadata.size : null;
+  }
+
+  private async listBucketRefs(
+    bucket: string,
+    prefix: string,
+    visibility: 'public' | 'private',
+    currentPath = '',
+  ): Promise<string[]> {
+    const targetPath = currentPath || prefix;
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .list(targetPath, {
+        limit: 1000,
+      });
+
+    if (error) {
+      this.logger.error(`Error listing Supabase bucket ${bucket} at ${targetPath}: ${error.message}`, error.stack);
+      return [];
+    }
+
+    const refs: string[] = [];
+
+    for (const entry of data ?? []) {
+      const entryPath = targetPath ? `${targetPath}/${entry.name}` : entry.name;
+      const isDirectory = !entry.metadata;
+
+      if (isDirectory) {
+        refs.push(...await this.listBucketRefs(bucket, prefix, visibility, entryPath));
+        continue;
+      }
+
+      if (visibility === 'private') {
+        refs.push(this.buildPrivateRef(entryPath));
+        continue;
+      }
+
+      const { data: publicData } = this.supabase.storage
+        .from(bucket)
+        .getPublicUrl(entryPath);
+      refs.push(publicData.publicUrl);
+    }
+
+    return refs;
   }
 }

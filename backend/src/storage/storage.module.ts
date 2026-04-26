@@ -1,12 +1,15 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
 import { LocalStorageService } from './local-storage.service';
 import { SupabaseStorageService } from './supabase-storage.service';
+import { StorageGovernanceService } from './storage-governance.service';
 
 @Global()
 @Module({
   providers: [
+    PrismaService,
     {
       provide: StorageService,
       useFactory: (configService: ConfigService) => {
@@ -17,7 +20,8 @@ import { SupabaseStorageService } from './supabase-storage.service';
       },
       inject: [ConfigService],
     },
+    StorageGovernanceService,
   ],
-  exports: [StorageService],
+  exports: [StorageService, StorageGovernanceService],
 })
 export class StorageModule {}

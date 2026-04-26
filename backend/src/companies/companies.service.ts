@@ -4,13 +4,15 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
 export class CompaniesService {
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService
+    private storageService: StorageService,
+    private storageGovernance: StorageGovernanceService,
   ) {}
 
   private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
@@ -52,6 +54,7 @@ export class CompaniesService {
         label: 'Logo de company',
       });
       logoFile.mimetype = detectedMime;
+      await this.storageGovernance.assertCanStore(orgId, logoFile.size);
       logoUrl = await this.storageService.uploadFile(logoFile, {
         folder: `${orgId}/companies/logos`,
         visibility: 'private',
@@ -133,6 +136,11 @@ export class CompaniesService {
         label: 'Logo de company',
       });
       logoFile.mimetype = detectedMime;
+      await this.storageGovernance.assertCanStore(
+        orgId,
+        logoFile.size,
+        existingCompany.logo_url ? [existingCompany.logo_url] : [],
+      );
       logoUrl = await this.storageService.uploadFile(logoFile, {
         folder: `${orgId}/companies/logos`,
         visibility: 'private',

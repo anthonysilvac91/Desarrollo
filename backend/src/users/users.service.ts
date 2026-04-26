@@ -5,13 +5,15 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService
+    private storageService: StorageService,
+    private storageGovernance: StorageGovernanceService,
   ) {}
 
   private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
@@ -283,6 +285,13 @@ export class UsersService {
         label: 'Avatar de usuario',
       });
       avatarFile.mimetype = detectedMime;
+      if (currentUserRecord.organization_id) {
+        await this.storageGovernance.assertCanStore(
+          currentUserRecord.organization_id,
+          avatarFile.size,
+          currentUserRecord.avatar_url ? [currentUserRecord.avatar_url] : [],
+        );
+      }
 
       avatarUrl = await this.storageService.uploadFile(avatarFile, {
         folder: `${currentUserRecord.organization_id ?? 'global'}/users/${currentUserRecord.id}/avatar`,

@@ -4,6 +4,7 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
@@ -12,7 +13,8 @@ export class ServicesService {
 
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService
+    private storageService: StorageService,
+    private storageGovernance: StorageGovernanceService,
   ) {}
 
   private mapServiceRelations<T extends Record<string, any>>(service: T): T {
@@ -90,6 +92,9 @@ export class ServicesService {
     if (files && files.length > 10) {
       throw new BadRequestException('Solo puedes adjuntar hasta 10 imagenes por servicio');
     }
+
+    const totalIncomingBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
+    await this.storageGovernance.assertCanStore(user.orgId, totalIncomingBytes);
 
     const attachmentPromises = files?.map(async (file) => {
       const detectedMime = validateImageFile(file, {

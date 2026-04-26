@@ -52,4 +52,51 @@ export class LocalStorageService extends StorageService {
       fs.unlinkSync(filePath);
     }
   }
+
+  canHandleFileRef(fileRef: string): boolean {
+    return fileRef.startsWith('/uploads/');
+  }
+
+  async getFileSize(fileRef: string): Promise<number | null> {
+    if (!this.canHandleFileRef(fileRef)) {
+      return null;
+    }
+
+    const fileName = fileRef.replace('/uploads/', '');
+    const filePath = path.join(this.uploadDir, fileName);
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    return fs.statSync(filePath).size;
+  }
+
+  async listFileRefs(prefix = ''): Promise<string[]> {
+    const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, '');
+    const startDir = normalizedPrefix
+      ? path.join(this.uploadDir, normalizedPrefix)
+      : this.uploadDir;
+
+    if (!fs.existsSync(startDir)) {
+      return [];
+    }
+
+    const refs: string[] = [];
+
+    const walk = (currentDir: string) => {
+      for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+        const absolutePath = path.join(currentDir, entry.name);
+        if (entry.isDirectory()) {
+          walk(absolutePath);
+          continue;
+        }
+
+        const relativePath = path.relative(this.uploadDir, absolutePath).split(path.sep).join('/');
+        refs.push(`/uploads/${relativePath}`);
+      }
+    };
+
+    walk(startDir);
+    return refs;
+  }
 }
