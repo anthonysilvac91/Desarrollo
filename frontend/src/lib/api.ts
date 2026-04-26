@@ -1,7 +1,30 @@
 import axios from "axios";
 
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+const normalizeMediaUrls = (value: unknown): unknown => {
+  if (typeof value === "string") {
+    if (value.startsWith("/uploads/")) {
+      return `${apiBaseUrl}${value}`;
+    }
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeMediaUrls(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, normalizeMediaUrls(nestedValue)])
+    );
+  }
+
+  return value;
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
+  baseURL: apiBaseUrl,
   headers: {
     "Content-Type": "application/json",
   },
@@ -26,6 +49,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
+    response.data = normalizeMediaUrls(response.data);
     return response;
   },
   (error) => {

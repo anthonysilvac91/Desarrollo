@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
 export class AssetsService {
@@ -20,6 +21,32 @@ export class AssetsService {
     };
   }
 
+  private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
+    const resolvedAsset = { ...asset } as any;
+
+    if (resolvedAsset.thumbnail_url) {
+      resolvedAsset.thumbnail_url = await this.storageService.resolveFileUrl(resolvedAsset.thumbnail_url);
+    }
+
+    if (Array.isArray(resolvedAsset.services)) {
+      resolvedAsset.services = await Promise.all(
+        resolvedAsset.services.map(async (service: any) => ({
+          ...service,
+          attachments: Array.isArray(service.attachments)
+            ? await Promise.all(
+                service.attachments.map(async (attachment: any) => ({
+                  ...attachment,
+                  file_url: await this.storageService.resolveFileUrl(attachment.file_url),
+                }))
+              )
+            : service.attachments,
+        }))
+      );
+    }
+
+    return resolvedAsset;
+  }
+
   private async ensureCompanyBelongsToOrg(companyId: string, orgId: string) {
     const company = await this.prisma.company.findFirst({
       where: { id: companyId, organization_id: orgId, is_active: true },
@@ -27,21 +54,31 @@ export class AssetsService {
     });
 
     if (!company) {
-      throw new BadRequestException('La company indicada no pertenece a tu organización');
+      throw new BadRequestException('La company indicada no pertenece a tu organizaciÃ³n');
     }
   }
 
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
     const { company_id: companyId, organization_id: dtoOrgId, ...assetData } = createAssetDto;
-    let thumbnail_url = createAssetDto.thumbnail_url;
+    const targetOrgId = orgId || dtoOrgId;
+    let thumbnail_url: string | undefined;
 
-    if (photo) {
-      thumbnail_url = await this.storageService.uploadFile(photo, `${orgId}/assets`);
+    ensureNoManualFileUrl(createAssetDto.thumbnail_url, 'Thumbnail del activo');
+
+    if (!targetOrgId) {
+      throw new Error('Es necesario especificar una organizaciÃ³n para el activo');
     }
 
-    const targetOrgId = orgId || dtoOrgId;
-    if (!targetOrgId) {
-      throw new Error('Es necesario especificar una organización para el activo');
+    if (photo) {
+      const detectedMime = validateImageFile(photo, {
+        maxBytes: 5 * 1024 * 1024,
+        label: 'Thumbnail del activo',
+      });
+      photo.mimetype = detectedMime;
+      thumbnail_url = await this.storageService.uploadFile(photo, {
+        folder: `${targetOrgId}/assets`,
+        visibility: 'private',
+      });
     }
 
     if (companyId) {
@@ -65,7 +102,11 @@ export class AssetsService {
       },
     });
 
-    return asset ? this.mapAssetRelations(asset) : asset;
+    if (!asset) {
+      return asset;
+    }
+
+    return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
   }
 
   async findAll(query: any, orgId: string, role: string, userId: string, companyId?: string) {
@@ -122,20 +163,35 @@ export class AssetsService {
         }),
         this.prisma.asset.count({ where: baseWhere }),
       ]);
+
+      const mappedData = await Promise.all(
+        data.map(async (asset: any) =>
+          this.resolveAssetFileUrls(
+            this.mapAssetRelations({
+              ...asset,
+              last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
+            })
+          )
+        )
+      );
+
       return {
-        data: data.map((asset: any) => this.mapAssetRelations({
-          ...asset,
-          last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
-        })),
+        data: mappedData,
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }
 
     const assets = await this.prisma.asset.findMany({ where: baseWhere, include });
-    return assets.map((asset: any) => this.mapAssetRelations({
-      ...asset,
-      last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
-    }));
+    return Promise.all(
+      assets.map(async (asset: any) =>
+        this.resolveAssetFileUrls(
+          this.mapAssetRelations({
+            ...asset,
+            last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
+          })
+        )
+      )
+    );
   }
 
   async findOne(id: string, user: any) {
@@ -186,40 +242,50 @@ export class AssetsService {
 
     if (user.role === 'CLIENT') {
       const currentCompanyId = user.company_id ?? user.customer_id;
-      if (asset.company_id !== currentCompanyId) throw new NotFoundException('No tienes acceso a este activo');
-      asset.services = asset.services.filter(s => s.is_public);
+      if (asset.company_id !== currentCompanyId) {
+        throw new NotFoundException('No tienes acceso a este activo');
+      }
+      asset.services = asset.services.filter((service) => service.is_public);
     }
 
-    return this.mapAssetRelations(asset);
+    return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
   }
 
   async assignCompany(assetId: string, companyId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
     const company = await this.prisma.company.findFirst({ where: { id: companyId, organization_id: orgId } });
 
-    if (!asset || !company) throw new NotFoundException('Activo o company no existe en su organización');
+    if (!asset || !company) {
+      throw new NotFoundException('Activo o company no existe en su organizaciÃ³n');
+    }
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
       data: { company_id: companyId },
     });
+
     return this.mapAssetRelations(updatedAsset);
   }
 
   async removeCompany(assetId: string, companyId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
-    if (!asset) throw new NotFoundException('Activo no encontrado');
+    if (!asset) {
+      throw new NotFoundException('Activo no encontrado');
+    }
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
       data: { company_id: null },
     });
+
     return this.mapAssetRelations(updatedAsset);
   }
 
   async remove(id: string, user: any) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
-    if (!asset) throw new NotFoundException('Activo no encontrado');
+    if (!asset) {
+      throw new NotFoundException('Activo no encontrado');
+    }
 
     if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
       throw new ForbiddenException('No tienes permiso para borrar este activo');
@@ -233,17 +299,29 @@ export class AssetsService {
 
   async update(id: string, updateDto: any, orgId: string, role: string, photo?: Express.Multer.File) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
-    if (!asset) throw new NotFoundException('Activo no encontrado');
+    if (!asset) {
+      throw new NotFoundException('Activo no encontrado');
+    }
 
     if (role !== 'SUPER_ADMIN' && asset.organization_id !== orgId) {
       throw new ForbiddenException('No tienes permiso para editar este activo');
     }
 
     const { company_id: companyId, ...updateData } = updateDto;
-    let thumbnail_url = updateDto.thumbnail_url;
+    let thumbnail_url = asset.thumbnail_url;
+
+    ensureNoManualFileUrl(updateDto.thumbnail_url, 'Thumbnail del activo');
 
     if (photo) {
-      thumbnail_url = await this.storageService.uploadFile(photo, `${asset.organization_id}/assets`);
+      const detectedMime = validateImageFile(photo, {
+        maxBytes: 5 * 1024 * 1024,
+        label: 'Thumbnail del activo',
+      });
+      photo.mimetype = detectedMime;
+      thumbnail_url = await this.storageService.uploadFile(photo, {
+        folder: `${asset.organization_id}/assets`,
+        visibility: 'private',
+      });
     }
 
     const updatePayload: any = {
@@ -263,6 +341,10 @@ export class AssetsService {
       data: updatePayload,
     });
 
-    return this.mapAssetRelations(updatedAsset);
+    if (photo && asset.thumbnail_url && asset.thumbnail_url !== updatedAsset.thumbnail_url) {
+      await this.storageService.deleteFile(asset.thumbnail_url);
+    }
+
+    return this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset));
   }
 }

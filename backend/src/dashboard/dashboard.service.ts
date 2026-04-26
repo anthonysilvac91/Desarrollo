@@ -2,10 +2,14 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { DashboardStatsDto, RankingItemDto, EvolutionPointDto } from './dto/dashboard.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService
+  ) {}
 
   async getStats(
     currentUser: { id: string; role: Role; orgId?: string; customer_id?: string; company_id?: string },
@@ -174,14 +178,20 @@ export class DashboardService {
       ? await this.prisma.asset.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
       : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, avatar_url: true } });
 
-    return rankingData.map(r => {
-      const item = items.find(i => i.id === r[idKey]);
-      return {
-        id: r[idKey],
-        name: item?.name || 'Desconocido',
-        metric: r._count.id,
-        avatar_url: (item as any)?.avatar_url,
-      };
-    });
+    return Promise.all(
+      rankingData.map(async (r) => {
+        const item = items.find(i => i.id === r[idKey]);
+        const avatarUrl = (item as any)?.avatar_url
+          ? await this.storageService.resolveFileUrl((item as any).avatar_url)
+          : undefined;
+
+        return {
+          id: r[idKey],
+          name: item?.name || 'Desconocido',
+          metric: r._count.id,
+          avatar_url: avatarUrl,
+        };
+      })
+    );
   }
 }

@@ -3,10 +3,14 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class CompaniesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService
+  ) {}
 
   private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
     return {
@@ -16,6 +20,23 @@ export class CompaniesService {
     };
   }
 
+  private async resolveCompanyFileUrls<T extends Record<string, any>>(company: T) {
+    const resolvedCompany = { ...company } as any;
+
+    if (Array.isArray(resolvedCompany.assets)) {
+      resolvedCompany.assets = await Promise.all(
+        resolvedCompany.assets.map(async (asset: any) => ({
+          ...asset,
+          thumbnail_url: asset.thumbnail_url
+            ? await this.storageService.resolveFileUrl(asset.thumbnail_url)
+            : asset.thumbnail_url,
+        }))
+      );
+    }
+
+    return resolvedCompany;
+  }
+
   async create(createCompanyDto: CreateCompanyDto, orgId: string) {
     const company = await this.prisma.company.create({
       data: {
@@ -23,7 +44,7 @@ export class CompaniesService {
         organization_id: orgId,
       },
     });
-    return this.mapCompanyRelations(company);
+    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
   }
 
   async findAll(orgId: string, query?: PaginationQueryDto) {
@@ -69,7 +90,7 @@ export class CompaniesService {
     if (!company || company.organization_id !== orgId) {
       throw new NotFoundException('Company no encontrada');
     }
-    return this.mapCompanyRelations(company);
+    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
   }
 
   async update(id: string, updateCompanyDto: UpdateCompanyDto, orgId: string) {
@@ -78,7 +99,7 @@ export class CompaniesService {
       where: { id: existingCompany.id },
       data: updateCompanyDto,
     });
-    return this.mapCompanyRelations(company);
+    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
   }
 
   async remove(id: string, orgId: string) {
@@ -87,6 +108,6 @@ export class CompaniesService {
       where: { id: existingCompany.id },
       data: { is_active: false },
     });
-    return this.mapCompanyRelations(company);
+    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
   }
 }

@@ -5,6 +5,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { StorageService } from '../storage/storage.service';
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
+import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
 export class OrganizationsService {
@@ -68,16 +69,38 @@ export class OrganizationsService {
 
   async updateSettings(orgId: string, dto: UpdateOrganizationSettingsDto, logoFile?: Express.Multer.File) {
     const data: any = { ...dto };
+    const currentOrg = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { logo_url: true },
+    });
+
+    ensureNoManualFileUrl(dto.logo_url, 'Logo de organizacion');
+    delete data.logo_url;
 
     if (logoFile) {
+      const detectedMime = validateImageFile(logoFile, {
+        maxBytes: 2 * 1024 * 1024,
+        label: 'Logo de organizacion',
+      });
+      logoFile.mimetype = detectedMime;
+
       this.logger.log(`Uploading logo for organization ${orgId}...`);
-      const logoUrl = await this.storage.uploadFile(logoFile, `${orgId}/branding`);
+      const logoUrl = await this.storage.uploadFile(logoFile, {
+        folder: `${orgId}/branding`,
+        visibility: 'public',
+      });
       data.logo_url = logoUrl;
     }
 
-    return this.prisma.organization.update({
+    const updatedOrg = await this.prisma.organization.update({
       where: { id: orgId },
       data
     });
+
+    if (logoFile && currentOrg?.logo_url && currentOrg.logo_url !== updatedOrg.logo_url) {
+      await this.storage.deleteFile(currentOrg.logo_url);
+    }
+
+    return updatedOrg;
   }
 }

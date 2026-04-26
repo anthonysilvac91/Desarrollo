@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { UploadFileOptions } from './storage.service';
 
 @Injectable()
 export class LocalStorageService extends StorageService {
@@ -21,7 +22,8 @@ export class LocalStorageService extends StorageService {
     }
   }
 
-  async uploadFile(file: Express.Multer.File, folder: string = ''): Promise<string> {
+  async uploadFile(file: Express.Multer.File, options: UploadFileOptions = {}): Promise<string> {
+    const folder = options.folder ?? '';
     const targetDir = path.join(this.uploadDir, folder);
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
@@ -39,8 +41,12 @@ export class LocalStorageService extends StorageService {
     return `/uploads/${relativePath}`;
   }
 
-  async deleteFile(fileUrl: string): Promise<void> {
-    const fileName = fileUrl.replace('/uploads/', '');
+  async resolveFileUrl(fileRef: string): Promise<string> {
+    return fileRef;
+  }
+
+  async deleteFile(fileRef: string): Promise<void> {
+    const fileName = fileRef.replace('/uploads/', '');
     const filePath = path.join(this.uploadDir, fileName);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

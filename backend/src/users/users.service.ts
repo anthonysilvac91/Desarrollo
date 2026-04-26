@@ -4,10 +4,15 @@ import { Role } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
+import { StorageService } from '../storage/storage.service';
+import { ensureNoManualFileUrl } from '../common/files/image-validation';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storageService: StorageService
+  ) {}
 
   private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
     return {
@@ -17,6 +22,14 @@ export class UsersService {
       customer_id: user.company_id ?? user.customer_id ?? null,
       customer: user.company ?? user.customer ?? null,
     };
+  }
+
+  private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
+    const resolvedUser = { ...user } as any;
+    if (resolvedUser.avatar_url) {
+      resolvedUser.avatar_url = await this.storageService.resolveFileUrl(resolvedUser.avatar_url);
+    }
+    return resolvedUser;
   }
 
   private async ensureOrganizationExists(organizationId: string) {
@@ -106,8 +119,12 @@ export class UsersService {
         }),
         this.prisma.user.count({ where })
       ]);
+      const mappedData = await Promise.all(
+        data.map(async (item: any) => this.resolveUserFileUrls(this.mapUserRelations(item)))
+      );
+
       return {
-        data: data.map((item: any) => this.mapUserRelations(item)),
+        data: mappedData,
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
       };
     }
@@ -118,7 +135,9 @@ export class UsersService {
       select: selectFields,
     });
 
-    return users.map((item: any) => this.mapUserRelations(item));
+    return Promise.all(
+      users.map(async (item: any) => this.resolveUserFileUrls(this.mapUserRelations(item)))
+    );
   }
 
   async findOne(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
@@ -154,7 +173,7 @@ export class UsersService {
       throw new ForbiddenException('No tienes acceso a usuarios de otra organización');
     }
 
-    return this.mapUserRelations(user);
+    return this.resolveUserFileUrls(this.mapUserRelations(user));
   }
 
   async create(dto: CreateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
@@ -233,10 +252,14 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
     const user = await this.findOne(id, currentUser);
+    ensureNoManualFileUrl(dto.avatar_url, 'Avatar de usuario');
 
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
-      data: dto,
+      data: {
+        ...dto,
+        avatar_url: undefined,
+      },
       select: {
         id: true,
         email: true,
@@ -248,7 +271,7 @@ export class UsersService {
       }
     });
 
-    return this.mapUserRelations(updatedUser);
+    return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
   }
 
   async toggleStatus(id: string, currentUser: { id: string; role: Role; orgId?: string }) {

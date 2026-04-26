@@ -29,7 +29,7 @@ import { CompaniesModule } from './companies/companies.module';
     DashboardModule,
     StorageModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     CompaniesModule,

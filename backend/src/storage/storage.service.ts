@@ -1,14 +1,23 @@
+export type StorageVisibility = 'public' | 'private';
+
+export interface UploadFileOptions {
+  folder?: string;
+  visibility?: StorageVisibility;
+}
+
 export abstract class StorageService {
   /**
-   * Sube un archivo al almacenamiento y retorna la URL pública resultante.
-   * @param file El archivo cargado mediante Multer.
-   * @param folder Carpeta o prefijo opcional para organizar los archivos.
+   * Sube un archivo al almacenamiento y retorna una referencia persistible.
    */
-  abstract uploadFile(file: Express.Multer.File, folder?: string): Promise<string>;
+  abstract uploadFile(file: Express.Multer.File, options?: UploadFileOptions): Promise<string>;
+
+  /**
+   * Resuelve una referencia persistida a una URL consumible por el frontend.
+   */
+  abstract resolveFileUrl(fileRef: string): Promise<string>;
 
   /**
    * Elimina un archivo del almacenamiento.
-   * @param fileUrl URL completa del archivo a eliminar.
    */
-  abstract deleteFile(fileUrl: string): Promise<void>;
+  abstract deleteFile(fileRef: string): Promise<void>;
 }

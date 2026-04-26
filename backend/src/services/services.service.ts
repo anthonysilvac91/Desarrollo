@@ -4,6 +4,7 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { StorageService } from '../storage/storage.service';
+import { validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
 export class ServicesService {
@@ -29,6 +30,25 @@ export class ServicesService {
         customer: service.asset.company ?? service.asset.customer ?? null,
       }
     };
+  }
+
+  private async resolveServiceFileUrls<T extends Record<string, any>>(service: T): Promise<T> {
+    const resolvedService = { ...service } as any;
+
+    if (resolvedService.asset?.thumbnail_url) {
+      resolvedService.asset.thumbnail_url = await this.storageService.resolveFileUrl(resolvedService.asset.thumbnail_url);
+    }
+
+    if (Array.isArray(resolvedService.attachments)) {
+      resolvedService.attachments = await Promise.all(
+        resolvedService.attachments.map(async (attachment: any) => ({
+          ...attachment,
+          file_url: await this.storageService.resolveFileUrl(attachment.file_url),
+        }))
+      );
+    }
+
+    return resolvedService;
   }
 
   async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
@@ -67,11 +87,26 @@ export class ServicesService {
       }
     }
 
+    if (files && files.length > 10) {
+      throw new BadRequestException('Solo puedes adjuntar hasta 10 imagenes por servicio');
+    }
+
     const attachmentPromises = files?.map(async (file) => {
-      const file_url = await this.storageService.uploadFile(file, `${user.orgId}/services`);
+      const detectedMime = validateImageFile(file, {
+        maxBytes: 10 * 1024 * 1024,
+        label: 'Adjunto de servicio',
+      });
+      file.mimetype = detectedMime;
+
+      const file_url = await this.storageService.uploadFile(file, {
+        folder: `${user.orgId}/services`,
+        visibility: 'private',
+      });
       return {
         file_url,
-        file_type: file.mimetype,
+        file_type: detectedMime,
+        file_name: file.originalname,
+        file_size_bytes: file.size,
       };
     }) || [];
 
@@ -92,7 +127,7 @@ export class ServicesService {
     });
 
     this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
-    return newService;
+    return this.resolveServiceFileUrls(newService);
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
@@ -143,8 +178,12 @@ export class ServicesService {
         }),
         this.prisma.service.count({ where: whereClause })
       ]);
+      const mappedData = await Promise.all(
+        data.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item)))
+      );
+
       return {
-        data: data.map((item: any) => this.mapServiceRelations(item)),
+        data: mappedData,
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
       };
     }
@@ -158,7 +197,9 @@ export class ServicesService {
       },
       orderBy: { created_at: 'desc' }
     });
-    return services.map((item: any) => this.mapServiceRelations(item));
+    return Promise.all(
+      services.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item)))
+    );
   }
 
   async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
@@ -205,7 +246,7 @@ export class ServicesService {
       }
     }
 
-    return this.mapServiceRelations(service);
+    return this.resolveServiceFileUrls(this.mapServiceRelations(service));
   }
 
   async remove(id: string, user: any) {
@@ -220,10 +261,17 @@ export class ServicesService {
       throw new ForbiddenException('Acceso denegado para eliminar este servicio');
     }
 
+    const attachments = await this.prisma.serviceAttachment.findMany({
+      where: { service_id: id },
+      select: { file_url: true },
+    });
+
     // Eliminar primero los archivos adjuntos relacionados (Foreign Key)
     await this.prisma.serviceAttachment.deleteMany({
       where: { service_id: id }
     });
+
+    await Promise.all(attachments.map((attachment) => this.storageService.deleteFile(attachment.file_url)));
 
     // Eliminar el servicio
     return this.prisma.service.delete({

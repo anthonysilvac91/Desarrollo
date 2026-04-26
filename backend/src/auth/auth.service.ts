@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class AuthService {
@@ -10,7 +11,8 @@ export class AuthService {
 
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private storageService: StorageService
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -109,6 +111,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    if (user.avatar_url) {
+      user.avatar_url = await this.storageService.resolveFileUrl(user.avatar_url);
     }
 
     const { password_hash, ...result } = user;
