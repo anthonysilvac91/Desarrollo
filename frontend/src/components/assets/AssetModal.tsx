@@ -109,7 +109,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       data.append("location", formData.location);
       
       if (formData.company_id && formData.company_id !== "") {
-        data.append("customer_id", formData.company_id);
+        data.append("company_id", formData.company_id);
       }
 
       if (formData.photo) {

@@ -10,16 +10,18 @@ export class AssetsService {
     private storageService: StorageService
   ) {}
 
-  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { company_id: string | null; company: any } {
+  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
     return {
       ...asset,
-      company_id: asset.customer_id ?? null,
-      company: asset.customer ?? null,
+      company_id: asset.company_id ?? asset.customer_id ?? null,
+      company: asset.company ?? asset.customer ?? null,
+      customer_id: asset.company_id ?? asset.customer_id ?? null,
+      customer: asset.company ?? asset.customer ?? null,
     };
   }
 
   private async ensureCompanyBelongsToOrg(companyId: string, orgId: string) {
-    const company = await this.prisma.customer.findFirst({
+    const company = await this.prisma.company.findFirst({
       where: { id: companyId, organization_id: orgId, is_active: true },
       select: { id: true },
     });
@@ -30,7 +32,7 @@ export class AssetsService {
   }
 
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
-    const { customer_id: companyId, organization_id: dtoOrgId, ...assetData } = createAssetDto;
+    const { company_id: companyId, organization_id: dtoOrgId, ...assetData } = createAssetDto;
     let thumbnail_url = createAssetDto.thumbnail_url;
 
     if (photo) {
@@ -51,7 +53,7 @@ export class AssetsService {
         ...assetData,
         thumbnail_url,
         organization_id: targetOrgId,
-        customer_id: companyId || null,
+        company_id: companyId || null,
       },
     });
 
@@ -59,7 +61,7 @@ export class AssetsService {
       where: { id: newAsset.id },
       include: {
         organization: { select: { name: true } },
-        customer: { select: { id: true, name: true } },
+        company: { select: { id: true, name: true } },
       },
     });
 
@@ -69,7 +71,7 @@ export class AssetsService {
   async findAll(query: any, orgId: string, role: string, userId: string, companyId?: string) {
     const include = {
       organization: { select: { name: true } },
-      customer: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true } },
       _count: { select: { services: true } },
       services: {
         select: { created_at: true },
@@ -88,7 +90,7 @@ export class AssetsService {
       if (!companyId) {
         return [];
       }
-      baseWhere.customer_id = companyId;
+      baseWhere.company_id = companyId;
     }
 
     if (role === 'WORKER') {
@@ -147,7 +149,7 @@ export class AssetsService {
           },
           orderBy: { created_at: 'desc' },
         },
-        customer: { select: { id: true, name: true } },
+        company: { select: { id: true, name: true } },
       },
     });
 
@@ -184,7 +186,7 @@ export class AssetsService {
 
     if (user.role === 'CLIENT') {
       const currentCompanyId = user.company_id ?? user.customer_id;
-      if (asset.customer_id !== currentCompanyId) throw new NotFoundException('No tienes acceso a este activo');
+      if (asset.company_id !== currentCompanyId) throw new NotFoundException('No tienes acceso a este activo');
       asset.services = asset.services.filter(s => s.is_public);
     }
 
@@ -193,13 +195,13 @@ export class AssetsService {
 
   async assignCompany(assetId: string, companyId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
-    const company = await this.prisma.customer.findFirst({ where: { id: companyId, organization_id: orgId } });
+    const company = await this.prisma.company.findFirst({ where: { id: companyId, organization_id: orgId } });
 
     if (!asset || !company) throw new NotFoundException('Activo o company no existe en su organización');
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
-      data: { customer_id: companyId },
+      data: { company_id: companyId },
     });
     return this.mapAssetRelations(updatedAsset);
   }
@@ -210,7 +212,7 @@ export class AssetsService {
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
-      data: { customer_id: null },
+      data: { company_id: null },
     });
     return this.mapAssetRelations(updatedAsset);
   }
@@ -237,7 +239,7 @@ export class AssetsService {
       throw new ForbiddenException('No tienes permiso para editar este activo');
     }
 
-    const { customer_id: companyId, ...updateData } = updateDto;
+    const { company_id: companyId, ...updateData } = updateDto;
     let thumbnail_url = updateDto.thumbnail_url;
 
     if (photo) {
@@ -253,7 +255,7 @@ export class AssetsService {
       if (companyId) {
         await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);
       }
-      updatePayload.customer_id = companyId || null;
+      updatePayload.company_id = companyId || null;
     }
 
     const updatedAsset = await this.prisma.asset.update({

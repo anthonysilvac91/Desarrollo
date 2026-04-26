@@ -73,13 +73,13 @@ describe('Assets Visibility (e2e)', () => {
       expect(res.body[0].id).toBe(assetVinculado.id);
     });
 
-    it('CLIENTE solo ve los assets vinculados a su empresa (Customer).', async () => {
+    it('CLIENTE solo ve los assets vinculados a su company.', async () => {
       const org = await testUtils.createTestOrganization();
-      const customer = await testUtils.createTestCustomer('Empresa A', org.id);
-      const client = await testUtils.createTestUser(Role.CLIENT, 'client@org.com', org.id, customer.id);
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const client = await testUtils.createTestUser(Role.CLIENT, 'client@org.com', org.id, company.id);
       
       const assetVinculado = await prisma.asset.create({ 
-        data: { organization_id: org.id, name: 'Bote Cliente', customer_id: customer.id } 
+        data: { organization_id: org.id, name: 'Bote Cliente', company_id: company.id } 
       });
       await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Aislado' } });
 

@@ -9,11 +9,13 @@ import * as bcrypt from 'bcryptjs';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any } {
+  private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
     return {
       ...user,
-      company_id: user.customer_id ?? null,
-      company: user.customer ?? null,
+      company_id: user.company_id ?? user.customer_id ?? null,
+      company: user.company ?? user.customer ?? null,
+      customer_id: user.company_id ?? user.customer_id ?? null,
+      customer: user.company ?? user.customer ?? null,
     };
   }
 
@@ -28,13 +30,13 @@ export class UsersService {
     }
   }
 
-  private async ensureCustomerBelongsToOrganization(customerId: string, organizationId: string) {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, organization_id: organizationId, is_active: true },
+  private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, organization_id: organizationId, is_active: true },
       select: { id: true },
     });
 
-    if (!customer) {
+    if (!company) {
       throw new BadRequestException('La company indicada no pertenece a la organización');
     }
   }
@@ -88,7 +90,7 @@ export class UsersService {
       last_login_at: true,
       created_at: true,
       updated_at: true,
-      customer: { select: { name: true } },
+      company: { select: { id: true, name: true } },
     };
 
     if (query.page && query.limit) {
@@ -134,8 +136,8 @@ export class UsersService {
         name: true,
         phone: true,
         avatar_url: true,
-        customer_id: true,
-        customer: { select: { id: true, name: true } },
+        company_id: true,
+        company: { select: { id: true, name: true } },
         is_active: true,
         last_login_at: true,
         created_at: true,
@@ -169,7 +171,7 @@ export class UsersService {
     }
 
     if (dto.role === Role.SUPER_ADMIN) {
-      if (dto.organization_id || dto.customer_id) {
+      if (dto.organization_id || dto.company_id) {
         throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organización o company');
       }
     } else {
@@ -180,12 +182,12 @@ export class UsersService {
       await this.ensureOrganizationExists(dto.organization_id);
     }
 
-    if (dto.customer_id) {
+    if (dto.company_id) {
       if (dto.role !== Role.CLIENT) {
         throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
       }
 
-      await this.ensureCustomerBelongsToOrganization(dto.customer_id, dto.organization_id!);
+      await this.ensureCompanyBelongsToOrganization(dto.company_id, dto.organization_id!);
     }
 
     // 2. Verificar email duplicado en el mismo tenant (u org_id null para SuperAdmin)
@@ -211,7 +213,7 @@ export class UsersService {
         name: dto.name,
         role: dto.role,
         organization_id: dto.organization_id || null,
-        customer_id: dto.customer_id || null,
+        company_id: dto.company_id || null,
         is_active: true,
       },
       select: {
@@ -220,7 +222,7 @@ export class UsersService {
         name: true,
         role: true,
         organization_id: true,
-        customer_id: true,
+        company_id: true,
         is_active: true,
         created_at: true,
       }

@@ -8,22 +8,22 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
-  private mapCompanyRelations<T extends Record<string, any>>(customer: T): T & { company_users?: any[]; company_assets?: any[] } {
+  private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
     return {
-      ...customer,
-      company_users: customer.users ?? undefined,
-      company_assets: customer.assets ?? undefined,
+      ...company,
+      company_users: company.users ?? undefined,
+      company_assets: company.assets ?? undefined,
     };
   }
 
   async create(createCustomerDto: CreateCustomerDto, orgId: string) {
-    const customer = await this.prisma.customer.create({
+    const company = await this.prisma.company.create({
       data: {
         ...createCustomerDto,
         organization_id: orgId,
       },
     });
-    return this.mapCompanyRelations(customer);
+    return this.mapCompanyRelations(company);
   }
 
   async findAll(orgId: string, query?: PaginationQueryDto) {
@@ -37,13 +37,13 @@ export class CustomersService {
       const page = Number(query.page);
       const limit = Number(query.limit);
       const [data, total] = await Promise.all([
-        this.prisma.customer.findMany({
+        this.prisma.company.findMany({
           where,
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
           take: limit
         }),
-        this.prisma.customer.count({ where })
+        this.prisma.company.count({ where })
       ]);
       return {
         data: data.map((item: any) => this.mapCompanyRelations(item)),
@@ -51,42 +51,42 @@ export class CustomersService {
       };
     }
 
-    const customers = await this.prisma.customer.findMany({
+    const companies = await this.prisma.company.findMany({
       where,
       orderBy: { created_at: 'desc' }
     });
-    return customers.map((item: any) => this.mapCompanyRelations(item));
+    return companies.map((item: any) => this.mapCompanyRelations(item));
   }
 
   async findOne(id: string, orgId: string) {
-    const customer = await this.prisma.customer.findUnique({
+    const company = await this.prisma.company.findUnique({
       where: { id },
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
         assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_url: true } }
       }
     });
-    if (!customer || customer.organization_id !== orgId) {
+    if (!company || company.organization_id !== orgId) {
       throw new NotFoundException('Company no encontrada');
     }
-    return this.mapCompanyRelations(customer);
+    return this.mapCompanyRelations(company);
   }
 
   async update(id: string, updateCustomerDto: UpdateCustomerDto, orgId: string) {
-    const existingCustomer = await this.findOne(id, orgId);
-    const customer = await this.prisma.customer.update({
-      where: { id: existingCustomer.id },
+    const existingCompany = await this.findOne(id, orgId);
+    const company = await this.prisma.company.update({
+      where: { id: existingCompany.id },
       data: updateCustomerDto,
     });
-    return this.mapCompanyRelations(customer);
+    return this.mapCompanyRelations(company);
   }
 
   async remove(id: string, orgId: string) {
-    const existingCustomer = await this.findOne(id, orgId);
-    const customer = await this.prisma.customer.update({
-      where: { id: existingCustomer.id },
+    const existingCompany = await this.findOne(id, orgId);
+    const company = await this.prisma.company.update({
+      where: { id: existingCompany.id },
       data: { is_active: false },
     });
-    return this.mapCompanyRelations(customer);
+    return this.mapCompanyRelations(company);
   }
 }

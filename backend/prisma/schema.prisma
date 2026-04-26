@@ -63,7 +63,7 @@ model Organization {
   users       User[]
   assets      Asset[]
   services    Service[]
-  customers   Customer[]
+  companies   Company[]
   invitations Invitation[]
 
   @@index([is_active])
@@ -82,7 +82,7 @@ model User {
   name            String
   phone           String?
   avatar_url      String?
-  customer_id     String?
+  company_id      String?
   is_active       Boolean   @default(true)
   last_login_at   DateTime?
 
@@ -91,7 +91,7 @@ model User {
 
   // Relaciones
   organization        Organization?       @relation(fields: [organization_id], references: [id])
-  customer            Customer?           @relation(fields: [customer_id], references: [id])
+  company             Company?            @relation(fields: [company_id], references: [id])
   services_created    Service[]           @relation("ServiceWorker")
   worker_asset_access WorkerAssetAccess[] @relation("GrantedToWorker")
   access_granted_w    WorkerAssetAccess[] @relation("GrantedByAdminW")
@@ -118,7 +118,7 @@ model Asset {
   location        String? // Ubicación textual o coordenadas
   thumbnail_url   String?
   serial_number   String? // Número de serie o matrícula (opcional)
-  customer_id     String?
+  company_id      String?
   is_active       Boolean @default(true)
 
   created_at DateTime @default(now())
@@ -126,7 +126,7 @@ model Asset {
 
   // Relaciones
   organization  Organization        @relation(fields: [organization_id], references: [id])
-  customer      Customer?           @relation(fields: [customer_id], references: [id])
+  company       Company?            @relation(fields: [company_id], references: [id])
   services      Service[]
   worker_access WorkerAssetAccess[]
 
@@ -188,7 +188,7 @@ model ServiceAttachment {
 // CUSTOMER — Empresa Cliente
 // ─────────────────────────────────────────
 
-model Customer {
+model Company {
   id              String  @id @default(uuid())
   organization_id String
   name            String

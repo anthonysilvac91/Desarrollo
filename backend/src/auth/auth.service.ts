@@ -37,8 +37,8 @@ export class AuthService {
       sub: user.id,
       orgId: user.organization_id,
       role: user.role,
-      customer_id: user.customer_id,
-      company_id: user.customer_id,
+      customer_id: user.company_id,
+      company_id: user.company_id,
     };
 
     this.logger.log(`User ${user.id} logged in successfully`);
@@ -78,8 +78,8 @@ export class AuthService {
         sub: user.id,
         orgId: user.organization_id,
         role: user.role,
-        customer_id: user.customer_id,
-        company_id: user.customer_id,
+        customer_id: user.company_id,
+        company_id: user.company_id,
       };
 
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);

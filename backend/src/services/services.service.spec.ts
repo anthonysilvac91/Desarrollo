@@ -27,7 +27,7 @@ describe('ServicesService.create - Auto Publish Logic', () => {
     prisma = module.get<PrismaService>(PrismaService);
   });
 
-  it('Debería setear is_public = true si la Organization tiene auto_publish_services = true', async () => {
+  it('Deberia setear is_public = true si la Organization tiene auto_publish_services = true', async () => {
     jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
       id: 'org-1',
       auto_publish_services: true,
@@ -49,7 +49,7 @@ describe('ServicesService.create - Auto Publish Logic', () => {
     }));
   });
 
-  it('Debería setear is_public = false si la Organization define visibilidad restringida', async () => {
+  it('Deberia setear is_public = false si la Organization define visibilidad restringida', async () => {
     jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
       id: 'org-1',
       auto_publish_services: false,
@@ -68,7 +68,7 @@ describe('ServicesService.create - Auto Publish Logic', () => {
   });
 
   describe('findAll - Role-based Scoping and Tenant Isolation', () => {
-    it('Debería forzar organization_id para cualquier rol (Aislamiento Multi-tenant)', async () => {
+    it('Deberia forzar organization_id para cualquier rol (Aislamiento Multi-tenant)', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
       await service.findAll({}, { id: 'worker-1', orgId: 'org-tenant-xx', role: 'WORKER' });
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -76,41 +76,40 @@ describe('ServicesService.create - Auto Publish Logic', () => {
       }));
     });
 
-    it('Debería inyectar is_public = true y status = COMPLETED obligatoriamente si es CLIENT', async () => {
+    it('Deberia inyectar is_public = true y status = COMPLETED obligatoriamente si es CLIENT', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      await service.findAll({}, { id: 'client-1', orgId: 'org-tenant-xx', role: 'CLIENT', customer_id: 'cust-123' });
+      await service.findAll({}, { id: 'client-1', orgId: 'org-tenant-xx', role: 'CLIENT', company_id: 'cust-123' });
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ 
+        where: expect.objectContaining({
           organization_id: 'org-tenant-xx',
           is_public: true,
           status: 'COMPLETED',
-          asset: { customer_id: 'cust-123' }
+          asset: { company_id: 'cust-123' }
         })
       }));
     });
 
-    it('Un CLIENT no debería ver servicios de otros clientes aunque compartan Organización', async () => {
+    it('Un CLIENT no deberia ver servicios de otras companies aunque compartan Organizacion', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      const myCustomerId = 'empresa-a';
-      
-      await service.findAll({}, { id: 'user-a', orgId: 'org-1', role: 'CLIENT', customer_id: myCustomerId });
-      
-      // Verificamos que el filtro de activo por customer_id esté presente y sea el correcto
+      const myCompanyId = 'empresa-a';
+
+      await service.findAll({}, { id: 'user-a', orgId: 'org-1', role: 'CLIENT', company_id: myCompanyId });
+
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          asset: { customer_id: myCustomerId }
+          asset: { company_id: myCompanyId }
         })
       }));
     });
   });
 
   describe('update (Admin flow)', () => {
-    it('Debería permitir al Admin actualizar un servicio y setear admin_intervened = true', async () => {
+    it('Deberia permitir al Admin actualizar un servicio y setear admin_intervened = true', async () => {
       jest.spyOn(prisma.service, 'findUnique').mockResolvedValue({ id: 'service-1', organization_id: 'org-1' } as any);
       jest.spyOn(prisma.service, 'update').mockResolvedValue({} as any);
-      
+
       await service.update('service-1', { title: 'Nuevo', status: 'ARCHIVED' }, 'org-1');
-      
+
       expect(prisma.service.update).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: 'service-1' },
         data: expect.objectContaining({ title: 'Nuevo', status: 'ARCHIVED', admin_intervened: true })

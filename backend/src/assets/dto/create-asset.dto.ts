@@ -32,10 +32,10 @@ export class CreateAssetDto {
   @IsOptional()
   serial_number?: string;
 
-  @ApiPropertyOptional({ description: 'ID de la empresa cliente asignada al activo.' })
+  @ApiPropertyOptional({ description: 'ID de la company asignada al activo.' })
   @IsString()
   @IsOptional()
-  customer_id?: string;
+  company_id?: string;
 
   @ApiPropertyOptional({ description: 'ID de la organización (opcional, defaults a la del usuario).' })
   @IsString()

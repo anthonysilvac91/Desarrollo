@@ -80,7 +80,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           role: formData.role,
           password: formData.password,
         };
-        if (formData.company_id) payload.customer_id = formData.company_id;
+        if (formData.company_id) payload.company_id = formData.company_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }

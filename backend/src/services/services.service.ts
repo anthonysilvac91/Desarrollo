@@ -23,8 +23,10 @@ export class ServicesService {
       ...service,
       asset: {
         ...service.asset,
-        company_id: service.asset.customer_id ?? null,
-        company: service.asset.customer ?? null,
+        company_id: service.asset.company_id ?? service.asset.customer_id ?? null,
+        company: service.asset.company ?? service.asset.customer ?? null,
+        customer_id: service.asset.company_id ?? service.asset.customer_id ?? null,
+        customer: service.asset.company ?? service.asset.customer ?? null,
       }
     };
   }
@@ -113,7 +115,7 @@ export class ServicesService {
     if (user.role === 'CLIENT') {
       whereClause.is_public = true;
       whereClause.status = 'COMPLETED';
-      whereClause.asset = { customer_id: user.customer_id };
+      whereClause.asset = { company_id: user.company_id ?? user.customer_id };
     }
 
     if (query.search) {
@@ -132,7 +134,7 @@ export class ServicesService {
           where: whereClause,
           include: {
             worker: { select: { id: true, name: true } },
-            asset: { select: { id: true, name: true, location: true, customer_id: true, customer: { select: { id: true, name: true } } } },
+            asset: { select: { id: true, name: true, location: true, company_id: true, company: { select: { id: true, name: true } } } },
             attachments: { select: { file_url: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
@@ -151,7 +153,7 @@ export class ServicesService {
       where: whereClause,
       include: { 
         worker: { select: { id: true, name: true } },
-        asset: { select: { id: true, name: true, location: true, customer_id: true, customer: { select: { id: true, name: true } } } },
+        asset: { select: { id: true, name: true, location: true, company_id: true, company: { select: { id: true, name: true } } } },
         attachments: { select: { file_url: true, file_type: true } },
       },
       orderBy: { created_at: 'desc' }
@@ -180,7 +182,7 @@ export class ServicesService {
       include: {
         attachments: true,
         worker: { select: { name: true, id: true } },
-        asset: { select: { name: true, id: true, category: true, customer_id: true, location: true, customer: { select: { id: true, name: true } } } }
+        asset: { select: { name: true, id: true, category: true, company_id: true, location: true, company: { select: { id: true, name: true } } } }
       }
     });
 
@@ -197,7 +199,8 @@ export class ServicesService {
         throw new ForbiddenException('No tienes permiso para ver este servicio privado');
       }
 
-      if (service.asset.customer_id !== user.customer_id) {
+      const currentCompanyId = user.company_id ?? user.customer_id;
+      if (service.asset.company_id !== currentCompanyId) {
         throw new NotFoundException('Service no encontrado o acceso denegado');
       }
     }
