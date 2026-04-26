@@ -11,4 +11,9 @@ export class CreateCompanyDto {
   @IsBoolean()
   @IsOptional()
   is_active?: boolean;
+
+  @ApiProperty({ description: 'URL del logo de la company', required: false })
+  @IsString()
+  @IsOptional()
+  logo_url?: string;
 }

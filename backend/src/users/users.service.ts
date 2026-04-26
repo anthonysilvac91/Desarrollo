@@ -5,7 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
-import { ensureNoManualFileUrl } from '../common/files/image-validation';
+import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 
 @Injectable()
 export class UsersService {
@@ -250,15 +250,51 @@ export class UsersService {
     return this.mapUserRelations(user);
   }
 
-  async update(id: string, dto: UpdateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
-    const user = await this.findOne(id, currentUser);
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    currentUser: { id: string; role: Role; orgId?: string },
+    avatarFile?: Express.Multer.File
+  ) {
+    const currentUserRecord = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        organization_id: true,
+        avatar_url: true,
+      },
+    });
+
+    if (!currentUserRecord) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (currentUser.role === Role.ADMIN && currentUserRecord.organization_id !== currentUser.orgId) {
+      throw new ForbiddenException('No tienes acceso a usuarios de otra organizaciÃ³n');
+    }
+
     ensureNoManualFileUrl(dto.avatar_url, 'Avatar de usuario');
 
+    let avatarUrl = currentUserRecord.avatar_url;
+
+    if (avatarFile) {
+      const detectedMime = validateImageFile(avatarFile, {
+        maxBytes: 2 * 1024 * 1024,
+        label: 'Avatar de usuario',
+      });
+      avatarFile.mimetype = detectedMime;
+
+      avatarUrl = await this.storageService.uploadFile(avatarFile, {
+        folder: `${currentUserRecord.organization_id ?? 'global'}/users/${currentUserRecord.id}/avatar`,
+        visibility: 'private',
+      });
+    }
+
     const updatedUser = await this.prisma.user.update({
-      where: { id: user.id },
+      where: { id: currentUserRecord.id },
       data: {
         ...dto,
-        avatar_url: undefined,
+        avatar_url: avatarUrl,
       },
       select: {
         id: true,
@@ -270,6 +306,10 @@ export class UsersService {
         is_active: true,
       }
     });
+
+    if (avatarFile && currentUserRecord.avatar_url && currentUserRecord.avatar_url !== updatedUser.avatar_url) {
+      await this.storageService.deleteFile(currentUserRecord.avatar_url);
+    }
 
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
   }

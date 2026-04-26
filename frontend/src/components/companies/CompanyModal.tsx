@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Building2, Loader2, ToggleLeft, ToggleRight } from "lucide-react";
+import { X, Building2, Loader2, ToggleLeft, ToggleRight, Upload, ImageIcon } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { companiesService, CompanyFormData } from "@/services/companies.service";
@@ -17,6 +17,8 @@ export default function CompanyModal({ isOpen, onClose, onSuccess, companyToEdit
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<CompanyFormData>({
     name: "",
@@ -30,8 +32,12 @@ export default function CompanyModal({ isOpen, onClose, onSuccess, companyToEdit
           name: companyToEdit.name || "",
           is_active: companyToEdit.is_active ?? true,
         });
+        setLogoFile(null);
+        setLogoPreview(companyToEdit.logo_url || null);
       } else {
         setFormData({ name: "", is_active: true });
+        setLogoFile(null);
+        setLogoPreview(null);
       }
     }
   }, [isOpen, companyToEdit]);
@@ -42,11 +48,18 @@ export default function CompanyModal({ isOpen, onClose, onSuccess, companyToEdit
     e.preventDefault();
     setLoading(true);
     try {
+      const payload = new FormData();
+      payload.append("name", formData.name);
+      payload.append("is_active", String(formData.is_active ?? true));
+      if (logoFile) {
+        payload.append("logo", logoFile);
+      }
+
       if (companyToEdit) {
-        await companiesService.update(companyToEdit.id, formData);
+        await companiesService.update(companyToEdit.id, payload);
         showToast(t.clients.states.update_success, "success");
       } else {
-        await companiesService.create(formData);
+        await companiesService.create(payload);
         showToast(t.clients.states.save_success, "success");
       }
       onSuccess();
@@ -84,6 +97,37 @@ export default function CompanyModal({ isOpen, onClose, onSuccess, companyToEdit
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto">
+          <div className="flex justify-center pb-2">
+            <div className="relative group">
+              <div className="w-28 h-28 rounded-[32px] bg-app-bg border border-border-theme/40 flex items-center justify-center overflow-hidden shadow-sm">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="" className="w-full h-full object-contain p-3" />
+                ) : (
+                  <div className="flex flex-col items-center text-subtitle/30">
+                    <ImageIcon className="w-9 h-9 mb-1" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Logo</span>
+                  </div>
+                )}
+              </div>
+              <label className="absolute -bottom-2 -right-2 bg-brand text-white p-3 rounded-2xl shadow-lg cursor-pointer hover:scale-105 active:scale-95 transition-all">
+                <Upload className="w-4 h-4" />
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setLogoFile(file);
+                    const reader = new FileReader();
+                    reader.onloadend = () => setLogoPreview(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
               {t.clients.modal.full_name} <span className="text-error">*</span>

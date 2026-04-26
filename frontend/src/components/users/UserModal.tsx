@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2 } from "lucide-react";
+import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2, Camera } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { usersService } from "@/services/users.service";
@@ -30,6 +30,8 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -55,8 +57,12 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           role: userToEdit.role || "WORKER",
           password: ""
         });
+        setAvatarFile(null);
+        setAvatarPreview(userToEdit.avatar_url || null);
       } else {
         setFormData({ name: "", email: "", company_id: "", role: "WORKER", password: "" });
+        setAvatarFile(null);
+        setAvatarPreview(null);
       }
     }
   }, [isOpen, userToEdit]);
@@ -68,10 +74,13 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
     setLoading(true);
     try {
       if (isEditMode) {
-        await usersService.update(userToEdit.id, {
-          name: formData.name,
-          email: formData.email,
-        });
+        const payload = new FormData();
+        payload.append("name", formData.name);
+        payload.append("email", formData.email);
+        if (avatarFile) {
+          payload.append("avatar", avatarFile);
+        }
+        await usersService.update(userToEdit.id, payload);
         showToast(t.users.states.update_success, "success");
       } else {
         const payload: any = {
@@ -101,6 +110,13 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
     }
   };
 
+  const userInitials = (formData.name || userToEdit?.name || "U")
+    .split(" ")
+    .map((chunk: string) => chunk[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
@@ -125,6 +141,36 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto">
+          {isEditMode && (
+            <div className="flex justify-center">
+              <div className="relative group">
+                <div className="w-28 h-28 rounded-[32px] bg-brand/5 border border-border-theme/40 flex items-center justify-center overflow-hidden shadow-sm">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-black text-brand">{userInitials}</span>
+                  )}
+                </div>
+                <label className="absolute -bottom-2 -right-2 bg-brand text-white p-3 rounded-2xl shadow-lg cursor-pointer hover:scale-105 active:scale-95 transition-all">
+                  <Camera className="w-4 h-4" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setAvatarFile(file);
+                      const reader = new FileReader();
+                      reader.onloadend = () => setAvatarPreview(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.full_name}</label>
             <div className="relative group">

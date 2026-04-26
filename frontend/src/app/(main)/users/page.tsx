@@ -87,8 +87,12 @@ export default function UsersPage() {
       header: t.users.table.name,
       cell: (item) => (
         <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0 font-black text-xs border border-brand/5">
-            {item.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+          <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0 font-black text-xs border border-brand/5 overflow-hidden">
+            {item.avatar_url ? (
+              <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              item.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+            )}
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-title text-sm tracking-tight">{item.name}</span>

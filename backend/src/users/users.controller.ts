@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Query, Param, UseGuards, Request, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Query, Param, UseGuards, Request, ForbiddenException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { Role } from '@prisma/client';
@@ -7,6 +7,7 @@ import { UserResponseDto } from './dto/users.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Users Management')
 @ApiBearerAuth()
@@ -51,13 +52,16 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('avatar'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar perfil de usuario' })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ type: UserResponseDto })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @Request() req: any
+    @Request() req: any,
+    @UploadedFile() avatar?: Express.Multer.File
   ) {
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar usuarios');
@@ -66,7 +70,7 @@ export class UsersController {
       id: req.user.id,
       role: req.user.role,
       orgId: req.user.orgId,
-    });
+    }, avatar);
   }
 
   @Patch(':id/status')

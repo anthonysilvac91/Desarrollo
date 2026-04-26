@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('companies')
 @ApiBearerAuth()
@@ -14,12 +15,14 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   @Post()
+  @UseInterceptors(FileInterceptor('logo'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Crear una company' })
-  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req) {
+  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para crear companies');
     }
-    return this.companiesService.create(createCompanyDto, req.user.orgId);
+    return this.companiesService.create(createCompanyDto, req.user.orgId, logo);
   }
 
   @Get()
@@ -41,12 +44,14 @@ export class CompaniesController {
   }
 
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('logo'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar una company' })
-  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req) {
+  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar companies');
     }
-    return this.companiesService.update(id, updateCompanyDto, req.user.orgId);
+    return this.companiesService.update(id, updateCompanyDto, req.user.orgId, logo);
   }
 
   @Delete(':id')

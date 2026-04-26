@@ -192,6 +192,7 @@ model Company {
   id              String  @id @default(uuid())
   organization_id String
   name            String
+  logo_url        String?
   is_active       Boolean @default(true)
 
   created_at DateTime @default(now())

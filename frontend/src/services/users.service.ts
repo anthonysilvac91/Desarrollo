@@ -16,6 +16,8 @@ export interface User {
   created_at: string;
 }
 
+type UserUpdatePayload = FormData | Partial<Pick<User, "name" | "email" | "phone">>;
+
 export const usersService = {
   findAll: async (params?: { role?: string, page?: number, limit?: number, search?: string }): Promise<any> => {
     const res = await api.get("/users", { params });
@@ -32,8 +34,11 @@ export const usersService = {
     return res.data;
   },
 
-  update: async (id: string, data: any): Promise<User> => {
-    const res = await api.patch(`/users/${id}`, data);
+  update: async (id: string, data: UserUpdatePayload): Promise<User> => {
+    const config = data instanceof FormData
+      ? { headers: { "Content-Type": "multipart/form-data" } }
+      : undefined;
+    const res = await api.patch(`/users/${id}`, data, config);
     return res.data;
   },
 
