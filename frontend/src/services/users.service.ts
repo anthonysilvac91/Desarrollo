@@ -6,9 +6,11 @@ export interface User {
   email: string;
   role: "SUPER_ADMIN" | "ADMIN" | "WORKER" | "CLIENT";
   organization_id: string | null;
+  company_id?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
-  customer?: { name: string };
+  company?: { id?: string; name: string } | null;
+  customer?: { id?: string; name: string } | null;
   is_active: boolean;
   last_login_at?: string | null;
   created_at: string;

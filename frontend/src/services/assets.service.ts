@@ -13,7 +13,15 @@ export interface Service {
   created_at: string;
   attachments: ServiceAttachment[];
   worker: { name: string; id: string };
-  asset?: { name: string; id: string; category?: string };
+  asset?: {
+    name: string;
+    id: string;
+    category?: string;
+    location?: string;
+    company_id?: string | null;
+    company?: { id: string; name: string } | null;
+    customer?: { id: string; name: string } | null;
+  };
 }
 
 export interface Asset {
@@ -28,14 +36,23 @@ export interface Asset {
   client_access?: {
     client: { id: string; name: string };
   }[];
+  company_id?: string | null;
+  company?: {
+    id: string;
+    name: string;
+    action_type?: string;
+  } | null;
   customer?: {
     id: string;
     name: string;
     action_type?: string;
-  };
+  } | null;
   last_service?: {
     date: string;
     type?: string;
+  };
+  _count?: {
+    services: number;
   };
   services?: Service[];
 }
@@ -62,8 +79,8 @@ export const assetsService = {
     return res.data;
   },
 
-  assignClient: async (assetId: string, clientId: string) => {
-    const res = await api.post(`/assets/${assetId}/clients/${clientId}`);
+  assignCompany: async (assetId: string, companyId: string) => {
+    const res = await api.post(`/assets/${assetId}/companies/${companyId}`);
     return res.data;
   },
 
@@ -83,5 +100,9 @@ export const assetsService = {
     const headers = data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {};
     const res = await api.patch(`/assets/${id}`, data, { headers });
     return res.data;
-  }
+  },
+
+  assignClient: async (assetId: string, clientId: string) => {
+    return assetsService.assignCompany(assetId, clientId);
+  },
 };

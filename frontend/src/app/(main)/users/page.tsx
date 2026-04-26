@@ -125,7 +125,7 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">{item.customer?.name || "Recall Organization"}</span>
+          <span className="font-semibold text-sm">{item.company?.name || item.customer?.name || "Recall Organization"}</span>
         </div>
       )
     },

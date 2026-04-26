@@ -8,6 +8,7 @@ interface UserDisplay {
   name: string;
   email: string;
   role: string;
+  company?: { name: string };
   customer?: { name: string };
   status: "Active" | "Inactive";
   last_access: string;
@@ -87,7 +88,7 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
               </div>
               <div>
                 <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest block mb-0.5">Empresa / Origen</span>
-                <span className="text-[15px] font-bold text-title">{user.customer?.name || "Recall Organization"}</span>
+                <span className="text-[15px] font-bold text-title">{user.company?.name || user.customer?.name || "Recall Organization"}</span>
               </div>
             </div>
 

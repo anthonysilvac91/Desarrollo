@@ -89,7 +89,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           <div className="flex flex-col space-y-1">
             <h2 className="text-3xl font-black text-title tracking-tight mb-1">{currentAsset.name}</h2>
             <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
-              {currentAsset.customer?.name || "No Client"}
+              {currentAsset.company?.name || currentAsset.customer?.name || "No Client"}
             </span>
           </div>
         </div>

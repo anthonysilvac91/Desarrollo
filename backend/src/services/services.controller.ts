@@ -21,6 +21,9 @@ export class ServicesController {
     storage: memoryStorage(),
   }))
   create(@Body() createServiceDto: CreateServiceDto, @Request() req, @UploadedFiles() files: Express.Multer.File[]) {
+    if (!['ADMIN', 'WORKER'].includes(req.user.role)) {
+      throw new ForbiddenException('No tienes permiso para registrar servicios');
+    }
     return this.servicesService.create(createServiceDto, req.user, files);
   }
 
@@ -48,6 +51,9 @@ export class ServicesController {
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un servicio', description: 'Elimina un servicio de forma permanente.' })
   remove(@Param('id') id: string, @Request() req) {
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('No tienes permiso para eliminar servicios');
+    }
     return this.servicesService.remove(id, req.user);
   }
 }

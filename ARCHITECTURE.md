@@ -1,47 +1,49 @@
 # Arquitectura del MVP: Recall
 
-Este documento describe la visión técnica, los componentes y las reglas fundamentales que sostienen el MVP de Recall.
+Este documento describe la vision tecnica, los componentes y las reglas fundamentales del MVP de Recall.
 
-## 1. Visión General
-Recall es una plataforma SaaS multitenant diseñada para la gestión de mantenimiento de activos (yates, maquinaria, vehículos, etc.). Permite a las empresas operadoras (`Organizations`) registrar servicios realizados por trabajadores y compartirlos con clientes finales.
+## 1. Vision General
+Recall es una plataforma SaaS multitenant para la gestion de mantenimiento de activos. `Organization` es el tenant raiz. Cada organization administra su equipo interno y sus `Companies`, que representan empresas cliente a las que se asocian usuarios y activos.
 
 ## 2. Actores y Permisos
-El sistema utiliza un modelo de Control de Acceso Basado en Roles (RBAC) con aislamiento por Organización.
+El sistema usa un modelo RBAC con aislamiento por organization.
 
-| Actor | Descripción | Alcance |
+| Actor | Descripcion | Alcance |
 | :--- | :--- | :--- |
-| **SUPER_ADMIN** | Administrador Maestro | Control global de Organizaciones. No pertenece a ninguna org. puede crear/suspender tenants. |
-| **ADMIN** | Gerente de Organización | Gestión total dentro de su Org: Usuarios, Invitaciones, Assets y Services. |
-| **WORKER** | Operario / Técnico | Principal ejecutor. Registra `Services` en la App móvil y consulta historial de `Assets`. |
-| **CLIENT** | Dueño / Cliente Final | Usuario consultivo. Solo ve `Assets` vinculados y `Services` marcados como públicos. |
+| **SUPER_ADMIN** | Administrador maestro | Control global de organizations. No pertenece a ninguna org y puede crear o suspender tenants. |
+| **ADMIN** | Gerente de organization | Gestion total dentro de su org: usuarios, invitaciones, companies, assets y services. |
+| **WORKER** | Operario / tecnico | Principal ejecutor. Registra `Services` en la app operativa y consulta historial de `Assets`. |
+| **CLIENT** | Usuario de company | Persona asociada a una `Company`. Solo ve `Assets` vinculados a su company y `Services` marcados como publicos. |
 
-## 3. Stack Tecnológico
-- **Frontend Desktop**: Next.js 14+ (App Router), Tailwind CSS, React Query.
-- **Frontend Mobile**: Experiencia optimizada bajo la ruta `/app` enfocada en operatividad rápida.
-- **Backend**: NestJS (Framework progresivo de Node.js).
-- **Base de Datos**: PostgreSQL gestionado mediante Prisma ORM.
-- **Almacenamiento (Storage)**:
-    - **Desarrollo**: Local (`/uploads`).
-    - **Producción**: Supabase Storage (Abstraído mediante `StorageService`).
+## 3. Stack Tecnologico
+- **Frontend Desktop**: Next.js (App Router), Tailwind CSS, React Query
+- **Frontend Mobile**: experiencia optimizada bajo la ruta `/app`
+- **Backend**: NestJS
+- **Base de Datos**: PostgreSQL gestionado mediante Prisma ORM
+- **Storage**:
+  - **Desarrollo**: local (`/uploads`)
+  - **Produccion**: Supabase Storage mediante `StorageService`
 
 ## 4. Multi-tenancy y Aislamiento
-Recall utiliza una arquitectura de **Base de Datos Compartida con Esquema Compartido**. El aislamiento es lógico mediante la columna `organization_id` en todas las tablas críticas.
+Recall utiliza una arquitectura de base de datos compartida con esquema compartido. El aislamiento es logico mediante la columna `organization_id` en las tablas criticas.
 
-- **Filtro Global**: El backend aplica guards y filtros en los servicios para asegurar que un `ADMIN` o `WORKER` nunca acceda a datos de otra organización.
-- **Visibilidad de Clientes**: Los clientes tienen un segundo nivel de aislamiento donde solo ven `Assets` que tienen un registro explícito en la tabla `ClientAssetAccess`.
+- **Filtro global**: el backend aplica guards y filtros para asegurar que un `ADMIN` o `WORKER` nunca acceda a datos de otra organization.
+- **Companies**: la entidad persistida hoy sigue llamandose `Customer`, pero a nivel de dominio representa una `Company`.
+- **Usuarios externos**: el rol `CLIENT` se mantiene por compatibilidad tecnica, pero conceptualmente representa a un usuario asociado a una `Company`.
+- **Visibilidad de usuarios de company**: los usuarios externos solo ven `Assets` y `Services` asociados a su company.
 
-## 5. Flujo de Datos Crítico
+## 5. Flujo de Datos Critico
 ### Registro de un `Service`
 1. El **Worker** abre la ruta `/app/assets/[id]/new-service`.
-2. Completa datos y adjunta fotos (Multipart/form-data).
-3. El **Backend** procesa las imágenes mediante `StorageService`.
+2. Completa datos y adjunta fotos (`multipart/form-data`).
+3. El **Backend** procesa las imagenes mediante `StorageService`.
 4. Se crea el registro en la DB.
-5. Si la organización tiene `auto_publish_services: true`, el **Client** recibe visibilidad inmediata.
+5. Si la organization tiene `auto_publish_services: true`, el usuario de la **Company** recibe visibilidad inmediata.
 
-## 6. Autenticación y Sesión
-- **Mecanismo**: JWT (JSON Web Tokens).
-- **Frontend**: El `AuthContext.tsx` es la fuente de verdad. Almacena el token en `localStorage` / `Cookies` y gestiona las redirecciones según el rol.
-- **Backend**: `AuthGuard` (Passport JWT) protege los endpoints y extrae el `organization_id` y `role` del payload del token para su uso en la lógica de negocio.
+## 6. Autenticacion y Sesion
+- **Mecanismo**: JWT
+- **Frontend**: `AuthContext.tsx` es la fuente de verdad. Almacena token en `localStorage` / cookies y gestiona redirecciones segun el rol.
+- **Backend**: `AuthGuard` protege endpoints y extrae `organization_id`, `role` y `customer_id` del token para la logica de negocio.
 
 ---
 [Ir a Contratos API (API_CONTRACTS.md)](API_CONTRACTS.md) | [Volver al README](README.md)

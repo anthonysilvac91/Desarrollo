@@ -31,7 +31,7 @@ export default function WorkerHomePage() {
   const filteredAssets = assets.filter((asset: any) => 
     asset.name.toLowerCase().includes(search.toLowerCase()) ||
     (asset.location?.toLowerCase().includes(search.toLowerCase())) ||
-    (asset.customer?.name?.toLowerCase().includes(search.toLowerCase()))
+    ((asset.company?.name || asset.customer?.name || "").toLowerCase().includes(search.toLowerCase()))
   );
 
   if (isLoading) {
@@ -109,7 +109,7 @@ export default function WorkerHomePage() {
                  <span className="truncate">{asset.location}</span>
                </div>
                <div className="text-[10px] font-black text-brand uppercase tracking-widest mt-1">
-                 {asset.customer?.name || t.common.unassigned}
+                 {asset.company?.name || asset.customer?.name || t.common.unassigned}
                </div>
             </div>
 

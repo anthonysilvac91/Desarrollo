@@ -68,7 +68,6 @@ export default function WorkerNewServicePage() {
       formData.append("title", title);
       formData.append("description", description);
       formData.append("asset_id", params.id as string);
-      formData.append("is_public", "true"); 
       
       images.forEach((img) => {
         formData.append("files", img.file);

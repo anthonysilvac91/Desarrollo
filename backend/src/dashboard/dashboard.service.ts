@@ -8,7 +8,7 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async getStats(
-    currentUser: { id: string; role: Role; orgId?: string; customer_id?: string },
+    currentUser: { id: string; role: Role; orgId?: string; customer_id?: string; company_id?: string },
     organizationId?: string,
     query?: { startDate?: string; endDate?: string }
   ): Promise<DashboardStatsDto> {
@@ -28,13 +28,14 @@ export class DashboardService {
 
     const isWorker = currentUser.role === Role.WORKER;
     const isClient = currentUser.role === Role.CLIENT;
+    const companyId = currentUser.company_id ?? currentUser.customer_id;
 
     let statsWhere: any = { ...baseWhere };
     if (isWorker) {
       statsWhere.worker_id = currentUser.id;
     } else if (isClient) {
       statsWhere.is_public = true;
-      statsWhere.asset = { customer_id: currentUser.customer_id };
+      statsWhere.asset = { customer_id: companyId };
     }
 
     // Filtros de fecha si se proveen
@@ -59,7 +60,7 @@ export class DashboardService {
     ] = await Promise.all([
       // Assets Count
       isClient
-        ? this.prisma.asset.count({ where: { ...baseWhere, customer_id: currentUser.customer_id } })
+        ? this.prisma.asset.count({ where: { ...baseWhere, customer_id: companyId } })
         : this.prisma.asset.count({ where: baseWhere }),
 
       // Services Count

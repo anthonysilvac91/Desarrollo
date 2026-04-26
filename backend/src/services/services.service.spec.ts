@@ -10,6 +10,8 @@ describe('ServicesService.create - Auto Publish Logic', () => {
   beforeEach(async () => {
     const prismaMock = {
       organization: { findUnique: jest.fn() },
+      asset: { findFirst: jest.fn() },
+      workerAssetAccess: { findUnique: jest.fn() },
       service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
 
@@ -29,8 +31,10 @@ describe('ServicesService.create - Auto Publish Logic', () => {
     jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
       id: 'org-1',
       auto_publish_services: true,
+      worker_restricted_access: false,
       worker_edit_policy: 'TIME_WINDOW',
     } as any);
+    jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
 
     jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
 
@@ -49,7 +53,9 @@ describe('ServicesService.create - Auto Publish Logic', () => {
     jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
       id: 'org-1',
       auto_publish_services: false,
+      worker_restricted_access: false,
     } as any);
+    jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-2' } as any);
 
     jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
 

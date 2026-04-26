@@ -5,12 +5,12 @@ import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2 } from "luc
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { usersService } from "@/services/users.service";
-import { customersService } from "@/services/customers.service";
+import { companiesService } from "@/services/companies.service";
 
 export interface UserFormData {
   name: string;
   email: string;
-  customer_id: string;
+  company_id: string;
   role: string;
   password?: string;
 }
@@ -33,30 +33,30 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    customer_id: "",
+    company_id: "",
     role: "WORKER",
     password: ""
   });
-  
-  const [customers, setCustomers] = useState<{id: string, name: string}[]>([]);
+
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      customersService.findAll().then((data: any) => {
+      companiesService.findAll().then((data: any) => {
         const list = Array.isArray(data) ? data : data.data || [];
-        setCustomers(list);
+        setCompanies(list);
       }).catch(() => {});
 
       if (userToEdit) {
         setFormData({
           name: userToEdit.name || "",
           email: userToEdit.email || "",
-          customer_id: userToEdit.customer_id || "",
+          company_id: userToEdit.company_id || userToEdit.customer_id || "",
           role: userToEdit.role || "WORKER",
           password: ""
         });
       } else {
-        setFormData({ name: "", email: "", customer_id: "", role: "WORKER", password: "" });
+        setFormData({ name: "", email: "", company_id: "", role: "WORKER", password: "" });
       }
     }
   }, [isOpen, userToEdit]);
@@ -68,35 +68,32 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
     setLoading(true);
     try {
       if (isEditMode) {
-        const { password, ...updateData } = formData;
-        // Omit empty customer_id to avoid UUID validator rejection
-        if (!updateData.customer_id) delete (updateData as any).customer_id;
-        await usersService.update(userToEdit.id, updateData);
+        await usersService.update(userToEdit.id, {
+          name: formData.name,
+          email: formData.email,
+        });
         showToast(t.users.states.update_success, "success");
       } else {
-        // Build clean payload: omit empty optional fields
         const payload: any = {
           name: formData.name,
           email: formData.email,
           role: formData.role,
           password: formData.password,
         };
-        if (formData.customer_id) payload.customer_id = formData.customer_id;
+        if (formData.company_id) payload.customer_id = formData.company_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }
       onSuccess();
       onClose();
     } catch (error: any) {
-      // Extract backend validation message if available
       const backendMsg =
         error?.response?.data?.message ||
         (Array.isArray(error?.response?.data?.message)
           ? error.response.data.message.join(", ")
           : null);
       showToast(
-        backendMsg ||
-        (isEditMode ? t.users.states.error_update : t.users.states.error_invite),
+        backendMsg || (isEditMode ? t.users.states.error_update : t.users.states.error_invite),
         "error"
       );
     } finally {
@@ -106,11 +103,11 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div 
+      <div
         className="absolute inset-0 bg-title/40 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
-      
+
       <div className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 max-h-[90vh] flex flex-col">
         <div className="px-8 pt-10 pb-6 flex justify-between items-center border-b border-gray-50 flex-shrink-0">
           <div>
@@ -119,7 +116,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </h2>
             <p className="text-subtitle/50 text-xs font-bold uppercase tracking-widest mt-1">{t.users.modal.subtitle}</p>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="w-12 h-12 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center text-subtitle transition-all flex-shrink-0"
           >
@@ -128,7 +125,6 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto">
-          {/* Name */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.full_name}</label>
             <div className="relative group">
@@ -146,7 +142,6 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
-          {/* Email */}
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.email}</label>
             <div className="relative group">
@@ -164,8 +159,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
-          {/* Company — solo si rol es CLIENT */}
-          {formData.role === "CLIENT" && (
+          {!isEditMode && formData.role === "CLIENT" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
               <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
               <div className="relative group">
@@ -175,11 +169,11 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                 <select
                   required
                   className="block w-full pl-14 pr-10 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm appearance-none"
-                  value={formData.customer_id}
-                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                  value={formData.company_id}
+                  onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
                 >
                   <option value="" disabled>Selecciona una empresa...</option>
-                  {customers.map((c) => (
+                  {companies.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -190,52 +184,52 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           )}
 
-          {/* Role */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.role}</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className="w-full px-6 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold text-sm flex items-center justify-between focus:outline-none focus:border-brand transition-all"
-              >
-                <span>{formData.role}</span>
-                <ChevronDown className={`w-4 h-4 text-subtitle transition-transform duration-300 ${isRoleDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
+          {!isEditMode && (
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.role}</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                  className="w-full px-6 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold text-sm flex items-center justify-between focus:outline-none focus:border-brand transition-all"
+                >
+                  <span>{formData.role}</span>
+                  <ChevronDown className={`w-4 h-4 text-subtitle transition-transform duration-300 ${isRoleDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
 
-              {isRoleDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsRoleDropdownOpen(false)} />
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border-theme/40 rounded-2xl shadow-2xl z-20 py-2 animate-in fade-in zoom-in-95 duration-200">
-                    {[
-                      { id: "ADMIN", label: "Administrador" },
-                      { id: "WORKER", label: "Operador/Trabajador" },
-                      { id: "CLIENT", label: "Usuario Final" }
-                    ].map((role) => (
-                      <button
-                        key={role.id}
-                        type="button"
-                        onClick={() => {
-                          setFormData({ ...formData, role: role.id });
-                          setIsRoleDropdownOpen(false);
-                        }}
-                        className={`w-full px-6 py-3 text-left text-sm font-bold transition-colors hover:bg-brand/5 ${
-                          formData.role === role.id ? "text-brand bg-brand/5" : "text-title/70"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{role.label}</span>
-                          {formData.role === role.id && <div className="w-1.5 h-1.5 rounded-full bg-brand" />}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+                {isRoleDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsRoleDropdownOpen(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border-theme/40 rounded-2xl shadow-2xl z-20 py-2 animate-in fade-in zoom-in-95 duration-200">
+                      {[
+                        { id: "ADMIN", label: "Administrador" },
+                        { id: "WORKER", label: "Operador/Trabajador" },
+                        { id: "CLIENT", label: "Usuario Final" }
+                      ].map((role) => (
+                        <button
+                          key={role.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, role: role.id });
+                            setIsRoleDropdownOpen(false);
+                          }}
+                          className={`w-full px-6 py-3 text-left text-sm font-bold transition-colors hover:bg-brand/5 ${
+                            formData.role === role.id ? "text-brand bg-brand/5" : "text-title/70"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{role.label}</span>
+                            {formData.role === role.id && <div className="w-1.5 h-1.5 rounded-full bg-brand" />}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Password — solo en modo creación */}
           {!isEditMode && (
             <div className="space-y-2">
               <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.password}</label>
@@ -248,7 +242,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-6 flex items-center text-subtitle/30 hover:text-brand transition-colors"
@@ -264,15 +258,12 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           )}
 
-          <button 
+          <button
             type="submit"
             disabled={loading}
             className="w-full py-5 bg-brand text-white rounded-[20px] text-lg font-black shadow-xl shadow-brand/20 hover:bg-brand/90 hover:scale-[1.01] active:scale-[0.99] transition-all mt-4 flex items-center justify-center"
           >
-            {loading
-              ? <Loader2 className="w-6 h-6 animate-spin" />
-              : (isEditMode ? t.users.modal.submit_edit : t.users.modal.submit)
-            }
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isEditMode ? t.users.modal.submit_edit : t.users.modal.submit)}
           </button>
         </form>
       </div>

@@ -29,7 +29,7 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de organización inválido' })
   organization_id?: string;
 
-  @ApiProperty({ required: false, description: 'ID de la empresa cliente (Opcional, solo si el rol es CLIENT)' })
+  @ApiProperty({ required: false, description: 'ID de la company asociada (Opcional, solo si el rol es CLIENT)' })
   @IsOptional()
   @IsUUID('4', { message: 'ID de cliente inválido' })
   customer_id?: string;

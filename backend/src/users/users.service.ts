@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -8,6 +8,36 @@ import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
+
+  private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any } {
+    return {
+      ...user,
+      company_id: user.customer_id ?? null,
+      company: user.customer ?? null,
+    };
+  }
+
+  private async ensureOrganizationExists(organizationId: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, is_active: true },
+    });
+
+    if (!organization || !organization.is_active) {
+      throw new BadRequestException('La organización indicada no existe o está inactiva');
+    }
+  }
+
+  private async ensureCustomerBelongsToOrganization(customerId: string, organizationId: string) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, organization_id: organizationId, is_active: true },
+      select: { id: true },
+    });
+
+    if (!customer) {
+      throw new BadRequestException('La company indicada no pertenece a la organización');
+    }
+  }
 
   async findAll(query: { role?: Role; organizationId?: string; search?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
     // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
@@ -74,7 +104,10 @@ export class UsersService {
         }),
         this.prisma.user.count({ where })
       ]);
-      return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+      return {
+        data: data.map((item: any) => this.mapUserRelations(item)),
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+      };
     }
 
     const users = await this.prisma.user.findMany({
@@ -83,7 +116,7 @@ export class UsersService {
       select: selectFields,
     });
 
-    return users;
+    return users.map((item: any) => this.mapUserRelations(item));
   }
 
   async findOne(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
@@ -102,6 +135,7 @@ export class UsersService {
         phone: true,
         avatar_url: true,
         customer_id: true,
+        customer: { select: { id: true, name: true } },
         is_active: true,
         last_login_at: true,
         created_at: true,
@@ -118,7 +152,7 @@ export class UsersService {
       throw new ForbiddenException('No tienes acceso a usuarios de otra organización');
     }
 
-    return user;
+    return this.mapUserRelations(user);
   }
 
   async create(dto: CreateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
@@ -132,6 +166,26 @@ export class UsersService {
       dto.organization_id = currentUser.orgId;
     } else if (currentUser.role !== Role.SUPER_ADMIN) {
       throw new ForbiddenException('No tienes permisos para crear usuarios');
+    }
+
+    if (dto.role === Role.SUPER_ADMIN) {
+      if (dto.organization_id || dto.customer_id) {
+        throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organización o company');
+      }
+    } else {
+      if (!dto.organization_id) {
+        throw new BadRequestException('Los usuarios no SUPER_ADMIN deben pertenecer a una organización');
+      }
+
+      await this.ensureOrganizationExists(dto.organization_id);
+    }
+
+    if (dto.customer_id) {
+      if (dto.role !== Role.CLIENT) {
+        throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
+      }
+
+      await this.ensureCustomerBelongsToOrganization(dto.customer_id, dto.organization_id!);
     }
 
     // 2. Verificar email duplicado en el mismo tenant (u org_id null para SuperAdmin)
@@ -172,7 +226,7 @@ export class UsersService {
       }
     });
 
-    return user;
+    return this.mapUserRelations(user);
   }
 
   async update(id: string, dto: UpdateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
@@ -192,7 +246,7 @@ export class UsersService {
       }
     });
 
-    return updatedUser;
+    return this.mapUserRelations(updatedUser);
   }
 
   async toggleStatus(id: string, currentUser: { id: string; role: Role; orgId?: string }) {

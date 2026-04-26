@@ -8,13 +8,22 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
+  private mapCompanyRelations<T extends Record<string, any>>(customer: T): T & { company_users?: any[]; company_assets?: any[] } {
+    return {
+      ...customer,
+      company_users: customer.users ?? undefined,
+      company_assets: customer.assets ?? undefined,
+    };
+  }
+
   async create(createCustomerDto: CreateCustomerDto, orgId: string) {
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: {
         ...createCustomerDto,
         organization_id: orgId,
       },
     });
+    return this.mapCompanyRelations(customer);
   }
 
   async findAll(orgId: string, query?: PaginationQueryDto) {
@@ -36,13 +45,17 @@ export class CustomersService {
         }),
         this.prisma.customer.count({ where })
       ]);
-      return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+      return {
+        data: data.map((item: any) => this.mapCompanyRelations(item)),
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+      };
     }
 
-    return this.prisma.customer.findMany({
+    const customers = await this.prisma.customer.findMany({
       where,
       orderBy: { created_at: 'desc' }
     });
+    return customers.map((item: any) => this.mapCompanyRelations(item));
   }
 
   async findOne(id: string, orgId: string) {
@@ -54,24 +67,26 @@ export class CustomersService {
       }
     });
     if (!customer || customer.organization_id !== orgId) {
-      throw new NotFoundException('Cliente no encontrado');
+      throw new NotFoundException('Company no encontrada');
     }
-    return customer;
+    return this.mapCompanyRelations(customer);
   }
 
   async update(id: string, updateCustomerDto: UpdateCustomerDto, orgId: string) {
-    const customer = await this.findOne(id, orgId);
-    return this.prisma.customer.update({
-      where: { id: customer.id },
+    const existingCustomer = await this.findOne(id, orgId);
+    const customer = await this.prisma.customer.update({
+      where: { id: existingCustomer.id },
       data: updateCustomerDto,
     });
+    return this.mapCompanyRelations(customer);
   }
 
   async remove(id: string, orgId: string) {
-    const customer = await this.findOne(id, orgId);
-    return this.prisma.customer.update({
-      where: { id: customer.id },
+    const existingCustomer = await this.findOne(id, orgId);
+    const customer = await this.prisma.customer.update({
+      where: { id: existingCustomer.id },
       data: { is_active: false },
     });
+    return this.mapCompanyRelations(customer);
   }
 }

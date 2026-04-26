@@ -59,7 +59,8 @@ export default function AssetsPage() {
   // Client and Category filtering is still local for the current page
   const filteredData = useMemo(() => {
     return rawAssets.filter((item: any) => {
-      const matchesClient = selectedClients.length === 0 || (item.customer && selectedClients.includes(item.customer.name));
+      const companyName = item.company?.name || item.customer?.name;
+      const matchesClient = selectedClients.length === 0 || (companyName && selectedClients.includes(companyName));
       const matchesCategory = selectedCategories.length === 0 || (item.category && selectedCategories.includes(item.category));
       return matchesClient && matchesCategory;
     });
@@ -129,7 +130,7 @@ export default function AssetsPage() {
       key: "client", 
       header: t.assets.table.client,
       cell: (item) => {
-        const clientName = item.customer?.name || "---";
+        const clientName = item.company?.name || item.customer?.name || "---";
         return <span className="font-bold text-subtitle/80 text-sm">{clientName}</span>;
       }
     },

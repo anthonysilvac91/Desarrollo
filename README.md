@@ -72,8 +72,16 @@ Todas las cuentas creadas por `seed` usan la contrasena `password123`.
 - **Super Admin**: `sys@recall.app`
 - **Admin (Oceanic)**: `admin@oceanic.app`
 - **Worker (Oceanic)**: `roberto@oceanic.app`
-- **Cliente Charter**: `gestor.charter@mail.com`
-- **Cliente Owners**: `propietario@mail.com`
+- **Usuario Company Charter**: `gestor.charter@mail.com`
+- **Usuario Company Owners**: `propietario@mail.com`
+
+## Dominio Oficial
+
+- `Organization` es el tenant raiz.
+- `Company` representa la empresa cliente de una organization.
+- `User` representa una persona.
+- El rol `CLIENT` se mantiene por compatibilidad tecnica, pero representa a un usuario asociado a una `Company`.
+- La API oficial para empresas cliente es `/companies`. La ruta `/customers` queda como alias legacy temporal.
 
 ## Nota Legacy
 

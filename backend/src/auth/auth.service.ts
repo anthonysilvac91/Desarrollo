@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
@@ -18,8 +18,8 @@ export class AuthService {
       where: {
         email: loginDto.email,
         ...(loginDto.organizationId ? { organization_id: loginDto.organizationId } : {}),
-        is_active: true
-      }
+        is_active: true,
+      },
     });
 
     if (!user) {
@@ -33,7 +33,14 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payload = { sub: user.id, orgId: user.organization_id, role: user.role, customer_id: user.customer_id };
+    const payload = {
+      sub: user.id,
+      orgId: user.organization_id,
+      role: user.role,
+      customer_id: user.customer_id,
+      company_id: user.customer_id,
+    };
+
     this.logger.log(`User ${user.id} logged in successfully`);
     return {
       access_token: this.jwtService.sign(payload),
@@ -42,7 +49,7 @@ export class AuthService {
 
   async register(registerDto: any) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { token: registerDto.token }
+      where: { token: registerDto.token },
     });
 
     if (!invitation) throw new UnauthorizedException('Token de invitación no válido');
@@ -59,19 +66,26 @@ export class AuthService {
           email: invitation.email,
           name: registerDto.name,
           password_hash: passwordHash,
-        }
+        },
       });
 
       await tx.invitation.update({
         where: { id: invitation.id },
-        data: { is_used: true }
+        data: { is_used: true },
       });
 
-      const payload = { sub: user.id, orgId: user.organization_id, role: user.role, customer_id: user.customer_id };
+      const payload = {
+        sub: user.id,
+        orgId: user.organization_id,
+        role: user.role,
+        customer_id: user.customer_id,
+        company_id: user.customer_id,
+      };
+
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
       return {
         access_token: this.jwtService.sign(payload),
-        user: { id: user.id, name: user.name, role: user.role, email: user.email }
+        user: { id: user.id, name: user.name, role: user.role, email: user.email },
       };
     });
   }
@@ -88,18 +102,16 @@ export class AuthService {
             brand_color: true,
             logo_url: true,
             default_asset_icon: true,
-          }
-        }
-      }
+          },
+        },
+      },
     });
 
     if (!user) {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password_hash, ...result } = user;
     return result;
   }
 }
-

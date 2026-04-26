@@ -8,12 +8,12 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
-import { customersService } from "@/services/customers.service";
+import { companiesService } from "@/services/companies.service";
 import { useAuth } from "@/lib/AuthContext";
 
 export interface AssetFormData {
   name: string;
-  customer_id: string;
+  company_id: string;
   location: string;
   photo: File | null;
 }
@@ -32,20 +32,20 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    customer_id: "",
+    company_id: "",
     location: "",
     photo: null as File | null,
   });
 
   const queryClient = useQueryClient();
 
-  const handleQuickCreateCustomer = async (name: string) => {
+  const handleQuickCreateCompany = async (name: string) => {
     try {
       setLoading(true);
-      const newCustomer = await customersService.create({ name });
+      const newCompany = await companiesService.create({ name });
       
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      setFormData(prev => ({ ...prev, customer_id: newCustomer.id }));
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      setFormData(prev => ({ ...prev, company_id: newCompany.id }));
       showToast("Empresa creada", "success");
     } catch (error) {
       console.error(error);
@@ -57,33 +57,33 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
   const [preview, setPreview] = useState<string | null>(null);
 
-  // Fetch real customers from the database
-  const { data: customersData = [] } = useQuery({
-    queryKey: ["customers"],
-    queryFn: () => customersService.findAll(),
+  // Fetch real companies from the database
+  const { data: companiesData = [] } = useQuery({
+    queryKey: ["companies"],
+    queryFn: () => companiesService.findAll(),
     enabled: isOpen
   });
   
-  const customers = Array.isArray(customersData) ? customersData : customersData.data || [];
+  const companies = Array.isArray(companiesData) ? companiesData : companiesData.data || [];
 
   // Hydrate form when editing
   React.useEffect(() => {
     if (isOpen && asset) {
       setFormData({
         name: asset.name || "",
-        customer_id: asset.customer?.id || "",
+        company_id: asset.company?.id || asset.customer?.id || "",
         location: asset.location || "",
         photo: null,
       });
       setPreview(asset.thumbnail_url || null);
     } else if (isOpen && !asset) {
       // Reset form if opening for creation
-      setFormData({ name: "", customer_id: "", location: "", photo: null });
+      setFormData({ name: "", company_id: "", location: "", photo: null });
       setPreview(null);
     }
   }, [isOpen, asset]);
 
-  const customerOptions = customers.map((c: any) => ({ id: c.id, name: c.name }));
+  const companyOptions = companies.map((c: any) => ({ id: c.id, name: c.name }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,8 +108,8 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       data.append("name", formData.name);
       data.append("location", formData.location);
       
-      if (formData.customer_id && formData.customer_id !== "") {
-        data.append("customer_id", formData.customer_id);
+      if (formData.company_id && formData.company_id !== "") {
+        data.append("customer_id", formData.company_id);
       }
 
       if (formData.photo) {
@@ -118,7 +118,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
       console.log('📤 Enviando barco:', { 
         name: formData.name, 
-        customer_id: formData.customer_id 
+        company_id: formData.company_id 
       });
 
       if (asset?.id) {
@@ -135,7 +135,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       onClose();
       
       // Reset form
-      setFormData({ name: "", customer_id: "", location: "", photo: null });
+      setFormData({ name: "", company_id: "", location: "", photo: null });
       setPreview(null);
     } catch (err) {
       console.error(err);
@@ -187,13 +187,13 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
           {/* Client (Combobox) */}
           <Combobox
             label="Empresa"
-            options={customerOptions}
-            value={formData.customer_id}
-            onChange={(val) => setFormData({ ...formData, customer_id: val })}
+            options={companyOptions}
+            value={formData.company_id}
+            onChange={(val) => setFormData({ ...formData, company_id: val })}
             placeholder="Selecciona una empresa..."
             onCreate={
               (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") 
-                ? handleQuickCreateCustomer 
+                ? handleQuickCreateCompany 
                 : undefined
             }
           />

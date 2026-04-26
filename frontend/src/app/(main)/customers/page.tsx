@@ -5,8 +5,8 @@ import { Plus, Building2, Trash2, Edit2, Loader2, ChevronLeft, ChevronRight } fr
 import FiltersBar from "@/components/ui/FiltersBar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
-import { customersService, Customer } from "@/services/customers.service";
-import CustomerModal from "@/components/customers/CustomerModal";
+import { companiesService, Company } from "@/services/companies.service";
+import CompanyModal from "@/components/customers/CustomerModal";
 import DataTable from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -16,15 +16,15 @@ export default function CustomersPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -33,35 +33,36 @@ export default function CustomersPage() {
   };
 
   const { data: responseData, isLoading } = useQuery({
-    queryKey: ["customers", getQueryParams()],
-    queryFn: () => customersService.findAll(getQueryParams()),
+    queryKey: ["companies", getQueryParams()],
+    queryFn: () => companiesService.findAll(getQueryParams()),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => customersService.remove(id),
+    mutationFn: (id: string) => companiesService.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
       showToast(t.clients.states.delete_success, "success");
-      setCustomerToDelete(null);
+      setCompanyToDelete(null);
     },
     onError: () => {
       showToast(t.clients.states.error_delete, "error");
     }
   });
 
-  // Efecto para volver a la página 1 al buscar o al cambiar limit
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, limit]);
 
-  const customersList: Customer[] = Array.isArray(responseData) ? responseData : responseData?.data || [];
-  const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: customersList.length, page: 1, limit: 10, totalPages: 1 };
+  const customersList: Company[] = Array.isArray(responseData) ? responseData : responseData?.data || [];
+  const meta = !Array.isArray(responseData) && responseData?.meta
+    ? responseData.meta
+    : { total: customersList.length, page: 1, limit: 10, totalPages: 1 };
 
   const columns = [
     {
       header: t.clients.table.name.toUpperCase(),
       key: "name",
-      cell: (item: Customer) => (
+      cell: (item: Company) => (
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center flex-shrink-0">
             <Building2 className="w-5 h-5 text-brand" />
@@ -71,29 +72,9 @@ export default function CustomersPage() {
       )
     },
     {
-      header: t.clients.table.address.toUpperCase(),
-      key: "address",
-      cell: (item: any) => (
-        <span className="text-sm font-medium text-subtitle">
-          {item.address || "—"}
-        </span>
-      )
-    },
-    {
-      header: t.clients.table.last_service.toUpperCase(),
-      key: "last_service",
-      cell: (item: any) => (
-        <span className="text-sm font-medium text-subtitle">
-          {item.last_service?.date
-            ? new Date(item.last_service.date).toLocaleDateString()
-            : "—"}
-        </span>
-      )
-    },
-    {
       header: t.clients.table.status.toUpperCase(),
       key: "is_active",
-      cell: (item: Customer) => (
+      cell: (item: Company) => (
         <div className="flex items-center space-x-2">
           {item.is_active ? (
             <>
@@ -112,16 +93,16 @@ export default function CustomersPage() {
     {
       header: t.clients.table.actions.toUpperCase(),
       key: "actions",
-      cell: (item: Customer) => (
+      cell: (item: Company) => (
         <div className="flex justify-end space-x-2">
           <button
-            onClick={(e) => { e.stopPropagation(); setEditingCustomer(item); setIsModalOpen(true); }}
+            onClick={(e) => { e.stopPropagation(); setEditingCompany(item); setIsModalOpen(true); }}
             className="p-2 hover:bg-brand/5 text-subtitle hover:text-brand rounded-xl transition-colors"
           >
             <Edit2 className="w-4 h-4" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setCustomerToDelete(item); }}
+            onClick={(e) => { e.stopPropagation(); setCompanyToDelete(item); }}
             className="p-2 hover:bg-error/5 text-subtitle hover:text-error rounded-xl transition-colors"
           >
             <Trash2 className="w-4 h-4" />
@@ -140,7 +121,7 @@ export default function CustomersPage() {
         actions={
           <button
             onClick={() => {
-              setEditingCustomer(null);
+              setEditingCompany(null);
               setIsModalOpen(true);
             }}
             className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
@@ -151,7 +132,6 @@ export default function CustomersPage() {
         }
       />
 
-      {/* Data Table */}
       <div className="bg-white rounded-[32px] border border-border-theme/40 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -164,66 +144,62 @@ export default function CustomersPage() {
               <Building2 className="w-10 h-10 text-subtitle/30" />
             </div>
             <h3 className="text-lg font-black text-title mb-1">{t.clients.states.empty_title}</h3>
-            <p className="text-subtitle font-medium max-w-sm">
-              {t.clients.states.empty_subtitle}
-            </p>
+            <p className="text-subtitle font-medium max-w-sm">{t.clients.states.empty_subtitle}</p>
           </div>
         ) : (
-          <>
-            <DataTable
-              columns={columns}
-              data={customersList}
-              footer={
-                <>
-                  <div className="flex items-center space-x-3">
-                    <div className="text-[15px] text-subtitle font-medium tracking-tight">
-                      {t.clients.pagination.showing} <span className="text-title font-bold">{customersList.length}</span> {t.clients.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.clients.pagination.clients}
-                    </div>
-                    <select
-                      value={limit}
-                      onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                      className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
-                    >
-                      {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
-                    </select>
+          <DataTable
+            columns={columns}
+            data={customersList}
+            footer={
+              <>
+                <div className="flex items-center space-x-3">
+                  <div className="text-[15px] text-subtitle font-medium tracking-tight">
+                    {t.clients.pagination.showing} <span className="text-title font-bold">{customersList.length}</span> {t.clients.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.clients.pagination.clients}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">
-                      {page}
-                    </button>
-                    <button
-                      onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                      disabled={page >= meta.totalPages}
-                      className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                </>
-              }
-            />
-          </>
+                  <select
+                    value={limit}
+                    onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                    className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  >
+                    {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">
+                    {page}
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                    disabled={page >= meta.totalPages}
+                    className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </>
+            }
+          />
         )}
       </div>
 
-      <CustomerModal 
+      <CompanyModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        customerToEdit={editingCustomer}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
+        companyToEdit={editingCompany}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["companies"] })}
       />
 
       <ConfirmModal
-        isOpen={!!customerToDelete}
-        onClose={() => setCustomerToDelete(null)}
-        onConfirm={() => customerToDelete && deleteMutation.mutate(customerToDelete.id)}
+        isOpen={!!companyToDelete}
+        onClose={() => setCompanyToDelete(null)}
+        onConfirm={() => companyToDelete && deleteMutation.mutate(companyToDelete.id)}
         title={t.confirm_modal.delete_user_title}
         description={t.confirm_modal.delete_description}
         confirmText={t.confirm_modal.confirm_delete}

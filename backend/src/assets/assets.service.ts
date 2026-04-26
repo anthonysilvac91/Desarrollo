@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAssetDto } from './dto/create-asset.dto';
 import { StorageService } from '../storage/storage.service';
+import { CreateAssetDto } from './dto/create-asset.dto';
+
 @Injectable()
 export class AssetsService {
   constructor(
@@ -9,10 +10,27 @@ export class AssetsService {
     private storageService: StorageService
   ) {}
 
+  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { company_id: string | null; company: any } {
+    return {
+      ...asset,
+      company_id: asset.customer_id ?? null,
+      company: asset.customer ?? null,
+    };
+  }
+
+  private async ensureCompanyBelongsToOrg(companyId: string, orgId: string) {
+    const company = await this.prisma.customer.findFirst({
+      where: { id: companyId, organization_id: orgId, is_active: true },
+      select: { id: true },
+    });
+
+    if (!company) {
+      throw new BadRequestException('La company indicada no pertenece a tu organización');
+    }
+  }
+
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
-    const { customer_id, organization_id: dtoOrgId, ...assetData } = createAssetDto;
-    
-    console.log(`🚀 AssetsService.create - Procesando barco: ${assetData.name}, Cliente: ${customer_id || 'Ninguno'}`);
+    const { customer_id: companyId, organization_id: dtoOrgId, ...assetData } = createAssetDto;
     let thumbnail_url = createAssetDto.thumbnail_url;
 
     if (photo) {
@@ -24,29 +42,40 @@ export class AssetsService {
       throw new Error('Es necesario especificar una organización para el activo');
     }
 
+    if (companyId) {
+      await this.ensureCompanyBelongsToOrg(companyId, targetOrgId);
+    }
+
     const newAsset = await this.prisma.asset.create({
       data: {
         ...assetData,
         thumbnail_url,
         organization_id: targetOrgId,
-        customer_id: customer_id || null,
+        customer_id: companyId || null,
       },
     });
 
-    // Devolver el activo con sus relaciones cargadas para que el frontend lo vea al instante
-    return this.prisma.asset.findUnique({
+    const asset = await this.prisma.asset.findUnique({
       where: { id: newAsset.id },
       include: {
         organization: { select: { name: true } },
-        customer: { select: { id: true, name: true } }
-      }
+        customer: { select: { id: true, name: true } },
+      },
     });
+
+    return asset ? this.mapAssetRelations(asset) : asset;
   }
 
-  async findAll(query: any, orgId: string, role: string, userId: string) {
+  async findAll(query: any, orgId: string, role: string, userId: string, companyId?: string) {
     const include = {
       organization: { select: { name: true } },
-      customer: { select: { id: true, name: true } }
+      customer: { select: { id: true, name: true } },
+      _count: { select: { services: true } },
+      services: {
+        select: { created_at: true },
+        orderBy: { created_at: 'desc' as const },
+        take: 1,
+      },
     };
 
     const baseWhere: any = { is_active: true };
@@ -56,7 +85,10 @@ export class AssetsService {
     }
 
     if (role === 'CLIENT') {
-      baseWhere.customer_id = userId; // In MVP, userId will be verified through their customer_id
+      if (!companyId) {
+        return [];
+      }
+      baseWhere.customer_id = companyId;
     }
 
     if (role === 'WORKER') {
@@ -72,7 +104,7 @@ export class AssetsService {
     if (query.search) {
       baseWhere.OR = [
         { name: { contains: query.search, mode: 'insensitive' } },
-        { location: { contains: query.search, mode: 'insensitive' } }
+        { location: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
@@ -84,14 +116,24 @@ export class AssetsService {
           where: baseWhere,
           include,
           skip: (page - 1) * limit,
-          take: limit
+          take: limit,
         }),
-        this.prisma.asset.count({ where: baseWhere })
+        this.prisma.asset.count({ where: baseWhere }),
       ]);
-      return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+      return {
+        data: data.map((asset: any) => this.mapAssetRelations({
+          ...asset,
+          last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
+        })),
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      };
     }
 
-    return this.prisma.asset.findMany({ where: baseWhere, include });
+    const assets = await this.prisma.asset.findMany({ where: baseWhere, include });
+    return assets.map((asset: any) => this.mapAssetRelations({
+      ...asset,
+      last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
+    }));
   }
 
   async findOne(id: string, user: any) {
@@ -99,67 +141,91 @@ export class AssetsService {
       where: { id },
       include: {
         services: {
-          include: { worker: { select: { name: true, id: true } } },
-          orderBy: { created_at: 'desc' }
+          include: {
+            worker: { select: { name: true, id: true } },
+            attachments: { select: { id: true, file_url: true, file_type: true } },
+          },
+          orderBy: { created_at: 'desc' },
         },
-        customer: { select: { id: true, name: true } }
-      }
+        customer: { select: { id: true, name: true } },
+      },
     });
 
     if (!asset) {
       throw new NotFoundException('Activo no encontrado');
     }
 
-    // Si no es Super Admin, verificar que el activo pertenezca a su organización
     if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
       throw new NotFoundException('Activo no encontrado o sin acceso');
     }
 
+    if (user.role === 'WORKER') {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: asset.organization_id },
+        select: { worker_restricted_access: true },
+      });
+
+      if (org?.worker_restricted_access) {
+        const hasAccess = await this.prisma.workerAssetAccess.findUnique({
+          where: {
+            worker_id_asset_id: {
+              worker_id: user.id,
+              asset_id: asset.id,
+            },
+          },
+          select: { worker_id: true },
+        });
+
+        if (!hasAccess) {
+          throw new NotFoundException('Activo no encontrado o sin acceso');
+        }
+      }
+    }
+
     if (user.role === 'CLIENT') {
-      // Assuming user.customer_id will be available
-      if (asset.customer_id !== user.customer_id) throw new NotFoundException('No tienes acceso a este activo');
-      
-      // Filtrar servicios privados para clientes
+      const currentCompanyId = user.company_id ?? user.customer_id;
+      if (asset.customer_id !== currentCompanyId) throw new NotFoundException('No tienes acceso a este activo');
       asset.services = asset.services.filter(s => s.is_public);
     }
 
-    return asset;
+    return this.mapAssetRelations(asset);
   }
 
-  async assignClient(assetId: string, customerId: string, orgId: string, adminId: string) {
-    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId }});
-    const customer = await this.prisma.customer.findFirst({ where: { id: customerId, organization_id: orgId }});
-    
-    if (!asset || !customer) throw new NotFoundException('Activo o Empresa no existe en su organización');
+  async assignCompany(assetId: string, companyId: string, orgId: string) {
+    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
+    const company = await this.prisma.customer.findFirst({ where: { id: companyId, organization_id: orgId } });
 
-    return this.prisma.asset.update({
+    if (!asset || !company) throw new NotFoundException('Activo o company no existe en su organización');
+
+    const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
-      data: { customer_id: customerId }
+      data: { customer_id: companyId },
     });
+    return this.mapAssetRelations(updatedAsset);
   }
 
-  async removeClient(assetId: string, customerId: string, orgId: string) {
-    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId }});
+  async removeCompany(assetId: string, companyId: string, orgId: string) {
+    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
     if (!asset) throw new NotFoundException('Activo no encontrado');
 
-    return this.prisma.asset.update({
+    const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
-      data: { customer_id: null }
+      data: { customer_id: null },
     });
+    return this.mapAssetRelations(updatedAsset);
   }
 
   async remove(id: string, user: any) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Activo no encontrado');
 
-    // Seguridad: Si no es Super Admin, debe pertenecer a su organización
     if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
       throw new ForbiddenException('No tienes permiso para borrar este activo');
     }
 
     return this.prisma.asset.update({
       where: { id },
-      data: { is_active: false }
+      data: { is_active: false },
     });
   }
 
@@ -167,12 +233,11 @@ export class AssetsService {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('Activo no encontrado');
 
-    // Seguridad: Si no es Super Admin, debe pertenecer a su organización
     if (role !== 'SUPER_ADMIN' && asset.organization_id !== orgId) {
       throw new ForbiddenException('No tienes permiso para editar este activo');
     }
 
-    const { customer_id, ...updateData } = updateDto;
+    const { customer_id: companyId, ...updateData } = updateDto;
     let thumbnail_url = updateDto.thumbnail_url;
 
     if (photo) {
@@ -184,15 +249,18 @@ export class AssetsService {
       thumbnail_url,
     };
 
-    if (customer_id !== undefined) {
-      updatePayload.customer_id = customer_id || null;
+    if (companyId !== undefined) {
+      if (companyId) {
+        await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);
+      }
+      updatePayload.customer_id = companyId || null;
     }
 
     const updatedAsset = await this.prisma.asset.update({
-      where: { id: id },
-      data: updatePayload
+      where: { id },
+      data: updatePayload,
     });
 
-    return updatedAsset;
+    return this.mapAssetRelations(updatedAsset);
   }
 }

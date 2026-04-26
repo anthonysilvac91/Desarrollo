@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Query, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Query, Param, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -26,6 +26,9 @@ export class UsersController {
     @Query('organizationId') organizationId?: string,
     @Query() pagination?: PaginationQueryDto
   ) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para listar usuarios');
+    }
     return this.usersService.findAll(
       { role, organizationId, search: pagination?.search, page: pagination?.page, limit: pagination?.limit },
       { id: req.user.id, role: req.user.role, orgId: req.user.orgId }
@@ -37,6 +40,9 @@ export class UsersController {
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, type: UserResponseDto })
   create(@Body() dto: CreateUserDto, @Request() req: any) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para crear usuarios');
+    }
     return this.usersService.create(dto, {
       id: req.user.id,
       role: req.user.role,
@@ -53,6 +59,9 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
     @Request() req: any
   ) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para actualizar usuarios');
+    }
     return this.usersService.update(id, dto, {
       id: req.user.id,
       role: req.user.role,
@@ -64,6 +73,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Activar/Desactivar usuario' })
   @ApiResponse({ type: UserResponseDto })
   toggleStatus(@Param('id') id: string, @Request() req: any) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para cambiar el estado de usuarios');
+    }
     return this.usersService.toggleStatus(id, {
       id: req.user.id,
       role: req.user.role,
@@ -75,6 +87,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Detalle de usuario' })
   @ApiResponse({ type: UserResponseDto })
   findOne(@Param('id') id: string, @Request() req: any) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para ver usuarios');
+    }
     return this.usersService.findOne(id, {
       id: req.user.id,
       role: req.user.role,

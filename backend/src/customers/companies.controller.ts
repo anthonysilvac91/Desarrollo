@@ -6,15 +6,15 @@ import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
-@ApiTags('customers-legacy')
+@ApiTags('companies')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('customers')
-export class CustomersController {
+@Controller('companies')
+export class CompaniesController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Post()
-  @ApiOperation({ summary: '[Legacy] Crear una company', description: 'Alias legacy. La ruta oficial es /companies.' })
+  @ApiOperation({ summary: 'Crear una company' })
   create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para crear companies');
@@ -23,7 +23,7 @@ export class CustomersController {
   }
 
   @Get()
-  @ApiOperation({ summary: '[Legacy] Obtener todas las companies de la organización', description: 'Alias legacy. La ruta oficial es /companies.' })
+  @ApiOperation({ summary: 'Obtener todas las companies de la organización' })
   findAll(@Request() req, @Query() query: PaginationQueryDto) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para listar companies');
@@ -32,7 +32,7 @@ export class CustomersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '[Legacy] Obtener detalles de una company', description: 'Alias legacy. La ruta oficial es /companies.' })
+  @ApiOperation({ summary: 'Obtener detalles de una company' })
   findOne(@Param('id') id: string, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para ver companies');
@@ -41,7 +41,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Legacy] Actualizar una company', description: 'Alias legacy. La ruta oficial es /companies.' })
+  @ApiOperation({ summary: 'Actualizar una company' })
   update(@Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar companies');
@@ -50,7 +50,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '[Legacy] Eliminar logicamente una company', description: 'Alias legacy. La ruta oficial es /companies.' })
+  @ApiOperation({ summary: 'Eliminar logicamente una company' })
   remove(@Param('id') id: string, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar companies');

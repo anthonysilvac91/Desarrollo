@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -14,12 +14,56 @@ export class ServicesService {
     private storageService: StorageService
   ) {}
 
+  private mapServiceRelations<T extends Record<string, any>>(service: T): T {
+    if (!service.asset) {
+      return service;
+    }
+
+    return {
+      ...service,
+      asset: {
+        ...service.asset,
+        company_id: service.asset.customer_id ?? null,
+        company: service.asset.customer ?? null,
+      }
+    };
+  }
+
   async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
     const org = await this.prisma.organization.findUnique({
       where: { id: user.orgId },
-      select: { auto_publish_services: true }
+      select: { auto_publish_services: true, worker_restricted_access: true }
     });
     if (!org) throw new NotFoundException('Organization not found');
+
+    const asset = await this.prisma.asset.findFirst({
+      where: {
+        id: createServiceDto.asset_id,
+        organization_id: user.orgId,
+        is_active: true,
+      },
+      select: { id: true },
+    });
+
+    if (!asset) {
+      throw new BadRequestException('El activo indicado no pertenece a tu organización');
+    }
+
+    if (user.role === 'WORKER' && org.worker_restricted_access) {
+      const hasAccess = await this.prisma.workerAssetAccess.findUnique({
+        where: {
+          worker_id_asset_id: {
+            worker_id: user.id,
+            asset_id: createServiceDto.asset_id,
+          },
+        },
+        select: { worker_id: true },
+      });
+
+      if (!hasAccess) {
+        throw new ForbiddenException('No tienes acceso a este activo');
+      }
+    }
 
     const attachmentPromises = files?.map(async (file) => {
       const file_url = await this.storageService.uploadFile(file, `${user.orgId}/services`);
@@ -86,24 +130,33 @@ export class ServicesService {
       const [data, total] = await Promise.all([
         this.prisma.service.findMany({
           where: whereClause,
-          include: { worker: { select: { id: true, name: true } }, asset: { select: { id: true, name: true } } },
+          include: {
+            worker: { select: { id: true, name: true } },
+            asset: { select: { id: true, name: true, location: true, customer_id: true, customer: { select: { id: true, name: true } } } },
+            attachments: { select: { file_url: true, file_type: true } },
+          },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
           take: limit
         }),
         this.prisma.service.count({ where: whereClause })
       ]);
-      return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+      return {
+        data: data.map((item: any) => this.mapServiceRelations(item)),
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+      };
     }
 
-    return this.prisma.service.findMany({
+    const services = await this.prisma.service.findMany({
       where: whereClause,
       include: { 
         worker: { select: { id: true, name: true } },
-        asset: { select: { id: true, name: true } }
+        asset: { select: { id: true, name: true, location: true, customer_id: true, customer: { select: { id: true, name: true } } } },
+        attachments: { select: { file_url: true, file_type: true } },
       },
       orderBy: { created_at: 'desc' }
     });
+    return services.map((item: any) => this.mapServiceRelations(item));
   }
 
   async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
@@ -127,7 +180,7 @@ export class ServicesService {
       include: {
         attachments: true,
         worker: { select: { name: true, id: true } },
-        asset: { select: { name: true, id: true, category: true } }
+        asset: { select: { name: true, id: true, category: true, customer_id: true, location: true, customer: { select: { id: true, name: true } } } }
       }
     });
 
@@ -139,11 +192,17 @@ export class ServicesService {
       throw new NotFoundException('Service no encontrado o acceso denegado');
     }
 
-    if (user.role === 'CLIENT' && !service.is_public) {
-      throw new ForbiddenException('No tienes permiso para ver este servicio privado');
+    if (user.role === 'CLIENT') {
+      if (!service.is_public) {
+        throw new ForbiddenException('No tienes permiso para ver este servicio privado');
+      }
+
+      if (service.asset.customer_id !== user.customer_id) {
+        throw new NotFoundException('Service no encontrado o acceso denegado');
+      }
     }
 
-    return service;
+    return this.mapServiceRelations(service);
   }
 
   async remove(id: string, user: any) {

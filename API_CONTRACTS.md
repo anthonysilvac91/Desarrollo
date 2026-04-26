@@ -1,55 +1,73 @@
 # Contratos API: Recall MVP
 
-Este documento detalla los endpoints principales consumidos por el Frontend y las reglas de comunicación con el Backend.
+Este documento detalla los endpoints principales consumidos por el frontend y las reglas de comunicacion con el backend.
 
-## Información Base
-- **URL Base**: `http://localhost:3001` (Dev)
-- **Content-Type**: `application/json` (Excepto subidas de archivos)
-- **Autenticación**: Bearer Token (JWT) en el header `Authorization`.
+## Informacion Base
+- **URL Base**: `http://localhost:3001` (dev)
+- **Content-Type**: `application/json` (excepto subidas de archivos)
+- **Autenticacion**: Bearer Token (JWT) en el header `Authorization`
 
 ---
 
-## 1. Módulo: Auth
-| Método | Ruta | Rol | Descripción |
+## 1. Modulo: Auth
+| Metodo | Ruta | Rol | Descripcion |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/auth/login` | Público | Login. Req: `{email, password, organizationId?}`. |
-| `POST` | `/auth/register` | Público | Registro vía invitación. Req: `{token, password, name}`. |
-| `GET` | `/auth/me` | Todos | Retorna perfil de usuario y branding de su organización. |
+| `POST` | `/auth/login` | Publico | Login. Req: `{email, password, organizationId?}`. |
+| `POST` | `/auth/register` | Publico | Registro via invitacion. Req: `{token, password, name}`. |
+| `GET` | `/auth/me` | Todos | Retorna perfil del usuario y branding de su organization. |
 
-## 2. Módulo: Organizations (Multi-tenant)
-| Método | Ruta | Rol | Descripción |
+## 2. Modulo: Organizations
+| Metodo | Ruta | Rol | Descripcion |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/organizations` | SUPER_ADMIN | Listado global de tenants. |
-| `POST` | `/organizations` | SUPER_ADMIN | Crea Org e invita al primer Admin. |
-| `PATCH` | `/organizations/:id/status` | SUPER_ADMIN | Activar/Desactivar organización. |
-| `PATCH` | `/organizations/settings` | ADMIN | Modifica branding y políticas de la Org. |
+| `POST` | `/organizations` | SUPER_ADMIN | Crea una organization e invita al primer admin. |
+| `PATCH` | `/organizations/:id/status` | SUPER_ADMIN | Activa o desactiva una organization. |
+| `PATCH` | `/organizations/settings` | ADMIN | Modifica branding y politicas de la organization. |
 
-## 3. Módulo: Invitations
-| Método | Ruta | Rol | Descripción |
+## 3. Modulo: Invitations
+| Metodo | Ruta | Rol | Descripcion |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/invitations` | ADMIN / S.A. | Crea una invitación para un nuevo usuario. |
-| `POST` | `/invitations/validate` | Público | Valida si un token es válido antes de registrar. |
+| `POST` | `/invitations` | ADMIN / SUPER_ADMIN | Crea una invitacion para un nuevo usuario. |
+| `POST` | `/invitations/validate` | Publico | Valida si un token es valido antes de registrar. |
 
-## 4. Módulo: Assets (Activos)
-| Método | Ruta | Rol | Descripción |
+## 4. Modulo: Companies
+| Metodo | Ruta | Rol | Descripcion |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/assets` | Todos | Lista activos según rol (Admin/Worker: todos; Client: vinculados). |
+| `GET` | `/companies` | ADMIN | Listado oficial de companies del tenant. |
+| `POST` | `/companies` | ADMIN | Crea una company dentro de la organization. |
+| `GET` | `/companies/:id` | ADMIN | Detalle de una company con usuarios y activos asociados. |
+| `PATCH` | `/companies/:id` | ADMIN | Actualiza una company. |
+| `DELETE` | `/companies/:id` | ADMIN | Baja logica de una company. |
+
+## 4.1. Modulo: Customers (Legacy)
+| Metodo | Ruta | Rol | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/customers` | ADMIN | Alias legacy de `/companies`. |
+| `POST` | `/customers` | ADMIN | Alias legacy de `/companies`. |
+| `GET` | `/customers/:id` | ADMIN | Alias legacy de `/companies/:id`. |
+| `PATCH` | `/customers/:id` | ADMIN | Alias legacy de `/companies/:id`. |
+| `DELETE` | `/customers/:id` | ADMIN | Alias legacy de `/companies/:id`. |
+
+## 5. Modulo: Assets
+| Metodo | Ruta | Rol | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/assets` | Todos | Lista activos segun rol (Admin/Worker: todos; Client: vinculados a su company). |
 | `POST` | `/assets` | ADMIN / WORKER | Crea un activo. |
 | `GET` | `/assets/:id` | Todos | Detalle del activo + historial de servicios. |
-| `POST` | `/assets/:id/clients/:clientId` | ADMIN | Vincula un cliente al activo. |
+| `POST` | `/assets/:id/clients/:clientId` | ADMIN | Alias legacy para vincular una `Company` al activo. |
 
-## 5. Módulo: Services (Intervenciones)
-| Método | Ruta | Rol | Descripción |
+## 6. Modulo: Services
+| Metodo | Ruta | Rol | Descripcion |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/services` | WORKER / ADMIN | Registro de servicio. **Content-Type: multipart/form-data**. |
-| `GET` | `/services` | Todos | Lista servicios. Filtra privados si el rol es CLIENT. |
-| `PATCH` | `/services/:id` | ADMIN | Edita datos, estatus o visibilidad pública del servicio. |
+| `GET` | `/services` | Todos | Lista servicios. Filtra privados si el rol es CLIENT (usuario asociado a una company). |
+| `PATCH` | `/services/:id` | ADMIN | Edita datos, estatus o visibilidad publica del servicio. |
 
-## 6. Módulo: Dashboard & Users
-| Método | Ruta | Rol | Descripción |
+## 7. Modulo: Dashboard & Users
+| Metodo | Ruta | Rol | Descripcion |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/dashboard` | ADMIN / S.A. | Estadísticas (KPIs) de la organización o globales. |
-| `GET` | `/users` | ADMIN / S.A. | Listado de equipo/usuarios según tenant. |
+| `GET` | `/dashboard` | ADMIN / SUPER_ADMIN | Estadisticas (KPIs) de la organization o globales. |
+| `GET` | `/users` | ADMIN / SUPER_ADMIN | Listado de equipo y usuarios segun tenant. |
 
 ---
 
