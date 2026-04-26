@@ -16,7 +16,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StorageModule } from './storage/storage.module';
 import { ConfigModule } from '@nestjs/config';
-import { CustomersModule } from './customers/customers.module';
+import { CompaniesModule } from './companies/companies.module';
 
 @Module({
   imports: [
@@ -32,7 +32,7 @@ import { CustomersModule } from './customers/customers.module';
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),
-    CustomersModule,
+    CompaniesModule,
   ],
   controllers: [AppController, AssetsController, ServicesController, OrganizationsController],
   providers: [AppService, PrismaService, AssetsService, ServicesService, OrganizationsService],

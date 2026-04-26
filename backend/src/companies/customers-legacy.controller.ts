@@ -2,24 +2,24 @@ import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, 
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
-import { CustomersService } from './customers.service';
-import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CompaniesService } from './companies.service';
+import { CreateCompanyDto } from './dto/create-company.dto';
+import { UpdateCompanyDto } from './dto/update-company.dto';
 
 @ApiTags('customers-legacy')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('customers')
-export class CustomersController {
-  constructor(private readonly customersService: CustomersService) {}
+export class CustomersLegacyController {
+  constructor(private readonly companiesService: CompaniesService) {}
 
   @Post()
   @ApiOperation({ summary: '[Legacy] Crear una company', description: 'Alias legacy. La ruta oficial es /companies.' })
-  create(@Body() createCustomerDto: CreateCustomerDto, @Request() req) {
+  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para crear companies');
     }
-    return this.customersService.create(createCustomerDto, req.user.orgId);
+    return this.companiesService.create(createCompanyDto, req.user.orgId);
   }
 
   @Get()
@@ -28,7 +28,7 @@ export class CustomersController {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para listar companies');
     }
-    return this.customersService.findAll(req.user.orgId, query);
+    return this.companiesService.findAll(req.user.orgId, query);
   }
 
   @Get(':id')
@@ -37,16 +37,16 @@ export class CustomersController {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para ver companies');
     }
-    return this.customersService.findOne(id, req.user.orgId);
+    return this.companiesService.findOne(id, req.user.orgId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: '[Legacy] Actualizar una company', description: 'Alias legacy. La ruta oficial es /companies.' })
-  update(@Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto, @Request() req) {
+  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar companies');
     }
-    return this.customersService.update(id, updateCustomerDto, req.user.orgId);
+    return this.companiesService.update(id, updateCompanyDto, req.user.orgId);
   }
 
   @Delete(':id')
@@ -55,6 +55,6 @@ export class CustomersController {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar companies');
     }
-    return this.customersService.remove(id, req.user.orgId);
+    return this.companiesService.remove(id, req.user.orgId);
   }
 }

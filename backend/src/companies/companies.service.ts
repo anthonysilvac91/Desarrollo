@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CreateCompanyDto } from './dto/create-company.dto';
+import { UpdateCompanyDto } from './dto/update-company.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
-export class CustomersService {
+export class CompaniesService {
   constructor(private prisma: PrismaService) {}
 
   private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
@@ -16,10 +16,10 @@ export class CustomersService {
     };
   }
 
-  async create(createCustomerDto: CreateCustomerDto, orgId: string) {
+  async create(createCompanyDto: CreateCompanyDto, orgId: string) {
     const company = await this.prisma.company.create({
       data: {
-        ...createCustomerDto,
+        ...createCompanyDto,
         organization_id: orgId,
       },
     });
@@ -72,11 +72,11 @@ export class CustomersService {
     return this.mapCompanyRelations(company);
   }
 
-  async update(id: string, updateCustomerDto: UpdateCustomerDto, orgId: string) {
+  async update(id: string, updateCompanyDto: UpdateCompanyDto, orgId: string) {
     const existingCompany = await this.findOne(id, orgId);
     const company = await this.prisma.company.update({
       where: { id: existingCompany.id },
-      data: updateCustomerDto,
+      data: updateCompanyDto,
     });
     return this.mapCompanyRelations(company);
   }

@@ -6,13 +6,13 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { companiesService, Company } from "@/services/companies.service";
-import CompanyModal from "@/components/customers/CustomerModal";
+import CompanyModal from "@/components/companies/CompanyModal";
 import DataTable from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-export default function CustomersPage() {
+export default function CompaniesPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -53,10 +53,10 @@ export default function CustomersPage() {
     setPage(1);
   }, [debouncedSearch, limit]);
 
-  const customersList: Company[] = Array.isArray(responseData) ? responseData : responseData?.data || [];
+  const companiesList: Company[] = Array.isArray(responseData) ? responseData : responseData?.data || [];
   const meta = !Array.isArray(responseData) && responseData?.meta
     ? responseData.meta
-    : { total: customersList.length, page: 1, limit: 10, totalPages: 1 };
+    : { total: companiesList.length, page: 1, limit: 10, totalPages: 1 };
 
   const columns = [
     {
@@ -138,7 +138,7 @@ export default function CustomersPage() {
             <Loader2 className="w-8 h-8 animate-spin text-brand mb-4" />
             <p className="text-subtitle font-medium animate-pulse">{t.clients.states.loading}</p>
           </div>
-        ) : customersList.length === 0 ? (
+        ) : companiesList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
               <Building2 className="w-10 h-10 text-subtitle/30" />
@@ -149,12 +149,12 @@ export default function CustomersPage() {
         ) : (
           <DataTable
             columns={columns}
-            data={customersList}
+            data={companiesList}
             footer={
               <>
                 <div className="flex items-center space-x-3">
                   <div className="text-[15px] text-subtitle font-medium tracking-tight">
-                    {t.clients.pagination.showing} <span className="text-title font-bold">{customersList.length}</span> {t.clients.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.clients.pagination.clients}
+                    {t.clients.pagination.showing} <span className="text-title font-bold">{companiesList.length}</span> {t.clients.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.clients.pagination.clients}
                   </div>
                   <select
                     value={limit}
