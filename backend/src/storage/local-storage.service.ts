@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { UploadFileOptions } from './storage.service';
+import { getExtensionForMime } from '../common/files/image-validation';
 
 @Injectable()
 export class LocalStorageService extends StorageService {
@@ -29,7 +30,7 @@ export class LocalStorageService extends StorageService {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    const fileExt = path.extname(file.originalname);
+    const fileExt = getExtensionForMime(file.mimetype) || path.extname(file.originalname);
     const fileName = `${randomUUID()}${fileExt}`;
     const filePath = path.join(targetDir, fileName);
 

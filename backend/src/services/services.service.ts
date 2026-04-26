@@ -97,11 +97,14 @@ export class ServicesService {
     await this.storageGovernance.assertCanStore(user.orgId, totalIncomingBytes);
 
     const attachmentPromises = files?.map(async (file) => {
-      const detectedMime = validateImageFile(file, {
+      const imageInfo = validateImageFile(file, {
         maxBytes: 10 * 1024 * 1024,
         label: 'Adjunto de servicio',
+        maxWidth: 6000,
+        maxHeight: 6000,
+        maxPixels: 24 * 1024 * 1024,
       });
-      file.mimetype = detectedMime;
+      file.mimetype = imageInfo.mime;
 
       const file_url = await this.storageService.uploadFile(file, {
         folder: `${user.orgId}/services`,
@@ -109,7 +112,7 @@ export class ServicesService {
       });
       return {
         file_url,
-        file_type: detectedMime,
+        file_type: imageInfo.mime,
         file_name: file.originalname,
         file_size_bytes: file.size,
       };

@@ -49,11 +49,14 @@ export class CompaniesService {
 
     let logoUrl: string | undefined;
     if (logoFile) {
-      const detectedMime = validateImageFile(logoFile, {
+      const imageInfo = validateImageFile(logoFile, {
         maxBytes: 2 * 1024 * 1024,
         label: 'Logo de company',
+        maxWidth: 4096,
+        maxHeight: 4096,
+        maxPixels: 12 * 1024 * 1024,
       });
-      logoFile.mimetype = detectedMime;
+      logoFile.mimetype = imageInfo.mime;
       await this.storageGovernance.assertCanStore(orgId, logoFile.size);
       logoUrl = await this.storageService.uploadFile(logoFile, {
         folder: `${orgId}/companies/logos`,
@@ -131,11 +134,14 @@ export class CompaniesService {
 
     let logoUrl = existingCompany.logo_url;
     if (logoFile) {
-      const detectedMime = validateImageFile(logoFile, {
+      const imageInfo = validateImageFile(logoFile, {
         maxBytes: 2 * 1024 * 1024,
         label: 'Logo de company',
+        maxWidth: 4096,
+        maxHeight: 4096,
+        maxPixels: 12 * 1024 * 1024,
       });
-      logoFile.mimetype = detectedMime;
+      logoFile.mimetype = imageInfo.mime;
       await this.storageGovernance.assertCanStore(
         orgId,
         logoFile.size,

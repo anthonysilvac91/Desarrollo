@@ -72,11 +72,14 @@ export class AssetsService {
     }
 
     if (photo) {
-      const detectedMime = validateImageFile(photo, {
+      const imageInfo = validateImageFile(photo, {
         maxBytes: 5 * 1024 * 1024,
         label: 'Thumbnail del activo',
+        maxWidth: 6000,
+        maxHeight: 6000,
+        maxPixels: 24 * 1024 * 1024,
       });
-      photo.mimetype = detectedMime;
+      photo.mimetype = imageInfo.mime;
       await this.storageGovernance.assertCanStore(targetOrgId, photo.size);
       thumbnail_url = await this.storageService.uploadFile(photo, {
         folder: `${targetOrgId}/assets`,
@@ -316,11 +319,14 @@ export class AssetsService {
     ensureNoManualFileUrl(updateDto.thumbnail_url, 'Thumbnail del activo');
 
     if (photo) {
-      const detectedMime = validateImageFile(photo, {
+      const imageInfo = validateImageFile(photo, {
         maxBytes: 5 * 1024 * 1024,
         label: 'Thumbnail del activo',
+        maxWidth: 6000,
+        maxHeight: 6000,
+        maxPixels: 24 * 1024 * 1024,
       });
-      photo.mimetype = detectedMime;
+      photo.mimetype = imageInfo.mime;
       await this.storageGovernance.assertCanStore(
         asset.organization_id,
         photo.size,

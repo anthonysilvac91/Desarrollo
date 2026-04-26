@@ -280,11 +280,14 @@ export class UsersService {
     let avatarUrl = currentUserRecord.avatar_url;
 
     if (avatarFile) {
-      const detectedMime = validateImageFile(avatarFile, {
+      const imageInfo = validateImageFile(avatarFile, {
         maxBytes: 2 * 1024 * 1024,
         label: 'Avatar de usuario',
+        maxWidth: 4096,
+        maxHeight: 4096,
+        maxPixels: 12 * 1024 * 1024,
       });
-      avatarFile.mimetype = detectedMime;
+      avatarFile.mimetype = imageInfo.mime;
       if (currentUserRecord.organization_id) {
         await this.storageGovernance.assertCanStore(
           currentUserRecord.organization_id,

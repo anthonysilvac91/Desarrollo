@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import { StorageService, UploadFileOptions } from './storage.service';
+import { getExtensionForMime } from '../common/files/image-validation';
 
 const PRIVATE_REF_PREFIX = 'private://';
 const PUBLIC_STORAGE_PATH_PREFIX = '/storage/v1/object/public/';
@@ -83,7 +84,7 @@ export class SupabaseStorageService extends StorageService {
     const folder = options.folder ?? '';
     const visibility = options.visibility ?? 'private';
     const bucket = visibility === 'public' ? this.publicBucket : this.privateBucket;
-    const fileExt = path.extname(file.originalname);
+    const fileExt = getExtensionForMime(file.mimetype) || path.extname(file.originalname);
     const fileName = `${randomUUID()}${fileExt}`;
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
