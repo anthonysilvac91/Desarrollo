@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import { StorageService } from '../storage/storage.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 
 @Injectable()
 export class AuthService {
@@ -12,7 +12,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private storageService: StorageService
+    private storedFilesService: StoredFilesService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -96,12 +96,13 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, is_active: true },
       include: {
-        organization: {
+          organization: {
           select: {
             id: true,
             name: true,
             slug: true,
             brand_color: true,
+            logo_file_id: true,
             logo_url: true,
             default_asset_icon: true,
           },
@@ -113,8 +114,18 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    if (user.avatar_url) {
-      user.avatar_url = await this.storageService.resolveFileUrl(user.avatar_url);
+    if (user.avatar_file_id || user.avatar_url) {
+      user.avatar_url = await this.storedFilesService.resolveFileUrl(
+        user.avatar_url,
+        user.avatar_file_id,
+      );
+    }
+
+    if (user.organization && (user.organization.logo_file_id || user.organization.logo_url)) {
+      user.organization.logo_url = await this.storedFilesService.resolveFileUrl(
+        user.organization.logo_url,
+        user.organization.logo_file_id,
+      );
     }
 
     const { password_hash, ...result } = user;

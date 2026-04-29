@@ -32,7 +32,7 @@ export class AssetsService {
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
     const resolvedAsset = { ...asset } as any;
 
-    if (resolvedAsset.thumbnail_url) {
+    if (resolvedAsset.thumbnail_file_id || resolvedAsset.thumbnail_url) {
       resolvedAsset.thumbnail_url =
         await this.storedFilesService.resolveFileUrl(
           resolvedAsset.thumbnail_url,

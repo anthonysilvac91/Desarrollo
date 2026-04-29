@@ -23,15 +23,41 @@ export class OrganizationsService {
   ) {}
 
   async findAll() {
-    return this.prisma.organization.findMany({
+    const organizations = await this.prisma.organization.findMany({
       orderBy: { created_at: 'desc' }
     });
+
+    return Promise.all(
+      organizations.map(async (organization: any) => {
+        if (organization.logo_file_id || organization.logo_url) {
+          organization.logo_url = await this.storedFilesService.resolveFileUrl(
+            organization.logo_url,
+            organization.logo_file_id,
+          );
+        }
+
+        return organization;
+      }),
+    );
   }
 
   async findOne(id: string) {
-    return this.prisma.organization.findUnique({
+    const organization = await this.prisma.organization.findUnique({
       where: { id }
     });
+
+    if (!organization) {
+      return organization;
+    }
+
+    if (organization.logo_file_id || organization.logo_url) {
+      organization.logo_url = await this.storedFilesService.resolveFileUrl(
+        organization.logo_url,
+        organization.logo_file_id,
+      );
+    }
+
+    return organization;
   }
 
   async getStorageUsage(orgId: string) {

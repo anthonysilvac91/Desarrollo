@@ -2,13 +2,13 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { DashboardStatsDto, RankingItemDto, EvolutionPointDto } from './dto/dashboard.dto';
-import { StorageService } from '../storage/storage.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 
 @Injectable()
 export class DashboardService {
   constructor(
     private prisma: PrismaService,
-    private storageService: StorageService
+    private storedFilesService: StoredFilesService,
   ) {}
 
   async getStats(
@@ -176,20 +176,23 @@ export class DashboardService {
     const ids = rankingData.map(r => r[idKey]);
     const items = type === 'asset' 
       ? await this.prisma.asset.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
-      : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, avatar_url: true } });
+      : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, avatar_file_id: true, avatar_url: true } });
 
     return Promise.all(
       rankingData.map(async (r) => {
         const item = items.find(i => i.id === r[idKey]);
-        const avatarUrl = (item as any)?.avatar_url
-          ? await this.storageService.resolveFileUrl((item as any).avatar_url)
+        const avatarUrl = (item as any)?.avatar_file_id || (item as any)?.avatar_url
+          ? await this.storedFilesService.resolveFileUrl(
+              (item as any).avatar_url,
+              (item as any).avatar_file_id,
+            )
           : undefined;
 
         return {
           id: r[idKey],
           name: item?.name || 'Desconocido',
           metric: r._count.id,
-          avatar_url: avatarUrl,
+          avatar_url: avatarUrl ?? undefined,
         };
       })
     );

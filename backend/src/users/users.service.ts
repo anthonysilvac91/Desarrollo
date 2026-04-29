@@ -31,7 +31,7 @@ export class UsersService {
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
     const resolvedUser = { ...user } as any;
-    if (resolvedUser.avatar_url) {
+    if (resolvedUser.avatar_file_id || resolvedUser.avatar_url) {
       resolvedUser.avatar_url =
         await this.storedFilesService.resolveFileUrl(
           resolvedUser.avatar_url,

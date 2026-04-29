@@ -36,14 +36,17 @@ export class CompaniesService {
       resolvedCompany.assets = await Promise.all(
         resolvedCompany.assets.map(async (asset: any) => ({
           ...asset,
-          thumbnail_url: asset.thumbnail_url
-            ? await this.storageService.resolveFileUrl(asset.thumbnail_url)
+          thumbnail_url: asset.thumbnail_file_id || asset.thumbnail_url
+            ? await this.storedFilesService.resolveFileUrl(
+                asset.thumbnail_url,
+                asset.thumbnail_file_id,
+              )
             : asset.thumbnail_url,
         }))
       );
     }
 
-    if (resolvedCompany.logo_url) {
+    if (resolvedCompany.logo_file_id || resolvedCompany.logo_url) {
       resolvedCompany.logo_url =
         await this.storedFilesService.resolveFileUrl(
           resolvedCompany.logo_url,
@@ -146,7 +149,7 @@ export class CompaniesService {
       where: { id },
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
-        assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_url: true } }
+        assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_url: true, thumbnail_file_id: true } }
       }
     });
     if (!company || company.organization_id !== orgId) {
