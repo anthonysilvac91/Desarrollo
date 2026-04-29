@@ -21,6 +21,8 @@
     "db:safe-check": "node scripts/check-safe-db.js",
     "db:up": "docker-compose up -d",
     "db:migrate:local": "npm run db:safe-check && prisma migrate dev",
+    "storage:backfill:legacy": "ts-node scripts/backfill-stored-files.ts",
+    "storage:backfill:legacy:dry": "ts-node scripts/backfill-stored-files.ts --dry-run",
     "test:e2e": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- jest --config ./test/jest-e2e.json --runInBand"
   },
   "dependencies": {

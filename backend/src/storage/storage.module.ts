@@ -6,6 +6,7 @@ import { LocalStorageService } from './local-storage.service';
 import { SupabaseStorageService } from './supabase-storage.service';
 import { StorageGovernanceService } from './storage-governance.service';
 import { StoredFilesService } from './stored-files.service';
+import { StoredFilesBackfillService } from './stored-files-backfill.service';
 
 @Global()
 @Module({
@@ -23,7 +24,8 @@ import { StoredFilesService } from './stored-files.service';
     },
     StorageGovernanceService,
     StoredFilesService,
+    StoredFilesBackfillService,
   ],
-  exports: [StorageService, StorageGovernanceService, StoredFilesService],
+  exports: [StorageService, StorageGovernanceService, StoredFilesService, StoredFilesBackfillService],
 })
 export class StorageModule {}

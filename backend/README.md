@@ -28,6 +28,8 @@ Esta es la API central del sistema Recall.
 
 - `npm run start:dev`: servidor de desarrollo en `http://localhost:3001`
 - `npm run db:up`: levanta la DB oficial local desde `backend/docker-compose.yml`
+- `npm run storage:backfill:legacy:dry`: simula el backfill de columnas legacy (`*_url`) hacia `StoredFile` sin escribir cambios
+- `npm run storage:backfill:legacy`: crea `StoredFile` faltantes y enlaza `*_file_id` legacy de forma idempotente
 - `npm run test:e2e`: ejecuta pruebas e2e
 
 ## Nota
