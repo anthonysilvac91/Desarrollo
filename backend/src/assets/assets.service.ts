@@ -32,13 +32,9 @@ export class AssetsService {
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
     const resolvedAsset = { ...asset } as any;
 
-    if (resolvedAsset.thumbnail_file_id || resolvedAsset.thumbnail_url) {
-      resolvedAsset.thumbnail_url =
-        await this.storedFilesService.resolveFileUrl(
-          resolvedAsset.thumbnail_url,
-          resolvedAsset.thumbnail_file_id,
-        );
-    }
+    resolvedAsset.thumbnail_url = resolvedAsset.thumbnail_file_id
+      ? await this.storedFilesService.resolveFileUrl(resolvedAsset.thumbnail_file_id)
+      : null;
 
     if (Array.isArray(resolvedAsset.services)) {
       resolvedAsset.services = await Promise.all(
@@ -48,10 +44,9 @@ export class AssetsService {
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
                   ...attachment,
-                  file_url: await this.storedFilesService.resolveFileUrl(
-                    attachment.file_url,
-                    attachment.file_id,
-                  ),
+                  file_url: attachment.file_id
+                    ? await this.storedFilesService.resolveFileUrl(attachment.file_id)
+                    : null,
                 }))
               )
             : service.attachments,
@@ -74,7 +69,7 @@ export class AssetsService {
   }
 
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
-    const { company_id: companyId, organization_id: dtoOrgId, ...assetData } = createAssetDto;
+    const { company_id: companyId, organization_id: dtoOrgId, thumbnail_url: _thumbnailUrl, ...assetData } = createAssetDto;
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
     let thumbnail_url: string | undefined;
@@ -132,7 +127,6 @@ export class AssetsService {
         id: assetId,
         ...assetData,
         thumbnail_file_id: thumbnailFileId,
-        thumbnail_url,
         organization_id: targetOrgId,
         company_id: companyId || null,
       },
@@ -340,10 +334,9 @@ export class AssetsService {
       data: { is_active: false },
     });
 
-    if (asset.thumbnail_url) {
+    if ((asset as any).thumbnail_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         (asset as any).thumbnail_file_id ?? null,
-        asset.thumbnail_url,
       );
     }
 
@@ -360,8 +353,8 @@ export class AssetsService {
       throw new ForbiddenException('No tienes permiso para editar este activo');
     }
 
-    const { company_id: companyId, ...updateData } = updateDto;
-    let thumbnail_url = asset.thumbnail_url;
+    const { company_id: companyId, thumbnail_url: _thumbnailUrl, ...updateData } = updateDto;
+    let thumbnail_url: string | undefined;
     let thumbnailFileId = (asset as any).thumbnail_file_id ?? null;
 
     ensureNoManualFileUrl(updateDto.thumbnail_url, 'Thumbnail del activo');
@@ -384,7 +377,7 @@ export class AssetsService {
       await this.storageGovernance.assertCanStore(
         asset.organization_id,
         photo.size,
-        asset.thumbnail_url ? [asset.thumbnail_url] : [],
+        (asset as any).thumbnail_file_id ? [(asset as any).thumbnail_file_id] : [],
       );
       thumbnail_url = await this.storageService.uploadFile(photo, {
         folder: buildAssetThumbnailPath(asset.organization_id, asset.id),
@@ -407,7 +400,6 @@ export class AssetsService {
     const updatePayload: any = {
       ...updateData,
       thumbnail_file_id: thumbnailFileId,
-      thumbnail_url,
     };
 
     if (companyId !== undefined) {
@@ -422,10 +414,9 @@ export class AssetsService {
       data: updatePayload,
     });
 
-    if (photo && asset.thumbnail_url && asset.thumbnail_url !== updatedAsset.thumbnail_url) {
+    if (photo && (asset as any).thumbnail_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         (asset as any).thumbnail_file_id ?? null,
-        asset.thumbnail_url,
       );
     }
 

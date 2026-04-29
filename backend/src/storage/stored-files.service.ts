@@ -40,7 +40,7 @@ export class StoredFilesService {
     });
   }
 
-  async resolveFileUrl(fileRef?: string | null, storedFileId?: string | null): Promise<string | null> {
+  async resolveFileUrl(storedFileId?: string | null): Promise<string | null> {
     if (storedFileId) {
       const storedFile = await this.prisma.storedFile.findUnique({
         where: { id: storedFileId },
@@ -52,14 +52,10 @@ export class StoredFilesService {
       }
     }
 
-    if (fileRef) {
-      return this.storageService.resolveFileUrl(fileRef);
-    }
-
     return null;
   }
 
-  async deleteStoredFileAndBlob(storedFileId?: string | null, fallbackRef?: string | null): Promise<void> {
+  async deleteStoredFileAndBlob(storedFileId?: string | null): Promise<void> {
     if (storedFileId) {
       const storedFile = await this.prisma.storedFile.findUnique({
         where: { id: storedFileId },
@@ -68,18 +64,12 @@ export class StoredFilesService {
 
       if (storedFile?.storage_ref) {
         await this.storageService.deleteFile(storedFile.storage_ref);
-      } else if (fallbackRef) {
-        await this.storageService.deleteFile(fallbackRef);
       }
 
       await this.prisma.storedFile.deleteMany({
         where: { id: storedFileId },
       });
       return;
-    }
-
-    if (fallbackRef) {
-      await this.storageService.deleteFile(fallbackRef);
     }
   }
 }

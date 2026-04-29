@@ -36,29 +36,23 @@ export class CompaniesService {
       resolvedCompany.assets = await Promise.all(
         resolvedCompany.assets.map(async (asset: any) => ({
           ...asset,
-          thumbnail_url: asset.thumbnail_file_id || asset.thumbnail_url
-            ? await this.storedFilesService.resolveFileUrl(
-                asset.thumbnail_url,
-                asset.thumbnail_file_id,
-              )
-            : asset.thumbnail_url,
+          thumbnail_url: asset.thumbnail_file_id
+            ? await this.storedFilesService.resolveFileUrl(asset.thumbnail_file_id)
+            : null,
         }))
       );
     }
 
-    if (resolvedCompany.logo_file_id || resolvedCompany.logo_url) {
-      resolvedCompany.logo_url =
-        await this.storedFilesService.resolveFileUrl(
-          resolvedCompany.logo_url,
-          resolvedCompany.logo_file_id,
-        );
-    }
+    resolvedCompany.logo_url = resolvedCompany.logo_file_id
+      ? await this.storedFilesService.resolveFileUrl(resolvedCompany.logo_file_id)
+      : null;
 
     return resolvedCompany;
   }
 
   async create(createCompanyDto: CreateCompanyDto, orgId: string, logoFile?: Express.Multer.File) {
     ensureNoManualFileUrl(createCompanyDto.logo_url, 'Logo de company');
+    const { logo_url: _logoUrl, ...companyData } = createCompanyDto;
 
     const companyId = randomUUID();
     let logoUrl: string | undefined;
@@ -103,9 +97,8 @@ export class CompaniesService {
     const company = await this.prisma.company.create({
       data: {
         id: companyId,
-        ...createCompanyDto,
+        ...companyData,
         logo_file_id: logoFileId,
-        logo_url: logoUrl,
         organization_id: orgId,
       },
     });
@@ -169,8 +162,9 @@ export class CompaniesService {
     }
 
     ensureNoManualFileUrl(updateCompanyDto.logo_url, 'Logo de company');
+    const { logo_url: _logoUrl, ...companyData } = updateCompanyDto;
 
-    let logoUrl = existingCompany.logo_url;
+    let logoUrl: string | undefined;
     if (logoFile) {
       const imageInfo = validateImageFile(logoFile, {
         maxBytes: 2 * 1024 * 1024,
@@ -189,7 +183,7 @@ export class CompaniesService {
       await this.storageGovernance.assertCanStore(
         orgId,
         logoFile.size,
-        existingCompany.logo_url ? [existingCompany.logo_url] : [],
+        existingCompany.logo_file_id ? [existingCompany.logo_file_id] : [],
       );
       logoUrl = await this.storageService.uploadFile(logoFile, {
         folder: buildCompanyLogoPath(orgId, existingCompany.id),
@@ -216,16 +210,14 @@ export class CompaniesService {
     const company = await this.prisma.company.update({
       where: { id: existingCompany.id },
       data: {
-        ...updateCompanyDto,
+        ...companyData,
         logo_file_id: logoFileId,
-        logo_url: logoUrl,
       },
     });
 
-    if (logoFile && existingCompany.logo_url && existingCompany.logo_url !== company.logo_url) {
+    if (logoFile && existingCompany.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         existingCompany.logo_file_id,
-        existingCompany.logo_url,
       );
     }
 
@@ -244,13 +236,12 @@ export class CompaniesService {
 
     const company = await this.prisma.company.update({
       where: { id: existingCompany.id },
-      data: { is_active: false, logo_url: null, logo_file_id: null },
+      data: { is_active: false, logo_file_id: null },
     });
 
-    if (existingCompany.logo_url) {
+    if (existingCompany.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         existingCompany.logo_file_id,
-        existingCompany.logo_url,
       );
     }
 

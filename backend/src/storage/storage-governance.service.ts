@@ -56,12 +56,13 @@ export class StorageGovernanceService {
   async assertCanStore(
     organizationId: string,
     incomingBytes: number,
-    replacedFileRefs: string[] = [],
+    replacedFileIds: string[] = [],
   ): Promise<void> {
     if (!organizationId || this.quotaBytes <= 0 || incomingBytes <= 0) {
       return;
     }
 
+    const replacedFileRefs = await this.listStoredFileRefsByIds(replacedFileIds);
     const usage = await this.getOrganizationUsage(organizationId);
     const replacedSizes = await Promise.all(
       replacedFileRefs
@@ -108,39 +109,33 @@ export class StorageGovernanceService {
   }
 
   private async listOrganizationFileRefs(organizationId: string): Promise<string[]> {
-    const [organization, users, assets, companies, attachments] = await Promise.all([
-      this.prisma.organization.findUnique({
-        where: { id: organizationId },
-        select: { logo_url: true },
-      }),
-      this.prisma.user.findMany({
-        where: { organization_id: organizationId, avatar_url: { not: null } },
-        select: { avatar_url: true },
-      }),
-      this.prisma.asset.findMany({
-        where: { organization_id: organizationId, thumbnail_url: { not: null } },
-        select: { thumbnail_url: true },
-      }),
-      this.prisma.company.findMany({
-        where: { organization_id: organizationId, logo_url: { not: null } },
-        select: { logo_url: true },
-      }),
-      this.prisma.serviceAttachment.findMany({
-        where: { service: { organization_id: organizationId } },
-        select: { file_url: true },
-      }),
-    ]);
+    const storedFiles = await this.prisma.storedFile.findMany({
+      where: { organization_id: organizationId },
+      select: { storage_ref: true },
+    });
 
     return Array.from(
       new Set(
-        [
-          organization?.logo_url ?? null,
-          ...users.map((item) => item.avatar_url),
-          ...assets.map((item) => item.thumbnail_url),
-          ...companies.map((item) => item.logo_url),
-          ...attachments.map((item) => item.file_url),
-        ].filter((ref): ref is string => !!ref && this.storageService.canHandleFileRef(ref)),
+        storedFiles
+          .map((item) => item.storage_ref)
+          .filter((ref): ref is string => !!ref && this.storageService.canHandleFileRef(ref)),
       ),
     );
+  }
+
+  private async listStoredFileRefsByIds(storedFileIds: string[]): Promise<string[]> {
+    const ids = storedFileIds.filter((id) => !!id);
+    if (!ids.length) {
+      return [];
+    }
+
+    const storedFiles = await this.prisma.storedFile.findMany({
+      where: { id: { in: ids } },
+      select: { storage_ref: true },
+    });
+
+    return storedFiles
+      .map((item) => item.storage_ref)
+      .filter((ref): ref is string => !!ref && this.storageService.canHandleFileRef(ref));
   }
 }

@@ -29,12 +29,9 @@ export class OrganizationsService {
 
     return Promise.all(
       organizations.map(async (organization: any) => {
-        if (organization.logo_file_id || organization.logo_url) {
-          organization.logo_url = await this.storedFilesService.resolveFileUrl(
-            organization.logo_url,
-            organization.logo_file_id,
-          );
-        }
+        organization.logo_url = organization.logo_file_id
+          ? await this.storedFilesService.resolveFileUrl(organization.logo_file_id)
+          : null;
 
         return organization;
       }),
@@ -50,12 +47,9 @@ export class OrganizationsService {
       return organization;
     }
 
-    if (organization.logo_file_id || organization.logo_url) {
-      organization.logo_url = await this.storedFilesService.resolveFileUrl(
-        organization.logo_url,
-        organization.logo_file_id,
-      );
-    }
+    organization.logo_url = organization.logo_file_id
+      ? await this.storedFilesService.resolveFileUrl(organization.logo_file_id)
+      : null;
 
     return organization;
   }
@@ -135,7 +129,7 @@ export class OrganizationsService {
       await this.storageGovernance.assertCanStore(
         orgId,
         logoFile.size,
-        currentOrg?.logo_url ? [currentOrg.logo_url] : [],
+        currentOrg?.logo_file_id ? [currentOrg.logo_file_id] : [],
       );
 
       this.logger.log(`Uploading logo for organization ${orgId}...`);
@@ -154,7 +148,6 @@ export class OrganizationsService {
         ownerType: 'ORGANIZATION',
         ownerId: orgId,
       });
-      data.logo_url = logoUrl;
       data.logo_file_id = storedFile.id;
     }
 
@@ -163,12 +156,15 @@ export class OrganizationsService {
       data
     });
 
-    if (logoFile && currentOrg && currentOrg.logo_url !== updatedOrg.logo_url) {
+    if (logoFile && currentOrg?.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         currentOrg.logo_file_id,
-        currentOrg.logo_url,
       );
     }
+
+    updatedOrg.logo_url = updatedOrg.logo_file_id
+      ? await this.storedFilesService.resolveFileUrl(updatedOrg.logo_file_id)
+      : null;
 
     return updatedOrg;
   }

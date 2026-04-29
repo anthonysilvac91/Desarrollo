@@ -43,22 +43,19 @@ export class ServicesService {
   private async resolveServiceFileUrls<T extends Record<string, any>>(service: T): Promise<T> {
     const resolvedService = { ...service } as any;
 
-    if (resolvedService.asset?.thumbnail_file_id || resolvedService.asset?.thumbnail_url) {
-      resolvedService.asset.thumbnail_url =
-        await this.storedFilesService.resolveFileUrl(
-          resolvedService.asset.thumbnail_url,
-          resolvedService.asset.thumbnail_file_id,
-        );
+    if (resolvedService.asset) {
+      resolvedService.asset.thumbnail_url = resolvedService.asset.thumbnail_file_id
+        ? await this.storedFilesService.resolveFileUrl(resolvedService.asset.thumbnail_file_id)
+        : null;
     }
 
     if (Array.isArray(resolvedService.attachments)) {
       resolvedService.attachments = await Promise.all(
         resolvedService.attachments.map(async (attachment: any) => ({
           ...attachment,
-          file_url: await this.storedFilesService.resolveFileUrl(
-            attachment.file_url,
-            attachment.file_id,
-          ),
+          file_url: attachment.file_id
+            ? await this.storedFilesService.resolveFileUrl(attachment.file_id)
+            : null,
         }))
       );
     }
@@ -144,7 +141,6 @@ export class ServicesService {
       });
       return {
         file_id: storedFile.id,
-        file_url,
         file_type: file.mimetype,
         file_name: file.originalname,
         file_size_bytes: file.size,
@@ -317,7 +313,6 @@ export class ServicesService {
       attachments.map((attachment) =>
         this.storedFilesService.deleteStoredFileAndBlob(
           attachment.file_id,
-          attachment.file_url,
         ),
       ),
     );

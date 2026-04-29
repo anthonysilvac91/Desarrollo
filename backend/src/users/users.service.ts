@@ -31,13 +31,9 @@ export class UsersService {
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
     const resolvedUser = { ...user } as any;
-    if (resolvedUser.avatar_file_id || resolvedUser.avatar_url) {
-      resolvedUser.avatar_url =
-        await this.storedFilesService.resolveFileUrl(
-          resolvedUser.avatar_url,
-          resolvedUser.avatar_file_id,
-        );
-    }
+    resolvedUser.avatar_url = resolvedUser.avatar_file_id
+      ? await this.storedFilesService.resolveFileUrl(resolvedUser.avatar_file_id)
+      : null;
     return resolvedUser;
   }
 
@@ -286,8 +282,10 @@ export class UsersService {
     }
 
     ensureNoManualFileUrl(dto.avatar_url, 'Avatar de usuario');
+    const data: any = { ...dto };
+    delete data.avatar_url;
 
-    let avatarUrl = currentUserRecord.avatar_url;
+    let avatarUrl: string | undefined;
 
     if (avatarFile) {
       const imageInfo = validateImageFile(avatarFile, {
@@ -308,7 +306,7 @@ export class UsersService {
         await this.storageGovernance.assertCanStore(
           currentUserRecord.organization_id,
           avatarFile.size,
-          currentUserRecord.avatar_url ? [currentUserRecord.avatar_url] : [],
+          currentUserRecord.avatar_file_id ? [currentUserRecord.avatar_file_id] : [],
         );
       }
 
@@ -341,9 +339,8 @@ export class UsersService {
     const updatedUser = await this.prisma.user.update({
       where: { id: currentUserRecord.id },
       data: {
-        ...dto,
+        ...data,
         avatar_file_id: avatarFileId,
-        avatar_url: avatarUrl,
       },
       select: {
         id: true,
@@ -357,10 +354,9 @@ export class UsersService {
       }
     });
 
-    if (avatarFile && currentUserRecord.avatar_url && currentUserRecord.avatar_url !== updatedUser.avatar_url) {
+    if (avatarFile && currentUserRecord.avatar_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         currentUserRecord.avatar_file_id,
-        currentUserRecord.avatar_url,
       );
     }
 
