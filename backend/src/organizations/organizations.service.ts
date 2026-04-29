@@ -4,8 +4,9 @@ import { UpdateOrganizationSettingsDto } from './dto/update-organization-setting
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 import * as crypto from 'crypto';
-import { Role } from '@prisma/client';
+import { Role, StoredFileKind } from '@prisma/client';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildOrganizationLogoPath } from '../common/files/storage-paths';
@@ -18,6 +19,7 @@ export class OrganizationsService {
     private prisma: PrismaService,
     private storage: StorageService,
     private storageGovernance: StorageGovernanceService,
+    private storedFilesService: StoredFilesService,
   ) {}
 
   async findAll() {
@@ -83,7 +85,7 @@ export class OrganizationsService {
     const data: any = { ...dto };
     const currentOrg = await this.prisma.organization.findUnique({
       where: { id: orgId },
-      select: { logo_url: true },
+      select: { logo_url: true, logo_file_id: true },
     });
 
     ensureNoManualFileUrl(dto.logo_url, 'Logo de organizacion');
@@ -115,7 +117,19 @@ export class OrganizationsService {
         folder: buildOrganizationLogoPath(orgId),
         visibility: 'public',
       });
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: orgId,
+        storageRef: logoUrl,
+        originalName: logoFile.originalname,
+        mimeType: logoFile.mimetype,
+        sizeBytes: logoFile.size,
+        kind: StoredFileKind.ORG_LOGO,
+        visibility: 'public',
+        ownerType: 'ORGANIZATION',
+        ownerId: orgId,
+      });
       data.logo_url = logoUrl;
+      data.logo_file_id = storedFile.id;
     }
 
     const updatedOrg = await this.prisma.organization.update({
@@ -123,8 +137,11 @@ export class OrganizationsService {
       data
     });
 
-    if (logoFile && currentOrg?.logo_url && currentOrg.logo_url !== updatedOrg.logo_url) {
-      await this.storage.deleteFile(currentOrg.logo_url);
+    if (logoFile && currentOrg && currentOrg.logo_url !== updatedOrg.logo_url) {
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        currentOrg.logo_file_id,
+        currentOrg.logo_url,
+      );
     }
 
     return updatedOrg;

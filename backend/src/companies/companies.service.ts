@@ -5,10 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildCompanyLogoPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
+import { StoredFileKind } from '@prisma/client';
 
 @Injectable()
 export class CompaniesService {
@@ -16,6 +18,7 @@ export class CompaniesService {
     private prisma: PrismaService,
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
+    private storedFilesService: StoredFilesService,
   ) {}
 
   private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
@@ -41,7 +44,11 @@ export class CompaniesService {
     }
 
     if (resolvedCompany.logo_url) {
-      resolvedCompany.logo_url = await this.storageService.resolveFileUrl(resolvedCompany.logo_url);
+      resolvedCompany.logo_url =
+        await this.storedFilesService.resolveFileUrl(
+          resolvedCompany.logo_url,
+          resolvedCompany.logo_file_id,
+        );
     }
 
     return resolvedCompany;
@@ -74,10 +81,27 @@ export class CompaniesService {
       });
     }
 
+    let logoFileId: string | null = null;
+    if (logoFile && logoUrl) {
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: orgId,
+        storageRef: logoUrl,
+        originalName: logoFile.originalname,
+        mimeType: logoFile.mimetype,
+        sizeBytes: logoFile.size,
+        kind: StoredFileKind.COMPANY_LOGO,
+        visibility: 'private',
+        ownerType: 'COMPANY',
+        ownerId: companyId,
+      });
+      logoFileId = storedFile.id;
+    }
+
     const company = await this.prisma.company.create({
       data: {
         id: companyId,
         ...createCompanyDto,
+        logo_file_id: logoFileId,
         logo_url: logoUrl,
         organization_id: orgId,
       },
@@ -134,7 +158,7 @@ export class CompaniesService {
   async update(id: string, updateCompanyDto: UpdateCompanyDto, orgId: string, logoFile?: Express.Multer.File) {
     const existingCompany = await this.prisma.company.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, logo_url: true },
+      select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },
     });
 
     if (!existingCompany || existingCompany.organization_id !== orgId) {
@@ -170,16 +194,36 @@ export class CompaniesService {
       });
     }
 
+    let logoFileId = existingCompany.logo_file_id;
+    if (logoFile && logoUrl) {
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: orgId,
+        storageRef: logoUrl,
+        originalName: logoFile.originalname,
+        mimeType: logoFile.mimetype,
+        sizeBytes: logoFile.size,
+        kind: StoredFileKind.COMPANY_LOGO,
+        visibility: 'private',
+        ownerType: 'COMPANY',
+        ownerId: existingCompany.id,
+      });
+      logoFileId = storedFile.id;
+    }
+
     const company = await this.prisma.company.update({
       where: { id: existingCompany.id },
       data: {
         ...updateCompanyDto,
+        logo_file_id: logoFileId,
         logo_url: logoUrl,
       },
     });
 
     if (logoFile && existingCompany.logo_url && existingCompany.logo_url !== company.logo_url) {
-      await this.storageService.deleteFile(existingCompany.logo_url);
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        existingCompany.logo_file_id,
+        existingCompany.logo_url,
+      );
     }
 
     return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
@@ -188,7 +232,7 @@ export class CompaniesService {
   async remove(id: string, orgId: string) {
     const existingCompany = await this.prisma.company.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, logo_url: true },
+      select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },
     });
 
     if (!existingCompany || existingCompany.organization_id !== orgId) {
@@ -197,11 +241,14 @@ export class CompaniesService {
 
     const company = await this.prisma.company.update({
       where: { id: existingCompany.id },
-      data: { is_active: false, logo_url: null },
+      data: { is_active: false, logo_url: null, logo_file_id: null },
     });
 
     if (existingCompany.logo_url) {
-      await this.storageService.deleteFile(existingCompany.logo_url);
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        existingCompany.logo_file_id,
+        existingCompany.logo_url,
+      );
     }
 
     return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));

@@ -1,21 +1,22 @@
 import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, StoredFileKind } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildUserAvatarPath } from '../common/files/storage-paths';
-
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
+    private storedFilesService: StoredFilesService,
   ) {}
 
   private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
@@ -31,7 +32,11 @@ export class UsersService {
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
     const resolvedUser = { ...user } as any;
     if (resolvedUser.avatar_url) {
-      resolvedUser.avatar_url = await this.storageService.resolveFileUrl(resolvedUser.avatar_url);
+      resolvedUser.avatar_url =
+        await this.storedFilesService.resolveFileUrl(
+          resolvedUser.avatar_url,
+          resolvedUser.avatar_file_id,
+        );
     }
     return resolvedUser;
   }
@@ -102,6 +107,7 @@ export class UsersService {
       email: true,
       name: true,
       phone: true,
+      avatar_file_id: true,
       avatar_url: true,
       is_active: true,
       last_login_at: true,
@@ -158,6 +164,7 @@ export class UsersService {
         email: true,
         name: true,
         phone: true,
+        avatar_file_id: true,
         avatar_url: true,
         company_id: true,
         company: { select: { id: true, name: true } },
@@ -265,6 +272,7 @@ export class UsersService {
       select: {
         id: true,
         organization_id: true,
+        avatar_file_id: true,
         avatar_url: true,
       },
     });
@@ -313,10 +321,28 @@ export class UsersService {
       });
     }
 
+    let avatarFileId = currentUserRecord.avatar_file_id;
+    if (avatarFile && currentUserRecord.organization_id) {
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: currentUserRecord.organization_id,
+        storageRef: avatarUrl!,
+        originalName: avatarFile.originalname,
+        mimeType: avatarFile.mimetype,
+        sizeBytes: avatarFile.size,
+        kind: StoredFileKind.USER_AVATAR,
+        visibility: 'private',
+        ownerType: 'USER',
+        ownerId: currentUserRecord.id,
+        uploadedByUserId: currentUser.id,
+      });
+      avatarFileId = storedFile.id;
+    }
+
     const updatedUser = await this.prisma.user.update({
       where: { id: currentUserRecord.id },
       data: {
         ...dto,
+        avatar_file_id: avatarFileId,
         avatar_url: avatarUrl,
       },
       select: {
@@ -325,13 +351,17 @@ export class UsersService {
         name: true,
         role: true,
         phone: true,
+        avatar_file_id: true,
         avatar_url: true,
         is_active: true,
       }
     });
 
     if (avatarFile && currentUserRecord.avatar_url && currentUserRecord.avatar_url !== updatedUser.avatar_url) {
-      await this.storageService.deleteFile(currentUserRecord.avatar_url);
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        currentUserRecord.avatar_file_id,
+        currentUserRecord.avatar_url,
+      );
     }
 
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));

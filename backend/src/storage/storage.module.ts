@@ -5,6 +5,7 @@ import { StorageService } from './storage.service';
 import { LocalStorageService } from './local-storage.service';
 import { SupabaseStorageService } from './supabase-storage.service';
 import { StorageGovernanceService } from './storage-governance.service';
+import { StoredFilesService } from './stored-files.service';
 
 @Global()
 @Module({
@@ -21,7 +22,8 @@ import { StorageGovernanceService } from './storage-governance.service';
       inject: [ConfigService],
     },
     StorageGovernanceService,
+    StoredFilesService,
   ],
-  exports: [StorageService, StorageGovernanceService],
+  exports: [StorageService, StorageGovernanceService, StoredFilesService],
 })
 export class StorageModule {}

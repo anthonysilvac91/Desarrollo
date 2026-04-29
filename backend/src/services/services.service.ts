@@ -5,10 +5,12 @@ import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 import { validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
+import { StoredFileKind } from '@prisma/client';
 
 @Injectable()
 export class ServicesService {
@@ -18,6 +20,7 @@ export class ServicesService {
     private prisma: PrismaService,
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
+    private storedFilesService: StoredFilesService,
   ) {}
 
   private mapServiceRelations<T extends Record<string, any>>(service: T): T {
@@ -41,14 +44,21 @@ export class ServicesService {
     const resolvedService = { ...service } as any;
 
     if (resolvedService.asset?.thumbnail_url) {
-      resolvedService.asset.thumbnail_url = await this.storageService.resolveFileUrl(resolvedService.asset.thumbnail_url);
+      resolvedService.asset.thumbnail_url =
+        await this.storedFilesService.resolveFileUrl(
+          resolvedService.asset.thumbnail_url,
+          resolvedService.asset.thumbnail_file_id,
+        );
     }
 
     if (Array.isArray(resolvedService.attachments)) {
       resolvedService.attachments = await Promise.all(
         resolvedService.attachments.map(async (attachment: any) => ({
           ...attachment,
-          file_url: await this.storageService.resolveFileUrl(attachment.file_url),
+          file_url: await this.storedFilesService.resolveFileUrl(
+            attachment.file_url,
+            attachment.file_id,
+          ),
         }))
       );
     }
@@ -120,7 +130,20 @@ export class ServicesService {
         folder: buildServiceAttachmentsPath(user.orgId, serviceId),
         visibility: 'private',
       });
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: user.orgId,
+        storageRef: file_url,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        kind: StoredFileKind.SERVICE_ATTACHMENT,
+        visibility: 'private',
+        ownerType: 'SERVICE',
+        ownerId: serviceId,
+        uploadedByUserId: user.id,
+      });
       return {
+        file_id: storedFile.id,
         file_url,
         file_type: file.mimetype,
         file_name: file.originalname,
@@ -188,8 +211,8 @@ export class ServicesService {
           where: whereClause,
           include: {
             worker: { select: { id: true, name: true } },
-            asset: { select: { id: true, name: true, location: true, company_id: true, company: { select: { id: true, name: true } } } },
-            attachments: { select: { file_url: true, file_type: true } },
+            asset: { select: { id: true, name: true, location: true, company_id: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } },
+            attachments: { select: { file_id: true, file_url: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
@@ -211,8 +234,8 @@ export class ServicesService {
       where: whereClause,
       include: { 
         worker: { select: { id: true, name: true } },
-        asset: { select: { id: true, name: true, location: true, company_id: true, company: { select: { id: true, name: true } } } },
-        attachments: { select: { file_url: true, file_type: true } },
+        asset: { select: { id: true, name: true, location: true, company_id: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } },
+        attachments: { select: { file_id: true, file_url: true, file_type: true } },
       },
       orderBy: { created_at: 'desc' }
     });
@@ -242,7 +265,7 @@ export class ServicesService {
       include: {
         attachments: true,
         worker: { select: { name: true, id: true } },
-        asset: { select: { name: true, id: true, category: true, company_id: true, location: true, company: { select: { id: true, name: true } } } }
+        asset: { select: { name: true, id: true, category: true, company_id: true, location: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } }
       }
     });
 
@@ -282,7 +305,7 @@ export class ServicesService {
 
     const attachments = await this.prisma.serviceAttachment.findMany({
       where: { service_id: id },
-      select: { file_url: true },
+      select: { file_id: true, file_url: true },
     });
 
     // Eliminar primero los archivos adjuntos relacionados (Foreign Key)
@@ -290,7 +313,14 @@ export class ServicesService {
       where: { service_id: id }
     });
 
-    await Promise.all(attachments.map((attachment) => this.storageService.deleteFile(attachment.file_url)));
+    await Promise.all(
+      attachments.map((attachment) =>
+        this.storedFilesService.deleteStoredFileAndBlob(
+          attachment.file_id,
+          attachment.file_url,
+        ),
+      ),
+    );
 
     // Eliminar el servicio
     return this.prisma.service.delete({

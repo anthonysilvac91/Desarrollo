@@ -2,11 +2,13 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildAssetThumbnailPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
+import { StoredFileKind } from '@prisma/client';
 
 @Injectable()
 export class AssetsService {
@@ -14,6 +16,7 @@ export class AssetsService {
     private prisma: PrismaService,
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
+    private storedFilesService: StoredFilesService,
   ) {}
 
   private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
@@ -30,7 +33,11 @@ export class AssetsService {
     const resolvedAsset = { ...asset } as any;
 
     if (resolvedAsset.thumbnail_url) {
-      resolvedAsset.thumbnail_url = await this.storageService.resolveFileUrl(resolvedAsset.thumbnail_url);
+      resolvedAsset.thumbnail_url =
+        await this.storedFilesService.resolveFileUrl(
+          resolvedAsset.thumbnail_url,
+          resolvedAsset.thumbnail_file_id,
+        );
     }
 
     if (Array.isArray(resolvedAsset.services)) {
@@ -41,7 +48,10 @@ export class AssetsService {
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
                   ...attachment,
-                  file_url: await this.storageService.resolveFileUrl(attachment.file_url),
+                  file_url: await this.storedFilesService.resolveFileUrl(
+                    attachment.file_url,
+                    attachment.file_id,
+                  ),
                 }))
               )
             : service.attachments,
@@ -97,6 +107,22 @@ export class AssetsService {
       });
     }
 
+    let thumbnailFileId: string | null = null;
+    if (photo && thumbnail_url) {
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: targetOrgId,
+        storageRef: thumbnail_url,
+        originalName: photo.originalname,
+        mimeType: photo.mimetype,
+        sizeBytes: photo.size,
+        kind: StoredFileKind.ASSET_THUMBNAIL,
+        visibility: 'private',
+        ownerType: 'ASSET',
+        ownerId: assetId,
+      });
+      thumbnailFileId = storedFile.id;
+    }
+
     if (companyId) {
       await this.ensureCompanyBelongsToOrg(companyId, targetOrgId);
     }
@@ -105,6 +131,7 @@ export class AssetsService {
       data: {
         id: assetId,
         ...assetData,
+        thumbnail_file_id: thumbnailFileId,
         thumbnail_url,
         organization_id: targetOrgId,
         company_id: companyId || null,
@@ -218,7 +245,7 @@ export class AssetsService {
         services: {
           include: {
             worker: { select: { name: true, id: true } },
-            attachments: { select: { id: true, file_url: true, file_type: true } },
+            attachments: { select: { id: true, file_id: true, file_url: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
         },
@@ -326,6 +353,7 @@ export class AssetsService {
 
     const { company_id: companyId, ...updateData } = updateDto;
     let thumbnail_url = asset.thumbnail_url;
+    let thumbnailFileId = (asset as any).thumbnail_file_id ?? null;
 
     ensureNoManualFileUrl(updateDto.thumbnail_url, 'Thumbnail del activo');
 
@@ -353,10 +381,23 @@ export class AssetsService {
         folder: buildAssetThumbnailPath(asset.organization_id, asset.id),
         visibility: 'private',
       });
+      const storedFile = await this.storedFilesService.registerFile({
+        organizationId: asset.organization_id,
+        storageRef: thumbnail_url,
+        originalName: photo.originalname,
+        mimeType: photo.mimetype,
+        sizeBytes: photo.size,
+        kind: StoredFileKind.ASSET_THUMBNAIL,
+        visibility: 'private',
+        ownerType: 'ASSET',
+        ownerId: asset.id,
+      });
+      thumbnailFileId = storedFile.id;
     }
 
     const updatePayload: any = {
       ...updateData,
+      thumbnail_file_id: thumbnailFileId,
       thumbnail_url,
     };
 
@@ -373,7 +414,10 @@ export class AssetsService {
     });
 
     if (photo && asset.thumbnail_url && asset.thumbnail_url !== updatedAsset.thumbnail_url) {
-      await this.storageService.deleteFile(asset.thumbnail_url);
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        (asset as any).thumbnail_file_id ?? null,
+        asset.thumbnail_url,
+      );
     }
 
     return this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset));
