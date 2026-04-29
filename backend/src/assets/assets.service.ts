@@ -335,10 +335,19 @@ export class AssetsService {
       throw new ForbiddenException('No tienes permiso para borrar este activo');
     }
 
-    return this.prisma.asset.update({
+    const updatedAsset = await this.prisma.asset.update({
       where: { id },
       data: { is_active: false },
     });
+
+    if (asset.thumbnail_url) {
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        (asset as any).thumbnail_file_id ?? null,
+        asset.thumbnail_url,
+      );
+    }
+
+    return updatedAsset;
   }
 
   async update(id: string, updateDto: any, orgId: string, role: string, photo?: Express.Multer.File) {
