@@ -23,6 +23,7 @@ El sistema usa un modelo RBAC con aislamiento por organization.
 - **Storage**:
   - **Desarrollo**: local (`/uploads`)
   - **Produccion**: Supabase Storage mediante `StorageService`
+  - **Importante**: `STORAGE_TYPE=local` es solo para desarrollo. En ese modo los archivos quedan expuestos via `/uploads`, por lo que no garantiza privacidad ni aislamiento fuerte para media multi-tenant.
 
 ## 4. Multi-tenancy y Aislamiento
 Recall utiliza una arquitectura de base de datos compartida con esquema compartido. El aislamiento es logico mediante la columna `organization_id` en las tablas criticas.
