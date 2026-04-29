@@ -7,6 +7,8 @@ import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import { processUploadedImage } from '../common/files/image-processing';
+import { buildUserAvatarPath } from '../common/files/storage-paths';
 
 @Injectable()
 export class UsersService {
@@ -288,6 +290,12 @@ export class UsersService {
         maxPixels: 12 * 1024 * 1024,
       });
       avatarFile.mimetype = imageInfo.mime;
+      await processUploadedImage(avatarFile, {
+        maxWidth: 512,
+        maxHeight: 512,
+        format: 'webp',
+        quality: 86,
+      });
       if (currentUserRecord.organization_id) {
         await this.storageGovernance.assertCanStore(
           currentUserRecord.organization_id,
@@ -297,7 +305,10 @@ export class UsersService {
       }
 
       avatarUrl = await this.storageService.uploadFile(avatarFile, {
-        folder: `${currentUserRecord.organization_id ?? 'global'}/users/${currentUserRecord.id}/avatar`,
+        folder: buildUserAvatarPath(
+          currentUserRecord.organization_id ?? 'global',
+          currentUserRecord.id,
+        ),
         visibility: 'private',
       });
     }

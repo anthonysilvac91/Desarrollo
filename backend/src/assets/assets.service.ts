@@ -4,6 +4,9 @@ import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import { processUploadedImage } from '../common/files/image-processing';
+import { buildAssetThumbnailPath } from '../common/files/storage-paths';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AssetsService {
@@ -63,6 +66,7 @@ export class AssetsService {
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
     const { company_id: companyId, organization_id: dtoOrgId, ...assetData } = createAssetDto;
     const targetOrgId = orgId || dtoOrgId;
+    const assetId = randomUUID();
     let thumbnail_url: string | undefined;
 
     ensureNoManualFileUrl(createAssetDto.thumbnail_url, 'Thumbnail del activo');
@@ -80,9 +84,15 @@ export class AssetsService {
         maxPixels: 24 * 1024 * 1024,
       });
       photo.mimetype = imageInfo.mime;
+      await processUploadedImage(photo, {
+        maxWidth: 1600,
+        maxHeight: 1600,
+        format: 'webp',
+        quality: 84,
+      });
       await this.storageGovernance.assertCanStore(targetOrgId, photo.size);
       thumbnail_url = await this.storageService.uploadFile(photo, {
-        folder: `${targetOrgId}/assets`,
+        folder: buildAssetThumbnailPath(targetOrgId, assetId),
         visibility: 'private',
       });
     }
@@ -93,6 +103,7 @@ export class AssetsService {
 
     const newAsset = await this.prisma.asset.create({
       data: {
+        id: assetId,
         ...assetData,
         thumbnail_url,
         organization_id: targetOrgId,
@@ -327,13 +338,19 @@ export class AssetsService {
         maxPixels: 24 * 1024 * 1024,
       });
       photo.mimetype = imageInfo.mime;
+      await processUploadedImage(photo, {
+        maxWidth: 1600,
+        maxHeight: 1600,
+        format: 'webp',
+        quality: 84,
+      });
       await this.storageGovernance.assertCanStore(
         asset.organization_id,
         photo.size,
         asset.thumbnail_url ? [asset.thumbnail_url] : [],
       );
       thumbnail_url = await this.storageService.uploadFile(photo, {
-        folder: `${asset.organization_id}/assets`,
+        folder: buildAssetThumbnailPath(asset.organization_id, asset.id),
         visibility: 'private',
       });
     }

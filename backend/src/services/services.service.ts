@@ -6,6 +6,9 @@ import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { validateImageFile } from '../common/files/image-validation';
+import { processUploadedImage } from '../common/files/image-processing';
+import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ServicesService {
@@ -96,6 +99,7 @@ export class ServicesService {
     const totalIncomingBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
     await this.storageGovernance.assertCanStore(user.orgId, totalIncomingBytes);
 
+    const serviceId = randomUUID();
     const attachmentPromises = files?.map(async (file) => {
       const imageInfo = validateImageFile(file, {
         maxBytes: 10 * 1024 * 1024,
@@ -105,14 +109,20 @@ export class ServicesService {
         maxPixels: 24 * 1024 * 1024,
       });
       file.mimetype = imageInfo.mime;
+      await processUploadedImage(file, {
+        maxWidth: 2400,
+        maxHeight: 2400,
+        format: 'webp',
+        quality: 82,
+      });
 
       const file_url = await this.storageService.uploadFile(file, {
-        folder: `${user.orgId}/services`,
+        folder: buildServiceAttachmentsPath(user.orgId, serviceId),
         visibility: 'private',
       });
       return {
         file_url,
-        file_type: imageInfo.mime,
+        file_type: file.mimetype,
         file_name: file.originalname,
         file_size_bytes: file.size,
       };
@@ -122,6 +132,7 @@ export class ServicesService {
 
     const newService = await this.prisma.service.create({
       data: {
+        id: serviceId,
         ...createServiceDto,
         organization_id: user.orgId,
         worker_id: user.id,

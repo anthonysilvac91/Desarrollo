@@ -7,6 +7,8 @@ import { StorageGovernanceService } from '../storage/storage-governance.service'
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import { processUploadedImage } from '../common/files/image-processing';
+import { buildOrganizationLogoPath } from '../common/files/storage-paths';
 
 @Injectable()
 export class OrganizationsService {
@@ -96,6 +98,12 @@ export class OrganizationsService {
         maxPixels: 12 * 1024 * 1024,
       });
       logoFile.mimetype = imageInfo.mime;
+      await processUploadedImage(logoFile, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        format: 'webp',
+        quality: 88,
+      });
       await this.storageGovernance.assertCanStore(
         orgId,
         logoFile.size,
@@ -104,7 +112,7 @@ export class OrganizationsService {
 
       this.logger.log(`Uploading logo for organization ${orgId}...`);
       const logoUrl = await this.storage.uploadFile(logoFile, {
-        folder: `${orgId}/branding`,
+        folder: buildOrganizationLogoPath(orgId),
         visibility: 'public',
       });
       data.logo_url = logoUrl;

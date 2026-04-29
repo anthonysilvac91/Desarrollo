@@ -6,6 +6,9 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import { processUploadedImage } from '../common/files/image-processing';
+import { buildCompanyLogoPath } from '../common/files/storage-paths';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class CompaniesService {
@@ -47,6 +50,7 @@ export class CompaniesService {
   async create(createCompanyDto: CreateCompanyDto, orgId: string, logoFile?: Express.Multer.File) {
     ensureNoManualFileUrl(createCompanyDto.logo_url, 'Logo de company');
 
+    const companyId = randomUUID();
     let logoUrl: string | undefined;
     if (logoFile) {
       const imageInfo = validateImageFile(logoFile, {
@@ -57,15 +61,22 @@ export class CompaniesService {
         maxPixels: 12 * 1024 * 1024,
       });
       logoFile.mimetype = imageInfo.mime;
+      await processUploadedImage(logoFile, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        format: 'webp',
+        quality: 88,
+      });
       await this.storageGovernance.assertCanStore(orgId, logoFile.size);
       logoUrl = await this.storageService.uploadFile(logoFile, {
-        folder: `${orgId}/companies/logos`,
+        folder: buildCompanyLogoPath(orgId, companyId),
         visibility: 'private',
       });
     }
 
     const company = await this.prisma.company.create({
       data: {
+        id: companyId,
         ...createCompanyDto,
         logo_url: logoUrl,
         organization_id: orgId,
@@ -142,13 +153,19 @@ export class CompaniesService {
         maxPixels: 12 * 1024 * 1024,
       });
       logoFile.mimetype = imageInfo.mime;
+      await processUploadedImage(logoFile, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        format: 'webp',
+        quality: 88,
+      });
       await this.storageGovernance.assertCanStore(
         orgId,
         logoFile.size,
         existingCompany.logo_url ? [existingCompany.logo_url] : [],
       );
       logoUrl = await this.storageService.uploadFile(logoFile, {
-        folder: `${orgId}/companies/logos`,
+        folder: buildCompanyLogoPath(orgId, existingCompany.id),
         visibility: 'private',
       });
     }
