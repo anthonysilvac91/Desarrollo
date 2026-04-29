@@ -16,6 +16,10 @@ Esta guia define la unica configuracion local oficial del proyecto.
 - **Compose oficial de DB**: `backend/docker-compose.yml`
 - **API del frontend**: `NEXT_PUBLIC_API_URL=http://localhost:3001`
 
+Importante:
+- `STORAGE_TYPE=local` es solo para desarrollo.
+- Cuando esta activo, los archivos quedan expuestos por `/uploads` y no debe considerarse un modo privado.
+
 ## Paso 1: Base de Datos
 
 Desde `backend/`:

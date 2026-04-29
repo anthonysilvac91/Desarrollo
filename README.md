@@ -28,6 +28,10 @@ La unica configuracion local soportada oficialmente es:
 - PostgreSQL: `localhost:5433`
 - Compose oficial de DB: `backend/docker-compose.yml`
 
+Importante:
+- `STORAGE_TYPE=local` es solo para desarrollo.
+- En ese modo el backend expone archivos via `/uploads`, por lo que ese storage es publico y no garantiza privacidad fuerte para media multi-tenant.
+
 ## Guia Rapida de Inicio
 
 ### Requisitos

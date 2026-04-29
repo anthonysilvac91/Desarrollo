@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { assetsService, Asset, Service } from "@/services/assets.service";
 import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Camera, Building2, Ship } from "lucide-react";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
+import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
   const styles = {
@@ -18,29 +19,6 @@ const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENT
     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${styles[status]}`}>
       {status}
     </span>
-  );
-};
-
-const JobImage = ({ src }: { src: string }) => {
-  const [hasError, setHasError] = useState(false);
-
-  if (hasError || !src) {
-    return (
-      <div className="w-14 h-14 rounded-2xl bg-app-bg border border-border-theme/40 flex items-center justify-center text-subtitle/20">
-        <Camera className="w-6 h-6" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-14 h-14 rounded-2xl overflow-hidden border border-border-theme/40 shadow-sm hover:scale-110 transition-transform cursor-pointer bg-app-bg">
-      <img 
-        src={src} 
-        alt="Evidence" 
-        className="w-full h-full object-cover" 
-        onError={() => setHasError(true)}
-      />
-    </div>
   );
 };
 
@@ -101,7 +79,12 @@ const JobCard = ({ job, onClick }: { job: Service, onClick?: () => void }) => {
         {job.attachments?.length > 0 && (
           <div className="flex items-center gap-3 mt-6 pt-6 border-t border-border-theme/10">
             {job.attachments.map((img: any, idx: number) => (
-              <JobImage key={idx} src={img.file_url} />
+              <ServiceAttachmentCard
+                key={idx}
+                attachment={img}
+                alt="Evidence"
+                size="sm"
+              />
             ))}
           </div>
         )}

@@ -7,6 +7,7 @@ import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Service } from "@/services/assets.service";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
+import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 
 export default function WorkerServiceViewPage() {
   const router = useRouter();
@@ -84,12 +85,13 @@ export default function WorkerServiceViewPage() {
                
                <div className="flex overflow-x-auto space-x-3 pb-2 -mx-5 px-5 no-scrollbar">
                  {job.attachments.map((att, idx) => (
-                   <div 
-                    key={(att as any).id || idx} 
-                    onClick={() => setSelectedImage((att as any).file_url)}
-                    className="w-24 h-24 flex-shrink-0 rounded-2xl overflow-hidden border border-border-theme/40 bg-surface active:scale-95 transition-transform"
-                   >
-                     <img src={(att as any).file_url} className="w-full h-full object-cover" alt={`Evidencia ${idx + 1}`} />
+                   <div key={(att as any).id || idx} className="flex-shrink-0">
+                     <ServiceAttachmentCard
+                       attachment={att}
+                       alt={`Evidencia ${idx + 1}`}
+                       size="md"
+                       onImageClick={setSelectedImage}
+                     />
                    </div>
                  ))}
                </div>
