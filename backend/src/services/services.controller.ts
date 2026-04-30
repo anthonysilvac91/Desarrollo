@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, ForbiddenException, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { imageUploadOptions } from '../common/files/multer-image-options';
 
 @ApiTags('Services')
 @ApiBearerAuth()
@@ -17,9 +17,7 @@ export class ServicesController {
 
   @Post()
   @ApiOperation({ summary: 'Registrar un servicio ejecutado', description: 'Crea el servicio y aplica visibilidad según la configuración de la organización.' })
-  @UseInterceptors(FilesInterceptor('files', 10, {
-    storage: memoryStorage(),
-  }))
+  @UseInterceptors(FilesInterceptor('files', 10, imageUploadOptions(10 * 1024 * 1024)))
   create(@Body() createServiceDto: CreateServiceDto, @Request() req, @UploadedFiles() files: Express.Multer.File[]) {
     if (!['ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para registrar servicios');

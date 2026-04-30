@@ -5,6 +5,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { imageUploadOptions } from '../common/files/multer-image-options';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
@@ -14,7 +15,7 @@ export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('photo'))
+  @UseInterceptors(FileInterceptor('photo', imageUploadOptions(5 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Crear un nuevo activo', description: 'Disponible para Worker y Admin.' })
   create(@Body() createAssetDto: CreateAssetDto, @Request() req, @UploadedFile() photo?: Express.Multer.File) {
@@ -76,7 +77,7 @@ export class AssetsController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('photo'))
+  @UseInterceptors(FileInterceptor('photo', imageUploadOptions(5 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar un activo existente' })
   update(@Param('id') id: string, @Body() updateAssetDto: any, @Request() req, @UploadedFile() photo?: Express.Multer.File) {

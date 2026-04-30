@@ -6,6 +6,7 @@ import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { imageUploadOptions } from '../common/files/multer-image-options';
 
 @ApiTags('companies')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Crear una company' })
   create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
@@ -44,7 +45,7 @@ export class CompaniesController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar una company' })
   update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {

@@ -9,9 +9,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const secret = configService.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
 
     if (!secret) {
-      console.error('--- ERROR CRITICO ---');
-      console.error('JWT_SECRET no encontrada en ConfigService ni en process.env');
-      console.error('Variables disponibles:', Object.keys(process.env).filter(k => !k.includes('KEY') && !k.includes('SECRET')));
       throw new Error('CRITICAL ERROR: JWT_SECRET environment variable is missing.');
     }
 

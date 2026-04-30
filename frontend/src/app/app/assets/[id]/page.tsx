@@ -6,7 +6,6 @@ import {
   MapPin, 
   Plus, 
   Calendar, 
-  Camera, 
   Ship, 
   Briefcase, 
   Loader2, 
@@ -43,22 +42,19 @@ const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   );
 };
 
-const JobGallery = ({ images }: { images: string[] }) => {
-  if (!images || images.length === 0) return null;
+const JobGallery = ({ images }: { images: Array<string | null | undefined> }) => {
+  const validImages = images.filter((img): img is string => !!img);
+  if (validImages.length === 0) return null;
   return (
     <div className="flex items-center gap-2 mt-4">
-      {images.slice(0, 3).map((img, i) => (
+      {validImages.slice(0, 3).map((img, i) => (
         <div key={i} className="w-12 h-12 rounded-xl bg-app-bg border border-border-theme/20 flex items-center justify-center shadow-sm overflow-hidden">
-           {img ? (
-             <img src={img} alt="Evidence" className="w-full h-full object-cover" />
-           ) : (
-             <Camera className="w-5 h-5 text-subtitle opacity-30" />
-           )}
+           <img src={img} alt="Evidence" className="w-full h-full object-cover" />
         </div>
       ))}
-      {images.length > 3 && (
+      {validImages.length > 3 && (
         <div className="w-12 h-12 rounded-xl bg-surface border border-border-theme/20 flex items-center justify-center shadow-sm text-[10px] font-black text-subtitle opacity-40">
-          +{images.length - 3}
+          +{validImages.length - 3}
         </div>
       )}
     </div>

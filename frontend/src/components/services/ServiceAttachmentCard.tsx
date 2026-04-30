@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Camera, FileText } from "lucide-react";
 
 export interface ServiceAttachmentLike {
-  file_url: string;
+  file_url?: string | null;
   file_type?: string;
 }
 
@@ -26,7 +26,9 @@ export default function ServiceAttachmentCard({
   onImageClick,
 }: ServiceAttachmentCardProps) {
   const [hasError, setHasError] = useState(false);
-  const isImage = isImageAttachment(attachment.file_type) && !hasError;
+  const fileUrl = attachment.file_url ?? "";
+  const hasUrl = fileUrl.length > 0;
+  const isImage = hasUrl && isImageAttachment(attachment.file_type) && !hasError;
 
   const sizeClass =
     size === "sm"
@@ -35,7 +37,7 @@ export default function ServiceAttachmentCard({
         ? "aspect-square rounded-2xl"
         : "w-24 h-24 rounded-2xl";
 
-  const clickable = isImage && !!onImageClick;
+  const clickable = isImage && hasUrl && !!onImageClick;
 
   if (!isImage) {
     return (
@@ -51,11 +53,11 @@ export default function ServiceAttachmentCard({
   return (
     <button
       type="button"
-      onClick={clickable ? () => onImageClick(attachment.file_url) : undefined}
+      onClick={clickable ? () => onImageClick(fileUrl) : undefined}
       className={`${sizeClass} overflow-hidden border border-border-theme/20 shadow-sm bg-app-bg group relative ${clickable ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform" : ""}`}
     >
       <img
-        src={attachment.file_url}
+        src={fileUrl}
         alt={alt}
         className="w-full h-full object-cover"
         onError={() => setHasError(true)}

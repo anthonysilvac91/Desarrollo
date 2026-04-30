@@ -2,7 +2,7 @@ import api from "@/lib/api";
 
 export interface ServiceAttachment {
   id: string;
-  file_url: string;
+  file_url?: string | null;
   file_type?: string;
 }
 

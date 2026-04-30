@@ -14,7 +14,7 @@ interface AssetDrawerProps {
 }
 
 // Fallback image component for thumbnails/cards
-const JobThumbnail = ({ src }: { src: string }) => {
+const JobThumbnail = ({ src }: { src?: string | null }) => {
   const [error, setError] = useState(false);
 
   if (error || !src) {

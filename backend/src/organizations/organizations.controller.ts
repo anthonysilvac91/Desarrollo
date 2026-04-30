@@ -17,6 +17,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationSettingsDto } from './dto/update-organization-settings.dto';
 import { OrganizationsService } from './organizations.service';
+import { imageUploadOptions } from '../common/files/multer-image-options';
 
 @ApiTags('Organizations')
 @ApiBearerAuth()
@@ -69,7 +70,7 @@ export class OrganizationsController {
   }
 
   @Patch('settings')
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar parametros de la Organizacion (Solo Admin)' })
   updateSettings(

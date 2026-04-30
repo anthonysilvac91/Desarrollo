@@ -1,6 +1,10 @@
 import axios from "axios";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
+
+if (!apiBaseUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL is required in production");
+}
 
 const normalizeMediaUrls = (value: unknown): unknown => {
   if (typeof value === "string") {

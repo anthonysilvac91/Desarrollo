@@ -15,7 +15,7 @@ export interface Service {
     name: string;
   };
   attachments?: {
-    file_url: string;
+    file_url?: string | null;
     file_type?: string;
   }[];
   is_public: boolean;

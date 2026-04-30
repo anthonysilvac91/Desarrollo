@@ -8,6 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { imageUploadOptions } from '../common/files/multer-image-options';
 
 @ApiTags('Users Management')
 @ApiBearerAuth()
@@ -52,7 +53,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('avatar'))
+  @UseInterceptors(FileInterceptor('avatar', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar perfil de usuario' })
   @ApiBody({ type: UpdateUserDto })
