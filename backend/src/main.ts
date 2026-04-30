@@ -37,11 +37,17 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   requireProductionEnv(configService);
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
   const allowedOrigins = parseCorsOrigins(configService);
 
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (!isProduction && allowedOrigins.length === 0) {
         callback(null, true);
         return;
       }
