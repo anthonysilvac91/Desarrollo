@@ -33,10 +33,21 @@ export class DashboardService {
     const isWorker = currentUser.role === Role.WORKER;
     const isClient = currentUser.role === Role.CLIENT;
     const companyId = currentUser.company_id ?? currentUser.customer_id;
+    const restrictedWorkerAssetWhere =
+      isWorker
+        ? await this.buildRestrictedWorkerAssetWhere(currentUser.orgId, currentUser.id)
+        : undefined;
+
+    if (isClient && !companyId) {
+      return this.emptyStats();
+    }
 
     let statsWhere: any = { ...baseWhere };
     if (isWorker) {
       statsWhere.worker_id = currentUser.id;
+      if (restrictedWorkerAssetWhere) {
+        statsWhere.asset = restrictedWorkerAssetWhere;
+      }
     } else if (isClient) {
       statsWhere.is_public = true;
       statsWhere.asset = { company_id: companyId };
@@ -65,6 +76,8 @@ export class DashboardService {
       // Assets Count
       isClient
         ? this.prisma.asset.count({ where: { ...baseWhere, company_id: companyId } })
+        : restrictedWorkerAssetWhere
+          ? this.prisma.asset.count({ where: { ...baseWhere, ...restrictedWorkerAssetWhere } })
         : this.prisma.asset.count({ where: baseWhere }),
 
       // Services Count
@@ -142,6 +155,38 @@ export class DashboardService {
       top_assets: topAssets,
       top_workers: topWorkers,
       top_clients: [], // Por simplicidad en MVP, Clients ranking opcional
+    };
+  }
+
+  private async buildRestrictedWorkerAssetWhere(orgId: string | undefined, userId: string) {
+    if (!orgId) return undefined;
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { worker_restricted_access: true },
+    });
+
+    if (!org?.worker_restricted_access) {
+      return undefined;
+    }
+
+    return { worker_access: { some: { worker_id: userId } } };
+  }
+
+  private emptyStats(): DashboardStatsDto {
+    return {
+      total_assets: 0,
+      total_services: 0,
+      total_workers: 0,
+      total_clients: 0,
+      total_admins: 0,
+      public_services: 0,
+      private_services: 0,
+      recent_services: [],
+      evolution: this.processEvolution([]),
+      top_assets: [],
+      top_workers: [],
+      top_clients: [],
     };
   }
 

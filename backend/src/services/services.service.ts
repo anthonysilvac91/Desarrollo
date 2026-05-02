@@ -186,9 +186,26 @@ export class ServicesService {
     }
 
     if (user.role === 'CLIENT') {
+      const currentCompanyId = user.company_id ?? user.customer_id;
+      if (!currentCompanyId) {
+        return query.page && query.limit
+          ? {
+              data: [],
+              meta: { total: 0, page: Number(query.page), limit: Number(query.limit), totalPages: 0 },
+            }
+          : [];
+      }
+
       whereClause.is_public = true;
       whereClause.status = 'COMPLETED';
-      whereClause.asset = { company_id: user.company_id ?? user.customer_id };
+      whereClause.asset = { company_id: currentCompanyId };
+    }
+
+    if (user.role === 'WORKER') {
+      const workerAssetWhere = await this.buildRestrictedWorkerAssetWhere(user.orgId, user.id);
+      if (workerAssetWhere) {
+        whereClause.asset = { ...(whereClause.asset ?? {}), ...workerAssetWhere };
+      }
     }
 
     if (query.search) {
@@ -279,9 +296,13 @@ export class ServicesService {
       }
 
       const currentCompanyId = user.company_id ?? user.customer_id;
-      if (service.asset.company_id !== currentCompanyId) {
+      if (!currentCompanyId || service.asset.company_id !== currentCompanyId) {
         throw new NotFoundException('Service no encontrado o acceso denegado');
       }
+    }
+
+    if (user.role === 'WORKER') {
+      await this.assertWorkerCanAccessAsset(user.orgId, user.id, service.asset.id);
     }
 
     return this.resolveServiceFileUrls(this.mapServiceRelations(service));
@@ -321,5 +342,49 @@ export class ServicesService {
     return this.prisma.service.delete({
       where: { id }
     });
+  }
+
+  private async buildRestrictedWorkerAssetWhere(orgId: string | undefined, userId: string) {
+    if (!orgId) return undefined;
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { worker_restricted_access: true },
+    });
+
+    if (!org?.worker_restricted_access) {
+      return undefined;
+    }
+
+    return { worker_access: { some: { worker_id: userId } } };
+  }
+
+  private async assertWorkerCanAccessAsset(orgId: string | undefined, userId: string, assetId: string) {
+    if (!orgId) {
+      throw new NotFoundException('Service no encontrado o acceso denegado');
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { worker_restricted_access: true },
+    });
+
+    if (!org?.worker_restricted_access) {
+      return;
+    }
+
+    const hasAccess = await this.prisma.workerAssetAccess.findUnique({
+      where: {
+        worker_id_asset_id: {
+          worker_id: userId,
+          asset_id: assetId,
+        },
+      },
+      select: { worker_id: true },
+    });
+
+    if (!hasAccess) {
+      throw new NotFoundException('Service no encontrado o acceso denegado');
+    }
   }
 }

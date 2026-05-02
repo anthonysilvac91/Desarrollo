@@ -89,7 +89,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           role: formData.role,
           password: formData.password,
         };
-        if (formData.company_id) payload.company_id = formData.company_id;
+        if (formData.role === "CLIENT" && formData.company_id) payload.company_id = formData.company_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }
@@ -256,7 +256,11 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                           key={role.id}
                           type="button"
                           onClick={() => {
-                            setFormData({ ...formData, role: role.id });
+                            setFormData({
+                              ...formData,
+                              role: role.id,
+                              company_id: role.id === "CLIENT" ? formData.company_id : "",
+                            });
                             setIsRoleDropdownOpen(false);
                           }}
                           className={`w-full px-6 py-3 text-left text-sm font-bold transition-colors hover:bg-brand/5 ${

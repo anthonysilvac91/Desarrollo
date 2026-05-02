@@ -24,7 +24,13 @@ export class DashboardController {
     @Request() req: any
   ) {
     return this.dashboardService.getStats(
-      { id: req.user.id, role: req.user.role, orgId: req.user.orgId },
+      {
+        id: req.user.id,
+        role: req.user.role,
+        orgId: req.user.orgId,
+        company_id: req.user.company_id,
+        customer_id: req.user.customer_id,
+      },
       organizationId,
       { startDate, endDate }
     );

@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ServicesService } from './services.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 
 describe('ServicesService.create - Auto Publish Logic', () => {
   let service: ServicesService;
@@ -20,6 +22,8 @@ describe('ServicesService.create - Auto Publish Logic', () => {
         ServicesService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() } },
+        { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
+        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn(), registerFile: jest.fn(), deleteStoredFileAndBlob: jest.fn() } },
       ],
     }).compile();
 
@@ -101,6 +105,29 @@ describe('ServicesService.create - Auto Publish Logic', () => {
         })
       }));
     });
+
+    it('Un CLIENT sin company_id no debe ver servicios del tenant', async () => {
+      const result = await service.findAll({}, { id: 'client-1', orgId: 'org-1', role: 'CLIENT' });
+
+      expect(result).toEqual([]);
+      expect(prisma.service.findMany).not.toHaveBeenCalled();
+    });
+
+    it('Un WORKER restringido solo lista servicios de assets asignados', async () => {
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+        worker_restricted_access: true,
+      } as any);
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+
+      await service.findAll({}, { id: 'worker-1', orgId: 'org-1', role: 'WORKER' });
+
+      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          organization_id: 'org-1',
+          asset: { worker_access: { some: { worker_id: 'worker-1' } } },
+        }),
+      }));
+    });
   });
 
   describe('update (Admin flow)', () => {
@@ -114,6 +141,25 @@ describe('ServicesService.create - Auto Publish Logic', () => {
         where: { id: 'service-1' },
         data: expect.objectContaining({ title: 'Nuevo', status: 'ARCHIVED', admin_intervened: true })
       }));
+    });
+  });
+
+  describe('findOne - Worker restricted access', () => {
+    it('Un WORKER restringido no puede ver servicios de assets no asignados', async () => {
+      jest.spyOn(prisma.service, 'findUnique').mockResolvedValue({
+        id: 'service-1',
+        organization_id: 'org-1',
+        is_public: true,
+        asset: { id: 'asset-1', company_id: null },
+      } as any);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+        worker_restricted_access: true,
+      } as any);
+      jest.spyOn(prisma.workerAssetAccess, 'findUnique').mockResolvedValue(null);
+
+      await expect(
+        service.findOne('service-1', { id: 'worker-1', orgId: 'org-1', role: 'WORKER' }),
+      ).rejects.toThrow('Service no encontrado o acceso denegado');
     });
   });
 });
