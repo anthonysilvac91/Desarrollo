@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "Plataforma de mantenimiento y gestion de activos",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Recall",
   },
   formatDetection: {

@@ -285,9 +285,14 @@ export class UsersService {
     const data: any = { ...dto };
     delete data.avatar_url;
 
-    let avatarUrl: string | undefined;
+    let avatarFileId = currentUserRecord.avatar_file_id;
 
     if (avatarFile) {
+      const organizationId = currentUserRecord.organization_id;
+      if (!organizationId) {
+        throw new BadRequestException('No se puede subir avatar para usuarios sin organizacion');
+      }
+
       const imageInfo = validateImageFile(avatarFile, {
         maxBytes: 2 * 1024 * 1024,
         label: 'Avatar de usuario',
@@ -302,28 +307,22 @@ export class UsersService {
         format: 'webp',
         quality: 86,
       });
-      if (currentUserRecord.organization_id) {
-        await this.storageGovernance.assertCanStore(
-          currentUserRecord.organization_id,
-          avatarFile.size,
-          currentUserRecord.avatar_file_id ? [currentUserRecord.avatar_file_id] : [],
-        );
-      }
+      await this.storageGovernance.assertCanStore(
+        organizationId,
+        avatarFile.size,
+        currentUserRecord.avatar_file_id ? [currentUserRecord.avatar_file_id] : [],
+      );
 
-      avatarUrl = await this.storageService.uploadFile(avatarFile, {
+      const avatarUrl = await this.storageService.uploadFile(avatarFile, {
         folder: buildUserAvatarPath(
-          currentUserRecord.organization_id ?? 'global',
+          organizationId,
           currentUserRecord.id,
         ),
         visibility: 'private',
       });
-    }
-
-    let avatarFileId = currentUserRecord.avatar_file_id;
-    if (avatarFile && currentUserRecord.organization_id) {
       const storedFile = await this.storedFilesService.registerFile({
-        organizationId: currentUserRecord.organization_id,
-        storageRef: avatarUrl!,
+        organizationId,
+        storageRef: avatarUrl,
         originalName: avatarFile.originalname,
         mimeType: avatarFile.mimetype,
         sizeBytes: avatarFile.size,

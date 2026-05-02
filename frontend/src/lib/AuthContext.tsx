@@ -113,7 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // Otros roles -> Prohibido entrar a /app
           if (pathname.startsWith("/app")) {
-            router.replace(user.role === "ADMIN" ? "/dashboard" : "/assets");
+            if (user.role === "SUPER_ADMIN") router.replace("/master");
+            else if (user.role === "ADMIN") router.replace("/dashboard");
+            else router.replace("/assets");
             return;
           }
         }

@@ -7,12 +7,15 @@ import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function WorkerNewServicePage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { t } = useLanguage();
+  const assetId = params.id as string;
   
   const [assetName, setAssetName] = useState("");
   const [assetError, setAssetError] = useState(false);
@@ -23,8 +26,8 @@ export default function WorkerNewServicePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (params.id) {
-      assetsService.findOne(params.id as string)
+    if (assetId) {
+      assetsService.findOne(assetId)
         .then(a => {
           setAssetName(a.name);
           setAssetError(false);
@@ -35,7 +38,7 @@ export default function WorkerNewServicePage() {
           showToast(t.mobile.new_service.error_asset, "error");
         });
     }
-  }, [params.id, showToast, t]);
+  }, [assetId, showToast, t]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -67,18 +70,37 @@ export default function WorkerNewServicePage() {
       const formData = new FormData();
       formData.append("title", title);
       formData.append("description", description);
-      formData.append("asset_id", params.id as string);
+      formData.append("asset_id", assetId);
       
       images.forEach((img) => {
         formData.append("files", img.file);
       });
 
       await assetsService.createService(formData);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["assets"] }),
+        queryClient.invalidateQueries({ queryKey: ["services"] }),
+        queryClient.fetchQuery({
+          queryKey: ["asset", assetId],
+          queryFn: () => assetsService.findOne(assetId),
+        }).catch(() => undefined),
+      ]);
       showToast(t.mobile.new_service.success, "success");
-      router.back();
-    } catch (err: any) {
+      router.replace(`/app/assets/${assetId}`);
+    } catch (err: unknown) {
       console.error("Error creating service:", err);
-      const serverMessage = err.response?.data?.message;
+      const serverMessage =
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof err.response === "object" &&
+        err.response !== null &&
+        "data" in err.response &&
+        typeof err.response.data === "object" &&
+        err.response.data !== null &&
+        "message" in err.response.data
+          ? err.response.data.message
+          : undefined;
       if (serverMessage) {
         showToast(Array.isArray(serverMessage) ? serverMessage[0] : serverMessage, "error");
       } else {

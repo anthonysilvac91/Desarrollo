@@ -12,10 +12,14 @@ function requireProductionEnv(configService: ConfigService) {
 
   const requiredEnvVars = [
     'DATABASE_URL',
+    'DIRECT_URL',
     'JWT_SECRET',
     'STORAGE_TYPE',
     'SUPABASE_URL',
     'SUPABASE_KEY',
+    'SUPABASE_PUBLIC_BUCKET',
+    'SUPABASE_PRIVATE_BUCKET',
+    'SIGNED_URL_TTL_SECONDS',
     'CORS_ORIGINS',
   ];
 

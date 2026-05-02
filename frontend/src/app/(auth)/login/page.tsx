@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { authService } from "@/services/auth.service";
-import { Loader2, Mail, Lock, Eye, EyeOff, Ship, Download } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, Ship, Download, Share, PlusSquare } from "lucide-react";
 import { usePWA } from "@/hooks/usePWA";
 
 export default function LoginPage() {
@@ -17,7 +17,7 @@ export default function LoginPage() {
   const { showToast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { isMobile, triggerInstall } = usePWA();
+  const { shouldShowInstallButton, shouldShowIOSInstructions, triggerInstall } = usePWA();
 
   const {
     register,
@@ -33,9 +33,21 @@ export default function LoginPage() {
       const response = await authService.login(data);
       login(response.access_token);
       // AuthContext handles redirection based on user role and device
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login Error:", error);
-      const message = error.response?.data?.message || t.auth.login.error_invalid;
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "data" in error.response &&
+        typeof error.response.data === "object" &&
+        error.response.data !== null &&
+        "message" in error.response.data &&
+        typeof error.response.data.message === "string"
+          ? error.response.data.message
+          : t.auth.login.error_invalid;
       showToast(message, "error");
     } finally {
       setIsSubmitting(false);
@@ -148,8 +160,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Install App Button (Mobile Only) */}
-        {isMobile && (
+        {shouldShowInstallButton && (
           <div className="mt-6">
             <button
               onClick={triggerInstall}
@@ -159,6 +170,21 @@ export default function LoginPage() {
               <Download className="w-5 h-5" />
               <span>Instalar app</span>
             </button>
+          </div>
+        )}
+
+        {shouldShowIOSInstructions && (
+          <div className="mt-6 rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 text-brand">
+            <div className="flex items-start gap-3">
+              <Share className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-black">Instalar en iPhone</p>
+                <p className="mt-1 text-xs font-bold text-brand/80">
+                  Abre en Safari, toca Compartir y selecciona Añadir a pantalla de inicio.
+                </p>
+              </div>
+              <PlusSquare className="mt-0.5 h-5 w-5 flex-shrink-0" />
+            </div>
           </div>
         )}
 
