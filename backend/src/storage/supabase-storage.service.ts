@@ -20,13 +20,17 @@ export class SupabaseStorageService extends StorageService {
   constructor(private configService: ConfigService) {
     super();
     const url = this.configService.get<string>('SUPABASE_URL');
-    const key = this.configService.get<string>('SUPABASE_KEY');
-    this.publicBucket = this.configService.get<string>('SUPABASE_PUBLIC_BUCKET', 'recall-branding');
-    this.privateBucket = this.configService.get<string>('SUPABASE_PRIVATE_BUCKET', 'recall-private');
-    this.signedUrlTtlSeconds = this.configService.get<number>('SIGNED_URL_TTL_SECONDS', 3600);
+    const key = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ?? this.configService.get<string>('SUPABASE_KEY');
+    this.publicBucket = this.configService.get<string>('SUPABASE_PUBLIC_BUCKET') ?? '';
+    this.privateBucket = this.configService.get<string>('SUPABASE_PRIVATE_BUCKET') ?? '';
+    this.signedUrlTtlSeconds = Number(this.configService.get<string>('SIGNED_URL_TTL_SECONDS') ?? 3600);
 
-    if (!url || !key) {
-      throw new Error('SUPABASE_URL and SUPABASE_KEY must be defined for Supabase storage');
+    if (!url || !key || !this.publicBucket || !this.privateBucket) {
+      throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_PUBLIC_BUCKET and SUPABASE_PRIVATE_BUCKET must be defined for Supabase storage');
+    }
+
+    if (!Number.isFinite(this.signedUrlTtlSeconds) || this.signedUrlTtlSeconds < 600) {
+      throw new Error('SIGNED_URL_TTL_SECONDS must be at least 600 seconds for Supabase storage');
     }
 
     this.supabase = createClient(url, key);

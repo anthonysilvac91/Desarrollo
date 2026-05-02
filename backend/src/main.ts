@@ -16,21 +16,25 @@ function requireProductionEnv(configService: ConfigService) {
     'JWT_SECRET',
     'STORAGE_TYPE',
     'SUPABASE_URL',
-    'SUPABASE_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
     'SUPABASE_PUBLIC_BUCKET',
     'SUPABASE_PRIVATE_BUCKET',
     'SIGNED_URL_TTL_SECONDS',
-    'CORS_ORIGINS',
+    'CORS_ORIGIN',
   ];
 
   const missing = requiredEnvVars.filter((key) => !configService.get<string>(key));
   if (missing.length > 0) {
     throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
   }
+
+  if (configService.get<string>('STORAGE_TYPE') !== 'supabase') {
+    throw new Error('STORAGE_TYPE must be "supabase" in production');
+  }
 }
 
 function parseCorsOrigins(configService: ConfigService): string[] {
-  return (configService.get<string>('CORS_ORIGINS') ?? '')
+  return (configService.get<string>('CORS_ORIGIN') ?? configService.get<string>('CORS_ORIGINS') ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

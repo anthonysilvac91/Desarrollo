@@ -32,9 +32,10 @@ export class AssetsService {
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
     const resolvedAsset = { ...asset } as any;
 
-    resolvedAsset.thumbnail_url = resolvedAsset.thumbnail_file_id
-      ? await this.storedFilesService.resolveFileUrl(resolvedAsset.thumbnail_file_id)
-      : null;
+    resolvedAsset.thumbnail_url = await this.storedFilesService.resolveFileUrlOrRef(
+      resolvedAsset.thumbnail_file_id,
+      resolvedAsset.thumbnail_url,
+    );
 
     if (Array.isArray(resolvedAsset.services)) {
       resolvedAsset.services = await Promise.all(
@@ -44,9 +45,10 @@ export class AssetsService {
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
                   ...attachment,
-                  file_url: attachment.file_id
-                    ? await this.storedFilesService.resolveFileUrl(attachment.file_id)
-                    : null,
+                  file_url: await this.storedFilesService.resolveFileUrlOrRef(
+                    attachment.file_id,
+                    attachment.file_url,
+                  ),
                 }))
               )
             : service.attachments,
@@ -104,7 +106,7 @@ export class AssetsService {
 
     let thumbnailFileId: string | null = null;
     if (photo && thumbnail_url) {
-      const storedFile = await this.storedFilesService.registerFile({
+      const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId: targetOrgId,
         storageRef: thumbnail_url,
         originalName: photo.originalname,
@@ -122,15 +124,23 @@ export class AssetsService {
       await this.ensureCompanyBelongsToOrg(companyId, targetOrgId);
     }
 
-    const newAsset = await this.prisma.asset.create({
-      data: {
-        id: assetId,
-        ...assetData,
-        thumbnail_file_id: thumbnailFileId,
-        organization_id: targetOrgId,
-        company_id: companyId || null,
-      },
-    });
+    let newAsset;
+    try {
+      newAsset = await this.prisma.asset.create({
+        data: {
+          id: assetId,
+          ...assetData,
+          thumbnail_file_id: thumbnailFileId,
+          organization_id: targetOrgId,
+          company_id: companyId || null,
+        },
+      });
+    } catch (error) {
+      if (thumbnailFileId) {
+        await this.storedFilesService.deleteStoredFileAndBlob(thumbnailFileId);
+      }
+      throw error;
+    }
 
     const asset = await this.prisma.asset.findUnique({
       where: { id: newAsset.id },
@@ -383,7 +393,7 @@ export class AssetsService {
         folder: buildAssetThumbnailPath(asset.organization_id, asset.id),
         visibility: 'private',
       });
-      const storedFile = await this.storedFilesService.registerFile({
+      const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId: asset.organization_id,
         storageRef: thumbnail_url,
         originalName: photo.originalname,
@@ -409,10 +419,18 @@ export class AssetsService {
       updatePayload.company_id = companyId || null;
     }
 
-    const updatedAsset = await this.prisma.asset.update({
-      where: { id },
-      data: updatePayload,
-    });
+    let updatedAsset;
+    try {
+      updatedAsset = await this.prisma.asset.update({
+        where: { id },
+        data: updatePayload,
+      });
+    } catch (error) {
+      if (photo && thumbnailFileId && thumbnailFileId !== (asset as any).thumbnail_file_id) {
+        await this.storedFilesService.deleteStoredFileAndBlob(thumbnailFileId);
+      }
+      throw error;
+    }
 
     if (photo && (asset as any).thumbnail_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(

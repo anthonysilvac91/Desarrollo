@@ -36,16 +36,18 @@ export class CompaniesService {
       resolvedCompany.assets = await Promise.all(
         resolvedCompany.assets.map(async (asset: any) => ({
           ...asset,
-          thumbnail_url: asset.thumbnail_file_id
-            ? await this.storedFilesService.resolveFileUrl(asset.thumbnail_file_id)
-            : null,
+          thumbnail_url: await this.storedFilesService.resolveFileUrlOrRef(
+            asset.thumbnail_file_id,
+            asset.thumbnail_url,
+          ),
         }))
       );
     }
 
-    resolvedCompany.logo_url = resolvedCompany.logo_file_id
-      ? await this.storedFilesService.resolveFileUrl(resolvedCompany.logo_file_id)
-      : null;
+    resolvedCompany.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
+      resolvedCompany.logo_file_id,
+      resolvedCompany.logo_url,
+    );
 
     return resolvedCompany;
   }
@@ -80,7 +82,7 @@ export class CompaniesService {
 
     let logoFileId: string | null = null;
     if (logoFile && logoUrl) {
-      const storedFile = await this.storedFilesService.registerFile({
+      const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId: orgId,
         storageRef: logoUrl,
         originalName: logoFile.originalname,
@@ -94,14 +96,22 @@ export class CompaniesService {
       logoFileId = storedFile.id;
     }
 
-    const company = await this.prisma.company.create({
-      data: {
-        id: companyId,
-        ...companyData,
-        logo_file_id: logoFileId,
-        organization_id: orgId,
-      },
-    });
+    let company;
+    try {
+      company = await this.prisma.company.create({
+        data: {
+          id: companyId,
+          ...companyData,
+          logo_file_id: logoFileId,
+          organization_id: orgId,
+        },
+      });
+    } catch (error) {
+      if (logoFileId) {
+        await this.storedFilesService.deleteStoredFileAndBlob(logoFileId);
+      }
+      throw error;
+    }
     return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
   }
 
@@ -193,7 +203,7 @@ export class CompaniesService {
 
     let logoFileId = existingCompany.logo_file_id;
     if (logoFile && logoUrl) {
-      const storedFile = await this.storedFilesService.registerFile({
+      const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId: orgId,
         storageRef: logoUrl,
         originalName: logoFile.originalname,
@@ -207,13 +217,21 @@ export class CompaniesService {
       logoFileId = storedFile.id;
     }
 
-    const company = await this.prisma.company.update({
-      where: { id: existingCompany.id },
-      data: {
-        ...companyData,
-        logo_file_id: logoFileId,
-      },
-    });
+    let company;
+    try {
+      company = await this.prisma.company.update({
+        where: { id: existingCompany.id },
+        data: {
+          ...companyData,
+          logo_file_id: logoFileId,
+        },
+      });
+    } catch (error) {
+      if (logoFile && logoFileId && logoFileId !== existingCompany.logo_file_id) {
+        await this.storedFilesService.deleteStoredFileAndBlob(logoFileId);
+      }
+      throw error;
+    }
 
     if (logoFile && existingCompany.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(

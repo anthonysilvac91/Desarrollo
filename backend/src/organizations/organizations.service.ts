@@ -29,9 +29,10 @@ export class OrganizationsService {
 
     return Promise.all(
       organizations.map(async (organization: any) => {
-        organization.logo_url = organization.logo_file_id
-          ? await this.storedFilesService.resolveFileUrl(organization.logo_file_id)
-          : null;
+        organization.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
+          organization.logo_file_id,
+          organization.logo_url,
+        );
 
         return organization;
       }),
@@ -47,9 +48,10 @@ export class OrganizationsService {
       return organization;
     }
 
-    organization.logo_url = organization.logo_file_id
-      ? await this.storedFilesService.resolveFileUrl(organization.logo_file_id)
-      : null;
+    organization.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
+      organization.logo_file_id,
+      organization.logo_url,
+    );
 
     return organization;
   }
@@ -137,7 +139,7 @@ export class OrganizationsService {
         folder: buildOrganizationLogoPath(orgId),
         visibility: 'public',
       });
-      const storedFile = await this.storedFilesService.registerFile({
+      const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId: orgId,
         storageRef: logoUrl,
         originalName: logoFile.originalname,
@@ -151,10 +153,18 @@ export class OrganizationsService {
       data.logo_file_id = storedFile.id;
     }
 
-    const updatedOrg = await this.prisma.organization.update({
-      where: { id: orgId },
-      data
-    });
+    let updatedOrg;
+    try {
+      updatedOrg = await this.prisma.organization.update({
+        where: { id: orgId },
+        data
+      });
+    } catch (error) {
+      if (logoFile && data.logo_file_id) {
+        await this.storedFilesService.deleteStoredFileAndBlob(data.logo_file_id);
+      }
+      throw error;
+    }
 
     if (logoFile && currentOrg?.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
@@ -162,9 +172,10 @@ export class OrganizationsService {
       );
     }
 
-    updatedOrg.logo_url = updatedOrg.logo_file_id
-      ? await this.storedFilesService.resolveFileUrl(updatedOrg.logo_file_id)
-      : null;
+    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
+      updatedOrg.logo_file_id,
+      updatedOrg.logo_url,
+    );
 
     return updatedOrg;
   }

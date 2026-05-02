@@ -226,9 +226,10 @@ export class DashboardService {
     return Promise.all(
       rankingData.map(async (r) => {
         const item = items.find(i => i.id === r[idKey]);
-        const avatarUrl = (item as any)?.avatar_file_id
-          ? await this.storedFilesService.resolveFileUrl((item as any).avatar_file_id)
-          : undefined;
+        const avatarUrl = await this.storedFilesService.resolveFileUrlOrRef(
+          (item as any)?.avatar_file_id,
+          (item as any)?.avatar_url,
+        );
 
         return {
           id: r[idKey],

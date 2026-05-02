@@ -114,14 +114,16 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    user.avatar_url = user.avatar_file_id
-      ? await this.storedFilesService.resolveFileUrl(user.avatar_file_id)
-      : null;
+    user.avatar_url = await this.storedFilesService.resolveFileUrlOrRef(
+      user.avatar_file_id,
+      user.avatar_url,
+    );
 
     if (user.organization) {
-      user.organization.logo_url = user.organization.logo_file_id
-        ? await this.storedFilesService.resolveFileUrl(user.organization.logo_file_id)
-        : null;
+      user.organization.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
+        user.organization.logo_file_id,
+        user.organization.logo_url,
+      );
     }
 
     const { password_hash, ...result } = user;

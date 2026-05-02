@@ -44,18 +44,20 @@ export class ServicesService {
     const resolvedService = { ...service } as any;
 
     if (resolvedService.asset) {
-      resolvedService.asset.thumbnail_url = resolvedService.asset.thumbnail_file_id
-        ? await this.storedFilesService.resolveFileUrl(resolvedService.asset.thumbnail_file_id)
-        : null;
+      resolvedService.asset.thumbnail_url = await this.storedFilesService.resolveFileUrlOrRef(
+        resolvedService.asset.thumbnail_file_id,
+        resolvedService.asset.thumbnail_url,
+      );
     }
 
     if (Array.isArray(resolvedService.attachments)) {
       resolvedService.attachments = await Promise.all(
         resolvedService.attachments.map(async (attachment: any) => ({
           ...attachment,
-          file_url: attachment.file_id
-            ? await this.storedFilesService.resolveFileUrl(attachment.file_id)
-            : null,
+          file_url: await this.storedFilesService.resolveFileUrlOrRef(
+            attachment.file_id,
+            attachment.file_url,
+          ),
         }))
       );
     }
@@ -107,65 +109,77 @@ export class ServicesService {
     await this.storageGovernance.assertCanStore(user.orgId, totalIncomingBytes);
 
     const serviceId = randomUUID();
-    const attachmentPromises = files?.map(async (file) => {
-      const imageInfo = validateImageFile(file, {
-        maxBytes: 10 * 1024 * 1024,
-        label: 'Adjunto de servicio',
-        maxWidth: 6000,
-        maxHeight: 6000,
-        maxPixels: 24 * 1024 * 1024,
-      });
-      file.mimetype = imageInfo.mime;
-      await processUploadedImage(file, {
-        maxWidth: 2400,
-        maxHeight: 2400,
-        format: 'webp',
-        quality: 82,
+    const attachments: Array<{
+      file_id: string;
+      file_type: string;
+      file_name: string;
+      file_size_bytes: number;
+    }> = [];
+    const storedFileIds: string[] = [];
+
+    try {
+      for (const file of files ?? []) {
+        const imageInfo = validateImageFile(file, {
+          maxBytes: 10 * 1024 * 1024,
+          label: 'Adjunto de servicio',
+          maxWidth: 6000,
+          maxHeight: 6000,
+          maxPixels: 24 * 1024 * 1024,
+        });
+        file.mimetype = imageInfo.mime;
+        await processUploadedImage(file, {
+          maxWidth: 2400,
+          maxHeight: 2400,
+          format: 'webp',
+          quality: 82,
+        });
+
+        const file_url = await this.storageService.uploadFile(file, {
+          folder: buildServiceAttachmentsPath(user.orgId, serviceId),
+          visibility: 'private',
+        });
+        const storedFile = await this.storedFilesService.registerUploadedFile({
+          organizationId: user.orgId,
+          storageRef: file_url,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          kind: StoredFileKind.SERVICE_ATTACHMENT,
+          visibility: 'private',
+          ownerType: 'SERVICE',
+          ownerId: serviceId,
+          uploadedByUserId: user.id,
+        });
+        storedFileIds.push(storedFile.id);
+        attachments.push({
+          file_id: storedFile.id,
+          file_type: file.mimetype,
+          file_name: file.originalname,
+          file_size_bytes: file.size,
+        });
+      }
+
+      const newService = await this.prisma.service.create({
+        data: {
+          id: serviceId,
+          ...createServiceDto,
+          organization_id: user.orgId,
+          worker_id: user.id,
+          is_public: org.auto_publish_services,
+          status: 'COMPLETED',
+          attachments: {
+            create: attachments,
+          }
+        },
+        include: { attachments: true }
       });
 
-      const file_url = await this.storageService.uploadFile(file, {
-        folder: buildServiceAttachmentsPath(user.orgId, serviceId),
-        visibility: 'private',
-      });
-      const storedFile = await this.storedFilesService.registerFile({
-        organizationId: user.orgId,
-        storageRef: file_url,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        sizeBytes: file.size,
-        kind: StoredFileKind.SERVICE_ATTACHMENT,
-        visibility: 'private',
-        ownerType: 'SERVICE',
-        ownerId: serviceId,
-        uploadedByUserId: user.id,
-      });
-      return {
-        file_id: storedFile.id,
-        file_type: file.mimetype,
-        file_name: file.originalname,
-        file_size_bytes: file.size,
-      };
-    }) || [];
-
-    const attachments = await Promise.all(attachmentPromises);
-
-    const newService = await this.prisma.service.create({
-      data: {
-        id: serviceId,
-        ...createServiceDto,
-        organization_id: user.orgId,
-        worker_id: user.id,
-        is_public: org.auto_publish_services,
-        status: 'COMPLETED',
-        attachments: {
-          create: attachments,
-        }
-      },
-      include: { attachments: true }
-    });
-
-    this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
-    return this.resolveServiceFileUrls(newService);
+      this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
+      return this.resolveServiceFileUrls(newService);
+    } catch (error) {
+      await Promise.all(storedFileIds.map((id) => this.storedFilesService.deleteStoredFileAndBlob(id)));
+      throw error;
+    }
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {

@@ -40,6 +40,15 @@ export class StoredFilesService {
     });
   }
 
+  async registerUploadedFile(input: RegisterStoredFileInput) {
+    try {
+      return await this.registerFile(input);
+    } catch (error) {
+      await this.storageService.deleteFile(input.storageRef);
+      throw error;
+    }
+  }
+
   async resolveFileUrl(storedFileId?: string | null): Promise<string | null> {
     if (storedFileId) {
       const storedFile = await this.prisma.storedFile.findUnique({
@@ -53,6 +62,21 @@ export class StoredFilesService {
     }
 
     return null;
+  }
+
+  async resolveFileUrlOrRef(storedFileId?: string | null, legacyStorageRef?: string | null): Promise<string | null> {
+    const resolvedStoredFileUrl = await this.resolveFileUrl(storedFileId);
+    if (resolvedStoredFileUrl) {
+      return resolvedStoredFileUrl;
+    }
+
+    if (!legacyStorageRef) {
+      return null;
+    }
+
+    return this.storageService.canHandleFileRef(legacyStorageRef)
+      ? this.storageService.resolveFileUrl(legacyStorageRef)
+      : legacyStorageRef;
   }
 
   async deleteStoredFileAndBlob(storedFileId?: string | null): Promise<void> {

@@ -31,9 +31,10 @@ export class UsersService {
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
     const resolvedUser = { ...user } as any;
-    resolvedUser.avatar_url = resolvedUser.avatar_file_id
-      ? await this.storedFilesService.resolveFileUrl(resolvedUser.avatar_file_id)
-      : null;
+    resolvedUser.avatar_url = await this.storedFilesService.resolveFileUrlOrRef(
+      resolvedUser.avatar_file_id,
+      resolvedUser.avatar_url,
+    );
     return resolvedUser;
   }
 
@@ -320,7 +321,7 @@ export class UsersService {
         ),
         visibility: 'private',
       });
-      const storedFile = await this.storedFilesService.registerFile({
+      const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId,
         storageRef: avatarUrl,
         originalName: avatarFile.originalname,
@@ -335,23 +336,31 @@ export class UsersService {
       avatarFileId = storedFile.id;
     }
 
-    const updatedUser = await this.prisma.user.update({
-      where: { id: currentUserRecord.id },
-      data: {
-        ...data,
-        avatar_file_id: avatarFileId,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        phone: true,
-        avatar_file_id: true,
-        avatar_url: true,
-        is_active: true,
+    let updatedUser;
+    try {
+      updatedUser = await this.prisma.user.update({
+        where: { id: currentUserRecord.id },
+        data: {
+          ...data,
+          avatar_file_id: avatarFileId,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          phone: true,
+          avatar_file_id: true,
+          avatar_url: true,
+          is_active: true,
+        }
+      });
+    } catch (error) {
+      if (avatarFile && avatarFileId && avatarFileId !== currentUserRecord.avatar_file_id) {
+        await this.storedFilesService.deleteStoredFileAndBlob(avatarFileId);
       }
-    });
+      throw error;
+    }
 
     if (avatarFile && currentUserRecord.avatar_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(

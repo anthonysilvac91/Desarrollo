@@ -23,7 +23,7 @@ describe('ServicesService.create - Auto Publish Logic', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() } },
         { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
-        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn(), registerFile: jest.fn(), deleteStoredFileAndBlob: jest.fn() } },
+        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn(), resolveFileUrlOrRef: jest.fn(), registerFile: jest.fn(), registerUploadedFile: jest.fn(), deleteStoredFileAndBlob: jest.fn() } },
       ],
     }).compile();
 
