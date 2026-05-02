@@ -68,6 +68,31 @@ Este documento detalla los endpoints principales consumidos por el frontend y la
 | :--- | :--- | :--- | :--- |
 | `GET` | `/dashboard` | ADMIN / SUPER_ADMIN | Estadisticas (KPIs) de la organization o globales. |
 | `GET` | `/users` | ADMIN / SUPER_ADMIN | Listado de equipo y usuarios segun tenant. |
+| `POST` | `/users` | ADMIN / SUPER_ADMIN | Creacion manual de usuarios. SUPER_ADMIN puede indicar `organization_id`; ADMIN queda forzado a su propia organization. `company_id` solo aplica a CLIENT. |
+
+### Alta manual del ADMIN inicial
+
+Para produccion, por ahora no se usa `/auth/register` ni el `initial_invitation_token` para crear el ADMIN inicial. El procedimiento operativo esta documentado en [INITIAL_ADMIN_MANUAL_PROCEDURE.md](INITIAL_ADMIN_MANUAL_PROCEDURE.md).
+
+Payload minimo para `SUPER_ADMIN`:
+
+```json
+{
+  "email": "admin@acme.example",
+  "password": "<temporary-strong-password>",
+  "name": "Admin Acme",
+  "role": "ADMIN",
+  "organization_id": "<organization_id>"
+}
+```
+
+Validaciones principales:
+- `email` valido y no duplicado dentro de la misma organization.
+- `password` minimo 8 caracteres.
+- `role` valido: `SUPER_ADMIN`, `ADMIN`, `WORKER`, `CLIENT`.
+- `ADMIN` y `WORKER` no aceptan `company_id`.
+- `CLIENT` puede usar `company_id` si pertenece a la misma organization.
+- `ADMIN` normal no puede crear usuarios fuera de su `organization_id`.
 
 ---
 

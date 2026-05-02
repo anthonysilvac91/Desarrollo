@@ -35,6 +35,140 @@ describe('Users Management (e2e)', () => {
     await testUtils.clearDatabase();
   });
 
+  describe('POST /users', () => {
+    it('SUPER_ADMIN puede crear manualmente el ADMIN inicial asociado a una organizacion', async () => {
+      const org = await testUtils.createTestOrganization('ManualAdmin');
+      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const token = testUtils.getBearerToken(superAdmin);
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email: 'admin@manual.com',
+          password: 'SecurePass123!',
+          name: 'Initial Admin',
+          role: Role.ADMIN,
+          organization_id: org.id,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.role).toBe(Role.ADMIN);
+      expect(response.body.organization_id).toBe(org.id);
+      expect(response.body.company_id).toBeNull();
+      expect(response.body.password_hash).toBeUndefined();
+
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'admin@manual.com',
+          password: 'SecurePass123!',
+          organizationId: org.id,
+        });
+
+      expect(loginResponse.status).toBe(201);
+      expect(loginResponse.body.access_token).toBeDefined();
+    });
+
+    it('ADMIN no puede crear usuarios fuera de su organizacion aunque envie otro organization_id', async () => {
+      const org1 = await testUtils.createTestOrganization('Org1');
+      const org2 = await testUtils.createTestOrganization('Org2');
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org1.com', org1.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email: 'worker@org1.com',
+          password: 'SecurePass123!',
+          name: 'Worker Org1',
+          role: Role.WORKER,
+          organization_id: org2.id,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.role).toBe(Role.WORKER);
+      expect(response.body.organization_id).toBe(org1.id);
+
+      const persisted = await prisma.user.findUnique({ where: { id: response.body.id } });
+      expect(persisted?.organization_id).toBe(org1.id);
+      expect(persisted?.organization_id).not.toBe(org2.id);
+    });
+
+    it('rechaza company_id para ADMIN y WORKER', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const company = await testUtils.createTestCustomer('Company', org.id);
+      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const token = testUtils.getBearerToken(superAdmin);
+
+      for (const role of [Role.ADMIN, Role.WORKER]) {
+        const response = await request(app.getHttpServer())
+          .post('/users')
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            email: `${role.toLowerCase()}@org.com`,
+            password: 'SecurePass123!',
+            name: `User ${role}`,
+            role,
+            organization_id: org.id,
+            company_id: company.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('Solo un usuario con rol CLIENT puede asociarse a una company');
+      }
+    });
+
+    it('permite company_id para CLIENT si la company pertenece a la misma organizacion', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const company = await testUtils.createTestCustomer('Company', org.id);
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email: 'client@org.com',
+          password: 'SecurePass123!',
+          name: 'Client Org',
+          role: Role.CLIENT,
+          company_id: company.id,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.role).toBe(Role.CLIENT);
+      expect(response.body.organization_id).toBe(org.id);
+      expect(response.body.company_id).toBe(company.id);
+    });
+
+    it('valida email, password minimo y role', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const token = testUtils.getBearerToken(superAdmin);
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email: 'invalid-email',
+          password: 'short',
+          name: 'Invalid User',
+          role: 'OWNER',
+          organization_id: org.id,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toEqual(expect.any(Array));
+      expect(response.body.message).toEqual(expect.arrayContaining([
+        expect.stringContaining('Email'),
+        expect.stringContaining('8 caracteres'),
+        expect.stringContaining('Rol'),
+      ]));
+    });
+  });
+
   describe('GET /users', () => {
     it('ADMIN debería ver solo los usuarios de su propia organización', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');

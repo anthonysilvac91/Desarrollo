@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
-import { 
-  Building2, 
-  Users, 
-  Settings,
+import {
+  Building2,
   ShieldCheck,
   LogOut
 } from "lucide-react";
@@ -19,8 +17,6 @@ export default function MasterSidebar() {
 
   const links = [
     { href: "/master", label: t.sidebar.organizations, icon: Building2 },
-    { href: "/master/users", label: t.sidebar.users, icon: Users },
-    { href: "/master/settings", label: t.sidebar.settings, icon: Settings },
   ];
 
   return (
