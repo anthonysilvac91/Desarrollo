@@ -89,6 +89,9 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         const payload = new FormData();
         payload.append("name", formData.name);
         payload.append("email", formData.email);
+        if (isSuperAdmin && formData.role !== "SUPER_ADMIN") {
+          payload.append("organization_id", formData.organization_id);
+        }
         if (avatarFile) {
           payload.append("avatar", avatarFile);
         }
@@ -218,7 +221,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           </div>
 
-          {!isEditMode && isSuperAdmin && formData.role !== "SUPER_ADMIN" && (
+          {isSuperAdmin && formData.role !== "SUPER_ADMIN" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
               <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">OrganizaciÃ³n</label>
               <div className="relative group">

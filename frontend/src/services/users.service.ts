@@ -9,6 +9,7 @@ export interface User {
   company_id?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
+  organization?: { id?: string; name: string; slug?: string } | null;
   company?: { id?: string; name: string } | null;
   customer?: { id?: string; name: string } | null;
   is_active: boolean;

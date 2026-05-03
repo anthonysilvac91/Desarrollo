@@ -110,6 +110,7 @@ export class UsersService {
       last_login_at: true,
       created_at: true,
       updated_at: true,
+      organization: { select: { id: true, name: true, slug: true } },
       company: { select: { id: true, name: true } },
     };
 
@@ -164,6 +165,7 @@ export class UsersService {
         avatar_file_id: true,
         avatar_url: true,
         company_id: true,
+        organization: { select: { id: true, name: true, slug: true } },
         company: { select: { id: true, name: true } },
         is_active: true,
         last_login_at: true,
@@ -269,6 +271,8 @@ export class UsersService {
       select: {
         id: true,
         organization_id: true,
+        role: true,
+        company_id: true,
         avatar_file_id: true,
         avatar_url: true,
       },
@@ -286,10 +290,41 @@ export class UsersService {
     const data: any = { ...dto };
     delete data.avatar_url;
 
+    const organizationChanged =
+      dto.organization_id !== undefined &&
+      dto.organization_id !== currentUserRecord.organization_id;
+    const targetOrganizationId = dto.organization_id ?? currentUserRecord.organization_id;
+
+    if (dto.organization_id !== undefined) {
+      if (currentUser.role !== Role.SUPER_ADMIN) {
+        throw new ForbiddenException('Solo SUPER_ADMIN puede cambiar la organizacion de un usuario');
+      }
+
+      if (currentUserRecord.role === Role.SUPER_ADMIN) {
+        throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organizacion');
+      }
+
+      await this.ensureOrganizationExists(dto.organization_id);
+    }
+
+    if (currentUserRecord.role !== Role.SUPER_ADMIN && !targetOrganizationId) {
+      throw new BadRequestException('Los usuarios no SUPER_ADMIN deben pertenecer a una organizacion');
+    }
+
+    if (dto.company_id !== undefined) {
+      if (currentUserRecord.role !== Role.CLIENT) {
+        throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
+      }
+
+      await this.ensureCompanyBelongsToOrganization(dto.company_id, targetOrganizationId!);
+    } else if (organizationChanged && currentUserRecord.company_id) {
+      data.company_id = null;
+    }
+
     let avatarFileId = currentUserRecord.avatar_file_id;
 
     if (avatarFile) {
-      const organizationId = currentUserRecord.organization_id;
+      const organizationId = targetOrganizationId;
       if (!organizationId) {
         throw new BadRequestException('No se puede subir avatar para usuarios sin organizacion');
       }
@@ -350,9 +385,13 @@ export class UsersService {
           name: true,
           role: true,
           phone: true,
+          organization_id: true,
+          company_id: true,
           avatar_file_id: true,
           avatar_url: true,
           is_active: true,
+          organization: { select: { id: true, name: true, slug: true } },
+          company: { select: { id: true, name: true } },
         }
       });
     } catch (error) {
