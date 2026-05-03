@@ -4,12 +4,15 @@ import React, { useState, useEffect } from "react";
 import { X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2, Camera } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
+import { useAuth } from "@/lib/AuthContext";
 import { usersService } from "@/services/users.service";
 import { companiesService } from "@/services/companies.service";
+import { organizationsService, Organization } from "@/services/organizations.service";
 
 export interface UserFormData {
   name: string;
   email: string;
+  organization_id: string;
   company_id: string;
   role: string;
   password?: string;
@@ -26,6 +29,8 @@ interface UserModalProps {
 export default function UserModal({ isOpen, onClose, onSuccess, existingCompanies = [], userToEdit }: UserModalProps) {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const isEditMode = !!userToEdit;
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -35,15 +40,21 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    organization_id: "",
     company_id: "",
     role: "WORKER",
     password: ""
   });
 
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (isOpen) {
+      if (isSuperAdmin) {
+        organizationsService.findAll().then(setOrganizations).catch(() => {});
+      }
+
       companiesService.findAll().then((data: any) => {
         const list = Array.isArray(data) ? data : data.data || [];
         setCompanies(list);
@@ -53,6 +64,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         setFormData({
           name: userToEdit.name || "",
           email: userToEdit.email || "",
+          organization_id: userToEdit.organization_id || "",
           company_id: userToEdit.company_id || userToEdit.customer_id || "",
           role: userToEdit.role || "WORKER",
           password: ""
@@ -60,12 +72,12 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         setAvatarFile(null);
         setAvatarPreview(userToEdit.avatar_url || null);
       } else {
-        setFormData({ name: "", email: "", company_id: "", role: "WORKER", password: "" });
+        setFormData({ name: "", email: "", organization_id: "", company_id: "", role: "WORKER", password: "" });
         setAvatarFile(null);
         setAvatarPreview(null);
       }
     }
-  }, [isOpen, userToEdit]);
+  }, [isOpen, userToEdit, isSuperAdmin]);
 
   if (!isOpen) return null;
 
@@ -89,6 +101,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           role: formData.role,
           password: formData.password,
         };
+        if (isSuperAdmin && formData.role !== "SUPER_ADMIN") payload.organization_id = formData.organization_id;
         if (formData.role === "CLIENT" && formData.company_id) payload.company_id = formData.company_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
@@ -204,6 +217,31 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
               />
             </div>
           </div>
+
+          {!isEditMode && isSuperAdmin && formData.role !== "SUPER_ADMIN" && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">OrganizaciÃ³n</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
+                  <Building2 className="h-5 w-5 opacity-30" />
+                </div>
+                <select
+                  required
+                  className="block w-full pl-14 pr-10 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm appearance-none"
+                  value={formData.organization_id}
+                  onChange={(e) => setFormData({ ...formData, organization_id: e.target.value, company_id: "" })}
+                >
+                  <option value="" disabled>Selecciona una organizaciÃ³n...</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-subtitle/50" />
+                </div>
+              </div>
+            </div>
+          )}
 
           {!isEditMode && formData.role === "CLIENT" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">

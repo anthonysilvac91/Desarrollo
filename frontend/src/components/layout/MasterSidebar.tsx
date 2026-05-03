@@ -6,7 +6,8 @@ import { useLanguage } from "@/lib/LanguageContext";
 import {
   Building2,
   ShieldCheck,
-  LogOut
+  LogOut,
+  Users
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -17,6 +18,7 @@ export default function MasterSidebar() {
 
   const links = [
     { href: "/master", label: t.sidebar.organizations, icon: Building2 },
+    { href: "/users", label: t.sidebar.users, icon: Users },
   ];
 
   return (
@@ -35,7 +37,7 @@ export default function MasterSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scroll">
         {links.map((link) => {
-          const isActive = pathname === link.href;
+          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
           
           return (
