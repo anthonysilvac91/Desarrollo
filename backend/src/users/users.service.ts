@@ -219,6 +219,10 @@ export class UsersService {
       await this.ensureCompanyBelongsToOrganization(dto.company_id, dto.organization_id!);
     }
 
+    if (dto.role === Role.CLIENT && !dto.company_id) {
+      throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+    }
+
     // 2. Verificar email duplicado en el mismo tenant (u org_id null para SuperAdmin)
     const existingUser = await this.prisma.user.findFirst({
       where: {
@@ -319,6 +323,12 @@ export class UsersService {
       await this.ensureCompanyBelongsToOrganization(dto.company_id, targetOrganizationId!);
     } else if (organizationChanged && currentUserRecord.company_id) {
       data.company_id = null;
+    }
+
+    const targetCompanyId =
+      data.company_id !== undefined ? data.company_id : currentUserRecord.company_id;
+    if (currentUserRecord.role === Role.CLIENT && !targetCompanyId) {
+      throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
     }
 
     let avatarFileId = currentUserRecord.avatar_file_id;
