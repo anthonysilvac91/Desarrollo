@@ -75,6 +75,7 @@ model Organization {
   stored_files StoredFile[]
 
   @@index([is_active])
+  @@index([created_at])
 }
 
 model User {
@@ -105,6 +106,9 @@ model User {
 
   @@unique([email, organization_id])
   @@index([organization_id])
+  @@index([organization_id, created_at])
+  @@index([organization_id, role])
+  @@index([company_id])
   @@index([role])
   @@index([is_active])
 }
@@ -132,6 +136,9 @@ model Asset {
   worker_access  WorkerAssetAccess[]
 
   @@index([organization_id])
+  @@index([organization_id, created_at])
+  @@index([organization_id, company_id])
+  @@index([company_id])
   @@index([is_active])
 }
 
@@ -155,8 +162,12 @@ model Service {
   attachments  ServiceAttachment[]
 
   @@index([organization_id])
+  @@index([organization_id, created_at])
+  @@index([organization_id, asset_id])
   @@index([asset_id])
+  @@index([asset_id, created_at])
   @@index([worker_id])
+  @@index([worker_id, created_at])
   @@index([is_public])
   @@index([created_at])
 }
@@ -195,6 +206,7 @@ model Company {
   assets       Asset[]
 
   @@index([organization_id])
+  @@index([organization_id, created_at])
   @@index([is_active])
 }
 
@@ -224,6 +236,7 @@ model StoredFile {
   service_attachment    ServiceAttachment? @relation("ServiceAttachmentFile")
 
   @@index([organization_id])
+  @@index([organization_id, kind])
   @@index([owner_type, owner_id])
   @@index([kind])
   @@index([status])

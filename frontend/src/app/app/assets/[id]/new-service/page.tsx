@@ -7,7 +7,7 @@ import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function WorkerNewServicePage() {
   const router = useRouter();
@@ -25,20 +25,30 @@ export default function WorkerNewServicePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const cachedAsset = queryClient.getQueryData<any>(["asset", assetId]);
+  const cachedAssets = queryClient.getQueryData<any[]>(["assets"]);
+  const cachedAssetFromList = cachedAssets?.find((asset) => asset.id === assetId);
+
+  const { data: asset, isError: isAssetQueryError } = useQuery({
+    queryKey: ["asset", assetId],
+    queryFn: () => assetsService.findOne(assetId),
+    enabled: !!assetId && !cachedAsset && !cachedAssetFromList,
+    initialData: cachedAsset || cachedAssetFromList,
+  });
+
   useEffect(() => {
-    if (assetId) {
-      assetsService.findOne(assetId)
-        .then(a => {
-          setAssetName(a.name);
-          setAssetError(false);
-        })
-        .catch(() => {
-          setAssetName(t.mobile.new_service.loading_asset);
-          setAssetError(true);
-          showToast(t.mobile.new_service.error_asset, "error");
-        });
+    if (asset?.name) {
+      setAssetName(asset.name);
+      setAssetError(false);
+      return;
     }
-  }, [assetId, showToast, t]);
+
+    if (isAssetQueryError) {
+      setAssetName(t.mobile.new_service.loading_asset);
+      setAssetError(true);
+      showToast(t.mobile.new_service.error_asset, "error");
+    }
+  }, [asset?.name, isAssetQueryError, showToast, t]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -79,11 +89,9 @@ export default function WorkerNewServicePage() {
       await assetsService.createService(formData);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["assets"] }),
+        queryClient.invalidateQueries({ queryKey: ["asset", assetId] }),
         queryClient.invalidateQueries({ queryKey: ["services"] }),
-        queryClient.fetchQuery({
-          queryKey: ["asset", assetId],
-          queryFn: () => assetsService.findOne(assetId),
-        }).catch(() => undefined),
+        queryClient.refetchQueries({ queryKey: ["asset", assetId], exact: true, type: "all" }),
       ]);
       showToast(t.mobile.new_service.success, "success");
       router.replace(`/app/assets/${assetId}`);

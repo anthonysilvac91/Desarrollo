@@ -239,7 +239,6 @@ export class ServicesService {
           include: {
             worker: { select: { id: true, name: true } },
             asset: { select: { id: true, name: true, location: true, company_id: true, thumbnail_url: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } },
-            attachments: { select: { file_id: true, file_url: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
@@ -262,7 +261,6 @@ export class ServicesService {
       include: { 
         worker: { select: { id: true, name: true } },
         asset: { select: { id: true, name: true, location: true, company_id: true, thumbnail_url: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } },
-        attachments: { select: { file_id: true, file_url: true, file_type: true } },
       },
       orderBy: { created_at: 'desc' }
     });

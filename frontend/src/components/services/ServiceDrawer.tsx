@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import Drawer from "@/components/ui/Drawer";
 import { Ship, Calendar, User, MapPin, Camera, X } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
-import { Service } from "@/services/services.service";
+import { Service, servicesService } from "@/services/services.service";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
+import { useQuery } from "@tanstack/react-query";
 
 interface ServiceDrawerProps {
   service: Service | null;
@@ -15,8 +16,14 @@ interface ServiceDrawerProps {
 export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) {
   const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const { data: detail } = useQuery({
+    queryKey: ["service", service?.id],
+    queryFn: () => servicesService.findOne(service!.id),
+    enabled: !!service?.id,
+  });
 
   if (!service) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
+  const currentService = detail || service;
 
   return (
     <Drawer isOpen={!!service} onClose={onClose}>
@@ -28,10 +35,10 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             </div>
           </div>
           <div className="flex flex-col space-y-1">
-            <h2 className="text-3xl font-black text-title tracking-tight">{service.asset?.name || "---"}</h2>
+            <h2 className="text-3xl font-black text-title tracking-tight">{currentService.asset?.name || "---"}</h2>
             <div className="flex items-center justify-center text-brand font-black text-sm uppercase tracking-[0.2em]">
               <MapPin className="w-3.5 h-3.5 mr-2" />
-              {service.asset?.location || "N/A"}
+              {currentService.asset?.location || "N/A"}
             </div>
           </div>
         </div>
@@ -41,14 +48,14 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Responsable</span>
             <div className="flex items-center space-x-2">
               <User className="w-3.5 h-3.5 text-brand" />
-              <span className="text-sm font-bold text-title">{service.worker?.name || "---"}</span>
+              <span className="text-sm font-bold text-title">{currentService.worker?.name || "---"}</span>
             </div>
           </div>
           <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50 text-left">
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">Realizado el</span>
             <div className="flex items-center space-x-2">
               <Calendar className="w-3.5 h-3.5 text-brand" />
-              <span className="text-sm font-bold text-title">{new Date(service.created_at).toLocaleDateString()}</span>
+              <span className="text-sm font-bold text-title">{new Date(currentService.created_at).toLocaleDateString()}</span>
             </div>
           </div>
         </div>
@@ -56,9 +63,9 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
         <div className="px-10 py-8 space-y-4">
           <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em]">Reporte de Trabajo</h3>
           <div className="p-6 bg-app-bg rounded-3xl border border-border-theme/40">
-            <h4 className="text-lg font-black text-brand mb-3">{service.title}</h4>
+            <h4 className="text-lg font-black text-brand mb-3">{currentService.title}</h4>
             <p className="text-sm text-subtitle/80 leading-relaxed font-medium">
-              {service.description}
+              {currentService.description}
             </p>
           </div>
         </div>
@@ -68,9 +75,9 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em]">Evidencia Visual</h3>
           </div>
 
-          {service.attachments && service.attachments.length > 0 ? (
+          {currentService.attachments && currentService.attachments.length > 0 ? (
             <div className="grid grid-cols-2 gap-4">
-              {service.attachments.map((att, idx) => (
+              {currentService.attachments.map((att, idx) => (
                 <ServiceAttachmentCard
                   key={idx}
                   attachment={att}

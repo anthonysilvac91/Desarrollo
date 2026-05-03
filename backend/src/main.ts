@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -47,6 +47,18 @@ async function bootstrap() {
   requireProductionEnv(configService);
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   const allowedOrigins = parseCorsOrigins(configService);
+
+  const logger = new Logger('RequestTiming');
+  app.use((req, res, next) => {
+    const startedAt = Date.now();
+    res.on('finish', () => {
+      const durationMs = Date.now() - startedAt;
+      if (durationMs >= 300) {
+        logger.log(`${req.method} ${req.originalUrl ?? req.url} ${res.statusCode} ${durationMs}ms`);
+      }
+    });
+    next();
+  });
 
   app.enableCors({
     origin: (origin, callback) => {
