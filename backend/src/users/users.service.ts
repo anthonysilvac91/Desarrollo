@@ -86,6 +86,9 @@ export class UsersService {
       }
     } else {
       // Si es ADMIN, forzar su propia organización
+      if (!currentUser.orgId) {
+        throw new ForbiddenException('El usuario no pertenece a ninguna organizacion');
+      }
       where.organization_id = currentUser.orgId;
     }
 

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
 import { useRouter, usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 import Cookies from "js-cookie";
 
@@ -23,12 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
 
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem("access_token");
       if (!token) {
         setUser(null);
+        queryClient.clear();
         setLoading(false);
         return;
       }
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       localStorage.removeItem("access_token");
       Cookies.remove("access_token");
+      queryClient.clear();
     } finally {
       setLoading(false);
     }
@@ -50,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (token: string) => {
+    queryClient.clear();
     localStorage.setItem("access_token", token);
     Cookies.set("access_token", token, { expires: 7 }); // Sincronizado para middleware
     refreshUser();
@@ -58,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem("access_token");
     Cookies.remove("access_token");
+    queryClient.clear();
     setUser(null);
     router.push("/login");
   };

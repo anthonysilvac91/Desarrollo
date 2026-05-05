@@ -10,12 +10,14 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
+import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight } from "lucide-react";
 
 export default function UsersPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,8 +30,9 @@ export default function UsersPage() {
   const queryParams = { page, limit, search: debouncedSearch };
 
   const { data: responseData, isLoading, isError, refetch } = useQuery({
-    queryKey: ["users", queryParams],
+    queryKey: ["users", user?.id, user?.role, user?.organization_id, queryParams],
     queryFn: () => usersService.findAll(queryParams),
+    enabled: !!user,
   });
 
   const usersList = Array.isArray(responseData) ? responseData : responseData?.data || [];

@@ -12,6 +12,10 @@ export class TestUtils {
    * estricto de restricciones ForeignKey (FK)
    */
   async clearDatabase() {
+    await this.prisma.organization.updateMany({
+      data: { logo_file_id: null },
+    });
+
     await this.prisma.$transaction([
       this.prisma.serviceAttachment.deleteMany(),
       this.prisma.service.deleteMany(),
@@ -20,6 +24,7 @@ export class TestUtils {
       this.prisma.asset.deleteMany(),
       this.prisma.user.deleteMany(),
       this.prisma.company.deleteMany(),
+      this.prisma.storedFile.deleteMany(),
       this.prisma.organization.deleteMany(),
     ]);
   }

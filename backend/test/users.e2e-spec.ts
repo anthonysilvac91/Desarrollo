@@ -255,6 +255,19 @@ describe('Users Management (e2e)', () => {
 
       expect(response.status).toBe(403);
     });
+
+    it('ADMIN sin organization_id no debe listar usuarios globales', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const invalidAdmin = await testUtils.createTestUser(Role.ADMIN, 'invalid-admin@recall.com');
+      const token = testUtils.getBearerToken(invalidAdmin);
+
+      const response = await request(app.getHttpServer())
+        .get('/users')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(403);
+    });
   });
 
   describe('GET /users/:id', () => {
