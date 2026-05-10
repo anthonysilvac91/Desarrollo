@@ -12,6 +12,10 @@ function getFallbackPath(role?: string) {
   return "/assets";
 }
 
+function canUseMobileApp(role?: string) {
+  return role === "ADMIN" || role === "WORKER";
+}
+
 function LoadingScreen() {
   const { t } = useLanguage();
 
@@ -51,7 +55,7 @@ export default function MobileAppLayout({
       return;
     }
 
-    if (user.role !== "WORKER") {
+    if (!canUseMobileApp(user.role)) {
       router.replace(getFallbackPath(user.role));
       return;
     }
@@ -61,7 +65,7 @@ export default function MobileAppLayout({
     }
   }, [isMobile, loading, router, user]);
 
-  const canRenderApp = !loading && isMobile === true && user?.role === "WORKER";
+  const canRenderApp = !loading && isMobile === true && canUseMobileApp(user?.role);
 
   if (!canRenderApp) {
     return <LoadingScreen />;

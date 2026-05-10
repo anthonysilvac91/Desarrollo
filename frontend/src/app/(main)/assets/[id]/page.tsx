@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
-import { assetsService, Asset, Service } from "@/services/assets.service";
-import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Camera, Building2, Ship } from "lucide-react";
+import { assetsService, Service, ServiceAttachment } from "@/services/assets.service";
+import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus } from "lucide-react";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
+import { useAuth } from "@/lib/AuthContext";
+import type { Service as DrawerService } from "@/services/services.service";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
   const styles = {
@@ -78,7 +80,7 @@ const JobCard = ({ job, onClick }: { job: Service, onClick?: () => void }) => {
         
         {job.attachments?.length > 0 && (
           <div className="flex items-center gap-3 mt-6 pt-6 border-t border-border-theme/10">
-            {job.attachments.map((img: any, idx: number) => (
+            {job.attachments.map((img: ServiceAttachment, idx: number) => (
               <ServiceAttachmentCard
                 key={idx}
                 attachment={img}
@@ -98,12 +100,14 @@ export default function AssetDetailPage() {
   const params = useParams();
   const assetId = params.id as string;
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER";
   
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [selectedService, setSelectedService] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
 
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
@@ -212,6 +216,15 @@ export default function AssetDetailPage() {
             <h1 className="text-3xl sm:text-4xl font-black text-title tracking-tight leading-none mb-2">{asset.name}</h1>
           </div>
         </div>
+        {canCreateService && (
+          <button
+            onClick={() => router.push(`/assets/${asset.id}/new-service`)}
+            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+          >
+            <Plus className="w-5 h-5 stroke-[4px]" />
+            <span>{t.services.add_new}</span>
+          </button>
+        )}
       </div>
 
       {/* 2. ASSET SUMMARY (Mantenimiento de Barco ARRIBA) */}
@@ -281,7 +294,7 @@ export default function AssetDetailPage() {
               <JobCard 
                 key={job.id} 
                 job={job} 
-                onClick={() => setSelectedService(job)}
+                onClick={() => setSelectedService(job as unknown as DrawerService)}
               />
             ))}
             
