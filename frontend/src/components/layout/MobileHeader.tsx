@@ -2,7 +2,8 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Menu } from "lucide-react";
+import { ChevronLeft, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 
 interface MobileHeaderProps {
@@ -13,6 +14,8 @@ interface MobileHeaderProps {
 
 export default function MobileHeader({ title, showBack = false, rightAction }: MobileHeaderProps) {
   const router = useRouter();
+  const { logout } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-app-bg/80 backdrop-blur-md border-b border-border-theme/40 px-5 h-16 flex items-center justify-between">
@@ -42,8 +45,14 @@ export default function MobileHeader({ title, showBack = false, rightAction }: M
       {/* Right Action */}
       <div className="flex-shrink-0 w-10 flex justify-end">
         {rightAction || (
-          <button className="p-2 -mr-2 rounded-full hover:bg-surface transition-colors">
-            <Menu className="w-5 h-5 text-title" />
+          <button
+            type="button"
+            onClick={logout}
+            aria-label={t.common.logout}
+            title={t.common.logout}
+            className="p-2 -mr-2 rounded-full hover:bg-surface transition-colors active:scale-95"
+          >
+            <LogOut className="w-5 h-5 text-title" />
           </button>
         )}
       </div>

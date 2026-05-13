@@ -37,6 +37,7 @@ export const translations = {
       inactive: "Inactive",
       retry: "Retry",
       go_back: "Go Back",
+      logout: "Log out",
       unassigned: "Unassigned",
     },
     date_filters: {
@@ -452,6 +453,7 @@ export const translations = {
       inactive: "Inactivo",
       retry: "Reintentar",
       go_back: "Volver",
+      logout: "Cerrar sesion",
       unassigned: "Sin asignar",
     },
     date_filters: {
