@@ -8,7 +8,7 @@ import { StorageGovernanceService } from '../storage/storage-governance.service'
 import { StoredFilesService } from '../storage/stored-files.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
-import { buildCompanyLogoPath } from '../common/files/storage-paths';
+import { buildOwnerLogoPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { withOwnerAliases } from '../common/compat/owner-role-compat';
@@ -79,7 +79,7 @@ export class OwnersService {
       });
       await this.storageGovernance.assertCanStore(orgId, logoFile.size);
       logoUrl = await this.storageService.uploadFile(logoFile, {
-        folder: buildCompanyLogoPath(orgId, companyId),
+        folder: buildOwnerLogoPath(orgId, companyId),
         visibility: 'private',
       });
     }
@@ -92,9 +92,9 @@ export class OwnersService {
         originalName: logoFile.originalname,
         mimeType: logoFile.mimetype,
         sizeBytes: logoFile.size,
-        kind: StoredFileKind.COMPANY_LOGO,
+        kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
-        ownerType: 'COMPANY',
+        ownerType: 'OWNER',
         ownerId: companyId,
       });
       logoFileId = storedFile.id;
@@ -200,7 +200,7 @@ export class OwnersService {
         existingCompany.logo_file_id ? [existingCompany.logo_file_id] : [],
       );
       logoUrl = await this.storageService.uploadFile(logoFile, {
-        folder: buildCompanyLogoPath(orgId, existingCompany.id),
+        folder: buildOwnerLogoPath(orgId, existingCompany.id),
         visibility: 'private',
       });
     }
@@ -213,9 +213,9 @@ export class OwnersService {
         originalName: logoFile.originalname,
         mimeType: logoFile.mimetype,
         sizeBytes: logoFile.size,
-        kind: StoredFileKind.COMPANY_LOGO,
+        kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
-        ownerType: 'COMPANY',
+        ownerType: 'OWNER',
         ownerId: existingCompany.id,
       });
       logoFileId = storedFile.id;

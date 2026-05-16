@@ -71,25 +71,25 @@ describe('StoredFilesService', () => {
       );
     });
 
-    it('mapea COMPANY a OWNER en entity_type sin tocar owner_type', async () => {
+    it('escribe owner_type y entity_type como OWNER para logos de owner', async () => {
       prisma.storedFile.create.mockResolvedValue({ id: 'sf-2' });
 
       await service.registerFile({
         organizationId: 'org-1',
         storageRef: 'private://org-1/logo.jpg',
-        kind: StoredFileKind.COMPANY_LOGO,
+        kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
-        ownerType: 'COMPANY',
-        ownerId: 'company-1',
+        ownerType: 'OWNER',
+        ownerId: 'owner-1',
       });
 
       expect(prisma.storedFile.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            owner_type: 'COMPANY',
-            owner_id: 'company-1',
+            owner_type: 'OWNER',
+            owner_id: 'owner-1',
             entity_type: 'OWNER',
-            entity_id: 'company-1',
+            entity_id: 'owner-1',
           }),
         }),
       );

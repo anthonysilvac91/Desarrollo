@@ -45,7 +45,7 @@ enum StoredFileKind {
   USER_AVATAR
   ASSET_THUMBNAIL
   SERVICE_ATTACHMENT
-  COMPANY_LOGO
+  OWNER_LOGO
 }
 
 model Organization {

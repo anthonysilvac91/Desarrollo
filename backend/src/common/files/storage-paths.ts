@@ -14,6 +14,6 @@ export function buildServiceAttachmentsPath(orgId: string, serviceId: string): s
   return `org/${orgId}/services/${serviceId}/attachments`;
 }
 
-export function buildCompanyLogoPath(orgId: string, companyId: string): string {
-  return `org/${orgId}/companies/${companyId}/logo`;
+export function buildOwnerLogoPath(orgId: string, ownerId: string): string {
+  return `org/${orgId}/owners/${ownerId}/logo`;
 }

@@ -46,7 +46,7 @@ export interface EntityTypeIntegrityResult {
   invalidValues: Array<{ entity_type: string; count: number }>;
 }
 
-const VALID_OWNER_TYPES = new Set(['ORGANIZATION', 'USER', 'ASSET', 'SERVICE', 'COMPANY']);
+const VALID_OWNER_TYPES = new Set(['ORGANIZATION', 'USER', 'ASSET', 'SERVICE', 'COMPANY', 'OWNER']);
 
 interface FileRegistrationInput {
   organizationId: string;
@@ -287,9 +287,9 @@ export class StoredFilesBackfillService {
             originalName: this.extractOriginalName(row.logo_url),
             mimeType: this.inferMimeType(row.logo_url),
             sizeBytes: null,
-            kind: StoredFileKind.COMPANY_LOGO,
+            kind: StoredFileKind.OWNER_LOGO,
             visibility: StoredFileVisibility.PRIVATE,
-            ownerType: 'COMPANY',
+            ownerType: 'OWNER',
             ownerId: row.id,
           },
           assignStoredFileId: async (storedFileId) => {
