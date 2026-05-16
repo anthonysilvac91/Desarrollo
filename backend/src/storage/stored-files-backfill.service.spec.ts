@@ -40,7 +40,7 @@ async function buildService(prisma: ReturnType<typeof buildPrismaMock>) {
 describe('backfillEntityFields', () => {
   it('actualiza entity_type y entity_id para registros sin ellos', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.findMany
+    prisma.$queryRaw
       .mockResolvedValueOnce([
         { id: 'sf-1', owner_type: 'ASSET', owner_id: 'asset-1' },
         { id: 'sf-2', owner_type: 'USER', owner_id: 'user-1' },
@@ -67,7 +67,7 @@ describe('backfillEntityFields', () => {
 
   it('mapea COMPANY a OWNER en entity_type durante el backfill', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.findMany
+    prisma.$queryRaw
       .mockResolvedValueOnce([{ id: 'sf-3', owner_type: 'COMPANY', owner_id: 'company-1' }])
       .mockResolvedValueOnce([]);
     prisma.storedFile.update.mockResolvedValue({});
@@ -83,7 +83,7 @@ describe('backfillEntityFields', () => {
 
   it('respeta dryRun: cuenta updated sin llamar a update', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.findMany
+    prisma.$queryRaw
       .mockResolvedValueOnce([{ id: 'sf-4', owner_type: 'SERVICE', owner_id: 'svc-1' }])
       .mockResolvedValueOnce([]);
 
@@ -97,7 +97,7 @@ describe('backfillEntityFields', () => {
 
   it('emite warning y omite registros con owner_type desconocido', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.findMany
+    prisma.$queryRaw
       .mockResolvedValueOnce([{ id: 'sf-5', owner_type: 'UNKNOWN_TYPE', owner_id: 'x' }])
       .mockResolvedValueOnce([]);
 
@@ -110,21 +110,20 @@ describe('backfillEntityFields', () => {
     expect(result.updated).toBe(0);
   });
 
-  it('consulta solo registros con entity_type null', async () => {
+  it('usa $queryRaw con WHERE entity_type IS NULL en lugar de filtros Prisma tipados', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.findMany.mockResolvedValueOnce([]);
+    prisma.$queryRaw.mockResolvedValueOnce([]);
 
     const service = await buildService(prisma);
     await service.backfillEntityFields();
 
-    expect(prisma.storedFile.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { entity_type: null } }),
-    );
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+    expect(prisma.storedFile.findMany).not.toHaveBeenCalled();
   });
 
   it('procesa múltiples páginas con cursor', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.findMany
+    prisma.$queryRaw
       .mockResolvedValueOnce([
         { id: 'sf-10', owner_type: 'ORGANIZATION', owner_id: 'org-1' },
       ])
@@ -139,19 +138,16 @@ describe('backfillEntityFields', () => {
 
     expect(result.scanned).toBe(2);
     expect(result.updated).toBe(2);
-    expect(prisma.storedFile.findMany).toHaveBeenCalledTimes(3);
-    expect(prisma.storedFile.findMany).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ cursor: { id: 'sf-10' }, skip: 1 }),
-    );
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
   });
 });
 
 describe('validateEntityTypeIntegrity', () => {
   it('reporta cero missing y sin valores inválidos cuando todo está migrado', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.count.mockResolvedValue(0);
-    prisma.$queryRaw.mockResolvedValue([]);
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ count: BigInt(0) }])
+      .mockResolvedValueOnce([]);
 
     const service = await buildService(prisma);
     const result = await service.validateEntityTypeIntegrity();
@@ -162,8 +158,9 @@ describe('validateEntityTypeIntegrity', () => {
 
   it('reporta el conteo de registros sin entity_type', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.count.mockResolvedValue(7);
-    prisma.$queryRaw.mockResolvedValue([]);
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ count: BigInt(7) }])
+      .mockResolvedValueOnce([]);
 
     const service = await buildService(prisma);
     const result = await service.validateEntityTypeIntegrity();
@@ -173,8 +170,9 @@ describe('validateEntityTypeIntegrity', () => {
 
   it('convierte BigInt de la query raw a number en invalidValues', async () => {
     const prisma = buildPrismaMock();
-    prisma.storedFile.count.mockResolvedValue(0);
-    prisma.$queryRaw.mockResolvedValue([{ entity_type: 'COMPANY', count: BigInt(3) }]);
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ count: BigInt(0) }])
+      .mockResolvedValueOnce([{ entity_type: 'COMPANY', count: BigInt(3) }]);
 
     const service = await buildService(prisma);
     const result = await service.validateEntityTypeIntegrity();

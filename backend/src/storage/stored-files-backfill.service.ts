@@ -555,13 +555,15 @@ export class StoredFilesBackfillService {
     let cursor: string | undefined;
 
     for (;;) {
-      const rows = await this.prisma.storedFile.findMany({
-        where: { entity_type: null },
-        orderBy: { id: 'asc' },
-        take: BATCH_SIZE,
-        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-        select: { id: true, owner_type: true, owner_id: true },
-      });
+      const cursorCondition = cursor ? Prisma.sql`AND id > ${cursor}` : Prisma.sql``;
+      const rows = await this.prisma.$queryRaw<Array<{ id: string; owner_type: string; owner_id: string }>>`
+        SELECT id, owner_type, owner_id
+        FROM "StoredFile"
+        WHERE entity_type IS NULL
+        ${cursorCondition}
+        ORDER BY id ASC
+        LIMIT ${BATCH_SIZE}
+      `;
 
       if (rows.length === 0) break;
 
@@ -597,9 +599,12 @@ export class StoredFilesBackfillService {
   }
 
   async validateEntityTypeIntegrity(): Promise<EntityTypeIntegrityResult> {
-    const missing = await this.prisma.storedFile.count({
-      where: { OR: [{ entity_type: null }, { entity_id: null }] },
-    });
+    const [{ count: missingCount }] = await this.prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "StoredFile"
+      WHERE entity_type IS NULL OR entity_id IS NULL
+    `;
+    const missing = Number(missingCount);
 
     const invalid = await this.prisma.$queryRaw<Array<{ entity_type: string; count: bigint }>>`
       SELECT entity_type, COUNT(*) as count
