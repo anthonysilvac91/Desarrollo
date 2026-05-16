@@ -16,6 +16,12 @@ interface RegisterStoredFileInput {
   uploadedByUserId?: string | null;
 }
 
+// Mapea owner_type legacy al valor canónico de entity_type.
+// 'COMPANY' se convierte en 'OWNER' porque la entidad final de negocio se llama Owner.
+export function toEntityType(ownerType: string): string {
+  return ownerType === 'COMPANY' ? 'OWNER' : ownerType;
+}
+
 @Injectable()
 export class StoredFilesService {
   constructor(
@@ -35,6 +41,8 @@ export class StoredFilesService {
         visibility: input.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
         owner_type: input.ownerType,
         owner_id: input.ownerId,
+        entity_type: toEntityType(input.ownerType),
+        entity_id: input.ownerId,
         uploaded_by_user_id: input.uploadedByUserId ?? null,
       },
     });

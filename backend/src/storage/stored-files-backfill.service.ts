@@ -9,6 +9,7 @@ import {
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
+import { toEntityType } from './stored-files.service';
 
 export interface StoredFilesBackfillOptions {
   dryRun?: boolean;
@@ -32,6 +33,20 @@ interface StoredFilesBackfillSectionSummary {
   skipped: number;
   warnings: number;
 }
+
+export interface EntityFieldsBackfillSummary {
+  scanned: number;
+  updated: number;
+  skipped: number;
+  warnings: number;
+}
+
+export interface EntityTypeIntegrityResult {
+  missing: number;
+  invalidValues: Array<{ entity_type: string; count: number }>;
+}
+
+const VALID_OWNER_TYPES = new Set(['ORGANIZATION', 'USER', 'ASSET', 'SERVICE', 'COMPANY']);
 
 interface FileRegistrationInput {
   organizationId: string;
@@ -477,6 +492,10 @@ export class StoredFilesBackfillService {
       if (!existing.uploaded_by_user_id && input.uploadedByUserId) {
         patch.uploaded_by_user_id = input.uploadedByUserId;
       }
+      if (!existing.entity_type) {
+        patch.entity_type = toEntityType(existing.owner_type);
+        patch.entity_id = existing.owner_id;
+      }
 
       if (
         existing.organization_id !== input.organizationId ||
@@ -520,6 +539,8 @@ export class StoredFilesBackfillService {
         visibility: input.visibility,
         owner_type: input.ownerType,
         owner_id: input.ownerId,
+        entity_type: toEntityType(input.ownerType),
+        entity_id: input.ownerId,
         uploaded_by_user_id: input.uploadedByUserId ?? null,
       },
       select: { id: true },
@@ -527,6 +548,72 @@ export class StoredFilesBackfillService {
 
     this.bump(summary, sectionKey, 'created');
     return created;
+  }
+
+  async backfillEntityFields(options: StoredFilesBackfillOptions = {}): Promise<EntityFieldsBackfillSummary> {
+    const result: EntityFieldsBackfillSummary = { scanned: 0, updated: 0, skipped: 0, warnings: 0 };
+    let cursor: string | undefined;
+
+    for (;;) {
+      const rows = await this.prisma.storedFile.findMany({
+        where: { entity_type: null },
+        orderBy: { id: 'asc' },
+        take: BATCH_SIZE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        select: { id: true, owner_type: true, owner_id: true },
+      });
+
+      if (rows.length === 0) break;
+
+      for (const row of rows) {
+        result.scanned++;
+
+        if (!VALID_OWNER_TYPES.has(row.owner_type)) {
+          this.logger.warn(
+            `StoredFile id=${row.id} tiene owner_type desconocido '${row.owner_type}'. Se omite del backfill de entity_type.`,
+          );
+          result.warnings++;
+          result.skipped++;
+          continue;
+        }
+
+        if (!options.dryRun) {
+          await this.prisma.storedFile.update({
+            where: { id: row.id },
+            data: {
+              entity_type: toEntityType(row.owner_type),
+              entity_id: row.owner_id,
+            },
+          });
+        }
+
+        result.updated++;
+      }
+
+      cursor = rows[rows.length - 1].id;
+    }
+
+    return result;
+  }
+
+  async validateEntityTypeIntegrity(): Promise<EntityTypeIntegrityResult> {
+    const missing = await this.prisma.storedFile.count({
+      where: { OR: [{ entity_type: null }, { entity_id: null }] },
+    });
+
+    const invalid = await this.prisma.$queryRaw<Array<{ entity_type: string; count: bigint }>>`
+      SELECT entity_type, COUNT(*) as count
+      FROM "StoredFile"
+      WHERE entity_type IS NOT NULL
+        AND entity_type NOT IN ('ORGANIZATION', 'OWNER', 'USER', 'ASSET', 'SERVICE')
+      GROUP BY entity_type
+      ORDER BY entity_type
+    `;
+
+    return {
+      missing,
+      invalidValues: invalid.map((r) => ({ entity_type: r.entity_type, count: Number(r.count) })),
+    };
   }
 
   private async resolveFileSize(storageRef: string, preferredSize?: number | null): Promise<number | null> {
