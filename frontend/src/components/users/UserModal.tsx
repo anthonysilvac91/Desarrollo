@@ -6,7 +6,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { usersService } from "@/services/users.service";
-import { companiesService } from "@/services/companies.service";
+import { ownersService } from "@/services/owners.service";
 import { organizationsService, Organization } from "@/services/organizations.service";
 
 export interface UserFormData {
@@ -55,7 +55,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
         organizationsService.findAll().then(setOrganizations).catch(() => {});
       }
 
-      companiesService.findAll().then((data: any) => {
+      ownersService.findAll().then((data: any) => {
         const list = Array.isArray(data) ? data : data.data || [];
         setCompanies(list);
       }).catch(() => {});
@@ -105,7 +105,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           password: formData.password,
         };
         if (isSuperAdmin && formData.role !== "SUPER_ADMIN") payload.organization_id = formData.organization_id;
-        if (formData.role === "CLIENT" && formData.company_id) payload.company_id = formData.company_id;
+        if ((formData.role === "EXTERNAL" || formData.role === "CLIENT") && formData.company_id) payload.owner_id = formData.company_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }
@@ -246,7 +246,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           )}
 
-          {!isEditMode && formData.role === "CLIENT" && (
+          {!isEditMode && (formData.role === "EXTERNAL" || formData.role === "CLIENT") && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
               <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
               <div className="relative group">
@@ -291,7 +291,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                       {[
                         { id: "ADMIN", label: "Administrador" },
                         { id: "WORKER", label: "Operador/Trabajador" },
-                        { id: "CLIENT", label: "Usuario Externo" }
+                        { id: "EXTERNAL", label: "Usuario Externo" }
                       ].map((role) => (
                         <button
                           key={role.id}
@@ -300,7 +300,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                             setFormData({
                               ...formData,
                               role: role.id,
-                              company_id: role.id === "CLIENT" ? formData.company_id : "",
+                              company_id: role.id === "EXTERNAL" ? formData.company_id : "",
                             });
                             setIsRoleDropdownOpen(false);
                           }}

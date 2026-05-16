@@ -8,12 +8,12 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
-import { companiesService } from "@/services/companies.service";
+import { ownersService } from "@/services/owners.service";
 import { useAuth } from "@/lib/AuthContext";
 
 export interface AssetFormData {
   name: string;
-  company_id: string;
+  owner_id: string;
   location: string;
   photo: File | null;
 }
@@ -32,24 +32,23 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    company_id: "",
+    owner_id: "",
     location: "",
     photo: null as File | null,
   });
 
   const queryClient = useQueryClient();
 
-  const handleQuickCreateCompany = async (name: string) => {
+  const handleQuickCreateOwner = async (name: string) => {
     try {
       setLoading(true);
-      const newCompany = await companiesService.create({ name });
-      
-      queryClient.invalidateQueries({ queryKey: ["companies"] });
-      setFormData(prev => ({ ...prev, company_id: newCompany.id }));
-      showToast("Empresa creada", "success");
+      const newOwner = await ownersService.create({ name });
+      queryClient.invalidateQueries({ queryKey: ["owners"] });
+      setFormData(prev => ({ ...prev, owner_id: newOwner.id }));
+      showToast("Propietario creado", "success");
     } catch (error) {
       console.error(error);
-      showToast("Error al crear empresa", "error");
+      showToast("Error al crear propietario", "error");
     } finally {
       setLoading(false);
     }
@@ -57,28 +56,26 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
   const [preview, setPreview] = useState<string | null>(null);
 
-  // Fetch real companies from the database
-  const { data: companiesData = [] } = useQuery({
-    queryKey: ["companies"],
-    queryFn: () => companiesService.findAll(),
+  const { data: ownersData = [] } = useQuery({
+    queryKey: ["owners"],
+    queryFn: () => ownersService.findAll(),
     enabled: isOpen
   });
-  
-  const companies = Array.isArray(companiesData) ? companiesData : companiesData.data || [];
+
+  const companies = Array.isArray(ownersData) ? ownersData : (ownersData as any).data || [];
 
   // Hydrate form when editing
   React.useEffect(() => {
     if (isOpen && asset) {
       setFormData({
         name: asset.name || "",
-        company_id: asset.company?.id || asset.customer?.id || "",
+        owner_id: asset.owner?.id || asset.company?.id || asset.customer?.id || "",
         location: asset.location || "",
         photo: null,
       });
       setPreview(asset.thumbnail_url || null);
     } else if (isOpen && !asset) {
-      // Reset form if opening for creation
-      setFormData({ name: "", company_id: "", location: "", photo: null });
+      setFormData({ name: "", owner_id: "", location: "", photo: null });
       setPreview(null);
     }
   }, [isOpen, asset]);
@@ -108,18 +105,15 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       data.append("name", formData.name);
       data.append("location", formData.location);
       
-      if (formData.company_id && formData.company_id !== "") {
-        data.append("company_id", formData.company_id);
+      if (formData.owner_id && formData.owner_id !== "") {
+        data.append("owner_id", formData.owner_id);
       }
 
       if (formData.photo) {
         data.append("photo", formData.photo);
       }
 
-      console.log('📤 Enviando barco:', { 
-        name: formData.name, 
-        company_id: formData.company_id 
-      });
+      console.log('📤 Enviando barco:', { name: formData.name, owner_id: formData.owner_id });
 
       if (asset?.id) {
         // Modo Edición
@@ -135,7 +129,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       onClose();
       
       // Reset form
-      setFormData({ name: "", company_id: "", location: "", photo: null });
+      setFormData({ name: "", owner_id: "", location: "", photo: null });
       setPreview(null);
     } catch (err) {
       console.error(err);
@@ -188,12 +182,12 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
           <Combobox
             label={t.assets.detail.owner}
             options={companyOptions}
-            value={formData.company_id}
-            onChange={(val) => setFormData({ ...formData, company_id: val })}
+            value={formData.owner_id}
+            onChange={(val) => setFormData({ ...formData, owner_id: val })}
             placeholder="Selecciona una empresa..."
             onCreate={
-              (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") 
-                ? handleQuickCreateCompany 
+              (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN")
+                ? handleQuickCreateOwner
                 : undefined
             }
           />
@@ -223,7 +217,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
           </button>
           <button
             onClick={handleSave}
-            disabled={loading || !formData.name}
+            disabled={loading || !formData.name || !formData.owner_id}
             className="flex-[2] py-4 px-6 rounded-2xl text-sm font-black text-white bg-brand shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center space-x-2"
           >
             {loading ? (
