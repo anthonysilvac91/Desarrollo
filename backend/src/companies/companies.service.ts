@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCompanyDto } from './dto/create-company.dto';
-import { UpdateCompanyDto } from './dto/update-company.dto';
+import { CreateOwnerDto } from './dto/create-company.dto';
+import { UpdateOwnerDto } from './dto/update-company.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { StorageService } from '../storage/storage.service';
@@ -14,7 +14,7 @@ import { StoredFileKind } from '@prisma/client';
 import { withOwnerAliases } from '../common/compat/owner-role-compat';
 
 @Injectable()
-export class CompaniesService {
+export class OwnersService {
   constructor(
     private prisma: PrismaService,
     private storageService: StorageService,
@@ -56,7 +56,7 @@ export class CompaniesService {
     return resolvedCompany;
   }
 
-  async create(createCompanyDto: CreateCompanyDto, orgId: string, logoFile?: Express.Multer.File) {
+  async create(createCompanyDto: CreateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
     ensureNoManualFileUrl(createCompanyDto.logo_url, 'Logo de company');
     const { logo_url: _logoUrl, ...companyData } = createCompanyDto;
 
@@ -165,7 +165,7 @@ export class CompaniesService {
     return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
   }
 
-  async update(id: string, updateCompanyDto: UpdateCompanyDto, orgId: string, logoFile?: Express.Multer.File) {
+  async update(id: string, updateCompanyDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
     const existingCompany = await this.prisma.owner.findUnique({
       where: { id },
       select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },

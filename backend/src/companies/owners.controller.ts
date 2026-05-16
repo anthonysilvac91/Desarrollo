@@ -4,22 +4,22 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
-import { CompaniesService } from './companies.service';
-import { CreateCompanyDto } from './dto/create-company.dto';
-import { UpdateCompanyDto } from './dto/update-company.dto';
+import { OwnersService } from './companies.service';
+import { CreateOwnerDto } from './dto/create-company.dto';
+import { UpdateOwnerDto } from './dto/update-company.dto';
 
 @ApiTags('owners')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('owners')
 export class OwnersController {
-  constructor(private readonly companiesService: CompaniesService) {}
+  constructor(private readonly companiesService: OwnersService) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Crear un owner' })
-  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
+  create(@Body() createCompanyDto: CreateOwnerDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para crear owners');
     }
@@ -48,7 +48,7 @@ export class OwnersController {
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar un owner' })
-  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
+  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateOwnerDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar owners');
     }

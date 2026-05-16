@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsOptional, IsBoolean } from 'class-validator';
 
-export class CreateCompanyDto {
+export class CreateOwnerDto {
   @ApiProperty({ description: 'Nombre del owner.' })
   @IsString()
   @IsNotEmpty({ message: 'El nombre es requerido' })
