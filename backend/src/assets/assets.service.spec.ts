@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AssetsService } from './assets.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { StorageGovernanceService } from '../storage/storage-governance.service';
+import { StoredFilesService } from '../storage/stored-files.service';
 
 describe('AssetsService.create - Worker Roles', () => {
   let service: AssetsService;
@@ -12,6 +14,9 @@ describe('AssetsService.create - Worker Roles', () => {
       asset: { 
         create: jest.fn(),
         findUnique: jest.fn()
+      },
+      company: {
+        findFirst: jest.fn(),
       },
     };
 
@@ -24,6 +29,15 @@ describe('AssetsService.create - Worker Roles', () => {
         AssetsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: storageMock },
+        { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
+        {
+          provide: StoredFilesService,
+          useValue: {
+            resolveFileUrlOrRef: jest.fn((_: string | null, fallback?: string | null) => fallback ?? null),
+            registerUploadedFile: jest.fn(),
+            deleteStoredFileAndBlob: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -32,16 +46,18 @@ describe('AssetsService.create - Worker Roles', () => {
   });
 
   it('Debería inyectar el organization_id del Worker al crear un activo', async () => {
-    const mockAsset = { id: 'asset-1', name: 'Nuevo Activo de Terreno', organization_id: 'org-tenant-123' };
+    const mockAsset = { id: 'asset-1', name: 'Nuevo Activo de Terreno', organization_id: 'org-tenant-123', company_id: 'company-1' };
+    jest.spyOn(prisma.company, 'findFirst').mockResolvedValue({ id: 'company-1' } as any);
     jest.spyOn(prisma.asset, 'create').mockResolvedValue(mockAsset as any);
     jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(mockAsset as any);
 
-    const result = await service.create({ name: 'Nuevo Activo de Terreno' }, 'org-tenant-123');
+    const result = await service.create({ name: 'Nuevo Activo de Terreno', company_id: 'company-1' }, 'org-tenant-123');
 
     expect(prisma.asset.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ 
         name: 'Nuevo Activo de Terreno',
-        organization_id: 'org-tenant-123'
+        organization_id: 'org-tenant-123',
+        company_id: 'company-1',
       })
     }));
     expect(result).toHaveProperty('organization_id', 'org-tenant-123');

@@ -48,6 +48,18 @@ export class TestUtils {
    */
   async createTestUser(role: Role, email: string, orgId?: string, companyId?: string) {
     const password_hash = await bcrypt.hash('123456', 10);
+    let resolvedCompanyId = companyId;
+
+    if (role === Role.CLIENT && orgId && !resolvedCompanyId) {
+      const company = await this.prisma.company.create({
+        data: {
+          name: `Company ${email}`,
+          organization_id: orgId,
+        },
+      });
+      resolvedCompanyId = company.id;
+    }
+
     return this.prisma.user.create({
       data: {
         role,
@@ -55,7 +67,7 @@ export class TestUtils {
         password_hash,
         name: `User ${role} ${email}`,
         organization_id: orgId || null,
-        company_id: companyId || null,
+        company_id: resolvedCompanyId || null,
       }
     });
   }

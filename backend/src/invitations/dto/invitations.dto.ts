@@ -17,6 +17,16 @@ export class CreateInvitationDto {
   @IsUUID()
   @IsOptional()
   organization_id?: string;
+
+  @ApiPropertyOptional({ description: 'ID legacy de company requerido para invitaciones CLIENT/EXTERNAL.' })
+  @IsUUID()
+  @IsOptional()
+  company_id?: string;
+
+  @ApiPropertyOptional({ description: 'Alias temporal de company_id para futuras llamadas con owner_id.' })
+  @IsUUID()
+  @IsOptional()
+  owner_id?: string;
 }
 
 export class ValidateInvitationDto {

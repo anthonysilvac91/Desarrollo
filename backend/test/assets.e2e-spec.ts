@@ -35,15 +35,46 @@ describe('Assets Visibility (e2e)', () => {
     await testUtils.clearDatabase();
   });
 
+  describe('POST /assets', () => {
+    it('rechaza crear asset sin company_id', async () => {
+      const org = await testUtils.createTestOrganization();
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const res = await request(app.getHttpServer())
+        .post('/assets')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Bote sin owner' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('crea asset con company_id valida', async () => {
+      const org = await testUtils.createTestOrganization();
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const res = await request(app.getHttpServer())
+        .post('/assets')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Bote con owner', company_id: company.id });
+
+      expect(res.status).toBe(201);
+      expect(res.body.company_id).toBe(company.id);
+    });
+  });
+
   describe('GET /assets (Visibilidad Múltiple)', () => {
     it('WORKER no restringido asimila todos los assets de su tenant.', async () => {
       const org = await testUtils.createTestOrganization('Libre', false);
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@libre.com', org.id);
       
       await prisma.asset.createMany({
         data: [
-          { organization_id: org.id, name: 'Bote A' },
-          { organization_id: org.id, name: 'Bote B' }
+          { organization_id: org.id, company_id: company.id, name: 'Bote A' },
+          { organization_id: org.id, company_id: company.id, name: 'Bote B' }
         ]
       });
 
@@ -56,10 +87,11 @@ describe('Assets Visibility (e2e)', () => {
 
     it('WORKER restringido solo ve los assets asignados.', async () => {
       const org = await testUtils.createTestOrganization('Restringida', true);
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@restringida.com', org.id);
       
-      const assetVinculado = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Asignado' } });
-      const assetAislado = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Secreto' } });
+      const assetVinculado = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote Asignado' } });
+      const assetAislado = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote Secreto' } });
 
       await prisma.workerAssetAccess.create({
         data: { worker_id: worker.id, asset_id: assetVinculado.id }
@@ -81,7 +113,8 @@ describe('Assets Visibility (e2e)', () => {
       const assetVinculado = await prisma.asset.create({ 
         data: { organization_id: org.id, name: 'Bote Cliente', company_id: company.id } 
       });
-      await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Aislado' } });
+      const otherCompany = await testUtils.createTestCustomer('Empresa B', org.id);
+      await prisma.asset.create({ data: { organization_id: org.id, company_id: otherCompany.id, name: 'Bote Aislado' } });
 
       const token = testUtils.getBearerToken(client);
       const res = await request(app.getHttpServer()).get('/assets').set('Authorization', `Bearer ${token}`);
@@ -95,8 +128,9 @@ describe('Assets Visibility (e2e)', () => {
   describe('GET /assets/:id', () => {
     it('ADMIN puede ver detalle completo con historial y clientes vinculados.', async () => {
       const org = await testUtils.createTestOrganization();
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, name: 'Bote Admin' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote Admin' } });
       
       const token = testUtils.getBearerToken(admin);
       const res = await request(app.getHttpServer()).get(`/assets/${asset.id}`).set('Authorization', `Bearer ${token}`);
@@ -110,8 +144,9 @@ describe('Assets Visibility (e2e)', () => {
     it('No permite ver activos de otro tenant.', async () => {
       const org1 = await testUtils.createTestOrganization('T1');
       const org2 = await testUtils.createTestOrganization('T2');
+      const company2 = await testUtils.createTestCustomer('Empresa T2', org2.id);
       const admin1 = await testUtils.createTestUser(Role.ADMIN, 'admin@t1.com', org1.id);
-      const asset2 = await prisma.asset.create({ data: { organization_id: org2.id, name: 'Bote Foráneo' } });
+      const asset2 = await prisma.asset.create({ data: { organization_id: org2.id, company_id: company2.id, name: 'Bote Foráneo' } });
       
       const token = testUtils.getBearerToken(admin1);
       const res = await request(app.getHttpServer()).get(`/assets/${asset2.id}`).set('Authorization', `Bearer ${token}`);

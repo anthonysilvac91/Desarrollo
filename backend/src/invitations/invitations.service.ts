@@ -9,6 +9,21 @@ export class InvitationsService {
 
   constructor(private prisma: PrismaService) {}
 
+  private isExternalRole(role: string) {
+    return role === 'CLIENT' || role === 'EXTERNAL';
+  }
+
+  private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, organization_id: organizationId, is_active: true },
+      select: { id: true },
+    });
+
+    if (!company) {
+      throw new BadRequestException('La company indicada no pertenece a la organizaciÃ³n');
+    }
+  }
+
   async create(dto: CreateInvitationDto, inviterId: string, inviterRole: string, inviterOrgId?: string) {
     if (dto.role === 'SUPER_ADMIN') {
       throw new ForbiddenException('No se puede invitar a un SUPER_ADMIN');
@@ -26,6 +41,19 @@ export class InvitationsService {
     }
 
     const finalOrgId = targetOrgId as string;
+    const companyId = dto.company_id ?? dto.owner_id;
+
+    if (this.isExternalRole(dto.role) && !companyId) {
+      throw new BadRequestException('Una invitaciÃ³n CLIENT debe asociarse a una company');
+    }
+
+    if (companyId) {
+      if (!this.isExternalRole(dto.role)) {
+        throw new BadRequestException('Solo una invitaciÃ³n CLIENT puede asociarse a una company');
+      }
+
+      await this.ensureCompanyBelongsToOrganization(companyId, finalOrgId);
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();

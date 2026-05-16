@@ -51,18 +51,33 @@ describe('Invitations (e2e)', () => {
 
     it('ADMIN puede invitar a su propia organización con fuerza', async () => {
       const org = await testUtils.createTestOrganization();
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
       const token = testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
-        .send({ email: 'client@test.com', role: Role.CLIENT }); // Omite org intencionalmente
+        .send({ email: 'client@test.com', role: Role.CLIENT, company_id: company.id }); // Omite org intencionalmente
       
       expect(res.status).toBe(201);
       
       const invBD = await prisma.invitation.findFirst({ where: { email: 'client@test.com' } });
       expect(invBD?.organization_id).toBe(org.id); // Forzado por el backend
+    });
+
+    it('rechaza invitacion CLIENT sin company_id', async () => {
+      const org = await testUtils.createTestOrganization();
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const res = await request(app.getHttpServer())
+        .post('/invitations')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ email: 'client@test.com', role: Role.CLIENT });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Una invitaciÃ³n CLIENT debe asociarse a una company');
     });
 
     it('ADMIN no puede invitar a un SUPER_ADMIN (Forbidden)', async () => {

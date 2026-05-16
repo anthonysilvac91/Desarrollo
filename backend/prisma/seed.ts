@@ -77,7 +77,7 @@ async function main() {
   const oAsset1 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyB.id, name: 'Lady Nelly' } });
   const oAsset2 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyA.id, name: 'Azimut 58' } });
   const oAsset3 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyA.id, name: 'Naomi' } });
-  const oAsset4 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, name: 'Verve 42' } }); // Sin empresa asignada (Stock)
+  const oAsset4 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyB.id, name: 'Verve 42' } });
 
   console.log(`[ORG] Creada Org 1: Oceanic Yachts (4 yates, 2 empresas clientes)`);
 

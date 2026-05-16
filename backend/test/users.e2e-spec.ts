@@ -143,6 +143,25 @@ describe('Users Management (e2e)', () => {
       expect(response.body.company_id).toBe(company.id);
     });
 
+    it('rechaza CLIENT sin company_id', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          email: 'client@org.com',
+          password: 'SecurePass123!',
+          name: 'Client Org',
+          role: Role.CLIENT,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Un usuario CLIENT debe asociarse a una company');
+    });
+
     it('valida email, password minimo y role', async () => {
       const org = await testUtils.createTestOrganization('Org');
       const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');

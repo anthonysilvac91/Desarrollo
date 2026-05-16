@@ -77,6 +77,34 @@ describe('Auth & Register (e2e)', () => {
       expect(consumido?.is_used).toBe(true);
     });
 
+    it('rechaza registro CLIENT sin company_id', async () => {
+      const org = await testUtils.createTestOrganization();
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const inv = await testUtils.seedTestInvitation(org.id, 'client@test.com', Role.CLIENT, admin.id);
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ token: inv.token, name: 'Client User', password: 'securepassword123' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Un usuario CLIENT debe asociarse a una company');
+    });
+
+    it('registra CLIENT con company_id valida', async () => {
+      const org = await testUtils.createTestOrganization();
+      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const inv = await testUtils.seedTestInvitation(org.id, 'client@test.com', Role.CLIENT, admin.id);
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ token: inv.token, name: 'Client User', password: 'securepassword123', company_id: company.id });
+
+      expect(response.status).toBe(201);
+      const user = await prisma.user.findFirst({ where: { email: 'client@test.com' } });
+      expect(user?.company_id).toBe(company.id);
+    });
+
     it('debería arrojar 401 si mandan token usado', async () => {
       const org = await testUtils.createTestOrganization();
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { StoredFilesService } from '../storage/stored-files.service';
 import * as bcrypt from 'bcryptjs';
 
 describe('AuthService Auth Validations', () => {
@@ -18,6 +19,7 @@ describe('AuthService Auth Validations', () => {
         AuthService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: JwtService, useValue: jwtMock },
+        { provide: StoredFilesService, useValue: { resolveFileUrlOrRef: jest.fn() } },
       ],
     }).compile();
 
@@ -39,6 +41,7 @@ describe('AuthService Auth Validations', () => {
       organization_id: 'org-1',
       role: 'WORKER',
       password_hash: realHash,
+      company_id: null,
     } as any);
     
     jest.spyOn(jwt, 'sign').mockReturnValue('mocked-token');
@@ -46,6 +49,12 @@ describe('AuthService Auth Validations', () => {
     const result = await service.login({ email: 'a@test.com', password: '123', organizationId: 'org-1' });
 
     expect(result.access_token).toBe('mocked-token');
-    expect(jwt.sign).toHaveBeenCalledWith({ sub: 'u-1', orgId: 'org-1', role: 'WORKER' });
+    expect(jwt.sign).toHaveBeenCalledWith({
+      sub: 'u-1',
+      orgId: 'org-1',
+      role: 'WORKER',
+      customer_id: null,
+      company_id: null,
+    });
   });
 });

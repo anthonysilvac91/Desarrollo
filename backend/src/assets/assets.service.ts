@@ -82,6 +82,10 @@ export class AssetsService {
       throw new Error('Es necesario especificar una organizaciÃ³n para el activo');
     }
 
+    if (!companyId) {
+      throw new BadRequestException('Un activo debe asociarse a una company');
+    }
+
     if (photo) {
       const imageInfo = validateImageFile(photo, {
         maxBytes: 5 * 1024 * 1024,
@@ -120,9 +124,7 @@ export class AssetsService {
       thumbnailFileId = storedFile.id;
     }
 
-    if (companyId) {
-      await this.ensureCompanyBelongsToOrg(companyId, targetOrgId);
-    }
+    await this.ensureCompanyBelongsToOrg(companyId, targetOrgId);
 
     let newAsset;
     try {
@@ -132,7 +134,7 @@ export class AssetsService {
           ...assetData,
           thumbnail_file_id: thumbnailFileId,
           organization_id: targetOrgId,
-          company_id: companyId || null,
+          company_id: companyId,
         },
       });
     } catch (error) {
@@ -321,12 +323,7 @@ export class AssetsService {
       throw new NotFoundException('Activo no encontrado');
     }
 
-    const updatedAsset = await this.prisma.asset.update({
-      where: { id: assetId },
-      data: { company_id: null },
-    });
-
-    return this.mapAssetRelations(updatedAsset);
+    throw new BadRequestException('Un activo debe mantener una company asociada');
   }
 
   async remove(id: string, user: any) {
@@ -413,10 +410,12 @@ export class AssetsService {
     };
 
     if (companyId !== undefined) {
-      if (companyId) {
-        await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);
+      if (!companyId) {
+        throw new BadRequestException('Un activo debe asociarse a una company');
       }
-      updatePayload.company_id = companyId || null;
+
+      await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);
+      updatePayload.company_id = companyId;
     }
 
     let updatedAsset;

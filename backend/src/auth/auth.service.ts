@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,6 +14,21 @@ export class AuthService {
     private jwtService: JwtService,
     private storedFilesService: StoredFilesService,
   ) {}
+
+  private isExternalRole(role: string) {
+    return role === 'CLIENT' || role === 'EXTERNAL';
+  }
+
+  private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, organization_id: organizationId, is_active: true },
+      select: { id: true },
+    });
+
+    if (!company) {
+      throw new BadRequestException('La company indicada no pertenece a la organizaciÃ³n');
+    }
+  }
 
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findFirst({
@@ -58,6 +73,20 @@ export class AuthService {
     if (invitation.is_used) throw new UnauthorizedException('Esta invitación ya fue utilizada');
     if (new Date() > invitation.expires_at) throw new UnauthorizedException('Esta invitación ha expirado');
 
+    const companyId = registerDto.company_id ?? registerDto.owner_id;
+
+    if (this.isExternalRole(invitation.role) && !companyId) {
+      throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+    }
+
+    if (companyId) {
+      if (!this.isExternalRole(invitation.role)) {
+        throw new BadRequestException('Solo un usuario CLIENT puede asociarse a una company');
+      }
+
+      await this.ensureCompanyBelongsToOrganization(companyId, invitation.organization_id);
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const passwordHash = await bcrypt.hash(registerDto.password, 10);
 
@@ -68,6 +97,7 @@ export class AuthService {
           email: invitation.email,
           name: registerDto.name,
           password_hash: passwordHash,
+          company_id: companyId ?? null,
         },
       });
 
