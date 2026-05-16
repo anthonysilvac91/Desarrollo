@@ -67,7 +67,7 @@ export class UsersService {
     // WORKER puede listar pero solo si es para buscar CLIENTES.
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
       if (currentUser.role === Role.WORKER) {
-        query.role = Role.CLIENT; // Forzamos que solo vea clientes
+        query.role = Role.EXTERNAL; // Forzamos que solo vea usuarios externos
       } else {
         throw new ForbiddenException('No tienes permiso para gestionar usuarios');
       }
@@ -224,14 +224,14 @@ export class UsersService {
 
     if (ownerId) {
       if (!isExternalRole(requestedRole)) {
-        throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
+        throw new BadRequestException('Solo un usuario externo puede asociarse a una company');
       }
 
       await this.ensureCompanyBelongsToOrganization(ownerId, dto.organization_id!);
     }
 
     if (isExternalRole(requestedRole) && !ownerId) {
-      throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+      throw new BadRequestException('Un usuario externo debe asociarse a una company');
     }
 
     // 2. Verificar email duplicado en el mismo tenant (u org_id null para SuperAdmin)
@@ -337,11 +337,11 @@ export class UsersService {
 
     if (ownerProvided) {
       if (!isExternalRole(currentUserRecord.role)) {
-        throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
+        throw new BadRequestException('Solo un usuario externo puede asociarse a una company');
       }
 
       if (!ownerId) {
-        throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+        throw new BadRequestException('Un usuario externo debe asociarse a una company');
       }
 
       await this.ensureCompanyBelongsToOrganization(ownerId, targetOrganizationId!);
@@ -353,7 +353,7 @@ export class UsersService {
     const targetCompanyId =
       data.company_id !== undefined ? data.company_id : currentUserRecord.company_id;
     if (isExternalRole(currentUserRecord.role) && !targetCompanyId) {
-      throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+      throw new BadRequestException('Un usuario externo debe asociarse a una company');
     }
 
     let avatarFileId = currentUserRecord.avatar_file_id;

@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { DashboardStatsDto, RankingItemDto, EvolutionPointDto } from './dto/dashboard.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
-import { resolveOwnerId } from '../common/compat/owner-role-compat';
+import { resolveOwnerId, isExternalRole } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class DashboardService {
@@ -17,7 +17,7 @@ export class DashboardService {
     organizationId?: string,
     query?: { startDate?: string; endDate?: string }
   ): Promise<DashboardStatsDto> {
-    const authorizedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN, Role.WORKER, Role.CLIENT];
+    const authorizedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN, Role.WORKER, Role.CLIENT, Role.EXTERNAL];
     if (!authorizedRoles.includes(currentUser.role)) {
       throw new ForbiddenException('No tienes permiso para acceder al dashboard');
     }
@@ -32,7 +32,7 @@ export class DashboardService {
     }
 
     const isWorker = currentUser.role === Role.WORKER;
-    const isClient = currentUser.role === Role.CLIENT;
+    const isClient = isExternalRole(currentUser.role);
     const companyId = resolveOwnerId(currentUser);
     const restrictedWorkerAssetWhere =
       isWorker
@@ -88,7 +88,7 @@ export class DashboardService {
 
       // User Counts
       (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.WORKER } }),
-      (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.CLIENT } }),
+      (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.EXTERNAL } }),
       (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.ADMIN } }),
 
       // Recent Services

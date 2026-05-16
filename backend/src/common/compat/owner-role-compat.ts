@@ -5,8 +5,10 @@ export function isExternalRole(role?: string | null) {
   return role === LEGACY_CLIENT_ROLE || role === EXTERNAL_ROLE;
 }
 
-export function toDbRole<T extends string | null | undefined>(role: T): T | 'CLIENT' {
-  return role === EXTERNAL_ROLE ? LEGACY_CLIENT_ROLE : role;
+// After Phase 6.1: EXTERNAL is the canonical DB role. CLIENT is the legacy alias.
+// Convert legacy CLIENT → EXTERNAL so old API clients stay compatible.
+export function toDbRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
+  return (role === LEGACY_CLIENT_ROLE ? EXTERNAL_ROLE : role) as T | 'EXTERNAL';
 }
 
 export function toApiRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
