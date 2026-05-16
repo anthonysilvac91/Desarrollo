@@ -221,8 +221,8 @@ model StoredFile {
   visibility          StoredFileVisibility
   owner_type          String
   owner_id            String
-  entity_type         String?
-  entity_id           String?
+  entity_type         String
+  entity_id           String
   uploaded_by_user_id String?
   status              StoredFileStatus     @default(READY)
 

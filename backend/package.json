@@ -23,6 +23,9 @@
     "db:migrate:local": "npm run db:safe-check && prisma migrate dev",
     "storage:backfill:legacy": "ts-node scripts/backfill-stored-files.ts",
     "storage:backfill:legacy:dry": "ts-node scripts/backfill-stored-files.ts --dry-run",
+    "storage:backfill:entity-fields": "ts-node scripts/backfill-entity-fields.ts",
+    "storage:backfill:entity-fields:dry": "ts-node scripts/backfill-entity-fields.ts --dry-run",
+    "storage:validate:entity-fields": "ts-node scripts/backfill-entity-fields.ts --validate-only",
     "test:e2e": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- jest --config ./test/jest-e2e.json --runInBand"
   },
   "dependencies": {
