@@ -11,15 +11,9 @@ interface RegisterStoredFileInput {
   sizeBytes?: number | null;
   kind: StoredFileKind;
   visibility: StorageVisibility;
-  ownerType: string;
-  ownerId: string;
+  entityType: string;
+  entityId: string;
   uploadedByUserId?: string | null;
-}
-
-// Mapea owner_type legacy al valor canónico de entity_type.
-// 'COMPANY' se convierte en 'OWNER' porque la entidad final de negocio se llama Owner.
-export function toEntityType(ownerType: string): string {
-  return ownerType === 'COMPANY' ? 'OWNER' : ownerType;
 }
 
 @Injectable()
@@ -39,10 +33,8 @@ export class StoredFilesService {
         size_bytes: input.sizeBytes ?? null,
         kind: input.kind,
         visibility: input.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
-        owner_type: input.ownerType,
-        owner_id: input.ownerId,
-        entity_type: toEntityType(input.ownerType),
-        entity_id: input.ownerId,
+        entity_type: input.entityType,
+        entity_id: input.entityId,
         uploaded_by_user_id: input.uploadedByUserId ?? null,
       },
     });

@@ -1,20 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StoredFileKind } from '@prisma/client';
-import { StoredFilesService, toEntityType } from './stored-files.service';
+import { StoredFilesService } from './stored-files.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
-
-describe('toEntityType', () => {
-  it.each([
-    ['ORGANIZATION', 'ORGANIZATION'],
-    ['USER', 'USER'],
-    ['ASSET', 'ASSET'],
-    ['SERVICE', 'SERVICE'],
-    ['COMPANY', 'OWNER'],
-  ])('mapea %s -> %s', (input, expected) => {
-    expect(toEntityType(input)).toBe(expected);
-  });
-});
 
 describe('StoredFilesService', () => {
   let service: StoredFilesService;
@@ -47,7 +35,7 @@ describe('StoredFilesService', () => {
   });
 
   describe('registerFile — dual-write', () => {
-    it('escribe entity_type y entity_id junto con owner_type y owner_id', async () => {
+    it('escribe entity_type y entity_id', async () => {
       prisma.storedFile.create.mockResolvedValue({ id: 'sf-1' });
 
       await service.registerFile({
@@ -55,15 +43,13 @@ describe('StoredFilesService', () => {
         storageRef: 'private://org-1/thumb.jpg',
         kind: StoredFileKind.ASSET_THUMBNAIL,
         visibility: 'private',
-        ownerType: 'ASSET',
-        ownerId: 'asset-1',
+        entityType: 'ASSET',
+        entityId: 'asset-1',
       });
 
       expect(prisma.storedFile.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            owner_type: 'ASSET',
-            owner_id: 'asset-1',
             entity_type: 'ASSET',
             entity_id: 'asset-1',
           }),
@@ -71,7 +57,7 @@ describe('StoredFilesService', () => {
       );
     });
 
-    it('escribe owner_type y entity_type como OWNER para logos de owner', async () => {
+    it('escribe entity_type OWNER para logos de owner', async () => {
       prisma.storedFile.create.mockResolvedValue({ id: 'sf-2' });
 
       await service.registerFile({
@@ -79,15 +65,13 @@ describe('StoredFilesService', () => {
         storageRef: 'private://org-1/logo.jpg',
         kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
-        ownerType: 'OWNER',
-        ownerId: 'owner-1',
+        entityType: 'OWNER',
+        entityId: 'owner-1',
       });
 
       expect(prisma.storedFile.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            owner_type: 'OWNER',
-            owner_id: 'owner-1',
             entity_type: 'OWNER',
             entity_id: 'owner-1',
           }),
@@ -95,7 +79,7 @@ describe('StoredFilesService', () => {
       );
     });
 
-    it('entity_id coincide con owner_id para todos los tipos', async () => {
+    it('entity_id refleja el entityId proporcionado', async () => {
       prisma.storedFile.create.mockResolvedValue({ id: 'sf-3' });
 
       await service.registerFile({
@@ -103,12 +87,12 @@ describe('StoredFilesService', () => {
         storageRef: 'private://org-1/org-logo.jpg',
         kind: StoredFileKind.ORG_LOGO,
         visibility: 'public',
-        ownerType: 'ORGANIZATION',
-        ownerId: 'org-1',
+        entityType: 'ORGANIZATION',
+        entityId: 'org-1',
       });
 
       const callData = prisma.storedFile.create.mock.calls[0][0].data;
-      expect(callData.entity_id).toBe(callData.owner_id);
+      expect(callData.entity_id).toBe('org-1');
     });
   });
 
@@ -122,8 +106,8 @@ describe('StoredFilesService', () => {
           storageRef: 'private://org-1/file.jpg',
           kind: StoredFileKind.USER_AVATAR,
           visibility: 'private',
-          ownerType: 'USER',
-          ownerId: 'user-1',
+          entityType: 'USER',
+          entityId: 'user-1',
         }),
       ).rejects.toThrow('DB error');
 

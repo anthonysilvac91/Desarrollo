@@ -147,8 +147,8 @@ export class OrganizationsService {
         sizeBytes: logoFile.size,
         kind: StoredFileKind.ORG_LOGO,
         visibility: 'public',
-        ownerType: 'ORGANIZATION',
-        ownerId: orgId,
+        entityType: 'ORGANIZATION',
+        entityId: orgId,
       });
       data.logo_file_id = storedFile.id;
     }

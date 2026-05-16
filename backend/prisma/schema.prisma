@@ -220,8 +220,6 @@ model StoredFile {
   size_bytes          Int?
   kind                StoredFileKind
   visibility          StoredFileVisibility
-  owner_type          String
-  owner_id            String
   entity_type         String
   entity_id           String
   uploaded_by_user_id String?
@@ -240,7 +238,6 @@ model StoredFile {
 
   @@index([organization_id])
   @@index([organization_id, kind])
-  @@index([owner_type, owner_id])
   @@index([entity_type, entity_id])
   @@index([kind])
   @@index([status])

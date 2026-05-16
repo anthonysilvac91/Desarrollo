@@ -399,8 +399,8 @@ export class UsersService {
         sizeBytes: avatarFile.size,
         kind: StoredFileKind.USER_AVATAR,
         visibility: 'private',
-        ownerType: 'USER',
-        ownerId: currentUserRecord.id,
+        entityType: 'USER',
+        entityId: currentUserRecord.id,
         uploadedByUserId: currentUser.id,
       });
       avatarFileId = storedFile.id;

@@ -130,8 +130,8 @@ export class AssetsService {
         sizeBytes: photo.size,
         kind: StoredFileKind.ASSET_THUMBNAIL,
         visibility: 'private',
-        ownerType: 'ASSET',
-        ownerId: assetId,
+        entityType: 'ASSET',
+        entityId: assetId,
       });
       thumbnailFileId = storedFile.id;
     }
@@ -420,8 +420,8 @@ export class AssetsService {
         sizeBytes: photo.size,
         kind: StoredFileKind.ASSET_THUMBNAIL,
         visibility: 'private',
-        ownerType: 'ASSET',
-        ownerId: asset.id,
+        entityType: 'ASSET',
+        entityId: asset.id,
       });
       thumbnailFileId = storedFile.id;
     }

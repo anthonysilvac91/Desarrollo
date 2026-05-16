@@ -94,8 +94,8 @@ export class OwnersService {
         sizeBytes: logoFile.size,
         kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
-        ownerType: 'OWNER',
-        ownerId: companyId,
+        entityType: 'OWNER',
+        entityId: companyId,
       });
       logoFileId = storedFile.id;
     }
@@ -215,8 +215,8 @@ export class OwnersService {
         sizeBytes: logoFile.size,
         kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
-        ownerType: 'OWNER',
-        ownerId: existingCompany.id,
+        entityType: 'OWNER',
+        entityId: existingCompany.id,
       });
       logoFileId = storedFile.id;
     }

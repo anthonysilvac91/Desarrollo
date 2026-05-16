@@ -143,8 +143,8 @@ export class ServicesService {
           sizeBytes: file.size,
           kind: StoredFileKind.SERVICE_ATTACHMENT,
           visibility: 'private',
-          ownerType: 'SERVICE',
-          ownerId: serviceId,
+          entityType: 'SERVICE',
+          entityId: serviceId,
           uploadedByUserId: user.id,
         });
         storedFileIds.push(storedFile.id);

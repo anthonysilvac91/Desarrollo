@@ -9,7 +9,6 @@ import {
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
-import { toEntityType } from './stored-files.service';
 
 export interface StoredFilesBackfillOptions {
   dryRun?: boolean;
@@ -34,19 +33,10 @@ interface StoredFilesBackfillSectionSummary {
   warnings: number;
 }
 
-export interface EntityFieldsBackfillSummary {
-  scanned: number;
-  updated: number;
-  skipped: number;
-  warnings: number;
-}
-
 export interface EntityTypeIntegrityResult {
   missing: number;
   invalidValues: Array<{ entity_type: string; count: number }>;
 }
-
-const VALID_OWNER_TYPES = new Set(['ORGANIZATION', 'USER', 'ASSET', 'SERVICE', 'COMPANY', 'OWNER']);
 
 interface FileRegistrationInput {
   organizationId: string;
@@ -56,8 +46,8 @@ interface FileRegistrationInput {
   sizeBytes?: number | null;
   kind: StoredFileKind;
   visibility: StoredFileVisibility;
-  ownerType: string;
-  ownerId: string;
+  entityType: string;
+  entityId: string;
   uploadedByUserId?: string | null;
 }
 
@@ -162,8 +152,8 @@ export class StoredFilesBackfillService {
             sizeBytes: null,
             kind: StoredFileKind.ORG_LOGO,
             visibility: StoredFileVisibility.PUBLIC,
-            ownerType: 'ORGANIZATION',
-            ownerId: row.id,
+            entityType: 'ORGANIZATION',
+            entityId: row.id,
           },
           assignStoredFileId: async (storedFileId) => {
             await this.prisma.organization.update({
@@ -226,8 +216,8 @@ export class StoredFilesBackfillService {
             sizeBytes: null,
             kind: StoredFileKind.USER_AVATAR,
             visibility: StoredFileVisibility.PRIVATE,
-            ownerType: 'USER',
-            ownerId: row.id,
+            entityType: 'USER',
+            entityId: row.id,
           },
           assignStoredFileId: async (storedFileId) => {
             await this.prisma.user.update({
@@ -289,8 +279,8 @@ export class StoredFilesBackfillService {
             sizeBytes: null,
             kind: StoredFileKind.OWNER_LOGO,
             visibility: StoredFileVisibility.PRIVATE,
-            ownerType: 'OWNER',
-            ownerId: row.id,
+            entityType: 'OWNER',
+            entityId: row.id,
           },
           assignStoredFileId: async (storedFileId) => {
             await this.prisma.owner.update({
@@ -352,8 +342,8 @@ export class StoredFilesBackfillService {
             sizeBytes: null,
             kind: StoredFileKind.ASSET_THUMBNAIL,
             visibility: StoredFileVisibility.PRIVATE,
-            ownerType: 'ASSET',
-            ownerId: row.id,
+            entityType: 'ASSET',
+            entityId: row.id,
           },
           assignStoredFileId: async (storedFileId) => {
             await this.prisma.asset.update({
@@ -424,8 +414,8 @@ export class StoredFilesBackfillService {
             sizeBytes: row.file_size_bytes ?? null,
             kind: StoredFileKind.SERVICE_ATTACHMENT,
             visibility: StoredFileVisibility.PRIVATE,
-            ownerType: 'SERVICE',
-            ownerId: row.service.id,
+            entityType: 'SERVICE',
+            entityId: row.service.id,
             uploadedByUserId: row.service.worker_id,
           },
           assignStoredFileId: async (storedFileId) => {
@@ -492,15 +482,8 @@ export class StoredFilesBackfillService {
       if (!existing.uploaded_by_user_id && input.uploadedByUserId) {
         patch.uploaded_by_user_id = input.uploadedByUserId;
       }
-      if (!existing.entity_type) {
-        patch.entity_type = toEntityType(existing.owner_type);
-        patch.entity_id = existing.owner_id;
-      }
-
       if (
         existing.organization_id !== input.organizationId ||
-        existing.owner_type !== input.ownerType ||
-        existing.owner_id !== input.ownerId ||
         existing.kind !== input.kind ||
         existing.visibility !== input.visibility
       ) {
@@ -525,7 +508,7 @@ export class StoredFilesBackfillService {
 
     if (options.dryRun) {
       this.bump(summary, sectionKey, 'created');
-      return { id: `dry-run:${input.ownerType}:${input.ownerId}` };
+      return { id: `dry-run:${input.entityType}:${input.entityId}` };
     }
 
     const created = await this.prisma.storedFile.create({
@@ -537,10 +520,8 @@ export class StoredFilesBackfillService {
         size_bytes: sizeBytes,
         kind: input.kind,
         visibility: input.visibility,
-        owner_type: input.ownerType,
-        owner_id: input.ownerId,
-        entity_type: toEntityType(input.ownerType),
-        entity_id: input.ownerId,
+        entity_type: input.entityType,
+        entity_id: input.entityId,
         uploaded_by_user_id: input.uploadedByUserId ?? null,
       },
       select: { id: true },
@@ -548,54 +529,6 @@ export class StoredFilesBackfillService {
 
     this.bump(summary, sectionKey, 'created');
     return created;
-  }
-
-  async backfillEntityFields(options: StoredFilesBackfillOptions = {}): Promise<EntityFieldsBackfillSummary> {
-    const result: EntityFieldsBackfillSummary = { scanned: 0, updated: 0, skipped: 0, warnings: 0 };
-    let cursor: string | undefined;
-
-    for (;;) {
-      const cursorCondition = cursor ? Prisma.sql`AND id > ${cursor}` : Prisma.sql``;
-      const rows = await this.prisma.$queryRaw<Array<{ id: string; owner_type: string; owner_id: string }>>`
-        SELECT id, owner_type, owner_id
-        FROM "StoredFile"
-        WHERE entity_type IS NULL
-        ${cursorCondition}
-        ORDER BY id ASC
-        LIMIT ${BATCH_SIZE}
-      `;
-
-      if (rows.length === 0) break;
-
-      for (const row of rows) {
-        result.scanned++;
-
-        if (!VALID_OWNER_TYPES.has(row.owner_type)) {
-          this.logger.warn(
-            `StoredFile id=${row.id} tiene owner_type desconocido '${row.owner_type}'. Se omite del backfill de entity_type.`,
-          );
-          result.warnings++;
-          result.skipped++;
-          continue;
-        }
-
-        if (!options.dryRun) {
-          await this.prisma.storedFile.update({
-            where: { id: row.id },
-            data: {
-              entity_type: toEntityType(row.owner_type),
-              entity_id: row.owner_id,
-            },
-          });
-        }
-
-        result.updated++;
-      }
-
-      cursor = rows[rows.length - 1].id;
-    }
-
-    return result;
   }
 
   async validateEntityTypeIntegrity(): Promise<EntityTypeIntegrityResult> {
