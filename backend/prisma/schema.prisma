@@ -89,7 +89,7 @@ model User {
   phone              String?
   avatar_file_id     String?   @unique
   avatar_url         String?
-  owner_id           String?   @map("company_id")
+  owner_id           String?
   is_active          Boolean   @default(true)
   last_login_at      DateTime?
 
@@ -124,7 +124,7 @@ model Asset {
   thumbnail_file_id String? @unique
   thumbnail_url     String?
   serial_number     String?
-  owner_id          String? @map("company_id")
+  owner_id          String?
   is_active         Boolean @default(true)
 
   created_at DateTime @default(now())
@@ -206,7 +206,6 @@ model Owner {
   users        User[]
   assets       Asset[]
 
-  @@map("Company")
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([is_active])
