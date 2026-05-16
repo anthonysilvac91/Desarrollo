@@ -61,13 +61,13 @@ export class AssetsService {
   }
 
   private async ensureCompanyBelongsToOrg(companyId: string, orgId: string) {
-    const company = await this.prisma.company.findFirst({
+    const owner = await this.prisma.owner.findFirst({
       where: { id: companyId, organization_id: orgId, is_active: true },
       select: { id: true },
     });
 
-    if (!company) {
-      throw new BadRequestException('La company indicada no pertenece a tu organizaciÃ³n');
+    if (!owner) {
+      throw new BadRequestException('El propietario indicado no pertenece a tu organización');
     }
   }
 
@@ -146,7 +146,7 @@ export class AssetsService {
           ...assetData,
           thumbnail_file_id: thumbnailFileId,
           organization_id: targetOrgId,
-          company_id: companyId,
+          owner_id: companyId,
         },
       });
     } catch (error) {
@@ -160,7 +160,7 @@ export class AssetsService {
       where: { id: newAsset.id },
       include: {
         organization: { select: { name: true } },
-        company: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true } },
       },
     });
 
@@ -174,7 +174,7 @@ export class AssetsService {
   async findAll(query: any, orgId: string, role: string, userId: string, companyId?: string) {
     const include = {
       organization: { select: { name: true } },
-      company: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true } },
       _count: { select: { services: true } },
       services: {
         select: { created_at: true },
@@ -193,7 +193,7 @@ export class AssetsService {
       if (!companyId) {
         return [];
       }
-      baseWhere.company_id = companyId;
+      baseWhere.owner_id = companyId;
     }
 
     if (role === 'WORKER') {
@@ -267,7 +267,7 @@ export class AssetsService {
           },
           orderBy: { created_at: 'desc' },
         },
-        company: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true } },
       },
     });
 
@@ -304,7 +304,7 @@ export class AssetsService {
 
     if (isExternalRole(user.role)) {
       const currentCompanyId = user.owner_id ?? user.company_id ?? user.customer_id;
-      if (asset.company_id !== currentCompanyId) {
+      if (asset.owner_id !== currentCompanyId) {
         throw new NotFoundException('No tienes acceso a este activo');
       }
       asset.services = asset.services.filter((service) => service.is_public);
@@ -315,15 +315,15 @@ export class AssetsService {
 
   async assignCompany(assetId: string, companyId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
-    const company = await this.prisma.company.findFirst({ where: { id: companyId, organization_id: orgId } });
+    const owner = await this.prisma.owner.findFirst({ where: { id: companyId, organization_id: orgId } });
 
-    if (!asset || !company) {
-      throw new NotFoundException('Activo o company no existe en su organizaciÃ³n');
+    if (!asset || !owner) {
+      throw new NotFoundException('Activo o propietario no existe en su organización');
     }
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
-      data: { company_id: companyId },
+      data: { owner_id: companyId },
     });
 
     return this.mapAssetRelations(updatedAsset);
@@ -437,7 +437,7 @@ export class AssetsService {
       }
 
       await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);
-      updatePayload.company_id = companyId;
+      updatePayload.owner_id = companyId;
     }
 
     let updatedAsset;

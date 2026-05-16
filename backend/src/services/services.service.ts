@@ -235,7 +235,7 @@ export class ServicesService {
           where: whereClause,
           include: {
             worker: { select: { id: true, name: true } },
-            asset: { select: { id: true, name: true, location: true, company_id: true, thumbnail_url: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } },
+            asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_url: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
@@ -257,7 +257,7 @@ export class ServicesService {
       where: whereClause,
       include: { 
         worker: { select: { id: true, name: true } },
-        asset: { select: { id: true, name: true, location: true, company_id: true, thumbnail_url: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } },
+        asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_url: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
       },
       orderBy: { created_at: 'desc' }
     });
@@ -287,7 +287,7 @@ export class ServicesService {
       include: {
         attachments: true,
         worker: { select: { name: true, id: true } },
-        asset: { select: { name: true, id: true, category: true, company_id: true, location: true, thumbnail_url: true, thumbnail_file_id: true, company: { select: { id: true, name: true } } } }
+        asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_url: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } }
       }
     });
 
@@ -305,7 +305,7 @@ export class ServicesService {
       }
 
       const currentCompanyId = resolveOwnerId(user);
-      if (!currentCompanyId || service.asset.company_id !== currentCompanyId) {
+      if (!currentCompanyId || service.asset.owner_id !== currentCompanyId) {
         throw new NotFoundException('Service no encontrado o acceso denegado');
       }
     }

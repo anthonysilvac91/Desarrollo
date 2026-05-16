@@ -71,7 +71,7 @@ model Organization {
   users        User[]
   assets       Asset[]
   services     Service[]
-  companies    Company[]
+  owners       Owner[]
   invitations  Invitation[]
   stored_files StoredFile[]
 
@@ -89,7 +89,7 @@ model User {
   phone              String?
   avatar_file_id     String?   @unique
   avatar_url         String?
-  company_id         String?
+  owner_id           String?   @map("company_id")
   is_active          Boolean   @default(true)
   last_login_at      DateTime?
 
@@ -97,7 +97,7 @@ model User {
   updated_at DateTime @updatedAt
 
   organization          Organization?       @relation(fields: [organization_id], references: [id])
-  company               Company?            @relation(fields: [company_id], references: [id])
+  owner                 Owner?              @relation(fields: [owner_id], references: [id])
   avatar_file           StoredFile?         @relation("UserAvatarFile", fields: [avatar_file_id], references: [id])
   services_created      Service[]           @relation("ServiceWorker")
   worker_asset_access   WorkerAssetAccess[] @relation("GrantedToWorker")
@@ -109,7 +109,7 @@ model User {
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([organization_id, role])
-  @@index([company_id])
+  @@index([owner_id])
   @@index([role])
   @@index([is_active])
 }
@@ -124,22 +124,22 @@ model Asset {
   thumbnail_file_id String? @unique
   thumbnail_url     String?
   serial_number     String?
-  company_id        String?
+  owner_id          String? @map("company_id")
   is_active         Boolean @default(true)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   organization   Organization        @relation(fields: [organization_id], references: [id])
-  company        Company?            @relation(fields: [company_id], references: [id])
+  owner          Owner?              @relation(fields: [owner_id], references: [id])
   thumbnail_file StoredFile?         @relation("AssetThumbnailFile", fields: [thumbnail_file_id], references: [id])
   services       Service[]
   worker_access  WorkerAssetAccess[]
 
   @@index([organization_id])
   @@index([organization_id, created_at])
-  @@index([organization_id, company_id])
-  @@index([company_id])
+  @@index([organization_id, owner_id])
+  @@index([owner_id])
   @@index([is_active])
 }
 
@@ -190,7 +190,7 @@ model ServiceAttachment {
   @@index([service_id])
 }
 
-model Company {
+model Owner {
   id              String  @id @default(uuid())
   organization_id String
   name            String
@@ -202,10 +202,11 @@ model Company {
   updated_at DateTime @updatedAt
 
   organization Organization @relation(fields: [organization_id], references: [id])
-  logo_file    StoredFile?  @relation("CompanyLogoFile", fields: [logo_file_id], references: [id])
+  logo_file    StoredFile?  @relation("OwnerLogoFile", fields: [logo_file_id], references: [id])
   users        User[]
   assets       Asset[]
 
+  @@map("Company")
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([is_active])
@@ -235,7 +236,7 @@ model StoredFile {
   organization_logo_for Organization?      @relation("OrganizationLogoFile")
   user_avatar_for       User?              @relation("UserAvatarFile")
   asset_thumbnail_for   Asset?             @relation("AssetThumbnailFile")
-  company_logo_for      Company?           @relation("CompanyLogoFile")
+  owner_logo_for        Owner?             @relation("OwnerLogoFile")
   service_attachment    ServiceAttachment? @relation("ServiceAttachmentFile")
 
   @@index([organization_id])

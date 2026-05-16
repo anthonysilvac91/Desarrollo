@@ -35,8 +35,8 @@ describe('DashboardService tenant scoping', () => {
     prisma = module.get<PrismaService>(PrismaService);
   });
 
-  it('CLIENT sin company_id no recibe metricas del tenant', async () => {
-    const result = await service.getStats({ id: 'client-1', role: Role.CLIENT, orgId: 'org-1' });
+  it('EXTERNAL sin owner_id no recibe metricas del tenant', async () => {
+    const result = await service.getStats({ id: 'client-1', role: Role.EXTERNAL, orgId: 'org-1' });
 
     expect(result.total_assets).toBe(0);
     expect(result.total_services).toBe(0);
@@ -44,7 +44,7 @@ describe('DashboardService tenant scoping', () => {
     expect(prisma.service.count).not.toHaveBeenCalled();
   });
 
-  it('CLIENT con company_id queda filtrado por su company', async () => {
+  it('EXTERNAL con owner_id queda filtrado por su owner', async () => {
     jest.spyOn(prisma.asset, 'count').mockResolvedValue(2);
     jest.spyOn(prisma.service, 'count').mockResolvedValue(3);
     jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
@@ -52,19 +52,19 @@ describe('DashboardService tenant scoping', () => {
 
     await service.getStats({
       id: 'client-1',
-      role: Role.CLIENT,
+      role: Role.EXTERNAL,
       orgId: 'org-1',
       company_id: 'company-1',
     });
 
     expect(prisma.asset.count).toHaveBeenCalledWith({
-      where: { organization_id: 'org-1', company_id: 'company-1' },
+      where: { organization_id: 'org-1', owner_id: 'company-1' },
     });
     expect(prisma.service.count).toHaveBeenCalledWith({
       where: expect.objectContaining({
         organization_id: 'org-1',
         is_public: true,
-        asset: { company_id: 'company-1' },
+        asset: { owner_id: 'company-1' },
       }),
     });
   });

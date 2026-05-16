@@ -102,7 +102,7 @@ export class CompaniesService {
 
     let company;
     try {
-      company = await this.prisma.company.create({
+      company = await this.prisma.owner.create({
         data: {
           id: companyId,
           ...companyData,
@@ -130,13 +130,13 @@ export class CompaniesService {
       const page = Number(query.page);
       const limit = Number(query.limit);
       const [data, total] = await Promise.all([
-        this.prisma.company.findMany({
+        this.prisma.owner.findMany({
           where,
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
           take: limit
         }),
-        this.prisma.company.count({ where })
+        this.prisma.owner.count({ where })
       ]);
       return {
         data: await Promise.all(data.map((item: any) => this.resolveCompanyFileUrls(this.mapCompanyRelations(item)))),
@@ -144,7 +144,7 @@ export class CompaniesService {
       };
     }
 
-    const companies = await this.prisma.company.findMany({
+    const companies = await this.prisma.owner.findMany({
       where,
       orderBy: { created_at: 'desc' }
     });
@@ -152,7 +152,7 @@ export class CompaniesService {
   }
 
   async findOne(id: string, orgId: string) {
-    const company = await this.prisma.company.findUnique({
+    const company = await this.prisma.owner.findUnique({
       where: { id },
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
@@ -166,7 +166,7 @@ export class CompaniesService {
   }
 
   async update(id: string, updateCompanyDto: UpdateCompanyDto, orgId: string, logoFile?: Express.Multer.File) {
-    const existingCompany = await this.prisma.company.findUnique({
+    const existingCompany = await this.prisma.owner.findUnique({
       where: { id },
       select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },
     });
@@ -223,7 +223,7 @@ export class CompaniesService {
 
     let company;
     try {
-      company = await this.prisma.company.update({
+      company = await this.prisma.owner.update({
         where: { id: existingCompany.id },
         data: {
           ...companyData,
@@ -247,7 +247,7 @@ export class CompaniesService {
   }
 
   async remove(id: string, orgId: string) {
-    const existingCompany = await this.prisma.company.findUnique({
+    const existingCompany = await this.prisma.owner.findUnique({
       where: { id },
       select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },
     });
@@ -256,7 +256,7 @@ export class CompaniesService {
       throw new NotFoundException('Company no encontrada');
     }
 
-    const company = await this.prisma.company.update({
+    const company = await this.prisma.owner.update({
       where: { id: existingCompany.id },
       data: { is_active: false, logo_file_id: null },
     });

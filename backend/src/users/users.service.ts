@@ -52,13 +52,13 @@ export class UsersService {
   }
 
   private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
-    const company = await this.prisma.company.findFirst({
+    const owner = await this.prisma.owner.findFirst({
       where: { id: companyId, organization_id: organizationId, is_active: true },
       select: { id: true },
     });
 
-    if (!company) {
-      throw new BadRequestException('La company indicada no pertenece a la organización');
+    if (!owner) {
+      throw new BadRequestException('El propietario indicado no pertenece a la organización');
     }
   }
 
@@ -116,7 +116,7 @@ export class UsersService {
       created_at: true,
       updated_at: true,
       organization: { select: { id: true, name: true, slug: true } },
-      company: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true } },
     };
 
     if (query.page && query.limit) {
@@ -169,9 +169,9 @@ export class UsersService {
         phone: true,
         avatar_file_id: true,
         avatar_url: true,
-        company_id: true,
+        owner_id: true,
         organization: { select: { id: true, name: true, slug: true } },
-        company: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true } },
         is_active: true,
         last_login_at: true,
         created_at: true,
@@ -257,7 +257,7 @@ export class UsersService {
         name: dto.name,
         role: dbRole,
         organization_id: dto.organization_id || null,
-        company_id: ownerId,
+        owner_id: ownerId,
         is_active: true,
       },
       select: {
@@ -266,7 +266,7 @@ export class UsersService {
         name: true,
         role: true,
         organization_id: true,
-        company_id: true,
+        owner_id: true,
         is_active: true,
         created_at: true,
       }
@@ -287,7 +287,7 @@ export class UsersService {
         id: true,
         organization_id: true,
         role: true,
-        company_id: true,
+        owner_id: true,
         avatar_file_id: true,
         avatar_url: true,
       },
@@ -345,13 +345,13 @@ export class UsersService {
       }
 
       await this.ensureCompanyBelongsToOrganization(ownerId, targetOrganizationId!);
-      data.company_id = ownerId;
-    } else if (organizationChanged && currentUserRecord.company_id) {
-      data.company_id = null;
+      data.owner_id = ownerId;
+    } else if (organizationChanged && currentUserRecord.owner_id) {
+      data.owner_id = null;
     }
 
     const targetCompanyId =
-      data.company_id !== undefined ? data.company_id : currentUserRecord.company_id;
+      data.owner_id !== undefined ? data.owner_id : currentUserRecord.owner_id;
     if (isExternalRole(currentUserRecord.role) && !targetCompanyId) {
       throw new BadRequestException('Un usuario externo debe asociarse a una company');
     }
@@ -421,12 +421,12 @@ export class UsersService {
           role: true,
           phone: true,
           organization_id: true,
-          company_id: true,
+          owner_id: true,
           avatar_file_id: true,
           avatar_url: true,
           is_active: true,
           organization: { select: { id: true, name: true, slug: true } },
-          company: { select: { id: true, name: true } },
+          owner: { select: { id: true, name: true } },
         }
       });
     } catch (error) {

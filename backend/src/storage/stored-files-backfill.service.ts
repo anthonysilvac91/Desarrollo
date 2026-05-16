@@ -249,7 +249,7 @@ export class StoredFilesBackfillService {
     let cursor: string | undefined;
 
     for (;;) {
-      const rows = await this.prisma.company.findMany({
+      const rows = await this.prisma.owner.findMany({
         where: {
           logo_url: { not: null },
           logo_file_id: null,
@@ -293,7 +293,7 @@ export class StoredFilesBackfillService {
             ownerId: row.id,
           },
           assignStoredFileId: async (storedFileId) => {
-            await this.prisma.company.update({
+            await this.prisma.owner.update({
               where: { id: row.id },
               data: { logo_file_id: storedFileId },
             });

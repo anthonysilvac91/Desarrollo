@@ -45,7 +45,7 @@ export class InvitationsService {
     const companyId = resolveOwnerId(dto);
 
     if (companyId) {
-      throw new BadRequestException('Solo una invitacion CLIENT puede asociarse a una company');
+      throw new BadRequestException('Las invitaciones externas no están disponibles aún');
     }
 
     const token = crypto.randomBytes(32).toString('hex');

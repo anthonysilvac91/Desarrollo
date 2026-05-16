@@ -23,13 +23,13 @@ export class AuthService {
   ) {}
 
   private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
-    const company = await this.prisma.company.findFirst({
+    const owner = await this.prisma.owner.findFirst({
       where: { id: companyId, organization_id: organizationId, is_active: true },
       select: { id: true },
     });
 
-    if (!company) {
-      throw new BadRequestException('La company indicada no pertenece a la organizaciÃ³n');
+    if (!owner) {
+      throw new BadRequestException('El propietario indicado no pertenece a la organización');
     }
   }
 
@@ -58,9 +58,9 @@ export class AuthService {
       orgId: user.organization_id,
       role: toApiRole(user.role),
       legacy_role: user.role,
-      owner_id: user.company_id,
-      customer_id: user.company_id,
-      company_id: user.company_id,
+      owner_id: user.owner_id,
+      customer_id: user.owner_id,
+      company_id: user.owner_id,
     };
 
     this.logger.log(`User ${user.id} logged in successfully`);
@@ -84,12 +84,12 @@ export class AuthService {
     const companyId = resolveOwnerId(registerDto);
 
     if (isExternalRole(invitation.role) && !companyId) {
-      throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+      throw new BadRequestException('Un usuario externo debe asociarse a un propietario');
     }
 
     if (companyId) {
       if (!isExternalRole(invitation.role)) {
-        throw new BadRequestException('Solo un usuario CLIENT puede asociarse a una company');
+        throw new BadRequestException('Solo un usuario externo puede asociarse a un propietario');
       }
 
       await this.ensureCompanyBelongsToOrganization(companyId, invitation.organization_id);
@@ -105,7 +105,7 @@ export class AuthService {
           email: invitation.email,
           name: registerDto.name,
           password_hash: passwordHash,
-          company_id: companyId ?? null,
+          owner_id: companyId ?? null,
         },
       });
 
@@ -119,9 +119,9 @@ export class AuthService {
         orgId: user.organization_id,
         role: toApiRole(user.role),
         legacy_role: user.role,
-        owner_id: user.company_id,
-        customer_id: user.company_id,
-        company_id: user.company_id,
+        owner_id: user.owner_id,
+        customer_id: user.owner_id,
+        company_id: user.owner_id,
       };
 
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
@@ -132,9 +132,9 @@ export class AuthService {
           name: user.name,
           role: toApiRole(user.role),
           email: user.email,
-          owner_id: user.company_id,
-          company_id: user.company_id,
-          customer_id: user.company_id,
+          owner_id: user.owner_id,
+          company_id: user.owner_id,
+          customer_id: user.owner_id,
         },
       };
     });
@@ -178,8 +178,9 @@ export class AuthService {
     return {
       ...result,
       role: toApiRole(result.role),
-      owner_id: result.company_id,
-      customer_id: result.company_id,
+      owner_id: result.owner_id,
+      customer_id: result.owner_id,
+      company_id: result.owner_id,
     };
   }
 }

@@ -51,7 +51,7 @@ export class DashboardService {
       }
     } else if (isClient) {
       statsWhere.is_public = true;
-      statsWhere.asset = { company_id: companyId };
+      statsWhere.asset = { owner_id: companyId };
     }
 
     // Filtros de fecha si se proveen
@@ -76,7 +76,7 @@ export class DashboardService {
     ] = await Promise.all([
       // Assets Count
       isClient
-        ? this.prisma.asset.count({ where: { ...baseWhere, company_id: companyId } })
+        ? this.prisma.asset.count({ where: { ...baseWhere, owner_id: companyId } })
         : restrictedWorkerAssetWhere
           ? this.prisma.asset.count({ where: { ...baseWhere, ...restrictedWorkerAssetWhere } })
         : this.prisma.asset.count({ where: baseWhere }),

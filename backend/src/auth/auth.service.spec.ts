@@ -41,7 +41,7 @@ describe('AuthService Auth Validations', () => {
       organization_id: 'org-1',
       role: 'WORKER',
       password_hash: realHash,
-      company_id: null,
+      owner_id: null,
     } as any);
     
     jest.spyOn(jwt, 'sign').mockReturnValue('mocked-token');
@@ -67,7 +67,7 @@ describe('AuthService Auth Validations', () => {
       organization_id: 'org-2',
       role: 'CLIENT',
       password_hash: realHash,
-      company_id: 'company-1',
+      owner_id: 'company-1',
     } as any);
 
     jest.spyOn(jwt, 'sign').mockReturnValue('mocked-token');
@@ -89,7 +89,7 @@ describe('AuthService Auth Validations', () => {
       organization_id: 'org-3',
       role: 'CLIENT',
       password_hash: 'hash',
-      company_id: 'company-2',
+      owner_id: 'company-2',
       avatar_file_id: null,
       avatar_url: null,
       organization: null,

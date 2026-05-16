@@ -11,7 +11,7 @@ async function main() {
   await prisma.service.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.user.deleteMany();
-  await prisma.company.deleteMany();
+  await prisma.owner.deleteMany();
   await prisma.organization.deleteMany();
 
   const hashedPwd = await bcrypt.hash('password123', 10);
@@ -33,10 +33,10 @@ async function main() {
   });
 
   // Clientes Corporativos de Oceanic
-  const oceanicCompanyA = await prisma.company.create({
+  const oceanicCompanyA = await prisma.owner.create({
     data: { name: 'Empresa Charter Balear', organization_id: orgOceanic.id }
   });
-  const oceanicCompanyB = await prisma.company.create({
+  const oceanicCompanyB = await prisma.owner.create({
     data: { name: 'Yacht Owners Group', organization_id: orgOceanic.id }
   });
 
@@ -55,7 +55,7 @@ async function main() {
   await prisma.user.create({
     data: { 
       organization_id: orgOceanic.id, 
-      company_id: oceanicCompanyA.id, 
+      owner_id: oceanicCompanyA.id, 
       role: Role.CLIENT, 
       email: 'gestor.charter@mail.com', 
       password_hash: hashedPwd, 
@@ -65,7 +65,7 @@ async function main() {
   await prisma.user.create({
     data: { 
       organization_id: orgOceanic.id, 
-      company_id: oceanicCompanyB.id, 
+      owner_id: oceanicCompanyB.id, 
       role: Role.CLIENT, 
       email: 'propietario@mail.com', 
       password_hash: hashedPwd, 
@@ -74,10 +74,10 @@ async function main() {
   });
 
   // Activos vinculados a Empresa
-  const oAsset1 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyB.id, name: 'Lady Nelly' } });
-  const oAsset2 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyA.id, name: 'Azimut 58' } });
-  const oAsset3 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyA.id, name: 'Naomi' } });
-  const oAsset4 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, company_id: oceanicCompanyB.id, name: 'Verve 42' } });
+  const oAsset1 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyB.id, name: 'Lady Nelly' } });
+  const oAsset2 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyA.id, name: 'Azimut 58' } });
+  const oAsset3 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyA.id, name: 'Naomi' } });
+  const oAsset4 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyB.id, name: 'Verve 42' } });
 
   console.log(`[ORG] Creada Org 1: Oceanic Yachts (4 yates, 2 empresas clientes)`);
 
