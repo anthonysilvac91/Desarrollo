@@ -11,14 +11,20 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  @ApiOperation({ summary: 'Generar token por Tenant', description: 'Requiere email, contraseña e ID de Tenant' })
+  @ApiOperation({
+    summary: 'Generar token por Tenant',
+    description: 'Requiere email, contrasena e ID de Tenant. El JWT devuelve EXTERNAL como rol canonico cuando aplica.',
+  })
   @ApiResponse({ status: 201, description: 'Retorna JWT `access_token`' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Registro mediante token de invitación' })
+  @ApiOperation({
+    summary: 'Registro mediante token de invitacion',
+    description: 'El contrato publico canoniza EXTERNAL.',
+  })
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
@@ -32,4 +38,3 @@ export class AuthController {
     return this.authService.getMe(req.user.id);
   }
 }
-

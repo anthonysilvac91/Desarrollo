@@ -11,7 +11,7 @@ describe('AuthService Auth Validations', () => {
   let jwt: JwtService;
 
   beforeEach(async () => {
-    const prismaMock = { user: { findFirst: jest.fn() } };
+    const prismaMock = { user: { findFirst: jest.fn(), findUnique: jest.fn() } };
     const jwtMock = { sign: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -58,5 +58,48 @@ describe('AuthService Auth Validations', () => {
       customer_id: null,
       company_id: null,
     });
+  });
+
+  it('Debería canonizar CLIENT como EXTERNAL en login', async () => {
+    const realHash = await bcrypt.hash('123', 10);
+    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue({
+      id: 'u-2',
+      organization_id: 'org-2',
+      role: 'CLIENT',
+      password_hash: realHash,
+      company_id: 'company-1',
+    } as any);
+
+    jest.spyOn(jwt, 'sign').mockReturnValue('mocked-token');
+
+    await service.login({ email: 'external@test.com', password: '123', organizationId: 'org-2' });
+
+    expect(jwt.sign).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'EXTERNAL',
+      legacy_role: 'CLIENT',
+      owner_id: 'company-1',
+      company_id: 'company-1',
+      customer_id: 'company-1',
+    }));
+  });
+
+  it('Debería canonizar CLIENT como EXTERNAL en getMe', async () => {
+    jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+      id: 'u-3',
+      organization_id: 'org-3',
+      role: 'CLIENT',
+      password_hash: 'hash',
+      company_id: 'company-2',
+      avatar_file_id: null,
+      avatar_url: null,
+      organization: null,
+    } as any);
+    jest.spyOn((service as any).storedFilesService, 'resolveFileUrlOrRef').mockResolvedValue(null);
+
+    const result = await service.getMe('u-3');
+
+    expect(result.role).toBe('EXTERNAL');
+    expect(result.owner_id).toBe('company-2');
+    expect(result.company_id).toBe('company-2');
   });
 });

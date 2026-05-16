@@ -18,13 +18,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar usuarios (Solo ADMIN/SUPER_ADMIN)' })
-  @ApiQuery({ name: 'role', enum: Role, required: false })
+  @ApiOperation({ summary: 'Listar usuarios (Solo ADMIN/SUPER_ADMIN)', description: 'El filtro role usa EXTERNAL como valor canonico.' })
+  @ApiQuery({ name: 'role', enum: [...Object.values(Role), 'EXTERNAL'], required: false })
   @ApiQuery({ name: 'organizationId', required: false, description: 'Solo para SUPER_ADMIN' })
   @ApiResponse({ type: [UserResponseDto] })
   findAll(
     @Request() req: any,
-    @Query('role') role?: Role,
+    @Query('role') role?: Role | 'EXTERNAL',
     @Query('organizationId') organizationId?: string,
     @Query() pagination?: PaginationQueryDto
   ) {
@@ -38,7 +38,7 @@ export class UsersController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crear nuevo usuario manual' })
+  @ApiOperation({ summary: 'Crear nuevo usuario manual', description: 'El rol EXTERNAL es canonico.' })
   @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, type: UserResponseDto })
   create(@Body() dto: CreateUserDto, @Request() req: any) {
@@ -55,7 +55,7 @@ export class UsersController {
   @Patch(':id')
   @UseInterceptors(FileInterceptor('avatar', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Actualizar perfil de usuario' })
+  @ApiOperation({ summary: 'Actualizar perfil de usuario', description: 'Los aliases owner_id, company_id y customer_id siguen siendo equivalentes.' })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ type: UserResponseDto })
   update(
@@ -75,7 +75,7 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  @ApiOperation({ summary: 'Activar/Desactivar usuario' })
+  @ApiOperation({ summary: 'Activar/Desactivar usuario', description: 'Operacion reservada a administracion interna.' })
   @ApiResponse({ type: UserResponseDto })
   toggleStatus(@Param('id') id: string, @Request() req: any) {
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
@@ -89,7 +89,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Detalle de usuario' })
+  @ApiOperation({ summary: 'Detalle de usuario', description: 'La respuesta devuelve EXTERNAL como rol canonico en usuarios externos.' })
   @ApiResponse({ type: UserResponseDto })
   findOne(@Param('id') id: string, @Request() req: any) {
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {

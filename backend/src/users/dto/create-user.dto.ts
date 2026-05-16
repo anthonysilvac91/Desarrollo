@@ -19,7 +19,7 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'El nombre es requerido' })
   name: string;
 
-  @ApiProperty({ enum: ['SUPER_ADMIN', 'ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], description: 'Rol del usuario' })
+  @ApiProperty({ enum: ['SUPER_ADMIN', 'ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], description: 'Rol del usuario. EXTERNAL es el rol canónico para usuarios externos.' })
   @IsIn(['SUPER_ADMIN', 'ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], { message: 'Rol invalido' })
   @IsNotEmpty({ message: 'El rol es requerido' })
   role: Role | 'EXTERNAL';
@@ -29,7 +29,7 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de organizacion invalido' })
   organization_id?: string;
 
-  @ApiProperty({ required: false, description: 'ID legacy de company asociada' })
+  @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
   @IsOptional()
   @IsUUID('4', { message: 'ID de company invalido' })
   company_id?: string;
@@ -39,7 +39,7 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de owner invalido' })
   owner_id?: string;
 
-  @ApiProperty({ required: false, description: 'Alias legacy de company_id' })
+  @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
   @IsOptional()
   @IsUUID('4', { message: 'ID de customer invalido' })
   customer_id?: string;

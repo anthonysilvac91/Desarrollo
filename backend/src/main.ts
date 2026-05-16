@@ -93,7 +93,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Recall MVP API')
-    .setDescription('API central del sistema Recall. Gestion multitenant de activos y servicios.')
+    .setDescription('API central del sistema Recall. La ruta oficial para owners es /owners; /companies y /customers quedan deprecadas.')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

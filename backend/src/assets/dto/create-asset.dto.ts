@@ -32,7 +32,7 @@ export class CreateAssetDto {
   @IsOptional()
   serial_number?: string;
 
-  @ApiPropertyOptional({ description: 'ID legacy de la company asignada al activo.' })
+  @ApiPropertyOptional({ description: 'Alias legacy de owner_id.' })
   @IsString()
   @IsOptional()
   company_id?: string;
@@ -42,7 +42,7 @@ export class CreateAssetDto {
   @IsOptional()
   owner_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de company_id.' })
+  @ApiPropertyOptional({ description: 'Alias legacy de owner_id.' })
   @IsString()
   @IsOptional()
   customer_id?: string;

@@ -2,12 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, IsUrl, IsUUID } from 'class-validator';
 
 export class UpdateUserDto {
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
   @IsEmail({}, { message: 'Email invalido' })
   @IsOptional()
   email?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
   @IsString()
   @IsOptional()
   name?: string;

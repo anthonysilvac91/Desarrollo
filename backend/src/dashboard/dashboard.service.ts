@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { DashboardStatsDto, RankingItemDto, EvolutionPointDto } from './dto/dashboard.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { resolveOwnerId } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class DashboardService {
@@ -32,7 +33,7 @@ export class DashboardService {
 
     const isWorker = currentUser.role === Role.WORKER;
     const isClient = currentUser.role === Role.CLIENT;
-    const companyId = currentUser.company_id ?? currentUser.customer_id;
+    const companyId = resolveOwnerId(currentUser);
     const restrictedWorkerAssetWhere =
       isWorker
         ? await this.buildRestrictedWorkerAssetWhere(currentUser.orgId, currentUser.id)

@@ -18,17 +18,17 @@ export class CreateInvitationDto {
   @IsOptional()
   organization_id?: string;
 
-  @ApiPropertyOptional({ description: 'ID legacy de company requerido para invitaciones CLIENT/EXTERNAL.' })
+  @ApiPropertyOptional({ description: 'Alias legacy de owner_id para la invitacion.' })
   @IsUUID()
   @IsOptional()
   company_id?: string;
 
-  @ApiPropertyOptional({ description: 'ID canonico de owner requerido para invitaciones EXTERNAL.' })
+  @ApiPropertyOptional({ description: 'ID canonico del owner para la invitacion.' })
   @IsUUID()
   @IsOptional()
   owner_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de company_id.' })
+  @ApiPropertyOptional({ description: 'Alias legacy de owner_id.' })
   @IsUUID()
   @IsOptional()
   customer_id?: string;

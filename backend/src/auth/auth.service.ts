@@ -127,7 +127,15 @@ export class AuthService {
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
       return {
         access_token: this.jwtService.sign(payload),
-        user: { id: user.id, name: user.name, role: toApiRole(user.role), email: user.email, owner_id: user.company_id, company_id: user.company_id },
+        user: {
+          id: user.id,
+          name: user.name,
+          role: toApiRole(user.role),
+          email: user.email,
+          owner_id: user.company_id,
+          company_id: user.company_id,
+          customer_id: user.company_id,
+        },
       };
     });
   }

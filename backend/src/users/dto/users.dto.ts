@@ -8,8 +8,17 @@ export class UserResponseDto {
   @ApiProperty({ required: false, nullable: true })
   organization_id: string | null;
 
-  @ApiProperty({ enum: Role })
-  role: Role;
+  @ApiProperty({ enum: [...Object.values(Role), 'EXTERNAL'] })
+  role: Role | 'EXTERNAL';
+
+  @ApiProperty({ required: false, nullable: true })
+  owner_id: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  company_id: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  customer_id: string | null;
 
   @ApiProperty()
   email: string;

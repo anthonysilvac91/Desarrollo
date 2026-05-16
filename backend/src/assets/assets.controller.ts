@@ -6,6 +6,7 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
+import { resolveOwnerId } from '../common/compat/owner-role-compat';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
@@ -26,14 +27,14 @@ export class AssetsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar activos segun rol', description: 'El backend filtra: Admin/Worker ven todo, Client ve vinculados.' })
+  @ApiOperation({ summary: 'Listar activos segun rol', description: 'El backend filtra: Admin/Worker ven todo, EXTERNAL ve los activos vinculados a su owner.' })
   findAll(@Query() query: PaginationQueryDto, @Request() req) {
     return this.assetsService.findAll(
       query,
       req.user.orgId,
       req.user.role,
       req.user.id,
-      req.user.company_id ?? req.user.customer_id,
+      resolveOwnerId(req.user) ?? undefined,
     );
   }
 
@@ -44,27 +45,27 @@ export class AssetsController {
   }
 
   @Post(':id/companies/:companyId')
-  @ApiOperation({ summary: 'Vincular una company a un activo (Solo Admin)' })
+  @ApiOperation({ summary: 'Vincular un owner a un activo (Solo Admin)' })
   assignCompany(@Param('id') assetId: string, @Param('companyId') companyId: string, @Request() req) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede asignar');
     return this.assetsService.assignCompany(assetId, companyId, req.user.orgId);
   }
 
   @Post(':id/clients/:clientId')
-  @ApiOperation({ summary: 'Vincular una company a un activo (Solo Admin)', description: 'Ruta legacy. El parametro clientId representa el id de la company.' })
+  @ApiOperation({ summary: '[Deprecated] Vincular una company a un activo (Solo Admin)', deprecated: true, description: 'Ruta legacy. El parametro clientId representa el id de la company. La ruta oficial es /assets/:id/companies/:companyId.' })
   assignClient(@Param('id') assetId: string, @Param('clientId') clientId: string, @Request() req) {
     return this.assignCompany(assetId, clientId, req);
   }
 
   @Delete(':id/companies/:companyId')
-  @ApiOperation({ summary: 'Desvincular una company de un activo (Solo Admin)' })
+  @ApiOperation({ summary: 'Desvincular un owner de un activo (Solo Admin)' })
   removeCompany(@Param('id') assetId: string, @Param('companyId') companyId: string, @Request() req) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede desasignar');
     return this.assetsService.removeCompany(assetId, companyId, req.user.orgId);
   }
 
   @Delete(':id/clients/:clientId')
-  @ApiOperation({ summary: 'Desvincular una company de un activo (Solo Admin)', description: 'Ruta legacy. El parametro clientId representa el id de la company.' })
+  @ApiOperation({ summary: '[Deprecated] Desvincular una company de un activo (Solo Admin)', deprecated: true, description: 'Ruta legacy. El parametro clientId representa el id de la company. La ruta oficial es /assets/:id/companies/:companyId.' })
   removeClient(@Param('id') assetId: string, @Param('clientId') clientId: string, @Request() req) {
     return this.removeCompany(assetId, clientId, req);
   }

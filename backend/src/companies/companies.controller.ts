@@ -5,6 +5,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
+import { legacyRouteDescription, markLegacyResponse } from '../common/http/legacy-api';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -17,14 +18,13 @@ export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
   private markDeprecated(res: Response) {
-    res.setHeader('Deprecation', 'true');
-    res.setHeader('Sunset', 'Fri, 14 Aug 2026 00:00:00 GMT');
+    markLegacyResponse(res);
   }
 
   @Post()
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: '[Deprecated] Crear una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  @ApiOperation({ summary: '[Deprecated] Crear una company', deprecated: true, description: legacyRouteDescription('/owners') })
   create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @Res({ passthrough: true }) res: Response, @UploadedFile() logo?: Express.Multer.File) {
     this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
@@ -34,7 +34,7 @@ export class CompaniesController {
   }
 
   @Get()
-  @ApiOperation({ summary: '[Deprecated] Obtener todas las companies de la organizacion', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  @ApiOperation({ summary: '[Deprecated] Obtener todas las companies de la organizacion', deprecated: true, description: legacyRouteDescription('/owners') })
   findAll(@Request() req, @Query() query: PaginationQueryDto, @Res({ passthrough: true }) res: Response) {
     this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
@@ -44,7 +44,7 @@ export class CompaniesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '[Deprecated] Obtener detalles de una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  @ApiOperation({ summary: '[Deprecated] Obtener detalles de una company', deprecated: true, description: legacyRouteDescription('/owners') })
   findOne(@Param('id') id: string, @Request() req, @Res({ passthrough: true }) res: Response) {
     this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
@@ -56,7 +56,7 @@ export class CompaniesController {
   @Patch(':id')
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: '[Deprecated] Actualizar una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  @ApiOperation({ summary: '[Deprecated] Actualizar una company', deprecated: true, description: legacyRouteDescription('/owners') })
   update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @Res({ passthrough: true }) res: Response, @UploadedFile() logo?: Express.Multer.File) {
     this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
@@ -66,7 +66,7 @@ export class CompaniesController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '[Deprecated] Eliminar logicamente una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  @ApiOperation({ summary: '[Deprecated] Eliminar logicamente una company', deprecated: true, description: legacyRouteDescription('/owners') })
   remove(@Param('id') id: string, @Request() req, @Res({ passthrough: true }) res: Response) {
     this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
