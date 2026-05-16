@@ -24,6 +24,13 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
 
   const initials = user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
   const isActive = user.status === "Active";
+  const roleLabels: Record<string, string> = {
+    SUPER_ADMIN: "Super Admin",
+    ADMIN: "Admin",
+    WORKER: "Operador",
+    CLIENT: "Externo",
+    EXTERNAL: "Externo",
+  };
 
   return (
     <>
@@ -61,7 +68,7 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
             <h2 className="text-3xl font-black text-title tracking-tight">{user.name}</h2>
             <div className="flex items-center justify-center text-brand font-black text-sm uppercase tracking-[0.2em]">
               <Shield className="w-3.5 h-3.5 mr-2" />
-              {user.role}
+              {roleLabels[user.role] ?? user.role}
             </div>
           </div>
         </div>

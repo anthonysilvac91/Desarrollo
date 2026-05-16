@@ -291,7 +291,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                       {[
                         { id: "ADMIN", label: "Administrador" },
                         { id: "WORKER", label: "Operador/Trabajador" },
-                        { id: "CLIENT", label: "Usuario Final" }
+                        { id: "CLIENT", label: "Usuario Externo" }
                       ].map((role) => (
                         <button
                           key={role.id}

@@ -116,12 +116,21 @@ export default function UsersPage() {
           ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
           WORKER: "bg-amber-50 text-amber-600 border-amber-100",
           CLIENT: "bg-slate-100 text-slate-600 border-slate-200",
+          EXTERNAL: "bg-slate-100 text-slate-600 border-slate-200",
+        };
+        const roleLabels: Record<string, string> = {
+          SUPER_ADMIN: "Super Admin",
+          ADMIN: "Admin",
+          WORKER: "Operador",
+          CLIENT: "Externo",
+          EXTERNAL: "Externo",
         };
         const currentStyle = roleStyles[item.role] || "bg-gray-50 text-gray-600 border-gray-100";
-        
+        const currentLabel = roleLabels[item.role] ?? item.role;
+
         return (
           <div className={`px-3 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider w-fit ${currentStyle}`}>
-            {item.role}
+            {currentLabel}
           </div>
         );
       }

@@ -4,13 +4,15 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "SUPER_ADMIN" | "ADMIN" | "WORKER" | "CLIENT";
+  role: "SUPER_ADMIN" | "ADMIN" | "WORKER" | "CLIENT" | "EXTERNAL";
   organization_id: string | null;
   company_id?: string | null;
+  owner_id?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
   organization?: { id?: string; name: string; slug?: string } | null;
   company?: { id?: string; name: string } | null;
+  owner?: { id?: string; name: string } | null;
   customer?: { id?: string; name: string } | null;
   is_active: boolean;
   last_login_at?: string | null;
