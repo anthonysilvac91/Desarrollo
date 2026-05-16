@@ -3,7 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvitationDto } from './dto/invitations.dto';
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
-import { isExternalRole, resolveOwnerId, toApiRole, toDbRole } from '../common/compat/owner-role-compat';
+import {
+  hasConflictingOwnerAliases,
+  isExternalRole,
+  OWNER_ALIAS_CONFLICT_MESSAGE,
+  resolveOwnerId,
+  toApiRole,
+} from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class InvitationsService {
@@ -11,20 +17,17 @@ export class InvitationsService {
 
   constructor(private prisma: PrismaService) {}
 
-  private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
-    const company = await this.prisma.company.findFirst({
-      where: { id: companyId, organization_id: organizationId, is_active: true },
-      select: { id: true },
-    });
-
-    if (!company) {
-      throw new BadRequestException('La company indicada no pertenece a la organizaciÃ³n');
-    }
-  }
-
   async create(dto: CreateInvitationDto, inviterId: string, inviterRole: string, inviterOrgId?: string) {
     if (dto.role === 'SUPER_ADMIN') {
       throw new ForbiddenException('No se puede invitar a un SUPER_ADMIN');
+    }
+
+    if (isExternalRole(dto.role)) {
+      throw new BadRequestException('External invitations are not available yet');
+    }
+
+    if (hasConflictingOwnerAliases(dto)) {
+      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
     }
 
     let targetOrgId = dto.organization_id;
@@ -32,8 +35,8 @@ export class InvitationsService {
     if (inviterRole === 'SUPER_ADMIN') {
       if (!targetOrgId) throw new BadRequestException('El SUPER_ADMIN debe indicar organization_id destino');
     } else if (inviterRole === 'ADMIN') {
-      if (!inviterOrgId) throw new BadRequestException('Token inválido: sin organización origen');
-      targetOrgId = inviterOrgId; // El Admin solo puede invitar a su propia org
+      if (!inviterOrgId) throw new BadRequestException('Token invalido: sin organizacion origen');
+      targetOrgId = inviterOrgId;
     } else {
       throw new ForbiddenException('No tienes permisos para crear invitaciones');
     }
@@ -41,16 +44,8 @@ export class InvitationsService {
     const finalOrgId = targetOrgId as string;
     const companyId = resolveOwnerId(dto);
 
-    if (isExternalRole(dto.role) && !companyId) {
-      throw new BadRequestException('Una invitaciÃ³n CLIENT debe asociarse a una company');
-    }
-
     if (companyId) {
-      if (!isExternalRole(dto.role)) {
-        throw new BadRequestException('Solo una invitaciÃ³n CLIENT puede asociarse a una company');
-      }
-
-      await this.ensureCompanyBelongsToOrganization(companyId, finalOrgId);
+      throw new BadRequestException('Solo una invitacion CLIENT puede asociarse a una company');
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -61,11 +56,11 @@ export class InvitationsService {
       data: {
         organization_id: finalOrgId,
         email: dto.email,
-        role: toDbRole(dto.role) as Role,
-        token: token,
+        role: dto.role as Role,
+        token,
         invited_by_id: inviterId,
         expires_at: expiresAt,
-      }
+      },
     });
 
     this.logger.log(`Invitation created for ${dto.email} (Role: ${dto.role}, Org: ${finalOrgId}) by User ${inviterId}`);
@@ -80,16 +75,16 @@ export class InvitationsService {
 
   async validate(token: string) {
     const invitation = await this.prisma.invitation.findUnique({ where: { token } });
-    
-    if (!invitation) throw new NotFoundException('Invitación no encontrada');
-    if (invitation.is_used) throw new BadRequestException('Esta invitación ya fue utilizada');
-    if (new Date() > invitation.expires_at) throw new BadRequestException('Esta invitación ha expirado');
 
-    return { 
+    if (!invitation) throw new NotFoundException('Invitacion no encontrada');
+    if (invitation.is_used) throw new BadRequestException('Esta invitacion ya fue utilizada');
+    if (new Date() > invitation.expires_at) throw new BadRequestException('Esta invitacion ha expirado');
+
+    return {
       valid: true,
       email: invitation.email,
       role: toApiRole(invitation.role),
-      organization_id: invitation.organization_id
+      organization_id: invitation.organization_id,
     };
   }
 }

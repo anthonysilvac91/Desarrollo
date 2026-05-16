@@ -138,7 +138,7 @@ describe('Users Management (e2e)', () => {
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.role).toBe(Role.CLIENT);
+      expect(response.body.role).toBe('EXTERNAL');
       expect(response.body.organization_id).toBe(org.id);
       expect(response.body.company_id).toBe(company.id);
     });
@@ -261,6 +261,25 @@ describe('Users Management (e2e)', () => {
       expect(response.status).toBe(200);
       expect(response.body.length).toBe(1);
       expect(response.body[0].role).toBe(Role.WORKER);
+    });
+
+    it('mapea filtro role=EXTERNAL a CLIENT mientras la DB sigue legacy', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const company = await testUtils.createTestCustomer('Company', org.id);
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      await testUtils.createTestUser(Role.CLIENT, 'client@org.com', org.id, company.id);
+      await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
+
+      const token = testUtils.getBearerToken(admin);
+
+      const response = await request(app.getHttpServer())
+        .get('/users?role=EXTERNAL')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.length).toBe(1);
+      expect(response.body[0].role).toBe('EXTERNAL');
+      expect(response.body[0].company_id).toBe(company.id);
     });
 
     it('WORKER debería recibir 403 Forbidden', async () => {

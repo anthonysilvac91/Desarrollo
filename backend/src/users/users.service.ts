@@ -10,7 +10,14 @@ import { StoredFilesService } from '../storage/stored-files.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildUserAvatarPath } from '../common/files/storage-paths';
-import { isExternalRole, resolveOwnerId, toDbRole, withOwnerAliases } from '../common/compat/owner-role-compat';
+import {
+  hasConflictingOwnerAliases,
+  isExternalRole,
+  OWNER_ALIAS_CONFLICT_MESSAGE,
+  resolveOwnerId,
+  toDbRole,
+  withOwnerAliases,
+} from '../common/compat/owner-role-compat';
 @Injectable()
 export class UsersService {
   constructor(
@@ -55,7 +62,7 @@ export class UsersService {
     }
   }
 
-  async findAll(query: { role?: Role; organizationId?: string; search?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
+  async findAll(query: { role?: Role | 'EXTERNAL'; organizationId?: string; search?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
     // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
     // WORKER puede listar pero solo si es para buscar CLIENTES.
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
@@ -70,7 +77,7 @@ export class UsersService {
 
     // Filtro por rol si se provee
     if (query.role) {
-      where.role = query.role;
+      where.role = toDbRole(query.role);
     }
 
     // Aislamiento Multi-tenant
@@ -187,6 +194,9 @@ export class UsersService {
   async create(dto: CreateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
     const requestedRole = dto.role;
     const dbRole = toDbRole(requestedRole) as Role;
+    if (hasConflictingOwnerAliases(dto)) {
+      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    }
     const ownerId = resolveOwnerId(dto);
     // 1. Validar permisos de creación por rol
     if (currentUser.role === Role.ADMIN) {
@@ -320,6 +330,9 @@ export class UsersService {
 
     const ownerProvided =
       dto.company_id !== undefined || dto.owner_id !== undefined || dto.customer_id !== undefined;
+    if (hasConflictingOwnerAliases(dto)) {
+      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    }
     const ownerId = resolveOwnerId(dto);
 
     if (ownerProvided) {

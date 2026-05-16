@@ -13,11 +13,24 @@ export function toApiRole<T extends string | null | undefined>(role: T): T | 'EX
   return role === LEGACY_CLIENT_ROLE ? EXTERNAL_ROLE : role;
 }
 
-export function resolveOwnerId(input: {
+export type OwnerAliasInput = {
   owner_id?: string | null;
   company_id?: string | null;
   customer_id?: string | null;
-}) {
+};
+
+export const OWNER_ALIAS_CONFLICT_MESSAGE =
+  'owner_id, company_id and customer_id must match when provided together';
+
+export function hasConflictingOwnerAliases(input: OwnerAliasInput) {
+  const values = [input.owner_id, input.company_id, input.customer_id].filter(
+    (value): value is string => value !== undefined && value !== null && value !== '',
+  );
+
+  return new Set(values).size > 1;
+}
+
+export function resolveOwnerId(input: OwnerAliasInput) {
   return input.owner_id ?? input.company_id ?? input.customer_id ?? null;
 }
 

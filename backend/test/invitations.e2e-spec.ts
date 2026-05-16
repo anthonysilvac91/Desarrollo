@@ -36,7 +36,7 @@ describe('Invitations (e2e)', () => {
   });
 
   describe('POST /invitations', () => {
-    it('debería denegar si es WORKER o CLIENT', async () => {
+    it('deberia denegar si es WORKER', async () => {
       const org = await testUtils.createTestOrganization();
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
       const token = testUtils.getBearerToken(worker);
@@ -44,29 +44,28 @@ describe('Invitations (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
-        .send({ email: 'new@test.com', role: Role.CLIENT });
-      
+        .send({ email: 'new@test.com', role: Role.WORKER });
+
       expect(res.status).toBe(403);
     });
 
-    it('ADMIN puede invitar a su propia organización con fuerza', async () => {
+    it('ADMIN puede invitar internamente a su propia organizacion con fuerza', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
       const token = testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
-        .send({ email: 'client@test.com', role: Role.CLIENT, company_id: company.id }); // Omite org intencionalmente
-      
+        .send({ email: 'worker@test.com', role: Role.WORKER });
+
       expect(res.status).toBe(201);
-      
-      const invBD = await prisma.invitation.findFirst({ where: { email: 'client@test.com' } });
-      expect(invBD?.organization_id).toBe(org.id); // Forzado por el backend
+
+      const invBD = await prisma.invitation.findFirst({ where: { email: 'worker@test.com' } });
+      expect(invBD?.organization_id).toBe(org.id);
     });
 
-    it('rechaza invitacion CLIENT sin company_id', async () => {
+    it('bloquea temporalmente invitacion CLIENT', async () => {
       const org = await testUtils.createTestOrganization();
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
       const token = testUtils.getBearerToken(admin);
@@ -77,7 +76,21 @@ describe('Invitations (e2e)', () => {
         .send({ email: 'client@test.com', role: Role.CLIENT });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('Una invitaciÃ³n CLIENT debe asociarse a una company');
+      expect(res.body.message).toBe('External invitations are not available yet');
+    });
+
+    it('bloquea temporalmente invitacion EXTERNAL', async () => {
+      const org = await testUtils.createTestOrganization();
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const res = await request(app.getHttpServer())
+        .post('/invitations')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ email: 'external@test.com', role: 'EXTERNAL' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('External invitations are not available yet');
     });
 
     it('ADMIN no puede invitar a un SUPER_ADMIN (Forbidden)', async () => {
@@ -89,8 +102,8 @@ describe('Invitations (e2e)', () => {
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
         .send({ email: 'hacker@test.com', role: 'SUPER_ADMIN' });
-      
-      expect(res.status).toBe(400); // Falla por ValidationPipe IsEnum en DTO
+
+      expect(res.status).toBe(400);
     });
 
     it('SUPER_ADMIN puede invitar dictando el organization_id destino', async () => {
@@ -102,14 +115,14 @@ describe('Invitations (e2e)', () => {
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
         .send({ email: 'worker@destino.com', role: Role.WORKER, organization_id: org.id });
-      
+
       expect(res.status).toBe(201);
       expect(res.body.organization_id).toBe(org.id);
     });
   });
 
   describe('POST /invitations/validate', () => {
-    it('debería retornar datos si el token es válido y no expirado', async () => {
+    it('deberia retornar datos si el token es valido y no expirado', async () => {
       const org = await testUtils.createTestOrganization();
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
       const inv = await testUtils.seedTestInvitation(org.id, 'check@check.com', Role.CLIENT, admin.id);
@@ -120,7 +133,7 @@ describe('Invitations (e2e)', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.valid).toBe(true);
-      expect(res.body.role).toBe(Role.CLIENT);
+      expect(res.body.role).toBe('EXTERNAL');
     });
   });
 });

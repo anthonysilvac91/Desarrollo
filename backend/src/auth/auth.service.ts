@@ -4,7 +4,13 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
-import { isExternalRole, resolveOwnerId, toApiRole } from '../common/compat/owner-role-compat';
+import {
+  hasConflictingOwnerAliases,
+  isExternalRole,
+  OWNER_ALIAS_CONFLICT_MESSAGE,
+  resolveOwnerId,
+  toApiRole,
+} from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class AuthService {
@@ -72,6 +78,9 @@ export class AuthService {
     if (invitation.is_used) throw new UnauthorizedException('Esta invitación ya fue utilizada');
     if (new Date() > invitation.expires_at) throw new UnauthorizedException('Esta invitación ha expirado');
 
+    if (hasConflictingOwnerAliases(registerDto)) {
+      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    }
     const companyId = resolveOwnerId(registerDto);
 
     if (isExternalRole(invitation.role) && !companyId) {

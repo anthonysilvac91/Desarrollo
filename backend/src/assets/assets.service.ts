@@ -9,7 +9,13 @@ import { processUploadedImage } from '../common/files/image-processing';
 import { buildAssetThumbnailPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
-import { isExternalRole, resolveOwnerId, withOwnerAliases } from '../common/compat/owner-role-compat';
+import {
+  hasConflictingOwnerAliases,
+  isExternalRole,
+  OWNER_ALIAS_CONFLICT_MESSAGE,
+  resolveOwnerId,
+  withOwnerAliases,
+} from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class AssetsService {
@@ -74,6 +80,9 @@ export class AssetsService {
       thumbnail_url: _thumbnailUrl,
       ...assetData
     } = createAssetDto;
+    if (hasConflictingOwnerAliases(createAssetDto)) {
+      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    }
     const companyId = resolveOwnerId(createAssetDto);
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
@@ -370,6 +379,9 @@ export class AssetsService {
       thumbnail_url: _thumbnailUrl,
       ...updateData
     } = updateDto;
+    if (hasConflictingOwnerAliases(updateDto)) {
+      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    }
     const companyId = resolveOwnerId(updateDto);
     let thumbnail_url: string | undefined;
     let thumbnailFileId = (asset as any).thumbnail_file_id ?? null;
