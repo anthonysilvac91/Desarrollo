@@ -53,6 +53,8 @@ describe('AuthService Auth Validations', () => {
       sub: 'u-1',
       orgId: 'org-1',
       role: 'WORKER',
+      legacy_role: 'WORKER',
+      owner_id: null,
       customer_id: null,
       company_id: null,
     });

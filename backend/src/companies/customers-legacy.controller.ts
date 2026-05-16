@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CompaniesService } from './companies.service';
@@ -13,9 +14,15 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 export class CustomersLegacyController {
   constructor(private readonly companiesService: CompaniesService) {}
 
+  private markDeprecated(res: Response) {
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Sunset', 'Fri, 14 Aug 2026 00:00:00 GMT');
+  }
+
   @Post()
-  @ApiOperation({ summary: '[Legacy] Crear una company', description: 'Alias legacy. La ruta oficial es /companies.' })
-  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req) {
+  @ApiOperation({ summary: '[Deprecated] Crear una company', deprecated: true, description: 'Alias legacy. La ruta oficial es /owners.' })
+  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para crear companies');
     }
@@ -23,8 +30,9 @@ export class CustomersLegacyController {
   }
 
   @Get()
-  @ApiOperation({ summary: '[Legacy] Obtener todas las companies de la organización', description: 'Alias legacy. La ruta oficial es /companies.' })
-  findAll(@Request() req, @Query() query: PaginationQueryDto) {
+  @ApiOperation({ summary: '[Deprecated] Obtener todas las companies de la organizacion', deprecated: true, description: 'Alias legacy. La ruta oficial es /owners.' })
+  findAll(@Request() req, @Query() query: PaginationQueryDto, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para listar companies');
     }
@@ -32,8 +40,9 @@ export class CustomersLegacyController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '[Legacy] Obtener detalles de una company', description: 'Alias legacy. La ruta oficial es /companies.' })
-  findOne(@Param('id') id: string, @Request() req) {
+  @ApiOperation({ summary: '[Deprecated] Obtener detalles de una company', deprecated: true, description: 'Alias legacy. La ruta oficial es /owners.' })
+  findOne(@Param('id') id: string, @Request() req, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para ver companies');
     }
@@ -41,8 +50,9 @@ export class CustomersLegacyController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '[Legacy] Actualizar una company', description: 'Alias legacy. La ruta oficial es /companies.' })
-  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req) {
+  @ApiOperation({ summary: '[Deprecated] Actualizar una company', deprecated: true, description: 'Alias legacy. La ruta oficial es /owners.' })
+  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar companies');
     }
@@ -50,8 +60,9 @@ export class CustomersLegacyController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '[Legacy] Eliminar logicamente una company', description: 'Alias legacy. La ruta oficial es /companies.' })
-  remove(@Param('id') id: string, @Request() req) {
+  @ApiOperation({ summary: '[Deprecated] Eliminar logicamente una company', deprecated: true, description: 'Alias legacy. La ruta oficial es /owners.' })
+  remove(@Param('id') id: string, @Request() req, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar companies');
     }

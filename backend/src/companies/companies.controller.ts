@@ -1,25 +1,32 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { imageUploadOptions } from '../common/files/multer-image-options';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { imageUploadOptions } from '../common/files/multer-image-options';
 
-@ApiTags('companies')
+@ApiTags('companies-legacy')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('companies')
 export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
+  private markDeprecated(res: Response) {
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Sunset', 'Fri, 14 Aug 2026 00:00:00 GMT');
+  }
+
   @Post()
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Crear una company' })
-  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
+  @ApiOperation({ summary: '[Deprecated] Crear una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  create(@Body() createCompanyDto: CreateCompanyDto, @Request() req, @Res({ passthrough: true }) res: Response, @UploadedFile() logo?: Express.Multer.File) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para crear companies');
     }
@@ -27,8 +34,9 @@ export class CompaniesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todas las companies de la organización' })
-  findAll(@Request() req, @Query() query: PaginationQueryDto) {
+  @ApiOperation({ summary: '[Deprecated] Obtener todas las companies de la organizacion', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  findAll(@Request() req, @Query() query: PaginationQueryDto, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para listar companies');
     }
@@ -36,8 +44,9 @@ export class CompaniesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener detalles de una company' })
-  findOne(@Param('id') id: string, @Request() req) {
+  @ApiOperation({ summary: '[Deprecated] Obtener detalles de una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  findOne(@Param('id') id: string, @Request() req, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para ver companies');
     }
@@ -47,8 +56,9 @@ export class CompaniesController {
   @Patch(':id')
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Actualizar una company' })
-  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
+  @ApiOperation({ summary: '[Deprecated] Actualizar una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto, @Request() req, @Res({ passthrough: true }) res: Response, @UploadedFile() logo?: Express.Multer.File) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar companies');
     }
@@ -56,8 +66,9 @@ export class CompaniesController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar logicamente una company' })
-  remove(@Param('id') id: string, @Request() req) {
+  @ApiOperation({ summary: '[Deprecated] Eliminar logicamente una company', deprecated: true, description: 'Ruta legacy. La ruta oficial es /owners.' })
+  remove(@Param('id') id: string, @Request() req, @Res({ passthrough: true }) res: Response) {
+    this.markDeprecated(res);
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar companies');
     }

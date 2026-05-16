@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEmail, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
@@ -8,10 +8,10 @@ export class CreateInvitationDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ enum: ['ADMIN', 'WORKER', 'CLIENT'], description: 'Rol que tendrá el usuario. SUPER_ADMIN bloqueado.' })
-  @IsEnum(['ADMIN', 'WORKER', 'CLIENT'])
+  @ApiProperty({ enum: ['ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], description: 'Rol del usuario. SUPER_ADMIN bloqueado.' })
+  @IsIn(['ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'])
   @IsNotEmpty()
-  role: Role;
+  role: Role | 'EXTERNAL';
 
   @ApiPropertyOptional({ description: 'Obligatorio si lo crea un SUPER_ADMIN. Ignorado si lo crea un ADMIN.' })
   @IsUUID()
@@ -23,10 +23,15 @@ export class CreateInvitationDto {
   @IsOptional()
   company_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias temporal de company_id para futuras llamadas con owner_id.' })
+  @ApiPropertyOptional({ description: 'ID canonico de owner requerido para invitaciones EXTERNAL.' })
   @IsUUID()
   @IsOptional()
   owner_id?: string;
+
+  @ApiPropertyOptional({ description: 'Alias legacy de company_id.' })
+  @IsUUID()
+  @IsOptional()
+  customer_id?: string;
 }
 
 export class ValidateInvitationDto {

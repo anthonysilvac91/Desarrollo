@@ -3,7 +3,7 @@ import { IsEmail, IsOptional, IsString, IsUrl, IsUUID } from 'class-validator';
 
 export class UpdateUserDto {
   @ApiProperty({ required: false })
-  @IsEmail({}, { message: 'Email inválido' })
+  @IsEmail({}, { message: 'Email invalido' })
   @IsOptional()
   email?: string;
 
@@ -18,17 +18,27 @@ export class UpdateUserDto {
   phone?: string;
 
   @ApiProperty({ required: false })
-  @IsUrl({}, { message: 'Avatar URL inválido' })
+  @IsUrl({}, { message: 'Avatar URL invalido' })
   @IsOptional()
   avatar_url?: string;
 
   @ApiProperty({ required: false })
-  @IsUUID('4', { message: 'ID de organizaciÃ³n invÃ¡lido' })
+  @IsUUID('4', { message: 'ID de organizacion invalido' })
   @IsOptional()
   organization_id?: string;
 
   @ApiProperty({ required: false })
-  @IsUUID('4', { message: 'ID de cliente invÃ¡lido' })
+  @IsUUID('4', { message: 'ID de company invalido' })
   @IsOptional()
   company_id?: string;
+
+  @ApiProperty({ required: false })
+  @IsUUID('4', { message: 'ID de owner invalido' })
+  @IsOptional()
+  owner_id?: string;
+
+  @ApiProperty({ required: false })
+  @IsUUID('4', { message: 'ID de customer invalido' })
+  @IsOptional()
+  customer_id?: string;
 }

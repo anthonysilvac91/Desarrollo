@@ -2,16 +2,14 @@ import { Injectable, BadRequestException, ForbiddenException, NotFoundException,
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvitationDto } from './dto/invitations.dto';
 import * as crypto from 'crypto';
+import { Role } from '@prisma/client';
+import { isExternalRole, resolveOwnerId, toApiRole, toDbRole } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class InvitationsService {
   private readonly logger = new Logger(InvitationsService.name);
 
   constructor(private prisma: PrismaService) {}
-
-  private isExternalRole(role: string) {
-    return role === 'CLIENT' || role === 'EXTERNAL';
-  }
 
   private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
     const company = await this.prisma.company.findFirst({
@@ -41,14 +39,14 @@ export class InvitationsService {
     }
 
     const finalOrgId = targetOrgId as string;
-    const companyId = dto.company_id ?? dto.owner_id;
+    const companyId = resolveOwnerId(dto);
 
-    if (this.isExternalRole(dto.role) && !companyId) {
+    if (isExternalRole(dto.role) && !companyId) {
       throw new BadRequestException('Una invitaciÃ³n CLIENT debe asociarse a una company');
     }
 
     if (companyId) {
-      if (!this.isExternalRole(dto.role)) {
+      if (!isExternalRole(dto.role)) {
         throw new BadRequestException('Solo una invitaciÃ³n CLIENT puede asociarse a una company');
       }
 
@@ -63,7 +61,7 @@ export class InvitationsService {
       data: {
         organization_id: finalOrgId,
         email: dto.email,
-        role: dto.role,
+        role: toDbRole(dto.role) as Role,
         token: token,
         invited_by_id: inviterId,
         expires_at: expiresAt,
@@ -71,7 +69,13 @@ export class InvitationsService {
     });
 
     this.logger.log(`Invitation created for ${dto.email} (Role: ${dto.role}, Org: ${finalOrgId}) by User ${inviterId}`);
-    return invitation;
+    return {
+      ...invitation,
+      role: toApiRole(invitation.role),
+      owner_id: companyId ?? null,
+      company_id: companyId ?? null,
+      customer_id: companyId ?? null,
+    };
   }
 
   async validate(token: string) {
@@ -84,8 +88,8 @@ export class InvitationsService {
     return { 
       valid: true,
       email: invitation.email,
-      role: invitation.role,
-      organization_id: invitation.organization_id 
+      role: toApiRole(invitation.role),
+      organization_id: invitation.organization_id
     };
   }
 }

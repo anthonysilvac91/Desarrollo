@@ -11,6 +11,7 @@ import { processUploadedImage } from '../common/files/image-processing';
 import { buildCompanyLogoPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
+import { withOwnerAliases } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class CompaniesService {
@@ -23,9 +24,12 @@ export class CompaniesService {
 
   private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
     return {
-      ...company,
+      ...withOwnerAliases(company),
+      owner_id: company.id,
       company_users: company.users ?? undefined,
       company_assets: company.assets ?? undefined,
+      owner_users: company.users ?? undefined,
+      owner_assets: company.assets ?? undefined,
     };
   }
 

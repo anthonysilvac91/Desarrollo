@@ -11,6 +11,7 @@ import { processUploadedImage } from '../common/files/image-processing';
 import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
+import { isExternalRole, withOwnerAliases } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class ServicesService {
@@ -31,11 +32,7 @@ export class ServicesService {
     return {
       ...service,
       asset: {
-        ...service.asset,
-        company_id: service.asset.company_id ?? service.asset.customer_id ?? null,
-        company: service.asset.company ?? service.asset.customer ?? null,
-        customer_id: service.asset.company_id ?? service.asset.customer_id ?? null,
-        customer: service.asset.company ?? service.asset.customer ?? null,
+        ...withOwnerAliases(service.asset),
       }
     };
   }
@@ -199,8 +196,8 @@ export class ServicesService {
       whereClause.created_at = { gte: start, lte: end };
     }
 
-    if (user.role === 'CLIENT') {
-      const currentCompanyId = user.company_id ?? user.customer_id;
+    if (isExternalRole(user.role)) {
+      const currentCompanyId = user.owner_id ?? user.company_id ?? user.customer_id;
       if (!currentCompanyId) {
         return query.page && query.limit
           ? {
@@ -302,12 +299,12 @@ export class ServicesService {
       throw new NotFoundException('Service no encontrado o acceso denegado');
     }
 
-    if (user.role === 'CLIENT') {
+    if (isExternalRole(user.role)) {
       if (!service.is_public) {
         throw new ForbiddenException('No tienes permiso para ver este servicio privado');
       }
 
-      const currentCompanyId = user.company_id ?? user.customer_id;
+      const currentCompanyId = user.owner_id ?? user.company_id ?? user.customer_id;
       if (!currentCompanyId || service.asset.company_id !== currentCompanyId) {
         throw new NotFoundException('Service no encontrado o acceso denegado');
       }

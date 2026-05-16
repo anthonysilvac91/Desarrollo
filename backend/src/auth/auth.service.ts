@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { isExternalRole, resolveOwnerId, toApiRole } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class AuthService {
@@ -14,10 +15,6 @@ export class AuthService {
     private jwtService: JwtService,
     private storedFilesService: StoredFilesService,
   ) {}
-
-  private isExternalRole(role: string) {
-    return role === 'CLIENT' || role === 'EXTERNAL';
-  }
 
   private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
     const company = await this.prisma.company.findFirst({
@@ -53,7 +50,9 @@ export class AuthService {
     const payload = {
       sub: user.id,
       orgId: user.organization_id,
-      role: user.role,
+      role: toApiRole(user.role),
+      legacy_role: user.role,
+      owner_id: user.company_id,
       customer_id: user.company_id,
       company_id: user.company_id,
     };
@@ -73,14 +72,14 @@ export class AuthService {
     if (invitation.is_used) throw new UnauthorizedException('Esta invitación ya fue utilizada');
     if (new Date() > invitation.expires_at) throw new UnauthorizedException('Esta invitación ha expirado');
 
-    const companyId = registerDto.company_id ?? registerDto.owner_id;
+    const companyId = resolveOwnerId(registerDto);
 
-    if (this.isExternalRole(invitation.role) && !companyId) {
+    if (isExternalRole(invitation.role) && !companyId) {
       throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
     }
 
     if (companyId) {
-      if (!this.isExternalRole(invitation.role)) {
+      if (!isExternalRole(invitation.role)) {
         throw new BadRequestException('Solo un usuario CLIENT puede asociarse a una company');
       }
 
@@ -109,7 +108,9 @@ export class AuthService {
       const payload = {
         sub: user.id,
         orgId: user.organization_id,
-        role: user.role,
+        role: toApiRole(user.role),
+        legacy_role: user.role,
+        owner_id: user.company_id,
         customer_id: user.company_id,
         company_id: user.company_id,
       };
@@ -117,7 +118,7 @@ export class AuthService {
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
       return {
         access_token: this.jwtService.sign(payload),
-        user: { id: user.id, name: user.name, role: user.role, email: user.email },
+        user: { id: user.id, name: user.name, role: toApiRole(user.role), email: user.email, owner_id: user.company_id, company_id: user.company_id },
       };
     });
   }
@@ -157,6 +158,11 @@ export class AuthService {
     }
 
     const { password_hash, ...result } = user;
-    return result;
+    return {
+      ...result,
+      role: toApiRole(result.role),
+      owner_id: result.company_id,
+      customer_id: result.company_id,
+    };
   }
 }

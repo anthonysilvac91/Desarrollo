@@ -10,6 +10,7 @@ import { StoredFilesService } from '../storage/stored-files.service';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildUserAvatarPath } from '../common/files/storage-paths';
+import { isExternalRole, resolveOwnerId, toDbRole, withOwnerAliases } from '../common/compat/owner-role-compat';
 @Injectable()
 export class UsersService {
   constructor(
@@ -19,14 +20,8 @@ export class UsersService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private mapUserRelations<T extends Record<string, any>>(user: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
-    return {
-      ...user,
-      company_id: user.company_id ?? user.customer_id ?? null,
-      company: user.company ?? user.customer ?? null,
-      customer_id: user.company_id ?? user.customer_id ?? null,
-      customer: user.company ?? user.customer ?? null,
-    };
+  private mapUserRelations<T extends Record<string, any>>(user: T): T & { owner_id: string | null; owner: any; company_id: string | null; company: any; customer_id: string | null; customer: any } {
+    return withOwnerAliases(user);
   }
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
@@ -190,10 +185,13 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
+    const requestedRole = dto.role;
+    const dbRole = toDbRole(requestedRole) as Role;
+    const ownerId = resolveOwnerId(dto);
     // 1. Validar permisos de creación por rol
     if (currentUser.role === Role.ADMIN) {
       // Un admin no puede crear un SuperAdmin
-      if (dto.role === Role.SUPER_ADMIN) {
+      if (dbRole === Role.SUPER_ADMIN) {
         throw new ForbiddenException('Un administrador no puede crear un Super Administrador');
       }
       // Forzar organización del admin
@@ -202,8 +200,8 @@ export class UsersService {
       throw new ForbiddenException('No tienes permisos para crear usuarios');
     }
 
-    if (dto.role === Role.SUPER_ADMIN) {
-      if (dto.organization_id || dto.company_id) {
+    if (dbRole === Role.SUPER_ADMIN) {
+      if (dto.organization_id || ownerId) {
         throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organización o company');
       }
     } else {
@@ -214,15 +212,15 @@ export class UsersService {
       await this.ensureOrganizationExists(dto.organization_id);
     }
 
-    if (dto.company_id) {
-      if (dto.role !== Role.CLIENT) {
+    if (ownerId) {
+      if (!isExternalRole(requestedRole)) {
         throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
       }
 
-      await this.ensureCompanyBelongsToOrganization(dto.company_id, dto.organization_id!);
+      await this.ensureCompanyBelongsToOrganization(ownerId, dto.organization_id!);
     }
 
-    if (dto.role === Role.CLIENT && !dto.company_id) {
+    if (isExternalRole(requestedRole) && !ownerId) {
       throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
     }
 
@@ -247,9 +245,9 @@ export class UsersService {
         email: dto.email,
         password_hash: passwordHash,
         name: dto.name,
-        role: dto.role,
+        role: dbRole,
         organization_id: dto.organization_id || null,
-        company_id: dto.company_id || null,
+        company_id: ownerId,
         is_active: true,
       },
       select: {
@@ -296,6 +294,8 @@ export class UsersService {
     ensureNoManualFileUrl(dto.avatar_url, 'Avatar de usuario');
     const data: any = { ...dto };
     delete data.avatar_url;
+    delete data.owner_id;
+    delete data.customer_id;
 
     const organizationChanged =
       dto.organization_id !== undefined &&
@@ -318,19 +318,28 @@ export class UsersService {
       throw new BadRequestException('Los usuarios no SUPER_ADMIN deben pertenecer a una organizacion');
     }
 
-    if (dto.company_id !== undefined) {
-      if (currentUserRecord.role !== Role.CLIENT) {
+    const ownerProvided =
+      dto.company_id !== undefined || dto.owner_id !== undefined || dto.customer_id !== undefined;
+    const ownerId = resolveOwnerId(dto);
+
+    if (ownerProvided) {
+      if (!isExternalRole(currentUserRecord.role)) {
         throw new BadRequestException('Solo un usuario con rol CLIENT puede asociarse a una company');
       }
 
-      await this.ensureCompanyBelongsToOrganization(dto.company_id, targetOrganizationId!);
+      if (!ownerId) {
+        throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
+      }
+
+      await this.ensureCompanyBelongsToOrganization(ownerId, targetOrganizationId!);
+      data.company_id = ownerId;
     } else if (organizationChanged && currentUserRecord.company_id) {
       data.company_id = null;
     }
 
     const targetCompanyId =
       data.company_id !== undefined ? data.company_id : currentUserRecord.company_id;
-    if (currentUserRecord.role === Role.CLIENT && !targetCompanyId) {
+    if (isExternalRole(currentUserRecord.role) && !targetCompanyId) {
       throw new BadRequestException('Un usuario CLIENT debe asociarse a una company');
     }
 

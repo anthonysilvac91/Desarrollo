@@ -32,10 +32,20 @@ export class CreateAssetDto {
   @IsOptional()
   serial_number?: string;
 
-  @ApiProperty({ description: 'ID de la company asignada al activo.' })
+  @ApiPropertyOptional({ description: 'ID legacy de la company asignada al activo.' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   company_id?: string;
+
+  @ApiPropertyOptional({ description: 'ID canonico del owner asignado al activo.' })
+  @IsString()
+  @IsOptional()
+  owner_id?: string;
+
+  @ApiPropertyOptional({ description: 'Alias legacy de company_id.' })
+  @IsString()
+  @IsOptional()
+  customer_id?: string;
 
   @ApiPropertyOptional({ description: 'ID de la organización (opcional, defaults a la del usuario).' })
   @IsString()

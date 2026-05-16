@@ -9,6 +9,7 @@ import { processUploadedImage } from '../common/files/image-processing';
 import { buildAssetThumbnailPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
+import { isExternalRole, resolveOwnerId, withOwnerAliases } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class AssetsService {
@@ -19,14 +20,8 @@ export class AssetsService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { company_id: string | null; company: any; customer_id: string | null; customer: any } {
-    return {
-      ...asset,
-      company_id: asset.company_id ?? asset.customer_id ?? null,
-      company: asset.company ?? asset.customer ?? null,
-      customer_id: asset.company_id ?? asset.customer_id ?? null,
-      customer: asset.company ?? asset.customer ?? null,
-    };
+  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { owner_id: string | null; owner: any; company_id: string | null; company: any; customer_id: string | null; customer: any } {
+    return withOwnerAliases(asset);
   }
 
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
@@ -71,7 +66,15 @@ export class AssetsService {
   }
 
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
-    const { company_id: companyId, organization_id: dtoOrgId, thumbnail_url: _thumbnailUrl, ...assetData } = createAssetDto;
+    const {
+      company_id: _companyId,
+      owner_id: _ownerId,
+      customer_id: _customerId,
+      organization_id: dtoOrgId,
+      thumbnail_url: _thumbnailUrl,
+      ...assetData
+    } = createAssetDto;
+    const companyId = resolveOwnerId(createAssetDto);
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
     let thumbnail_url: string | undefined;
@@ -177,7 +180,7 @@ export class AssetsService {
       baseWhere.organization_id = orgId;
     }
 
-    if (role === 'CLIENT') {
+    if (isExternalRole(role)) {
       if (!companyId) {
         return [];
       }
@@ -290,8 +293,8 @@ export class AssetsService {
       }
     }
 
-    if (user.role === 'CLIENT') {
-      const currentCompanyId = user.company_id ?? user.customer_id;
+    if (isExternalRole(user.role)) {
+      const currentCompanyId = user.owner_id ?? user.company_id ?? user.customer_id;
       if (asset.company_id !== currentCompanyId) {
         throw new NotFoundException('No tienes acceso a este activo');
       }
@@ -360,7 +363,14 @@ export class AssetsService {
       throw new ForbiddenException('No tienes permiso para editar este activo');
     }
 
-    const { company_id: companyId, thumbnail_url: _thumbnailUrl, ...updateData } = updateDto;
+    const {
+      company_id: _companyId,
+      owner_id: _ownerId,
+      customer_id: _customerId,
+      thumbnail_url: _thumbnailUrl,
+      ...updateData
+    } = updateDto;
+    const companyId = resolveOwnerId(updateDto);
     let thumbnail_url: string | undefined;
     let thumbnailFileId = (asset as any).thumbnail_file_id ?? null;
 
@@ -409,7 +419,7 @@ export class AssetsService {
       thumbnail_file_id: thumbnailFileId,
     };
 
-    if (companyId !== undefined) {
+    if (_companyId !== undefined || _ownerId !== undefined || _customerId !== undefined) {
       if (!companyId) {
         throw new BadRequestException('Un activo debe asociarse a una company');
       }
