@@ -8,6 +8,7 @@ import { assetsService, Service } from "@/services/assets.service";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
+import { formatDate } from "@/lib/formatDate";
 
 export default function WorkerServiceViewPage() {
   const router = useRouter();
@@ -62,7 +63,7 @@ export default function WorkerServiceViewPage() {
                 <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.mobile.service_detail.date_label}</span>
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-3.5 h-3.5 text-brand" />
-                  <span className="text-sm font-bold text-title">{new Date(job.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-')}</span>
+                  <span className="text-sm font-bold text-title">{formatDate(job.created_at)}</span>
                 </div>
               </div>
            </div>

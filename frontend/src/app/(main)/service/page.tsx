@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { servicesService, Service } from "@/services/services.service";
 import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
+import { formatDate } from "@/lib/formatDate";
 
 export default function ServicesPage() {
   const { t } = useLanguage();
@@ -137,7 +138,7 @@ export default function ServicesPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">{new Date(item.created_at).toLocaleDateString()}</span>
+          <span className="font-semibold text-sm">{formatDate(item.created_at)}</span>
         </div>
       )
     },

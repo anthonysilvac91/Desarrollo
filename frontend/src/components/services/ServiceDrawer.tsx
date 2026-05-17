@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { Service, servicesService } from "@/services/services.service";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 import { useQuery } from "@tanstack/react-query";
+import { formatDate } from "@/lib/formatDate";
 
 interface ServiceDrawerProps {
   service: Service | null;
@@ -58,7 +59,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">{t.services.table.date}</span>
             <div className="flex items-center space-x-2">
               <Calendar className="w-3.5 h-3.5 text-brand" />
-              <span className="text-sm font-bold text-title">{new Date(currentService.created_at).toLocaleDateString()}</span>
+              <span className="text-sm font-bold text-title">{formatDate(currentService.created_at)}</span>
             </div>
           </div>
         </div>

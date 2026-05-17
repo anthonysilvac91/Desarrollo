@@ -8,6 +8,7 @@ import { assetsService, Service, ServiceAttachment } from "@/services/assets.ser
 import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus } from "lucide-react";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
+import { formatDate } from "@/lib/formatDate";
 import { useAuth } from "@/lib/AuthContext";
 import type { Service as DrawerService } from "@/services/services.service";
 
@@ -48,7 +49,7 @@ const JobCard = ({ job, onClick }: { job: Service, onClick?: () => void }) => {
             <div className="bg-brand/5 px-3 py-1.5 rounded-full flex items-center border border-brand/5">
               <Calendar className="w-3.5 h-3.5 text-brand mr-2" />
               <span className="text-[10px] font-black text-brand uppercase tracking-wider">
-                {new Date(job.created_at).toLocaleDateString(language === "es" ? "es-ES" : "en-US", { day: "2-digit", month: "short", year: "numeric" })}
+                {formatDate(job.created_at)}
               </span>
             </div>
             <div className="bg-app-bg px-3 py-1.5 rounded-full flex items-center border border-border-theme/60">

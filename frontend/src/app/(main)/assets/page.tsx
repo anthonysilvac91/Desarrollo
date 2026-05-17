@@ -8,6 +8,7 @@ import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship, Calendar } from "lucide-react";
+import { formatDate } from "@/lib/formatDate";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { assetsService, Asset } from "@/services/assets.service";
@@ -163,7 +164,7 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">{item.last_service?.date || "---"}</span>
+          <span className="font-semibold text-sm">{item.last_service?.date ? formatDate(item.last_service.date) : "---"}</span>
         </div>
       )
     },

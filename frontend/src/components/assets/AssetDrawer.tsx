@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MapPin, Ship, Calendar, Camera, Loader2, Maximize2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Asset, assetsService, Service } from "@/services/assets.service";
+import { formatDate } from "@/lib/formatDate";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 
 interface AssetDrawerProps {
@@ -132,7 +133,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                   <div className="bg-brand/10 px-3 py-1 rounded-full flex items-center">
                     <Calendar className="w-3 h-3 text-brand mr-2" />
                     <span className="text-[10px] font-black text-brand uppercase tracking-wider">
-                      {new Date(service.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-')}
+                      {formatDate(service.created_at)}
                     </span>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatDate } from "@/lib/formatDate";
 
 export default function WorkerNewServicePage() {
   const router = useRouter();
@@ -141,7 +142,7 @@ export default function WorkerNewServicePage() {
               <div className="flex items-center justify-center sm:justify-start space-x-2 text-title">
                  <Calendar className="w-3.5 h-3.5 text-brand" />
                  <span className="text-sm font-bold">
-                   {new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                   {formatDate(new Date())}
                  </span>
               </div>
            </div>

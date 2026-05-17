@@ -16,6 +16,7 @@ import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Service } from "@/services/assets.service";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
+import { formatDate } from "@/lib/formatDate";
 
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
@@ -204,7 +205,7 @@ export default function WorkerAssetDetailPage() {
                      <div className="flex items-center bg-brand/5 rounded-full px-3 py-1 w-fit mb-3 border border-brand/5">
                         <Calendar className="w-3 h-3 mr-2 text-brand" />
                         <span className="text-[10px] font-black uppercase text-brand tracking-widest">
-                           {new Date(job.created_at).toLocaleDateString("es-ES", { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                           {formatDate(job.created_at)}
                         </span>
                      </div>
 
