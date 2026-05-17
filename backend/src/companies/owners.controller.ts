@@ -55,6 +55,15 @@ export class OwnersController {
     return this.companiesService.update(id, updateCompanyDto, req.user.orgId, logo);
   }
 
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Desactivar un owner y sus assets activos' })
+  deactivate(@Param('id') id: string, @Request() req) {
+    if (req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para desactivar owners');
+    }
+    return this.companiesService.deactivate(id, req.user.orgId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar logicamente un owner' })
   remove(@Param('id') id: string, @Request() req) {

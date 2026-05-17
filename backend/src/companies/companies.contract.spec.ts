@@ -6,6 +6,7 @@ describe('OwnersController route contract', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
+    deactivate: jest.fn(),
     remove: jest.fn(),
   } as any;
 

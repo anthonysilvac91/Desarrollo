@@ -272,10 +272,16 @@ export const translations = {
     owners: {
       search_placeholder: "Search owners by name...",
       add_new: "Add new",
+      actions: {
+        deactivate: "Deactivate owner",
+        delete: "Delete owner",
+      },
       table: {
         name: "Name",
         address: "Address",
         last_service: "Last Service",
+        assets: "Assets",
+        services: "Services",
         status: "Status",
         actions: "Actions",
       },
@@ -296,6 +302,16 @@ export const translations = {
         of: "of",
         owners: "owners",
       },
+      deactivate_modal: {
+        title: "Deactivate owner?",
+        description: "If you deactivate this owner, all assets associated with it will also be automatically deactivated. Services will remain in history, but those assets will no longer be active.",
+        confirm: "Deactivate",
+      },
+      delete_modal: {
+        title: "Delete owner?",
+        description: "This will remove the owner from active listings. Related assets will also be deactivated automatically.",
+        confirm: "Delete",
+      },
       states: {
         loading: "Loading owners...",
         error_title: "Failed to load owners",
@@ -307,6 +323,8 @@ export const translations = {
         save_error: "Error saving owner.",
         delete_success: "Owner deleted successfully.",
         error_delete: "Error deleting owner.",
+        deactivate_success: "Owner and related assets deactivated successfully.",
+        error_deactivate: "Error deactivating owner.",
       }
     },
     settings: {
@@ -752,6 +770,8 @@ export const translations = {
       add_new: "Agregar nuevo",
       modal_title: "Crear Organización",
       table: {
+        assets: "Activos",
+        services: "Servicios",
         status: "Estado",
       },
       pagination: {
@@ -773,10 +793,16 @@ export const translations = {
     owners: {
       search_placeholder: "Buscar owners por nombre...",
       add_new: "Agregar nuevo",
+      actions: {
+        deactivate: "Desactivar owner",
+        delete: "Eliminar owner",
+      },
       table: {
         name: "Nombre",
         address: "Dirección",
         last_service: "Último Servicio",
+        assets: "Activos",
+        services: "Servicios",
         status: "Estado",
         actions: "Acciones",
       },
@@ -797,6 +823,16 @@ export const translations = {
         of: "de",
         owners: "owners",
       },
+      deactivate_modal: {
+        title: "¿Desactivar owner?",
+        description: "Si desactivas este owner, todos los assets asociados a él también se desactivarán automáticamente. Los servicios se mantendrán en el historial, pero esos assets dejarán de estar activos.",
+        confirm: "Desactivar",
+      },
+      delete_modal: {
+        title: "Eliminar owner?",
+        description: "Esto quitara el owner de los listados activos. Los assets relacionados tambien se desactivaran automaticamente.",
+        confirm: "Eliminar",
+      },
       states: {
         loading: "Cargando owners...",
         error_title: "Error al cargar owners",
@@ -808,6 +844,8 @@ export const translations = {
         save_error: "Error al guardar el owner.",
         delete_success: "Owner eliminado con éxito.",
         error_delete: "Error al eliminar el owner.",
+        deactivate_success: "Owner y assets relacionados desactivados correctamente.",
+        error_deactivate: "Error al desactivar el owner.",
       }
     },
     settings: {

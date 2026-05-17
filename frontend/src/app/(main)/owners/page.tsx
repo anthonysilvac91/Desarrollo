@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Building2, Trash2, Edit2, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, Building2, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Package, ClipboardList } from "lucide-react";
 import FiltersBar from "@/components/ui/FiltersBar";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
@@ -25,9 +25,10 @@ export default function OwnersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
   const [ownerToDelete, setOwnerToDelete] = useState<Owner | null>(null);
+  const [ownerToDeactivate, setOwnerToDeactivate] = useState<Owner | null>(null);
 
   const getQueryParams = () => {
-    const params: any = { page, limit };
+    const params: { page: number; limit: number; search?: string } = { page, limit };
     if (debouncedSearch) params.search = debouncedSearch;
     return params;
   };
@@ -35,6 +36,18 @@ export default function OwnersPage() {
   const { data: responseData, isLoading } = useQuery({
     queryKey: ["owners", getQueryParams()],
     queryFn: () => ownersService.findAll(getQueryParams()),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => ownersService.deactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owners"] });
+      showToast(t.owners.states.deactivate_success, "success");
+      setOwnerToDeactivate(null);
+    },
+    onError: () => {
+      showToast(t.owners.states.error_deactivate, "error");
+    }
   });
 
   const deleteMutation = useMutation({
@@ -48,10 +61,6 @@ export default function OwnersPage() {
       showToast(t.owners.states.error_delete, "error");
     }
   });
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, limit]);
 
   const ownersList: Owner[] = Array.isArray(responseData) ? responseData : responseData?.data || [];
   const meta = !Array.isArray(responseData) && responseData?.meta
@@ -72,6 +81,26 @@ export default function OwnersPage() {
             )}
           </div>
           <span className="font-bold text-sm text-title">{item.name}</span>
+        </div>
+      )
+    },
+    {
+      header: t.owners.table.assets.toUpperCase(),
+      key: "assets_count",
+      cell: (item: Owner) => (
+        <div className="flex items-center space-x-2 text-title">
+          <Package className="w-4 h-4 text-brand/60" />
+          <span className="font-black text-sm">{item.assets_count ?? 0}</span>
+        </div>
+      )
+    },
+    {
+      header: t.owners.table.services.toUpperCase(),
+      key: "services_count",
+      cell: (item: Owner) => (
+        <div className="flex items-center space-x-2 text-title">
+          <ClipboardList className="w-4 h-4 text-brand/60" />
+          <span className="font-black text-sm">{item.services_count ?? 0}</span>
         </div>
       )
     },
@@ -97,19 +126,28 @@ export default function OwnersPage() {
     {
       header: t.owners.table.actions.toUpperCase(),
       key: "actions",
+      align: "center",
       cell: (item: Owner) => (
-        <div className="flex justify-end space-x-2">
+        <div className="flex items-center justify-center space-x-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); setOwnerToDeactivate(item); }}
+            className="p-2.5 transition-all rounded-full text-emerald-500 hover:bg-emerald-50"
+            title={t.owners.actions.deactivate}
+          >
+            <ToggleRight className="w-5 h-5" />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEditingOwner(item); setIsModalOpen(true); }}
-            className="p-2 hover:bg-brand/5 text-subtitle hover:text-brand rounded-xl transition-colors"
+            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
           >
-            <Edit2 className="w-4 h-4" />
+            <Pencil className="w-5 h-5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setOwnerToDelete(item); }}
-            className="p-2 hover:bg-error/5 text-subtitle hover:text-error rounded-xl transition-colors"
+            className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
+            title={t.owners.actions.delete}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5" />
           </button>
         </div>
       )
@@ -120,7 +158,10 @@ export default function OwnersPage() {
     <div className="flex flex-col space-y-8">
       <FiltersBar
         searchPlaceholder={t.owners.search_placeholder}
-        onSearchChange={setSearchTerm}
+        onSearchChange={(value) => {
+          setSearchTerm(value);
+          setPage(1);
+        }}
         showQuickFilters={false}
         actions={
           <button
@@ -201,12 +242,23 @@ export default function OwnersPage() {
       />
 
       <ConfirmModal
+        isOpen={!!ownerToDeactivate}
+        onClose={() => setOwnerToDeactivate(null)}
+        onConfirm={() => ownerToDeactivate && deactivateMutation.mutate(ownerToDeactivate.id)}
+        title={t.owners.deactivate_modal.title}
+        description={t.owners.deactivate_modal.description}
+        confirmText={t.owners.deactivate_modal.confirm}
+        cancelText={t.confirm_modal.cancel_delete}
+        variant="danger"
+      />
+
+      <ConfirmModal
         isOpen={!!ownerToDelete}
         onClose={() => setOwnerToDelete(null)}
         onConfirm={() => ownerToDelete && deleteMutation.mutate(ownerToDelete.id)}
-        title={t.confirm_modal.delete_user_title}
-        description={t.confirm_modal.delete_description}
-        confirmText={t.confirm_modal.confirm_delete}
+        title={t.owners.delete_modal.title}
+        description={t.owners.delete_modal.description}
+        confirmText={t.owners.delete_modal.confirm}
         cancelText={t.confirm_modal.cancel_delete}
         variant="danger"
       />

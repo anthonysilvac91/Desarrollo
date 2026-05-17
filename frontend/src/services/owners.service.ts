@@ -6,6 +6,8 @@ export interface Owner {
   organization_id: string;
   logo_url?: string | null;
   is_active: boolean;
+  assets_count?: number;
+  services_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -41,6 +43,11 @@ export const ownersService = {
       ? { headers: { "Content-Type": "multipart/form-data" } }
       : undefined;
     const res = await api.patch(`/owners/${id}`, data, config);
+    return res.data;
+  },
+
+  async deactivate(id: string) {
+    const res = await api.patch(`/owners/${id}/status`);
     return res.data;
   },
 
