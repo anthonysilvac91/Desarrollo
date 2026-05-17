@@ -437,6 +437,10 @@ export class UsersService {
   }
 
   async toggleStatus(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
+    if (id === currentUser.id) {
+      throw new ForbiddenException('No puedes cambiar el estado de tu propio usuario');
+    }
+
     const user = await this.findOne(id, currentUser);
 
     const updatedUser = await this.prisma.user.update({

@@ -1,4 +1,5 @@
 import axios from "axios";
+import Cookies from "js-cookie";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
 
@@ -61,6 +62,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
+        Cookies.remove("access_token");
         
         // Redirigimos a login si no estamos ya ahí
         if (window.location.pathname !== "/login") {

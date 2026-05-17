@@ -356,4 +356,37 @@ describe('Users Management (e2e)', () => {
       expect(response.body.id).toBe(admin1.id);
     });
   });
+
+  describe('PATCH /users/:id/status', () => {
+    it('ADMIN no puede desactivarse a si mismo', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const response = await request(app.getHttpServer())
+        .patch(`/users/${admin.id}/status`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe('No puedes cambiar el estado de tu propio usuario');
+
+      const persisted = await prisma.user.findUnique({ where: { id: admin.id } });
+      expect(persisted?.is_active).toBe(true);
+    });
+
+    it('ADMIN puede desactivar a otro usuario de su organizacion', async () => {
+      const org = await testUtils.createTestOrganization('Org');
+      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
+      const token = testUtils.getBearerToken(admin);
+
+      const response = await request(app.getHttpServer())
+        .patch(`/users/${worker.id}/status`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.id).toBe(worker.id);
+      expect(response.body.is_active).toBe(false);
+    });
+  });
 });

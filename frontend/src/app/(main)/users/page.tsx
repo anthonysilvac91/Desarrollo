@@ -13,7 +13,7 @@ import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 export default function UsersPage() {
@@ -40,12 +40,15 @@ export default function UsersPage() {
     enabled: !!user,
   });
 
-  const usersList = Array.isArray(responseData) ? responseData : responseData?.data || [];
-  const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: usersList.length, page: 1, limit: 10, totalPages: 1 };
+  const usersList = useMemo(() => {
+    return Array.isArray(responseData) ? responseData : responseData?.data || [];
+  }, [responseData]);
 
-  React.useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, limit]);
+  const meta = useMemo(() => {
+    return !Array.isArray(responseData) && responseData?.meta
+      ? responseData.meta
+      : { total: usersList.length, page: 1, limit: 10, totalPages: 1 };
+  }, [responseData, usersList.length]);
 
   const existingOwners = useMemo(() => {
     return Array.from(new Set<string>(usersList.map(() => "Recall Co"))).sort();
@@ -54,10 +57,35 @@ export default function UsersPage() {
   // .slice(0,10) was removed since backend paginates
   const displayData = usersList;
 
+  const ownUserStatusMessage = "No puedes desactivar tu propio usuario";
 
+  const getServerErrorMessage = (error: unknown, fallback: string) => {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      typeof error.response === "object" &&
+      error.response !== null &&
+      "data" in error.response &&
+      typeof error.response.data === "object" &&
+      error.response.data !== null &&
+      "message" in error.response.data
+    ) {
+      const message = error.response.data.message;
+      return Array.isArray(message) ? message[0] : String(message);
+    }
+
+    return fallback;
+  };
 
   const handleConfirmDelete = async () => {
     if (!userToDelete) return;
+
+    if (userToDelete.id === user?.id) {
+      showToast(ownUserStatusMessage, "error");
+      setUserToDelete(null);
+      return;
+    }
     
     try {
       // Si el usuario ya está inactivo, el toggle lo activaría.
@@ -71,19 +99,24 @@ export default function UsersPage() {
       }
       refetch();
     } catch (err) {
-      showToast(t.users.states.error_delete, "error");
+      showToast(getServerErrorMessage(err, t.users.states.error_delete), "error");
     } finally {
       setUserToDelete(null);
     }
   };
 
-  const handleToggleStatus = async (user: User) => {
+  const handleToggleStatus = async (targetUser: User) => {
+    if (targetUser.id === user?.id && targetUser.is_active) {
+      showToast(ownUserStatusMessage, "error");
+      return;
+    }
+
     try {
-      await usersService.toggleStatus(user.id);
-      showToast(user.is_active ? "Usuario desactivado" : "Usuario activado", "success");
+      await usersService.toggleStatus(targetUser.id);
+      showToast(targetUser.is_active ? "Usuario desactivado" : "Usuario activado", "success");
       refetch();
     } catch (err) {
-      showToast("Error al cambiar estado", "error");
+      showToast(getServerErrorMessage(err, "Error al cambiar estado"), "error");
     }
   };
 
@@ -261,7 +294,10 @@ export default function UsersPage() {
     <div className="flex flex-col space-y-8">
       <FiltersBar
         searchPlaceholder={t.users.search_placeholder}
-        onSearchChange={setSearch}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
         showQuickFilters={false}
         hasExternalFilter={!!activeSortKey}
         onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}

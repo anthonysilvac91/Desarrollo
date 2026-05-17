@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem("access_token");
       if (!token) {
         setUser(null);
+        Cookies.remove("access_token");
         queryClient.clear();
         setLoading(false);
         return;
