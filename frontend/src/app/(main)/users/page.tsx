@@ -6,6 +6,7 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import UserModal from "@/components/users/UserModal";
+import UserDrawer from "@/components/users/UserDrawer";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
@@ -23,6 +24,7 @@ export default function UsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
@@ -299,17 +301,23 @@ export default function UsersPage() {
           </ModuleContainer>
         ) : (
           <ModuleContainer>
-            <DataTable 
-              data={displayData} 
-              columns={columns} 
+            <DataTable
+              data={displayData}
+              columns={columns}
               keyExtractor={(item) => item.id}
               footer={pagination}
+              onRowClick={(item) => setSelectedUser(item)}
             />
           </ModuleContainer>
         )}
       </div>
 
-      <UserModal 
+      <UserDrawer
+        user={selectedUser}
+        onClose={() => setSelectedUser(null)}
+      />
+
+      <UserModal
         isOpen={isModalOpen} 
         onClose={() => { setIsModalOpen(false); setEditingUser(null); }} 
         onSuccess={() => {

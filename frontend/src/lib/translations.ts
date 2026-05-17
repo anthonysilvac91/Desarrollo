@@ -235,7 +235,12 @@ export const translations = {
         error_invite: "Error registering user.",
         error_update: "Error updating user.",
         error_delete: "Error deleting user.",
-      }
+      },
+      drawer: {
+        services_label: "Services performed",
+        empty_title: "No services recorded",
+        empty_subtitle: "This user has not performed any services yet.",
+      },
     },
     organizations: {
       search_placeholder: "Search organizations...",
@@ -714,7 +719,12 @@ export const translations = {
         error_invite: "Error al procesar la solicitud.",
         error_update: "Error al actualizar el usuario.",
         error_delete: "Error al eliminar el usuario.",
-      }
+      },
+      drawer: {
+        services_label: "Servicios realizados",
+        empty_title: "Sin servicios registrados",
+        empty_subtitle: "Este usuario aún no ha realizado ningún servicio.",
+      },
     },
     organizations: {
       search_placeholder: "Buscar organización...",

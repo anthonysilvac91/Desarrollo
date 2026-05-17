@@ -172,6 +172,7 @@ export class ServicesService {
     }
     
     if (query.asset_id) whereClause.asset_id = query.asset_id;
+    if (query.worker_id) whereClause.worker_id = query.worker_id;
 
     if (query.startDate && query.endDate) {
       const start = new Date(query.startDate);
