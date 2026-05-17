@@ -223,7 +223,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
 
           {isSuperAdmin && formData.role !== "SUPER_ADMIN" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">OrganizaciÃ³n</label>
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.organization}</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
                   <Building2 className="h-5 w-5 opacity-30" />
@@ -234,7 +234,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
                   value={formData.organization_id}
                   onChange={(e) => setFormData({ ...formData, organization_id: e.target.value, owner_id: "" })}
                 >
-                  <option value="" disabled>Selecciona una organizaciÃ³n...</option>
+                  <option value="" disabled>{t.users.modal.organization_placeholder}</option>
                   {organizations.map((org) => (
                     <option key={org.id} value={org.id}>{org.name}</option>
                   ))}
@@ -259,7 +259,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
                   value={formData.owner_id}
                   onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
                 >
-                  <option value="" disabled>Selecciona un owner...</option>
+                  <option value="" disabled>{t.users.modal.owner_select_placeholder}</option>
                   {owners.map((owner) => (
                     <option key={owner.id} value={owner.id}>{owner.name}</option>
                   ))}
@@ -280,7 +280,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
                   onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
                   className="w-full px-6 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold text-sm flex items-center justify-between focus:outline-none focus:border-brand transition-all"
                 >
-                  <span>{formData.role}</span>
+                  <span>{t.users.modal.roles[formData.role.toLowerCase() as keyof typeof t.users.modal.roles] ?? formData.role}</span>
                   <ChevronDown className={`w-4 h-4 text-subtitle transition-transform duration-300 ${isRoleDropdownOpen ? "rotate-180" : ""}`} />
                 </button>
 
@@ -289,9 +289,9 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
                     <div className="fixed inset-0 z-10" onClick={() => setIsRoleDropdownOpen(false)} />
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border-theme/40 rounded-2xl shadow-2xl z-20 py-2 animate-in fade-in zoom-in-95 duration-200">
                       {[
-                        { id: "ADMIN", label: "Administrador" },
-                        { id: "WORKER", label: "Operador/Trabajador" },
-                        { id: "EXTERNAL", label: "Usuario Externo" }
+                        { id: "ADMIN", label: t.users.modal.roles.admin },
+                        { id: "WORKER", label: t.users.modal.roles.worker },
+                        { id: "EXTERNAL", label: t.users.modal.roles.external }
                       ].map((role) => (
                         <button
                           key={role.id}

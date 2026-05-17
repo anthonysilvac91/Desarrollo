@@ -177,6 +177,14 @@ export const translations = {
         password: "Password",
         submit: "Create User",
         submit_edit: "Save Changes",
+        organization: "Organization",
+        organization_placeholder: "Select an organization...",
+        owner_select_placeholder: "Select an owner...",
+        roles: {
+          admin: "Admin",
+          worker: "Worker",
+          external: "External",
+        },
       },
       pagination: {
         showing: "Showing",
@@ -616,6 +624,14 @@ export const translations = {
         password: "Contraseña",
         submit: "Enviar Invitación",
         submit_edit: "Guardar Cambios",
+        organization: "Organización",
+        organization_placeholder: "Selecciona una organización...",
+        owner_select_placeholder: "Selecciona un owner...",
+        roles: {
+          admin: "Administrador",
+          worker: "Operador",
+          external: "Externo",
+        },
       },
       pagination: {
         showing: "Mostrando",
