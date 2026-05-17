@@ -97,6 +97,10 @@ export class OrganizationsService {
     ensureNoManualFileUrl(dto.logo_url, 'Logo de organizacion');
     delete data.logo_url;
 
+    if (typeof data.show_org_name === 'string') {
+      data.show_org_name = data.show_org_name === 'true';
+    }
+
     if (logoFile) {
       const imageInfo = validateImageFile(logoFile, {
         maxBytes: 2 * 1024 * 1024,

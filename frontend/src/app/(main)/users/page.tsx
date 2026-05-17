@@ -14,6 +14,7 @@ import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Shield, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight } from "lucide-react";
+import { formatDate } from "@/lib/formatDate";
 
 export default function UsersPage() {
   const { t } = useLanguage();
@@ -87,12 +88,14 @@ export default function UsersPage() {
 
 
   const columns: ColumnDef<User>[] = [
-    { 
-      key: "name", 
+    {
+      key: "name",
       header: t.users.table.name,
+      sortable: true,
+      sortValue: (item) => item.name,
       cell: (item) => (
         <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand flex-shrink-0 font-black text-xs border border-brand/5 overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0 font-black text-xs border border-brand/5 overflow-hidden">
             {item.avatar_url ? (
               <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
             ) : (
@@ -109,9 +112,11 @@ export default function UsersPage() {
         </div>
       )
     },
-    { 
-      key: "role", 
+    {
+      key: "role",
       header: t.users.table.role,
+      sortable: true,
+      sortValue: (item) => item.role,
       cell: (item) => {
         const roleStyles: Record<string, string> = {
           SUPER_ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
@@ -135,9 +140,11 @@ export default function UsersPage() {
         );
       }
     },
-    { 
-      key: "owner", 
+    {
+      key: "owner",
       header: t.users.table.owner,
+      sortable: true,
+      sortValue: (item) => item.organization?.name || item.owner?.name || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />
@@ -145,15 +152,17 @@ export default function UsersPage() {
         </div>
       )
     },
-    { 
-      key: "status", 
+    {
+      key: "status",
       header: t.users.table.status,
       align: "center",
+      sortable: true,
+      sortValue: (item) => (item.is_active ? 1 : 0),
       cell: (item) => {
         const isActive = item.is_active;
         return (
           <div className="flex items-center justify-center">
-            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-[0.1em] text-[13px] ${isActive ? 'text-emerald-500' : 'text-subtitle/30'}`}>
+            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-widest text-[13px] ${isActive ? 'text-emerald-500' : 'text-subtitle/30'}`}>
               <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-subtitle/20'}`} />
               <span>{isActive ? t.common.active : t.common.inactive}</span>
             </div>
@@ -161,15 +170,17 @@ export default function UsersPage() {
         );
       }
     },
-    { 
-      key: "last_access", 
+    {
+      key: "last_access",
       header: t.users.table.last_access,
       align: "center",
+      sortable: true,
+      sortValue: (item) => item.last_login_at || "",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2 text-brand" />
           <span className="font-semibold text-sm">
-            {item.last_login_at ? item.last_login_at.slice(0, 10) : "---"}
+            {item.last_login_at ? formatDate(item.last_login_at) : "---"}
           </span>
         </div>
       )
@@ -261,7 +272,7 @@ export default function UsersPage() {
         }
       />
 
-      <div className="flex-1 min-h-[400px]">
+      <div className="flex-1 min-h-100">
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />

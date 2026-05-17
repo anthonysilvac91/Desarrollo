@@ -9,7 +9,7 @@ export interface User {
   owner_id?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
-  organization?: { id?: string; name: string; slug?: string } | null;
+  organization?: { id?: string; name: string; slug?: string; logo_url?: string | null; show_org_name?: boolean } | null;
   owner?: { id?: string; name: string } | null;
   is_active: boolean;
   last_login_at?: string | null;

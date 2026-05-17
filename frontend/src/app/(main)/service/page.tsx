@@ -95,9 +95,11 @@ export default function ServicesPage() {
   };
 
   const columns: ColumnDef<Service>[] = [
-    { 
-      key: "service", 
+    {
+      key: "service",
       header: t.services.table.service,
+      sortable: true,
+      sortValue: (item) => item.title,
       cell: (item) => (
         <div className="flex items-center space-x-4">
           <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand flex-shrink-0">
@@ -109,9 +111,11 @@ export default function ServicesPage() {
         </div>
       )
     },
-    { 
-      key: "asset", 
+    {
+      key: "asset",
       header: t.services.table.asset,
+      sortable: true,
+      sortValue: (item) => item.asset?.name || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/80 font-semibold group cursor-pointer hover:text-brand transition-colors">
           <Ship className="w-4 h-4 mr-2 opacity-40" />
@@ -119,9 +123,11 @@ export default function ServicesPage() {
         </div>
       )
     },
-    { 
-      key: "worker", 
+    {
+      key: "worker",
       header: t.services.table.operator,
+      sortable: true,
+      sortValue: (item) => item.worker?.name || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <div className="w-6 h-6 rounded-full bg-app-bg border border-border-theme/40 flex items-center justify-center mr-2 overflow-hidden">
@@ -131,10 +137,12 @@ export default function ServicesPage() {
         </div>
       )
     },
-    { 
-      key: "date", 
+    {
+      key: "date",
       header: t.services.table.date,
       align: "center",
+      sortable: true,
+      sortValue: (item) => item.created_at,
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />

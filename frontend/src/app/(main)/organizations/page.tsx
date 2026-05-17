@@ -56,9 +56,11 @@ export default function OrganizationsPage() {
     {
       key: "name",
       header: t.sidebar.organizations.toUpperCase(),
+      sortable: true,
+      sortValue: (org) => org.name,
       cell: (org) => (
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center shrink-0 overflow-hidden">
             {org.logo_url ? (
               <img src={org.logo_url} alt={org.name} className="w-full h-full object-contain p-2" />
             ) : (
@@ -80,6 +82,8 @@ export default function OrganizationsPage() {
     {
       key: "status",
       header: t.organizations.table.status.toUpperCase(),
+      sortable: true,
+      sortValue: (org) => (org.is_active ? 1 : 0),
       cell: (org) => (
         <div className="flex items-center space-x-2">
           {org.is_active ? (
@@ -133,7 +137,7 @@ export default function OrganizationsPage() {
         }
       />
 
-      <div className="bg-white rounded-[32px] border border-border-theme/40 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-4xl border border-border-theme/40 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-brand mb-4" />

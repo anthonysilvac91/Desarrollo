@@ -54,12 +54,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Brand area */}
         <div className="h-20 flex items-center px-8 mb-4">
           {user?.organization?.logo_url ? (
-            <div className="w-full max-h-12 flex items-center justify-start overflow-hidden">
-              <img 
-                src={user.organization.logo_url} 
-                alt={user.organization.name || "Logo"} 
-                className="max-h-10 w-auto object-contain"
+            <div className="flex items-center space-x-3 min-w-0">
+              <img
+                src={user.organization.logo_url}
+                alt={user.organization.name || "Logo"}
+                className="max-h-10 w-auto object-contain shrink-0"
               />
+              <span className="font-bold text-sm text-title tracking-tight leading-tight line-clamp-2">
+                {user.organization.show_org_name ? user.organization.name : "Recall"}
+              </span>
             </div>
           ) : (
             <div className="flex items-center">
@@ -89,7 +92,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 }`}
               >
                 <Icon
-                  className={`flex-shrink-0 w-5 h-5 mr-3 transition-colors ${
+                  className={`shrink-0 w-5 h-5 mr-3 transition-colors ${
                     isActive ? "text-brand" : "text-subtitle opacity-50"
                   }`}
                 />

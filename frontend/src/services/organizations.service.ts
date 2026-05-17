@@ -11,6 +11,7 @@ export interface Organization {
   worker_edit_policy: string;
   worker_edit_window_hours?: number;
   worker_restricted_access: boolean;
+  show_org_name: boolean;
   is_active: boolean;
   created_at: string;
 }

@@ -79,6 +79,7 @@ export class AuthService {
             brand_color: true,
             logo_file_id: true,
             default_asset_icon: true,
+            show_org_name: true,
           },
         },
       },

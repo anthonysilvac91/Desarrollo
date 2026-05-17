@@ -102,9 +102,11 @@ export default function AssetsPage() {
   const displayData = filteredData;
 
   const columns: ColumnDef<Asset>[] = [
-    { 
-      key: "asset", 
+    {
+      key: "asset",
       header: t.assets.table.asset,
+      sortable: true,
+      sortValue: (item) => item.name,
       cell: (item) => (
         <div className="flex items-center space-x-5">
           <div className={`w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm flex-shrink-0 bg-app-bg flex items-center justify-center relative ${!item.is_active ? 'grayscale opacity-40' : ''}`}>
@@ -127,17 +129,21 @@ export default function AssetsPage() {
         </div>
       )
     },
-    { 
-      key: "owner", 
+    {
+      key: "owner",
       header: t.assets.table.owner,
+      sortable: true,
+      sortValue: (item) => item.owner?.name || "",
       cell: (item) => {
         const ownerName = item.owner?.name || "---";
         return <span className="font-bold text-subtitle/80 text-sm">{ownerName}</span>;
       }
     },
-    { 
-      key: "location", 
+    {
+      key: "location",
       header: t.assets.table.location,
+      sortable: true,
+      sortValue: (item) => item.location || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
           <MapPin className="w-4 h-4 mr-2 text-brand" />
@@ -145,10 +151,12 @@ export default function AssetsPage() {
         </div>
       )
     },
-    { 
-      key: "jobs", 
+    {
+      key: "jobs",
       header: t.assets.table.services,
       align: "center",
+      sortable: true,
+      sortValue: (item: any) => item._count?.services || 0,
       cell: (item: any) => (
         <div className="flex items-center justify-center">
           <span className="min-w-[50px] h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
@@ -157,10 +165,12 @@ export default function AssetsPage() {
         </div>
       )
     },
-    { 
-      key: "last_job", 
-      header: t.assets.table.last_service, 
+    {
+      key: "last_job",
+      header: t.assets.table.last_service,
       align: "center",
+      sortable: true,
+      sortValue: (item) => item.last_service?.date || "",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
           <Calendar className="w-4 h-4 mr-2" />

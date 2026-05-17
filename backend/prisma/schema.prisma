@@ -61,6 +61,7 @@ model Organization {
   worker_edit_policy       WorkerEditPolicy @default(TIME_WINDOW)
   worker_edit_window_hours Int?
   worker_restricted_access Boolean          @default(false)
+  show_org_name            Boolean          @default(false)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

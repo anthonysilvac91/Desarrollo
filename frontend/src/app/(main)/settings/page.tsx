@@ -80,6 +80,7 @@ export default function SettingsPage() {
   const [selectedPalette, setSelectedPalette] = useState<string | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
+  const [showOrgName, setShowOrgName] = useState(false);
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["my-organization"],
@@ -100,6 +101,7 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (org) {
       setOrgName(org.name || "");
+      setShowOrgName(org.show_org_name ?? false);
       if (org.logo_url) setLogoPreview(org.logo_url);
       if (org.brand_color) {
         const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
@@ -115,6 +117,7 @@ export default function SettingsPage() {
     if (selectedPalette) fd.append("brand_color", selectedPalette);
     if (selectedIcon) fd.append("default_asset_icon", selectedIcon);
     if (canEdit && orgName.trim()) fd.append("name", orgName.trim());
+    fd.append("show_org_name", String(showOrgName));
     mutation.mutate(fd);
   };
 
@@ -203,6 +206,23 @@ export default function SettingsPage() {
                             : "bg-app-bg/50 border-border-theme/40 opacity-70 cursor-default"
                         }`}
                       />
+                      <label className="flex items-center space-x-3 cursor-pointer group mt-2 pl-1">
+                        <div
+                          onClick={() => setShowOrgName(v => !v)}
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                            showOrgName ? "bg-brand border-brand" : "border-border-theme/40 bg-white"
+                          }`}
+                        >
+                          {showOrgName && (
+                            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold text-subtitle/60 group-hover:text-title transition-colors">
+                          {t.settings.owner_section.show_org_name}
+                        </span>
+                      </label>
                     </div>
                  </div>
 

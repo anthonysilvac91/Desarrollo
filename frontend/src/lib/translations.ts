@@ -39,6 +39,9 @@ export const translations = {
       go_back: "Go Back",
       logout: "Log out",
       unassigned: "Unassigned",
+      sort_column: "Sort column",
+      sorted_asc: "Sorted: A → Z",
+      sorted_desc: "Sorted: Z → A",
     },
     date_filters: {
       today: "Today",
@@ -320,6 +323,7 @@ export const translations = {
         logo: "Organization Logo",
         logo_help: "JPG, PNG or SVG. Max 1MB.",
         upload_logo: "UPLOAD LOGO",
+        show_org_name: "Show organization name next to logo",
       },
       asset_section: {
         title: "Asset Defaults",
@@ -523,6 +527,9 @@ export const translations = {
       go_back: "Volver",
       logout: "Cerrar sesion",
       unassigned: "Sin asignar",
+      sort_column: "Ordenar columna",
+      sorted_asc: "Ordenado: A → Z",
+      sorted_desc: "Ordenado: Z → A",
     },
     date_filters: {
       today: "Hoy",
@@ -804,6 +811,7 @@ export const translations = {
         logo: "Logo de Organización",
         logo_help: "JPG, PNG o SVG. Máx 1MB.",
         upload_logo: "SUBIR LOGO",
+        show_org_name: "Mostrar nombre de organización junto al logo",
       },
       asset_section: {
         title: "Íconos por Defecto",

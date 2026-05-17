@@ -1,4 +1,5 @@
 import { IsBoolean, IsEmpty, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { WorkerEditPolicy } from '@prisma/client';
 import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -41,4 +42,10 @@ export class UpdateOrganizationSettingsDto {
   @IsString()
   @IsOptional()
   default_asset_icon?: string;
+
+  @ApiPropertyOptional({ description: 'Si es true, muestra el nombre de la organización junto al logo en la UI.' })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  show_org_name?: boolean;
 }

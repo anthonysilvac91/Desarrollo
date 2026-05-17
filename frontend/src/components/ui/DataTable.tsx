@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
+import { ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { useLanguage } from "@/lib/LanguageContext";
 
 export interface ColumnDef<T> {
   key: string;
@@ -6,6 +8,8 @@ export interface ColumnDef<T> {
   cell?: (item: T) => React.ReactNode;
   align?: "left" | "center" | "right";
   width?: string;
+  sortable?: boolean;
+  sortValue?: (item: T) => string | number;
 }
 
 interface DataTableProps<T> {
@@ -13,8 +17,8 @@ interface DataTableProps<T> {
   columns: ColumnDef<T>[];
   keyExtractor?: (item: T) => string | number;
   emptyMessage?: string;
-  emptyState?: { title: string; subtitle: string }; // Support for rich empty states
-  isLoading?: boolean; // Support for loading states
+  emptyState?: { title: string; subtitle: string };
+  isLoading?: boolean;
   footer?: React.ReactNode;
   onRowClick?: (item: T) => void;
 }
@@ -29,6 +33,32 @@ export default function DataTable<T>({
   footer,
   onRowClick,
 }: DataTableProps<T>) {
+  const { t } = useLanguage();
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    if (!sortKey) return data;
+    const col = columns.find(c => c.key === sortKey);
+    return [...data].sort((a, b) => {
+      const av = col?.sortValue ? col.sortValue(a) : (a as any)[sortKey] ?? "";
+      const bv = col?.sortValue ? col.sortValue(b) : (b as any)[sortKey] ?? "";
+      const cmp = typeof av === "number" && typeof bv === "number"
+        ? av - bv
+        : String(av).localeCompare(String(bv));
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [data, sortKey, sortDir, columns]);
+
   return (
     <div className="flex flex-col min-h-0 bg-surface transition-colors">
       <div className="overflow-x-auto">
@@ -39,16 +69,39 @@ export default function DataTable<T>({
                 <th
                   key={col.key}
                   scope="col"
-                  className={`px-4 sm:px-10 py-6 text-${col.align || "left"} text-[13.5px] font-bold text-subtitle uppercase tracking-[0.1em] ${col.width || ""}`}
+                  className={`px-4 sm:px-10 py-6 text-${col.align || "left"} ${col.width || ""}`}
                 >
-                  {col.header}
+                  {col.sortable ? (
+                    <button
+                      onClick={() => handleSort(col.key)}
+                      title={sortKey === col.key ? (sortDir === "asc" ? t.common.sorted_asc : t.common.sorted_desc) : t.common.sort_column}
+                      className={`inline-flex items-center space-x-1.5 group transition-colors ${
+                        sortKey === col.key ? "text-brand" : "text-subtitle hover:text-title"
+                      }`}
+                    >
+                      <span className="text-[13.5px] font-bold uppercase tracking-widest">
+                        {col.header}
+                      </span>
+                      <span className={`transition-colors ${sortKey === col.key ? "text-brand" : "text-subtitle/30 group-hover:text-subtitle/60"}`}>
+                        {sortKey === col.key
+                          ? sortDir === "asc"
+                            ? <ChevronUp className="w-3.5 h-3.5" />
+                            : <ChevronDown className="w-3.5 h-3.5" />
+                          : <ChevronsUpDown className="w-3.5 h-3.5" />
+                        }
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="text-[13.5px] font-bold text-subtitle uppercase tracking-widest">
+                      {col.header}
+                    </span>
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-border-theme/30">
             {isLoading ? (
-              // Loading Skeletons
               Array.from({ length: 5 }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`}>
                   {columns.map((col) => (
@@ -58,7 +111,7 @@ export default function DataTable<T>({
                   ))}
                 </tr>
               ))
-            ) : data.length === 0 ? (
+            ) : sortedData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-10 py-24">
                   <div className="flex flex-col items-center justify-center text-center space-y-2">
@@ -74,15 +127,15 @@ export default function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
-                <tr 
-                  key={keyExtractor(item)} 
+              sortedData.map((item) => (
+                <tr
+                  key={keyExtractor(item)}
                   onClick={() => onRowClick?.(item)}
                   className={`transition-colors group ${onRowClick ? "cursor-pointer hover:bg-app-bg/40" : "hover:bg-app-bg/20"}`}
                 >
                   {columns.map((col) => (
                     <td
-                       key={`${keyExtractor(item)}-${col.key}`}
+                      key={`${keyExtractor(item)}-${col.key}`}
                       className={`px-4 sm:px-10 py-7 whitespace-nowrap text-base text-title font-medium text-${col.align || "left"}`}
                     >
                       {col.cell ? col.cell(item) : (item as Record<string, unknown>)[col.key] as React.ReactNode}
@@ -94,7 +147,7 @@ export default function DataTable<T>({
           </tbody>
         </table>
       </div>
-      
+
       {footer && (
         <div className="px-10 py-6 border-t border-border-theme/50 flex items-center justify-between bg-surface text-subtitle transition-colors">
           {footer}
