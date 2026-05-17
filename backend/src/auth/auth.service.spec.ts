@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -270,6 +270,17 @@ describe('AuthService', () => {
         role: 'EXTERNAL',
         owner_id: 'owner-db',
       });
+    });
+  });
+
+  // ─── register() — MVP disabled ───────────────────────────────────────────────
+
+  describe('register()', () => {
+    it('POST /auth/register devuelve ForbiddenException — disabled para MVP', async () => {
+      await expect(service.register({ token: 'any-token' })).rejects.toThrow(ForbiddenException);
+      await expect(service.register({ token: 'any-token' })).rejects.toThrow(
+        'Registration by invitation is disabled for MVP',
+      );
     });
   });
 

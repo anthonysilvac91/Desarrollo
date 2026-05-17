@@ -12,11 +12,6 @@ import { Loader2 } from "lucide-react";
 
 const OrgSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
-  slug: z
-    .string()
-    .min(3, "El slug debe tener al menos 3 caracteres")
-    .regex(/^[a-z0-9-]+$/, "Solo minusculas, numeros y guiones"),
-  admin_email: z.string().email("Correo de administrador invalido"),
 });
 
 type OrgFormData = z.infer<typeof OrgSchema>;
@@ -76,30 +71,6 @@ export default function OrganizationForm({ onSuccess }: OrganizationFormProps) {
           {...register("name")}
           placeholder="Ej: Oceanic Yachts"
           error={errors.name?.message}
-          className="h-14 px-5 rounded-2xl bg-app-bg border-none font-bold"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest ml-1">
-          Slug (URL)
-        </label>
-        <Input
-          {...register("slug")}
-          placeholder="oceanic-yachts"
-          error={errors.slug?.message}
-          className="h-14 px-5 rounded-2xl bg-app-bg border-none font-bold"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest ml-1">
-          Email del Administrador
-        </label>
-        <Input
-          {...register("admin_email")}
-          placeholder="admin@empresa.com"
-          error={errors.admin_email?.message}
           className="h-14 px-5 rounded-2xl bg-app-bg border-none font-bold"
         />
       </div>

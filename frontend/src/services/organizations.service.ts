@@ -3,7 +3,7 @@ import api from "@/lib/api";
 export interface Organization {
   id: string;
   name: string;
-  slug: string;
+  slug?: string;
   logo_url?: string;
   brand_color?: string;
   default_asset_icon?: string;
@@ -13,7 +13,6 @@ export interface Organization {
   worker_restricted_access: boolean;
   is_active: boolean;
   created_at: string;
-  initial_invitation_token?: string;
 }
 
 export const organizationsService = {
@@ -28,13 +27,8 @@ export const organizationsService = {
   },
 
   async create(data: any): Promise<Organization> {
-    const response = await api.post<any>("/organizations", data);
-    // El backend devuelve { organization: {...}, initial_invitation_token: "..." }
-    // Lo aplanamos para que el frontend lo use directamente
-    return {
-      ...response.data.organization,
-      initial_invitation_token: response.data.initial_invitation_token
-    };
+    const response = await api.post<{ organization: Organization }>("/organizations", data);
+    return response.data.organization;
   },
 
   async updateSettings(formData: FormData): Promise<Organization> {

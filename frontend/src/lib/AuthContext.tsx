@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Proteger rutas (Auth + Roles + Dispositivos)
   useEffect(() => {
     if (!loading) {
-      const isPublicPath = pathname === "/login" || pathname === "/register" || pathname === "/";
+      const isPublicPath = pathname === "/login" || pathname === "/";
       const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
       
       if (!user && !isPublicPath) {

@@ -1,12 +1,11 @@
-import { Injectable, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOrganizationSettingsDto } from './dto/update-organization-settings.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
-import * as crypto from 'crypto';
-import { Role, StoredFileKind } from '@prisma/client';
+import { StoredFileKind } from '@prisma/client';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildOrganizationLogoPath } from '../common/files/storage-paths';
@@ -58,36 +57,27 @@ export class OrganizationsService {
     return this.storageGovernance.reconcileOrganizationFiles(orgId, deleteOrphans);
   }
 
-  async create(dto: CreateOrganizationDto, superAdminId: string) {
-    const existingOrg = await this.prisma.organization.findUnique({ where: { slug: dto.slug } });
-    if (existingOrg) throw new ConflictException('El slug de organización ya existe');
+  private buildSlug(name: string): string {
+    const base = name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 36);
+    const suffix = Math.random().toString(36).substring(2, 8);
+    return `${base}-${suffix}`;
+  }
 
-    return this.prisma.$transaction(async (tx) => {
-      const org = await tx.organization.create({
-        data: {
-          name: dto.name,
-          slug: dto.slug,
-        }
-      });
+  async create(dto: CreateOrganizationDto) {
+    const slug = this.buildSlug(dto.name);
 
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
-
-      const invitation = await tx.invitation.create({
-        data: {
-          organization_id: org.id,
-          email: dto.admin_email,
-          role: Role.ADMIN,
-          token: token,
-          invited_by_id: superAdminId,
-          expires_at: expiresAt,
-        }
-      });
-
-      this.logger.log(`Organization created: [${org.slug}] ${org.name} - Initial Admin Email: ${dto.admin_email}`);
-      return { organization: org, initial_invitation_token: invitation.token };
+    const org = await this.prisma.organization.create({
+      data: { name: dto.name, slug },
     });
+
+    this.logger.log(`Organization created: ${org.name}`);
+    return { organization: org };
   }
 
   async toggleStatus(id: string, is_active: boolean) {

@@ -19,7 +19,7 @@ export class ServicesController {
   @ApiOperation({ summary: 'Registrar un servicio ejecutado', description: 'Crea el servicio y aplica visibilidad según la configuración de la organización.' })
   @UseInterceptors(FilesInterceptor('files', 10, imageUploadOptions(10 * 1024 * 1024)))
   create(@Body() createServiceDto: CreateServiceDto, @Request() req, @UploadedFiles() files: Express.Multer.File[]) {
-    if (!['ADMIN', 'WORKER'].includes(req.user.role)) {
+    if (!['SUPER_ADMIN', 'ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para registrar servicios');
     }
     return this.servicesService.create(createServiceDto, req.user, files);

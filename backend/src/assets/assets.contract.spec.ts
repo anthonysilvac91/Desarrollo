@@ -1,4 +1,4 @@
-import { RequestMethod } from '@nestjs/common';
+import { ForbiddenException, RequestMethod } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { AssetsController } from './assets.controller';
 
@@ -18,6 +18,15 @@ describe('AssetsController public route contract', () => {
       { path: ':id/owners/:ownerId', method: RequestMethod.POST },
       { path: ':id/owners/:ownerId', method: RequestMethod.DELETE },
     ]));
+  });
+
+  it('EXTERNAL recibe ForbiddenException al intentar crear activo', () => {
+    const assetsService = { create: jest.fn() } as any;
+    const controller = new AssetsController(assetsService);
+    const req = { user: { role: 'EXTERNAL', orgId: 'org-1' } };
+
+    expect(() => controller.create({} as any, req as any, undefined)).toThrow(ForbiddenException);
+    expect(assetsService.create).not.toHaveBeenCalled();
   });
 
   it('assigns and removes owners through the canonical service calls', () => {

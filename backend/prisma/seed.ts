@@ -9,6 +9,8 @@ async function main() {
   // Limpieza en cascada inversa a dependencias.
   await prisma.serviceAttachment.deleteMany();
   await prisma.service.deleteMany();
+  await prisma.workerAssetAccess.deleteMany();
+  await prisma.invitation.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.user.deleteMany();
   await prisma.storedFile.deleteMany();

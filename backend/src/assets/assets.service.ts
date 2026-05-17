@@ -75,6 +75,9 @@ export class AssetsService {
       throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
     const ownerId = createAssetDto.owner_id ?? null;
+    if (orgId && dtoOrgId && dtoOrgId !== orgId) {
+      throw new BadRequestException('No puedes crear un activo en otra organización');
+    }
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
     let thumbnail_url: string | undefined;
@@ -82,7 +85,7 @@ export class AssetsService {
     ensureNoManualFileUrl(createAssetDto.thumbnail_url, 'Thumbnail del activo');
 
     if (!targetOrgId) {
-      throw new Error('Es necesario especificar una organizaciÃ³n para el activo');
+      throw new BadRequestException('Es necesario especificar una organización para el activo');
     }
 
     if (!ownerId) {
@@ -162,7 +165,7 @@ export class AssetsService {
     return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
   }
 
-  async findAll(query: any, orgId: string, role: string, userId: string, ownerId?: string) {
+  async findAll(query: any, orgId: string, role: string, ownerId?: string) {
     const include = {
       organization: { select: { name: true } },
       owner: { select: { id: true, name: true } },
@@ -185,16 +188,6 @@ export class AssetsService {
         return [];
       }
       baseWhere.owner_id = ownerId;
-    }
-
-    if (role === 'WORKER') {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: orgId },
-        select: { worker_restricted_access: true },
-      });
-      if (org?.worker_restricted_access) {
-        baseWhere.worker_access = { some: { worker_id: userId } };
-      }
     }
 
     if (query.search) {
@@ -268,29 +261,6 @@ export class AssetsService {
 
     if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
       throw new NotFoundException('Activo no encontrado o sin acceso');
-    }
-
-    if (user.role === 'WORKER') {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: asset.organization_id },
-        select: { worker_restricted_access: true },
-      });
-
-      if (org?.worker_restricted_access) {
-        const hasAccess = await this.prisma.workerAssetAccess.findUnique({
-          where: {
-            worker_id_asset_id: {
-              worker_id: user.id,
-              asset_id: asset.id,
-            },
-          },
-          select: { worker_id: true },
-        });
-
-        if (!hasAccess) {
-          throw new NotFoundException('Activo no encontrado o sin acceso');
-        }
-      }
     }
 
     if (isExternalRole(user.role)) {

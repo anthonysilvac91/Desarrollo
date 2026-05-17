@@ -32,7 +32,6 @@ export class AssetsController {
       query,
       req.user.orgId,
       req.user.role,
-      req.user.id,
       req.user.owner_id ?? undefined,
     );
   }

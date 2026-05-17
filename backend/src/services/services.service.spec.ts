@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
 
-describe('ServicesService.create - Auto Publish Logic', () => {
+describe('ServicesService', () => {
   let service: ServicesService;
   let prisma: PrismaService;
 
@@ -13,7 +14,6 @@ describe('ServicesService.create - Auto Publish Logic', () => {
     const prismaMock = {
       organization: { findUnique: jest.fn() },
       asset: { findFirst: jest.fn() },
-      workerAssetAccess: { findUnique: jest.fn() },
       service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
 
@@ -23,7 +23,14 @@ describe('ServicesService.create - Auto Publish Logic', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() } },
         { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
-        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn(), resolveFileUrlOrRef: jest.fn(), registerFile: jest.fn(), registerUploadedFile: jest.fn(), deleteStoredFileAndBlob: jest.fn() } },
+        {
+          provide: StoredFilesService,
+          useValue: {
+            resolveFileUrl: jest.fn(),
+            registerUploadedFile: jest.fn(),
+            deleteStoredFileAndBlob: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -31,135 +38,147 @@ describe('ServicesService.create - Auto Publish Logic', () => {
     prisma = module.get<PrismaService>(PrismaService);
   });
 
-  it('Deberia setear is_public = true si la Organization tiene auto_publish_services = true', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-      id: 'org-1',
-      auto_publish_services: true,
-      worker_restricted_access: false,
-      worker_edit_policy: 'TIME_WINDOW',
-    } as any);
-    jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
+  describe('create()', () => {
+    it('is_public = true si auto_publish_services = true', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: true } as any);
+      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
 
-    jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+      const result = await service.create(
+        { asset_id: 'asset-1', title: 'Test' },
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+      );
 
-    const result = await service.create(
-      { asset_id: 'asset-1', title: 'Test Service', description: 'Desc' },
-      { id: 'worker-1', orgId: 'org-1' }
-    );
-
-    expect(result.is_public).toBe(true);
-    expect(prisma.service.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ is_public: true })
-    }));
-  });
-
-  it('Deberia setear is_public = false si la Organization define visibilidad restringida', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-      id: 'org-1',
-      auto_publish_services: false,
-      worker_restricted_access: false,
-    } as any);
-    jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-2' } as any);
-
-    jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
-
-    const result = await service.create(
-      { asset_id: 'asset-2', title: 'Test Service 2' },
-      { id: 'worker-1', orgId: 'org-1' }
-    );
-
-    expect(result.is_public).toBe(false);
-  });
-
-  describe('findAll - Role-based Scoping and Tenant Isolation', () => {
-    it('Deberia forzar organization_id para cualquier rol (Aislamiento Multi-tenant)', async () => {
-      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      await service.findAll({}, { id: 'worker-1', orgId: 'org-tenant-xx', role: 'WORKER' });
-      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ organization_id: 'org-tenant-xx' })
+      expect(result.is_public).toBe(true);
+      expect(prisma.service.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ is_public: true }),
       }));
     });
 
-    it('Deberia inyectar is_public = true y status = COMPLETED obligatoriamente si es EXTERNAL', async () => {
+    it('is_public = false si auto_publish_services = false', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-2' } as any);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: false } as any);
+      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+
+      const result = await service.create(
+        { asset_id: 'asset-2', title: 'Test 2' },
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+      );
+
+      expect(result.is_public).toBe(false);
+    });
+
+    it('SUPER_ADMIN: usa organization_id del asset, no user.orgId', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({
+        id: 'asset-sa', organization_id: 'org-target',
+      } as any);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: false } as any);
+      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+
+      const result = await service.create(
+        { asset_id: 'asset-sa', title: 'SA Service' },
+        { id: 'super-1', orgId: null, role: 'SUPER_ADMIN' },
+      );
+
+      expect(prisma.asset.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.not.objectContaining({ organization_id: expect.anything() }),
+      }));
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'org-target' },
+      }));
+      expect(result.organization_id).toBe('org-target');
+    });
+
+    it('SUPER_ADMIN: lanza BadRequestException si el asset no existe', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue(null);
+
+      await expect(
+        service.create(
+          { asset_id: 'no-existe', title: 'X' },
+          { id: 'super-1', orgId: null, role: 'SUPER_ADMIN' },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('WORKER: lanza BadRequestException si el asset no pertenece a su org', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue(null);
+
+      await expect(
+        service.create(
+          { asset_id: 'asset-otro', title: 'X' },
+          { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('findAll()', () => {
+    it('no-SUPER_ADMIN: filtra siempre por organization_id (tenant isolation)', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      await service.findAll({}, { id: 'external-1', orgId: 'org-tenant-xx', role: 'EXTERNAL', owner_id: 'owner-123' });
+
+      await service.findAll({}, { id: 'worker-1', orgId: 'org-abc', role: 'WORKER' });
+
+      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ organization_id: 'org-abc' }),
+      }));
+    });
+
+    it('WORKER: no aplica filtro WorkerAssetAccess (MVP)', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+
+      await service.findAll({}, { id: 'worker-1', orgId: 'org-1', role: 'WORKER' });
+
+      const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
+      expect(JSON.stringify(call.where)).not.toContain('worker_access');
+    });
+
+    it('EXTERNAL: filtra por is_public, status COMPLETED y owner_id del asset', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+
+      await service.findAll(
+        {},
+        { id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL', owner_id: 'owner-123' },
+      );
+
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          organization_id: 'org-tenant-xx',
           is_public: true,
           status: 'COMPLETED',
-          asset: { owner_id: 'owner-123' }
-        })
+          asset: { owner_id: 'owner-123' },
+        }),
       }));
     });
 
-    it('Un EXTERNAL no deberia ver servicios de otros owners aunque compartan Organizacion', async () => {
-      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      const myOwnerId = 'owner-a';
-
-      await service.findAll({}, { id: 'user-a', orgId: 'org-1', role: 'EXTERNAL', owner_id: myOwnerId });
-
-      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          asset: { owner_id: myOwnerId }
-        })
-      }));
-    });
-
-    it('Un EXTERNAL sin owner_id no debe ver servicios del tenant', async () => {
-      const result = await service.findAll({}, { id: 'external-1', orgId: 'org-1', role: 'EXTERNAL' });
+    it('EXTERNAL sin owner_id retorna vacío sin consultar DB', async () => {
+      const result = await service.findAll(
+        {},
+        { id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL' },
+      );
 
       expect(result).toEqual([]);
       expect(prisma.service.findMany).not.toHaveBeenCalled();
     });
 
-    it('Un WORKER restringido solo lista servicios de assets asignados', async () => {
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-        worker_restricted_access: true,
-      } as any);
+    it('SUPER_ADMIN: no filtra por organization_id', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
 
-      await service.findAll({}, { id: 'worker-1', orgId: 'org-1', role: 'WORKER' });
+      await service.findAll({}, { id: 'super-1', orgId: null, role: 'SUPER_ADMIN' });
 
-      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          organization_id: 'org-1',
-          asset: { worker_access: { some: { worker_id: 'worker-1' } } },
-        }),
-      }));
+      const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where).not.toHaveProperty('organization_id');
     });
   });
 
-  describe('update (Admin flow)', () => {
-    it('Deberia permitir al Admin actualizar un servicio y setear admin_intervened = true', async () => {
-      jest.spyOn(prisma.service, 'findUnique').mockResolvedValue({ id: 'service-1', organization_id: 'org-1' } as any);
+  describe('update()', () => {
+    it('ADMIN puede actualizar un servicio y setea admin_intervened = true', async () => {
+      jest.spyOn(prisma.service, 'findUnique').mockResolvedValue({ id: 'svc-1', organization_id: 'org-1' } as any);
       jest.spyOn(prisma.service, 'update').mockResolvedValue({} as any);
 
-      await service.update('service-1', { title: 'Nuevo', status: 'ARCHIVED' }, 'org-1');
+      await service.update('svc-1', { title: 'Nuevo', status: 'ARCHIVED' }, 'org-1');
 
       expect(prisma.service.update).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: 'service-1' },
-        data: expect.objectContaining({ title: 'Nuevo', status: 'ARCHIVED', admin_intervened: true })
+        data: expect.objectContaining({ title: 'Nuevo', status: 'ARCHIVED', admin_intervened: true }),
       }));
-    });
-  });
-
-  describe('findOne - Worker restricted access', () => {
-    it('Un WORKER restringido no puede ver servicios de assets no asignados', async () => {
-      jest.spyOn(prisma.service, 'findUnique').mockResolvedValue({
-        id: 'service-1',
-        organization_id: 'org-1',
-        is_public: true,
-        asset: { id: 'asset-1', owner_id: null },
-      } as any);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-        worker_restricted_access: true,
-      } as any);
-      jest.spyOn(prisma.workerAssetAccess, 'findUnique').mockResolvedValue(null);
-
-      await expect(
-        service.findOne('service-1', { id: 'worker-1', orgId: 'org-1', role: 'WORKER' }),
-      ).rejects.toThrow('Service no encontrado o acceso denegado');
     });
   });
 });

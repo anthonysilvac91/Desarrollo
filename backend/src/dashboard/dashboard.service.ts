@@ -34,10 +34,6 @@ export class DashboardService {
     const isWorker = currentUser.role === Role.WORKER;
     const isExternal = isExternalRole(currentUser.role);
     const currentOwnerId = currentUser.owner_id ?? null;
-    const restrictedWorkerAssetWhere =
-      isWorker
-        ? await this.buildRestrictedWorkerAssetWhere(currentUser.orgId, currentUser.id)
-        : undefined;
 
     if (isExternal && !currentOwnerId) {
       return this.emptyStats();
@@ -46,9 +42,6 @@ export class DashboardService {
     let statsWhere: any = { ...baseWhere };
     if (isWorker) {
       statsWhere.worker_id = currentUser.id;
-      if (restrictedWorkerAssetWhere) {
-        statsWhere.asset = restrictedWorkerAssetWhere;
-      }
     } else if (isExternal) {
       statsWhere.is_public = true;
       statsWhere.asset = { owner_id: currentOwnerId };
@@ -77,8 +70,6 @@ export class DashboardService {
       // Assets Count
       isExternal
         ? this.prisma.asset.count({ where: { ...baseWhere, owner_id: currentOwnerId } })
-        : restrictedWorkerAssetWhere
-          ? this.prisma.asset.count({ where: { ...baseWhere, ...restrictedWorkerAssetWhere } })
         : this.prisma.asset.count({ where: baseWhere }),
 
       // Services Count
@@ -157,21 +148,6 @@ export class DashboardService {
       top_workers: topWorkers,
       top_owners: [],
     };
-  }
-
-  private async buildRestrictedWorkerAssetWhere(orgId: string | undefined, userId: string) {
-    if (!orgId) return undefined;
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { worker_restricted_access: true },
-    });
-
-    if (!org?.worker_restricted_access) {
-      return undefined;
-    }
-
-    return { worker_access: { some: { worker_id: userId } } };
   }
 
   private emptyStats(): DashboardStatsDto {

@@ -10,7 +10,6 @@ describe('DashboardService tenant scoping', () => {
 
   beforeEach(async () => {
     const prismaMock = {
-      organization: { findUnique: jest.fn() },
       asset: { count: jest.fn() },
       service: {
         count: jest.fn(),
@@ -69,29 +68,36 @@ describe('DashboardService tenant scoping', () => {
     });
   });
 
-  it('WORKER restringido cuenta solo assets asignados', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-      worker_restricted_access: true,
-    } as any);
-    jest.spyOn(prisma.asset, 'count').mockResolvedValue(1);
-    jest.spyOn(prisma.service, 'count').mockResolvedValue(1);
+  it('WORKER ve todos los assets de su org sin filtro WorkerAssetAccess (MVP)', async () => {
+    jest.spyOn(prisma.asset, 'count').mockResolvedValue(5);
+    jest.spyOn(prisma.service, 'count').mockResolvedValue(3);
     jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
     jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
 
     await service.getStats({ id: 'worker-1', role: Role.WORKER, orgId: 'org-1' });
 
     expect(prisma.asset.count).toHaveBeenCalledWith({
-      where: {
-        organization_id: 'org-1',
-        worker_access: { some: { worker_id: 'worker-1' } },
-      },
+      where: { organization_id: 'org-1' },
     });
-    expect(prisma.service.count).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        organization_id: 'org-1',
-        worker_id: 'worker-1',
-        asset: { worker_access: { some: { worker_id: 'worker-1' } } },
+    const assetCountCall = (prisma.asset.count as jest.Mock).mock.calls[0][0];
+    expect(JSON.stringify(assetCountCall.where)).not.toContain('worker_access');
+  });
+
+  it('WORKER: las métricas de servicios se filtran por su worker_id (solo sus servicios)', async () => {
+    jest.spyOn(prisma.asset, 'count').mockResolvedValue(5);
+    jest.spyOn(prisma.service, 'count').mockResolvedValue(2);
+    jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+    jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
+
+    await service.getStats({ id: 'worker-1', role: Role.WORKER, orgId: 'org-1' });
+
+    expect(prisma.service.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organization_id: 'org-1',
+          worker_id: 'worker-1',
+        }),
       }),
-    });
+    );
   });
 });

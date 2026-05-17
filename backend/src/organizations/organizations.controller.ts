@@ -55,10 +55,10 @@ export class OrganizationsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crear nueva organizacion e invitar al Admin inicial (Solo SUPER_ADMIN)' })
+  @ApiOperation({ summary: 'Crear nueva organizacion (Solo SUPER_ADMIN)' })
   create(@Body() dto: CreateOrganizationDto, @Request() req) {
     if (req.user.role !== 'SUPER_ADMIN') throw new ForbiddenException('Solo SUPER_ADMIN puede crear organizaciones');
-    return this.orgService.create(dto, req.user.id);
+    return this.orgService.create(dto);
   }
 
   @Patch(':id/status')

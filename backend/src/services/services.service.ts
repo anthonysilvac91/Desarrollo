@@ -59,47 +59,36 @@ export class ServicesService {
   }
 
   async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
+    let serviceOrgId: string;
+
+    if (user.role === 'SUPER_ADMIN') {
+      const asset = await this.prisma.asset.findFirst({
+        where: { id: createServiceDto.asset_id, is_active: true },
+        select: { id: true, organization_id: true },
+      });
+      if (!asset) throw new BadRequestException('El activo indicado no existe');
+      serviceOrgId = asset.organization_id;
+    } else {
+      const asset = await this.prisma.asset.findFirst({
+        where: { id: createServiceDto.asset_id, organization_id: user.orgId, is_active: true },
+        select: { id: true },
+      });
+      if (!asset) throw new BadRequestException('El activo indicado no pertenece a tu organización');
+      serviceOrgId = user.orgId;
+    }
+
     const org = await this.prisma.organization.findUnique({
-      where: { id: user.orgId },
-      select: { auto_publish_services: true, worker_restricted_access: true }
+      where: { id: serviceOrgId },
+      select: { auto_publish_services: true }
     });
     if (!org) throw new NotFoundException('Organization not found');
-
-    const asset = await this.prisma.asset.findFirst({
-      where: {
-        id: createServiceDto.asset_id,
-        organization_id: user.orgId,
-        is_active: true,
-      },
-      select: { id: true },
-    });
-
-    if (!asset) {
-      throw new BadRequestException('El activo indicado no pertenece a tu organización');
-    }
-
-    if (user.role === 'WORKER' && org.worker_restricted_access) {
-      const hasAccess = await this.prisma.workerAssetAccess.findUnique({
-        where: {
-          worker_id_asset_id: {
-            worker_id: user.id,
-            asset_id: createServiceDto.asset_id,
-          },
-        },
-        select: { worker_id: true },
-      });
-
-      if (!hasAccess) {
-        throw new ForbiddenException('No tienes acceso a este activo');
-      }
-    }
 
     if (files && files.length > 10) {
       throw new BadRequestException('Solo puedes adjuntar hasta 10 imagenes por servicio');
     }
 
     const totalIncomingBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
-    await this.storageGovernance.assertCanStore(user.orgId, totalIncomingBytes);
+    await this.storageGovernance.assertCanStore(serviceOrgId, totalIncomingBytes);
 
     const serviceId = randomUUID();
     const attachments: Array<{
@@ -128,11 +117,11 @@ export class ServicesService {
         });
 
         const file_url = await this.storageService.uploadFile(file, {
-          folder: buildServiceAttachmentsPath(user.orgId, serviceId),
+          folder: buildServiceAttachmentsPath(serviceOrgId, serviceId),
           visibility: 'private',
         });
         const storedFile = await this.storedFilesService.registerUploadedFile({
-          organizationId: user.orgId,
+          organizationId: serviceOrgId,
           storageRef: file_url,
           originalName: file.originalname,
           mimeType: file.mimetype,
@@ -156,7 +145,7 @@ export class ServicesService {
         data: {
           id: serviceId,
           ...createServiceDto,
-          organization_id: user.orgId,
+          organization_id: serviceOrgId,
           worker_id: user.id,
           is_public: org.auto_publish_services,
           status: 'COMPLETED',
@@ -206,13 +195,6 @@ export class ServicesService {
       whereClause.is_public = true;
       whereClause.status = 'COMPLETED';
       whereClause.asset = { owner_id: currentOwnerId };
-    }
-
-    if (user.role === 'WORKER') {
-      const workerAssetWhere = await this.buildRestrictedWorkerAssetWhere(user.orgId, user.id);
-      if (workerAssetWhere) {
-        whereClause.asset = { ...(whereClause.asset ?? {}), ...workerAssetWhere };
-      }
     }
 
     if (query.search) {
@@ -306,10 +288,6 @@ export class ServicesService {
       }
     }
 
-    if (user.role === 'WORKER') {
-      await this.assertWorkerCanAccessAsset(user.orgId, user.id, service.asset.id);
-    }
-
     return this.resolveServiceFileUrls(this.mapServiceRelations(service));
   }
 
@@ -320,7 +298,6 @@ export class ServicesService {
       throw new NotFoundException('Service no encontrado');
     }
 
-    // Seguridad: Si no es Super Admin, debe pertenecer a su organización
     if (user.role !== 'SUPER_ADMIN' && service.organization_id !== user.orgId) {
       throw new ForbiddenException('Acceso denegado para eliminar este servicio');
     }
@@ -330,7 +307,6 @@ export class ServicesService {
       select: { file_id: true },
     });
 
-    // Eliminar primero los archivos adjuntos relacionados (Foreign Key)
     await this.prisma.serviceAttachment.deleteMany({
       where: { service_id: id }
     });
@@ -343,53 +319,9 @@ export class ServicesService {
       ),
     );
 
-    // Eliminar el servicio
     return this.prisma.service.delete({
       where: { id }
     });
   }
 
-  private async buildRestrictedWorkerAssetWhere(orgId: string | undefined, userId: string) {
-    if (!orgId) return undefined;
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { worker_restricted_access: true },
-    });
-
-    if (!org?.worker_restricted_access) {
-      return undefined;
-    }
-
-    return { worker_access: { some: { worker_id: userId } } };
-  }
-
-  private async assertWorkerCanAccessAsset(orgId: string | undefined, userId: string, assetId: string) {
-    if (!orgId) {
-      throw new NotFoundException('Service no encontrado o acceso denegado');
-    }
-
-    const org = await this.prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { worker_restricted_access: true },
-    });
-
-    if (!org?.worker_restricted_access) {
-      return;
-    }
-
-    const hasAccess = await this.prisma.workerAssetAccess.findUnique({
-      where: {
-        worker_id_asset_id: {
-          worker_id: userId,
-          asset_id: assetId,
-        },
-      },
-      select: { worker_id: true },
-    });
-
-    if (!hasAccess) {
-      throw new NotFoundException('Service no encontrado o acceso denegado');
-    }
-  }
 }
