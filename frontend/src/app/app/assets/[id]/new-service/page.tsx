@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle } from "lucide-react";
+import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle, Image as ImageIcon } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { Asset, assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
@@ -25,7 +25,9 @@ export default function WorkerNewServicePage() {
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImageSourceOpen, setIsImageSourceOpen] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   const cachedAsset = queryClient.getQueryData<Asset>(["asset", assetId]);
   const cachedAssets = queryClient.getQueryData<Asset[]>(["assets"]);
@@ -55,7 +57,8 @@ export default function WorkerNewServicePage() {
       }));
       setImages(prev => [...prev, ...newFiles]);
     }
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    e.target.value = "";
+    setIsImageSourceOpen(false);
   };
 
   const removeImage = (index: number) => {
@@ -186,24 +189,34 @@ export default function WorkerNewServicePage() {
               {images.length > 0 && <span className="bg-brand/10 text-brand px-2 py-0.5 rounded-full">{images.length}</span>}
             </h3>
             
-            <div className="flex overflow-x-auto pb-4 -mx-5 px-5 space-x-3 custom-scroll">
+                <div className="flex overflow-x-auto pb-4 -mx-5 px-5 space-x-3 custom-scroll">
                <button 
-                  onClick={() => !isSubmitting && fileInputRef.current?.click()}
+                  type="button"
+                  onClick={() => !isSubmitting && setIsImageSourceOpen(true)}
                   disabled={isSubmitting}
                   className="w-[90px] h-[90px] flex-shrink-0 bg-surface border-2 border-dashed border-brand/50 rounded-2xl flex flex-col items-center justify-center text-brand active:scale-95 transition-transform disabled:opacity-30"
                >
                  <Camera className="w-6 h-6 mb-1 opacity-80" />
                  <span className="text-[10px] font-black uppercase">{t.mobile.new_service.evidence_add}</span>
-                 <input 
-                   type="file" 
-                   accept="image/*" 
-                   capture="environment" 
-                   multiple 
-                   className="hidden" 
-                   ref={fileInputRef}
-                   onChange={handleFileChange}
-                 />
                </button>
+
+               <input 
+                 type="file" 
+                 accept="image/*" 
+                 capture="environment" 
+                 multiple 
+                 className="hidden" 
+                 ref={cameraInputRef}
+                 onChange={handleFileChange}
+               />
+               <input 
+                 type="file" 
+                 accept="image/*" 
+                 multiple 
+                 className="hidden" 
+                 ref={libraryInputRef}
+                 onChange={handleFileChange}
+               />
 
                {images.map((img, idx) => (
                  <div key={idx} className="w-[90px] h-[90px] flex-shrink-0 relative rounded-2xl overflow-hidden border border-border-theme/40">
@@ -226,10 +239,44 @@ export default function WorkerNewServicePage() {
                    <Camera className="w-5 h-5 opacity-40" />
                  </div>
                ))}
+           </div>
+         </div>
+       </div>
+      </main>
+
+      {isImageSourceOpen && (
+        <div className="absolute inset-0 z-[90] flex items-end">
+          <button
+            type="button"
+            className="absolute inset-0 bg-app-bg/60 backdrop-blur-sm"
+            onClick={() => setIsImageSourceOpen(false)}
+            aria-label="Cerrar selector de origen de imagen"
+          />
+
+          <div className="relative z-[91] w-full p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="rounded-[28px] bg-surface border border-border-theme/20 shadow-2xl p-3">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full flex items-center justify-between rounded-2xl px-4 py-4 text-left text-title active:scale-[0.99] transition-transform disabled:opacity-40"
+              >
+                <span className="font-bold">Tomar foto</span>
+                <Camera className="w-5 h-5 text-brand" />
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => libraryInputRef.current?.click()}
+                className="w-full flex items-center justify-between rounded-2xl px-4 py-4 text-left text-title active:scale-[0.99] transition-transform disabled:opacity-40"
+              >
+                <span className="font-bold">Elegir de biblioteca</span>
+                <ImageIcon className="w-5 h-5 text-brand" />
+              </button>
             </div>
           </div>
         </div>
-      </main>
+      )}
 
       {/* Persistent Save Button Container */}
       <div className="fixed bottom-0 w-full p-5 bg-gradient-to-t from-app-bg via-app-bg to-transparent pb-[calc(1.25rem+env(safe-area-inset-bottom))] z-10">
