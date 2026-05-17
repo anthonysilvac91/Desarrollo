@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // Otros roles -> Prohibido entrar a /app
           if (pathname.startsWith("/app")) {
-            if (user.role === "SUPER_ADMIN") router.replace("/organizations");
+            if (user.role === "SUPER_ADMIN") router.replace("/dashboard");
             else if (user.role === "ADMIN") router.replace("/dashboard");
             else router.replace("/assets");
             return;
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // B. Redirección desde login o home
         if (isPublicPath) {
-          if (user.role === "SUPER_ADMIN") router.push("/organizations");
+          if (user.role === "SUPER_ADMIN") router.push("/dashboard");
           else if (user.role === "ADMIN") router.push(isMobile ? "/app" : "/dashboard");
           else if (user.role === "WORKER") router.push(isMobile ? "/app" : "/assets");
           else router.push("/assets"); // EXTERNAL

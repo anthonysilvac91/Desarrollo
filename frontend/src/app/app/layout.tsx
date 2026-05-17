@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function getFallbackPath(role?: string) {
-  if (role === "SUPER_ADMIN") return "/organizations";
+  if (role === "SUPER_ADMIN") return "/dashboard";
   if (role === "ADMIN") return "/dashboard";
   return "/assets";
 }
