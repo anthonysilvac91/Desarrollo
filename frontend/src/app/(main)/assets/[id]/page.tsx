@@ -276,14 +276,29 @@ export default function AssetDetailPage() {
            <History className="w-4 h-4 mr-3 text-brand" />
            {t.assets.detail.activity_history}
         </h3>
-        {(selectedWorkers.length > 0 || datePreset || startDate || endDate) && (
-          <button 
-            onClick={clearFilters}
-            className="text-[10px] font-black text-brand uppercase tracking-widest hover:underline"
-          >
-            {t.assets.detail.clear_filters}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {canCreateService && user && (
+            <button
+              onClick={() => toggleWorker(user.name)}
+              title="Filtrar por mí"
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                selectedWorkers.includes(user.name)
+                  ? "bg-brand text-white shadow-lg shadow-brand/25 ring-2 ring-brand/30"
+                  : "bg-app-bg border border-border-theme/40 text-subtitle/60 hover:border-brand/40 hover:text-brand"
+              }`}
+            >
+              {user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+            </button>
+          )}
+          {(selectedWorkers.length > 0 || datePreset || startDate || endDate) && (
+            <button
+              onClick={clearFilters}
+              className="text-[10px] font-black text-brand uppercase tracking-widest hover:underline"
+            >
+              {t.assets.detail.clear_filters}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 4. MAIN GRID (Timeline + Advanced Filters Side) */}
