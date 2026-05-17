@@ -96,6 +96,8 @@ export const translations = {
         loading: "Loading...",
         all_loaded: "All history shown",
         see_entire_history: "See full history",
+        see_more_services: "See more",
+        view_full_history: "View full history",
         photo: "Photo"
       },
       detail: {
@@ -615,6 +617,8 @@ export const translations = {
         loading: "Cargando...",
         all_loaded: "Se muestra todo el historial",
         see_entire_history: "Ver historial completo",
+        see_more_services: "Ver más",
+        view_full_history: "Ver historial completo",
         photo: "Foto"
       },
       detail: {

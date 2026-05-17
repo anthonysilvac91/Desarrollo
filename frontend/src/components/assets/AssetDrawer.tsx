@@ -5,6 +5,7 @@ import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
 import { MapPin, Ship, Calendar, Camera, Loader2, Maximize2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
 import { Asset, assetsService, Service } from "@/services/assets.service";
 import { formatDate } from "@/lib/formatDate";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
@@ -41,11 +42,17 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const [fullAsset, setFullAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
+  const [visibleCount, setVisibleCount] = useState(4);
+  const [filterByMe, setFilterByMe] = useState(false);
+  const { user } = useAuth();
+  const canFilter = user?.role === "ADMIN" || user?.role === "WORKER";
   const { t } = useLanguage();
 
   useEffect(() => {
     if (initialAsset?.id) {
       setLoading(true);
+      setVisibleCount(4);
+      setFilterByMe(false);
       assetsService.findOne(initialAsset.id)
         .then(data => setFullAsset(data))
         .catch(err => console.error("Error loading asset detail:", err))
@@ -59,7 +66,10 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
 
   // Usar fullAsset si está disponible, si no el inicial
   const currentAsset = fullAsset || initialAsset;
-  const history = currentAsset.services || [];
+  const allHistory = currentAsset.services || [];
+  const history = filterByMe && user
+    ? allHistory.filter(s => s.worker.name === user.name)
+    : allHistory;
 
   // Left action for the drawer (Expand icon)
   const ExpandAction = (
@@ -117,13 +127,25 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
               {t.assets.drawer.maintenance_history}
             </h3>
-            {/* LINK REMOVED as requested */}
+            {canFilter && user && (
+              <button
+                onClick={() => { setFilterByMe(prev => !prev); setVisibleCount(4); }}
+                title="Filtrar por mí"
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                  filterByMe
+                    ? "bg-brand text-white shadow-lg shadow-brand/25 ring-2 ring-brand/30"
+                    : "bg-app-bg border border-border-theme/40 text-subtitle/60 hover:border-brand/40 hover:text-brand"
+                }`}
+              >
+                {user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+              </button>
+            )}
           </div>
 
           <div className="space-y-6">
             {loading ? (
               <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-brand/20" /></div>
-            ) : history.map((service) => (
+            ) : history.slice(0, visibleCount).map((service) => (
               <div 
                 key={service.id} 
                 onClick={() => setSelectedService(service)}
@@ -160,9 +182,27 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         </div>
 
         <div className="p-10 pt-4">
-          <div className="w-full py-4 text-center text-xs font-bold text-subtitle/30 border-2 border-dashed border-border-theme/40 rounded-2xl">
-            {t.assets.drawer.all_loaded}
-          </div>
+          {history.length > visibleCount ? (
+            visibleCount < 8 ? (
+              <button
+                onClick={() => setVisibleCount(8)}
+                className="w-full py-4 text-center text-xs font-black text-brand uppercase tracking-widest border-2 border-brand/20 rounded-2xl hover:bg-brand/5 transition-all"
+              >
+                {t.assets.drawer.see_more_services}
+              </button>
+            ) : (
+              <button
+                onClick={() => { onClose(); router.push(`/assets/${initialAsset.id}`); }}
+                className="w-full py-4 text-center text-xs font-black text-brand uppercase tracking-widest border-2 border-brand/20 rounded-2xl hover:bg-brand/5 transition-all"
+              >
+                {t.assets.drawer.view_full_history}
+              </button>
+            )
+          ) : (
+            <div className="w-full py-4 text-center text-xs font-bold text-subtitle/30 border-2 border-dashed border-border-theme/40 rounded-2xl">
+              {t.assets.drawer.all_loaded}
+            </div>
+          )}
         </div>
 
       </div>
