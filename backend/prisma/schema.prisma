@@ -123,14 +123,14 @@ model Asset {
   thumbnail_file_id String? @unique
   thumbnail_url     String?
   serial_number     String?
-  owner_id          String?
+  owner_id          String
   is_active         Boolean @default(true)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   organization   Organization        @relation(fields: [organization_id], references: [id])
-  owner          Owner?              @relation(fields: [owner_id], references: [id])
+  owner          Owner               @relation(fields: [owner_id], references: [id])
   thumbnail_file StoredFile?         @relation("AssetThumbnailFile", fields: [thumbnail_file_id], references: [id])
   services       Service[]
   worker_access  WorkerAssetAccess[]
@@ -140,6 +140,7 @@ model Asset {
   @@index([organization_id, owner_id])
   @@index([owner_id])
   @@index([is_active])
+  @@unique([id, organization_id])
 }
 
 model Service {
@@ -208,6 +209,7 @@ model Owner {
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([is_active])
+  @@unique([id, organization_id])
 }
 
 model StoredFile {
