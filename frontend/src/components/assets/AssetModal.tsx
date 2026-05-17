@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
-import { Camera, Ship, Loader2 } from "lucide-react";
+import { Camera, ImagePlus, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService } from "@/services/assets.service";
@@ -147,9 +147,8 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
               {preview ? (
                 <img src={preview} alt="Preview" className="w-full h-full object-cover" />
               ) : (
-                <div className="flex flex-col items-center text-subtitle/30">
-                  <Ship className="w-10 h-10 mb-1" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Photo</span>
+                <div className="flex flex-col items-center text-subtitle/20">
+                  <ImagePlus className="w-10 h-10" strokeWidth={1.25} />
                 </div>
               )}
             </div>

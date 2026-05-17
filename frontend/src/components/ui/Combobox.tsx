@@ -82,14 +82,18 @@ export default function Combobox({ options, value, onChange, placeholder, label,
           className="w-full pl-5 pr-12 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm"
           placeholder={placeholder}
         />
-        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-subtitle/30 transition-colors group-hover:text-subtitle/50">
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); setIsOpen(prev => !prev); }}
+          className="absolute inset-y-0 right-0 pr-4 flex items-center text-subtitle/30 hover:text-subtitle/60 transition-colors"
+        >
           <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-        </div>
+        </button>
       </div>
 
       {isOpen && (
         <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl border border-border-theme/60 shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="max-h-60 overflow-y-auto custom-scroll">
+          <div className="max-h-[148px] overflow-y-auto custom-scroll">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => (
                 <button
