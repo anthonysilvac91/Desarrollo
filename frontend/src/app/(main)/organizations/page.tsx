@@ -23,6 +23,8 @@ export default function OrganizationsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
 
   const { data: organizations = [], isLoading, refetch } = useQuery({
     queryKey: ["organizations"],
@@ -126,6 +128,8 @@ export default function OrganizationsPage() {
         searchPlaceholder={t.organizations.search_placeholder}
         onSearchChange={(v) => { setSearch(v); setPage(1); }}
         showQuickFilters={false}
+        hasExternalFilter={!!activeSortKey}
+        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
         actions={
           <button
             onClick={() => setIsModalOpen(true)}
@@ -156,6 +160,8 @@ export default function OrganizationsPage() {
             data={pageData}
             columns={columns}
             keyExtractor={(org) => org.id}
+            onSortChange={setActiveSortKey}
+            resetSortTrigger={resetKey}
             footer={
               <>
                 <div className="flex items-center space-x-3">

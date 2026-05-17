@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -21,6 +21,8 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   footer?: React.ReactNode;
   onRowClick?: (item: T) => void;
+  onSortChange?: (key: string | null) => void;
+  resetSortTrigger?: number;
 }
 
 export default function DataTable<T>({
@@ -32,17 +34,31 @@ export default function DataTable<T>({
   isLoading,
   footer,
   onRowClick,
+  onSortChange,
+  resetSortTrigger,
 }: DataTableProps<T>) {
   const { t } = useLanguage();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const prevResetTrigger = useRef(resetSortTrigger);
+
+  useEffect(() => {
+    if (resetSortTrigger !== prevResetTrigger.current) {
+      prevResetTrigger.current = resetSortTrigger;
+      setSortKey(null);
+      setSortDir("asc");
+      onSortChange?.(null);
+    }
+  }, [resetSortTrigger]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
+      const newDir = sortDir === "asc" ? "desc" : "asc";
+      setSortDir(newDir);
     } else {
       setSortKey(key);
       setSortDir("asc");
+      onSortChange?.(key);
     }
   };
 

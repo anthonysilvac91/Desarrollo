@@ -12,6 +12,9 @@ interface FiltersBarProps {
   // Visibility Controls
   showQuickFilters?: boolean;
   showSearch?: boolean;
+  // Clear all
+  hasExternalFilter?: boolean;
+  onClearAll?: () => void;
   // Others
   actions?: React.ReactNode;
 }
@@ -22,13 +25,18 @@ export default function FiltersBar({
   onDateChange,
   showQuickFilters = false,
   showSearch = true,
+  hasExternalFilter = false,
+  onClearAll,
   actions,
 }: FiltersBarProps) {
   const { t } = useLanguage();
+  const [searchValue, setSearchValue] = useState("");
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [customRange, setCustomRange] = useState({ start: "", end: "" });
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  const hasAnyFilter = !!searchValue || !!activePreset || hasExternalFilter;
 
   // Close popover when clicking outside
   useEffect(() => {
@@ -66,8 +74,16 @@ export default function FiltersBar({
 
   const clearDateFilter = () => {
     setActivePreset(null);
+    setCustomRange({ start: "", end: "" });
     setIsRangePickerOpen(false);
     onDateChange?.("Todo");
+  };
+
+  const handleClearAll = () => {
+    setSearchValue("");
+    onSearchChange?.("");
+    clearDateFilter();
+    onClearAll?.();
   };
 
   return (
@@ -81,9 +97,10 @@ export default function FiltersBar({
           </div>
           <input
             type="text"
+            value={searchValue}
             className="block w-full pl-14 pr-4 py-3.5 border border-border-theme/60 rounded-2xl leading-5 bg-white text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand sm:text-sm transition-all shadow-sm font-medium"
             placeholder={searchPlaceholder || t.assets.search_placeholder}
-            onChange={(e) => onSearchChange?.(e.target.value)}
+            onChange={(e) => { setSearchValue(e.target.value); onSearchChange?.(e.target.value); }}
           />
         </div>
       )}
@@ -92,19 +109,21 @@ export default function FiltersBar({
 
       {/* Quick Filters + Actions */}
       <div className="flex items-center space-x-4 w-full lg:w-auto justify-end relative">
+
+        {/* Global reset button — shown when any filter is active */}
+        {hasAnyFilter && (
+          <button
+            onClick={handleClearAll}
+            className="p-2 text-subtitle/30 hover:text-brand hover:bg-brand/5 rounded-full transition-all animate-in fade-in zoom-in duration-200"
+            title={t.common.clear_filters}
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        )}
+
         {showQuickFilters && (
           <div className="flex items-center gap-2">
-            
-            {/* Discrete Reset Button */}
-            {activePreset && (
-              <button 
-                onClick={clearDateFilter}
-                className="p-2 text-subtitle/30 hover:text-brand hover:bg-brand/5 rounded-full transition-all animate-in fade-in zoom-in duration-200"
-                title="Limpiar filtros"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            )}
+
 
             <div className="relative flex items-center bg-subtitle/5 p-1 rounded-full border border-border-theme/30">
               {["Hoy", "Mes", "Año", "Personalizado"].map((preset) => (

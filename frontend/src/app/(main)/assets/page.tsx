@@ -42,6 +42,8 @@ export default function AssetsPage() {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
+  const [resetKey, setResetKey] = useState(0);
+  const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
 
   const queryParams = { page, limit, search: debouncedSearch };
 
@@ -241,9 +243,11 @@ export default function AssetsPage() {
 
   return (
     <div className="flex flex-col space-y-10">
-      <FiltersBar 
+      <FiltersBar
         searchPlaceholder={t.assets.search_placeholder}
         onSearchChange={setSearch}
+        hasExternalFilter={!!activeSortKey}
+        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
         actions={
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -303,12 +307,14 @@ export default function AssetsPage() {
           </ModuleContainer>
         ) : (
           <ModuleContainer>
-            <DataTable 
-              data={displayData} 
-              columns={columns} 
+            <DataTable
+              data={displayData}
+              columns={columns}
               keyExtractor={(item) => item.id}
               footer={pagination}
               onRowClick={(item) => setSelectedAsset(item)}
+              onSortChange={setActiveSortKey}
+              resetSortTrigger={resetKey}
             />
           </ModuleContainer>
         )}

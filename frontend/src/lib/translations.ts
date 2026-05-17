@@ -42,6 +42,7 @@ export const translations = {
       sort_column: "Sort column",
       sorted_asc: "Sorted: A → Z",
       sorted_desc: "Sorted: Z → A",
+      clear_filters: "Clear filters",
     },
     date_filters: {
       today: "Today",
@@ -530,6 +531,7 @@ export const translations = {
       sort_column: "Ordenar columna",
       sorted_asc: "Ordenado: A → Z",
       sorted_desc: "Ordenado: Z → A",
+      clear_filters: "Limpiar filtros",
     },
     date_filters: {
       today: "Hoy",

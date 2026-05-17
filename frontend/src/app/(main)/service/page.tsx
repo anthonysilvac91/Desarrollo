@@ -30,6 +30,8 @@ export default function ServicesPage() {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
+  const [resetKey, setResetKey] = useState(0);
+  const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -102,7 +104,7 @@ export default function ServicesPage() {
       sortValue: (item) => item.title,
       cell: (item) => (
         <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand shrink-0">
             <Wrench className="w-5 h-5" />
           </div>
           <div className="flex flex-col">
@@ -209,6 +211,8 @@ export default function ServicesPage() {
         onSearchChange={setSearch}
         onDateChange={handleDateChange}
         showQuickFilters={true}
+        hasExternalFilter={!!activeSortKey}
+        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
         actions={canCreate ? (
           <button
             onClick={() => setIsModalOpen(true)}
@@ -220,7 +224,7 @@ export default function ServicesPage() {
         ) : undefined}
       />
 
-      <div className="flex-1 min-h-[400px]">
+      <div className="flex-1 min-h-100">
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
@@ -260,12 +264,14 @@ export default function ServicesPage() {
           </ModuleContainer>
         ) : (
           <ModuleContainer>
-            <DataTable 
-              data={servicesList} 
-              columns={columns} 
+            <DataTable
+              data={servicesList}
+              columns={columns}
               keyExtractor={(item) => item.id}
               footer={pagination}
               onRowClick={(item: any) => setSelectedService(item)}
+              onSortChange={setActiveSortKey}
+              resetSortTrigger={resetKey}
             />
           </ModuleContainer>
         )}

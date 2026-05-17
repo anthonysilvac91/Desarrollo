@@ -29,6 +29,8 @@ export default function UsersPage() {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
+  const [resetKey, setResetKey] = useState(0);
+  const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
 
   const queryParams = { page, limit, search: debouncedSearch };
 
@@ -257,10 +259,12 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col space-y-8">
-      <FiltersBar 
+      <FiltersBar
         searchPlaceholder={t.users.search_placeholder}
         onSearchChange={setSearch}
         showQuickFilters={false}
+        hasExternalFilter={!!activeSortKey}
+        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
         actions={
           <button 
             onClick={() => { setEditingUser(null); setIsModalOpen(true); }}
@@ -318,6 +322,8 @@ export default function UsersPage() {
               keyExtractor={(item) => item.id}
               footer={pagination}
               onRowClick={(item) => setSelectedUser(item)}
+              onSortChange={setActiveSortKey}
+              resetSortTrigger={resetKey}
             />
           </ModuleContainer>
         )}
