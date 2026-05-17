@@ -62,7 +62,7 @@ export const translations = {
     assets: {
       search_placeholder: "Search assets by name, location, owner...",
       filter: "Filter",
-      add_new: "Add Asset",
+      add_new: "Add new",
       table: {
         asset: "Asset",
         owner: "Owner",
@@ -141,7 +141,7 @@ export const translations = {
     services: {
       search_placeholder: "Search services by description, asset, owner...",
       filter: "Filter",
-      add_new: "New Service",
+      add_new: "Add new",
       table: {
         service: "Service",
         asset: "Asset",
@@ -233,7 +233,7 @@ export const translations = {
     },
     organizations: {
       search_placeholder: "Search organizations...",
-      add_new: "New Organization",
+      add_new: "Add new",
       modal_title: "Create Organization",
       table: {
         status: "Status",
@@ -256,7 +256,7 @@ export const translations = {
     },
     owners: {
       search_placeholder: "Search owners by name...",
-      add_new: "New Owner",
+      add_new: "Add new",
       table: {
         name: "Name",
         address: "Address",
@@ -535,7 +535,7 @@ export const translations = {
     assets: {
       search_placeholder: "Buscar activos por nombre, ubicación, empresa...",
       filter: "Filtrar",
-      add_new: "Añadir Activo",
+      add_new: "Agregar nuevo",
       table: {
         asset: "Activo",
         owner: "Owner",
@@ -614,7 +614,7 @@ export const translations = {
     services: {
       search_placeholder: "Buscar servicios por descripción, activo, empresa...",
       filter: "Filtrar",
-      add_new: "Nuevo Servicio",
+      add_new: "Agregar nuevo",
       table: {
         service: "Servicio",
         asset: "Activo",
@@ -706,7 +706,7 @@ export const translations = {
     },
     organizations: {
       search_placeholder: "Buscar organización...",
-      add_new: "Nueva Organización",
+      add_new: "Agregar nuevo",
       modal_title: "Crear Organización",
       table: {
         status: "Estado",
@@ -729,7 +729,7 @@ export const translations = {
     },
     owners: {
       search_placeholder: "Buscar owners por nombre...",
-      add_new: "Nuevo Owner",
+      add_new: "Agregar nuevo",
       table: {
         name: "Nombre",
         address: "Dirección",
