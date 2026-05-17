@@ -312,6 +312,7 @@ export const translations = {
     settings: {
       tabs: {
         profile: "Organization Profile",
+        my_profile: "My Profile",
         branding_assets: "Identity & Assets",
       },
       owner_section: {
@@ -325,6 +326,17 @@ export const translations = {
         logo_help: "JPG, PNG or SVG. Max 1MB.",
         upload_logo: "UPLOAD LOGO",
         show_org_name: "Show organization name next to logo",
+      },
+      user_profile_section: {
+        title: "User Profile",
+        subtitle: "Manage your personal identity, login email, password and avatar.",
+        name: "Name",
+        email: "Email",
+        password_title: "Password",
+        password_subtitle: "Leave these fields blank if you do not want to change it.",
+        current_password: "Current Password",
+        new_password: "New Password",
+        confirm_password: "Confirm Password",
       },
       asset_section: {
         title: "Asset Defaults",
@@ -801,6 +813,7 @@ export const translations = {
     settings: {
       tabs: {
         profile: "Perfil de Organización",
+        my_profile: "Mi Perfil",
         branding_assets: "Identidad y Activos",
       },
       owner_section: {
@@ -852,6 +865,17 @@ export const translations = {
           violet: "Violeta",
           slate: "Pizarra",
         }
+      },
+      user_profile_section: {
+        title: "Perfil de Usuario",
+        subtitle: "Gestiona tu identidad personal, correo de acceso, contrasena y foto.",
+        name: "Nombre",
+        email: "Correo",
+        password_title: "Contrasena",
+        password_subtitle: "Deja estos campos vacios si no quieres cambiarla.",
+        current_password: "Contrasena Actual",
+        new_password: "Nueva Contrasena",
+        confirm_password: "Confirmar Contrasena",
       }
     },
     dashboard: {

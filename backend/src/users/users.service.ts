@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Role, StoredFileKind } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
@@ -419,6 +420,153 @@ export class UsersService {
           organization: { select: { id: true, name: true, slug: true } },
           owner: { select: { id: true, name: true } },
         }
+      });
+    } catch (error) {
+      if (avatarFile && avatarFileId && avatarFileId !== currentUserRecord.avatar_file_id) {
+        await this.storedFilesService.deleteStoredFileAndBlob(avatarFileId);
+      }
+      throw error;
+    }
+
+    if (avatarFile && currentUserRecord.avatar_file_id) {
+      await this.storedFilesService.deleteStoredFileAndBlob(
+        currentUserRecord.avatar_file_id,
+      );
+    }
+
+    return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
+  }
+
+  async updateOwnProfile(
+    currentUser: { id: string; role: Role; orgId?: string },
+    dto: UpdateOwnProfileDto,
+    avatarFile?: Express.Multer.File
+  ) {
+    const currentUserRecord = await this.prisma.user.findUnique({
+      where: { id: currentUser.id },
+      select: {
+        id: true,
+        email: true,
+        password_hash: true,
+        organization_id: true,
+        role: true,
+        owner_id: true,
+        avatar_file_id: true,
+      },
+    });
+
+    if (!currentUserRecord) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    ensureNoManualFileUrl(dto.avatar_url, 'Avatar de usuario');
+
+    const data: any = {};
+
+    if (dto.name !== undefined) {
+      data.name = dto.name.trim();
+    }
+
+    if (dto.email !== undefined) {
+      const email = dto.email.trim().toLowerCase();
+      if (email !== currentUserRecord.email) {
+        const existingUser = await this.prisma.user.findFirst({
+          where: { email, id: { not: currentUserRecord.id } },
+          select: { id: true },
+        });
+
+        if (existingUser) {
+          throw new ConflictException('Ya existe un usuario con ese email');
+        }
+      }
+      data.email = email;
+    }
+
+    if (dto.new_password) {
+      if (!dto.current_password) {
+        throw new BadRequestException('Debes ingresar tu contrasena actual');
+      }
+
+      const passwordMatches = await bcrypt.compare(
+        dto.current_password,
+        currentUserRecord.password_hash,
+      );
+
+      if (!passwordMatches) {
+        throw new ForbiddenException('La contrasena actual no es correcta');
+      }
+
+      data.password_hash = await bcrypt.hash(dto.new_password, 10);
+    }
+
+    let avatarFileId = currentUserRecord.avatar_file_id;
+
+    if (avatarFile) {
+      const organizationId = currentUserRecord.organization_id;
+      if (!organizationId) {
+        throw new BadRequestException('No se puede subir avatar para usuarios sin organizacion');
+      }
+
+      const imageInfo = validateImageFile(avatarFile, {
+        maxBytes: 2 * 1024 * 1024,
+        label: 'Avatar de usuario',
+        maxWidth: 4096,
+        maxHeight: 4096,
+        maxPixels: 12 * 1024 * 1024,
+      });
+      avatarFile.mimetype = imageInfo.mime;
+      await processUploadedImage(avatarFile, {
+        maxWidth: 512,
+        maxHeight: 512,
+        format: 'webp',
+        quality: 86,
+      });
+      await this.storageGovernance.assertCanStore(
+        organizationId,
+        avatarFile.size,
+        currentUserRecord.avatar_file_id ? [currentUserRecord.avatar_file_id] : [],
+      );
+
+      const avatarUrl = await this.storageService.uploadFile(avatarFile, {
+        folder: buildUserAvatarPath(organizationId, currentUserRecord.id),
+        visibility: 'private',
+      });
+      const storedFile = await this.storedFilesService.registerUploadedFile({
+        organizationId,
+        storageRef: avatarUrl,
+        originalName: avatarFile.originalname,
+        mimeType: avatarFile.mimetype,
+        sizeBytes: avatarFile.size,
+        kind: StoredFileKind.USER_AVATAR,
+        visibility: 'private',
+        entityType: 'USER',
+        entityId: currentUserRecord.id,
+        uploadedByUserId: currentUser.id,
+      });
+      avatarFileId = storedFile.id;
+    }
+
+    let updatedUser;
+    try {
+      updatedUser = await this.prisma.user.update({
+        where: { id: currentUserRecord.id },
+        data: {
+          ...data,
+          avatar_file_id: avatarFileId,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          phone: true,
+          organization_id: true,
+          owner_id: true,
+          avatar_file_id: true,
+          is_active: true,
+          organization: { select: { id: true, name: true, slug: true } },
+          owner: { select: { id: true, name: true } },
+        },
       });
     } catch (error) {
       if (avatarFile && avatarFileId && avatarFileId !== currentUserRecord.avatar_file_id) {

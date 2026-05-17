@@ -17,6 +17,12 @@ export interface User {
 }
 
 type UserUpdatePayload = FormData | Partial<Pick<User, "name" | "email" | "phone">>;
+type OwnProfileUpdatePayload = FormData | {
+  name?: string;
+  email?: string;
+  current_password?: string;
+  new_password?: string;
+};
 
 export const usersService = {
   findAll: async (params?: { role?: string, page?: number, limit?: number, search?: string }): Promise<any> => {
@@ -39,6 +45,14 @@ export const usersService = {
       ? { headers: { "Content-Type": "multipart/form-data" } }
       : undefined;
     const res = await api.patch(`/users/${id}`, data, config);
+    return res.data;
+  },
+
+  updateMe: async (data: OwnProfileUpdatePayload): Promise<User> => {
+    const config = data instanceof FormData
+      ? { headers: { "Content-Type": "multipart/form-data" } }
+      : undefined;
+    const res = await api.patch("/users/me", data, config);
     return res.data;
   },
 

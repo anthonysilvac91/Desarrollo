@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
     "/users": ["SUPER_ADMIN", "ADMIN"],
     "/owners": ["SUPER_ADMIN", "ADMIN"],
-    "/settings": ["ADMIN"],
+    "/settings": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
     "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
     "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
     "/app": ["ADMIN", "WORKER"]

@@ -7,6 +7,7 @@ export interface Organization {
   brand_color?: string;
   logo_url?: string;
   default_asset_icon?: string;
+  show_org_name?: boolean;
 }
 
 export interface User {

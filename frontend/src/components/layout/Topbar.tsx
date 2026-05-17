@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Bell, Menu, LogOut, User, ChevronDown } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -10,6 +10,7 @@ interface TopbarProps {
 
 export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { language, setLanguage, t } = useLanguage();
   const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -107,7 +108,13 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                     <p className="text-xs font-bold text-title truncate">{user?.email}</p>
                   </div>
                   
-                  <button className="w-full flex items-center space-x-3 px-4 py-3 text-subtitle/70 hover:text-brand hover:bg-brand/5 transition-all text-sm font-bold group">
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      router.push("/settings?tab=my_profile");
+                    }}
+                    className="w-full flex items-center space-x-3 px-4 py-3 text-subtitle/70 hover:text-brand hover:bg-brand/5 transition-all text-sm font-bold group"
+                  >
                     <User className="w-4 h-4 opacity-40 group-hover:opacity-100" />
                     <span>Mi Perfil</span>
                   </button>

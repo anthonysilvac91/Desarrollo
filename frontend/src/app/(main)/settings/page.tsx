@@ -3,8 +3,6 @@
 import React, { useState } from "react";
 import { 
   Building2, 
-  Mail, 
-  Phone, 
   Camera, 
   Ship, 
   Car, 
@@ -14,7 +12,6 @@ import {
   Upload,
   Save,
   ImageIcon,
-  Globe,
   Plane,
   Truck,
   Wrench,
@@ -25,11 +22,16 @@ import {
   Leaf,
   Briefcase,
   Trophy,
-  Loader2
+  Loader2,
+  User as UserIcon,
+  AtSign,
+  LockKeyhole
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useRouter, useSearchParams } from "next/navigation";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import { organizationsService } from "@/services/organizations.service";
+import { usersService } from "@/services/users.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -68,11 +70,12 @@ const ASSET_ICONS = [
 
 export default function SettingsPage() {
   const { t } = useLanguage();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const { refreshUser, user } = useAuth();
-  const canEdit = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const canManageOrgSettings = user?.role === "ADMIN";
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab ] = useState("profile");
   
   // States for changes
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -81,10 +84,18 @@ export default function SettingsPage() {
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [showOrgName, setShowOrgName] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["my-organization"],
     queryFn: () => organizationsService.getMyOrganization(),
+    enabled: canManageOrgSettings,
   });
 
   const mutation = useMutation({
@@ -97,9 +108,42 @@ export default function SettingsPage() {
     onError: () => showToast("Error al guardar cambios", "error"),
   });
 
-  // Effect to sync initial state
+  const getServerErrorMessage = (error: unknown, fallback: string) => {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "response" in error &&
+      typeof error.response === "object" &&
+      error.response !== null &&
+      "data" in error.response &&
+      typeof error.response.data === "object" &&
+      error.response.data !== null &&
+      "message" in error.response.data
+    ) {
+      const message = error.response.data.message;
+      return Array.isArray(message) ? message[0] : String(message);
+    }
+
+    return fallback;
+  };
+
+  const profileMutation = useMutation({
+    mutationFn: (fd: FormData) => usersService.updateMe(fd),
+    onSuccess: () => {
+      showToast(t.feedback.save_success, "success");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setAvatarFile(null);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      refreshUser();
+    },
+    onError: (error) => showToast(getServerErrorMessage(error, "Error al guardar perfil"), "error"),
+  });
+
   React.useEffect(() => {
     if (org) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrgName(org.name || "");
       setShowOrgName(org.show_org_name ?? false);
       if (org.logo_url) setLogoPreview(org.logo_url);
@@ -111,22 +155,80 @@ export default function SettingsPage() {
     }
   }, [org]);
 
+  React.useEffect(() => {
+    if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProfileName(user.name || "");
+      setProfileEmail(user.email || "");
+      setAvatarPreview(user.avatar_url || null);
+    }
+  }, [user]);
+
   const handleSave = async () => {
     const fd = new FormData();
     if (logoFile) fd.append("logo", logoFile);
     if (selectedPalette) fd.append("brand_color", selectedPalette);
     if (selectedIcon) fd.append("default_asset_icon", selectedIcon);
-    if (canEdit && orgName.trim()) fd.append("name", orgName.trim());
+    if (canManageOrgSettings && orgName.trim()) fd.append("name", orgName.trim());
     fd.append("show_org_name", String(showOrgName));
     mutation.mutate(fd);
   };
 
-  const tabs = [
-    { id: "profile", label: t.settings.tabs.profile, icon: Building2 },
-    { id: "branding_assets", label: t.settings.tabs.branding_assets, icon: Palette },
-  ];
+  const handleProfileSave = async () => {
+    if (!profileName.trim()) {
+      showToast("El nombre es obligatorio", "error");
+      return;
+    }
 
-  if (isLoading) return <div className="p-20 text-center animate-pulse text-subtitle/40 font-black uppercase">Cargando...</div>;
+    if (!profileEmail.trim()) {
+      showToast("El correo es obligatorio", "error");
+      return;
+    }
+
+    if (newPassword || confirmPassword || currentPassword) {
+      if (!currentPassword) {
+        showToast("Ingresa tu contraseña actual", "error");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        showToast("La nueva contraseña debe tener al menos 6 caracteres", "error");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showToast("Las contraseñas no coinciden", "error");
+        return;
+      }
+    }
+
+    const fd = new FormData();
+    fd.append("name", profileName.trim());
+    fd.append("email", profileEmail.trim());
+    if (avatarFile) fd.append("avatar", avatarFile);
+    if (newPassword) {
+      fd.append("current_password", currentPassword);
+      fd.append("new_password", newPassword);
+    }
+    profileMutation.mutate(fd);
+  };
+
+  const tabs = canManageOrgSettings
+    ? [
+        { id: "profile", label: t.settings.tabs.profile, icon: Building2 },
+        { id: "my_profile", label: t.settings.tabs.my_profile, icon: UserIcon },
+        { id: "branding_assets", label: t.settings.tabs.branding_assets, icon: Palette },
+      ]
+    : [{ id: "my_profile", label: t.settings.tabs.my_profile, icon: UserIcon }];
+
+  const requestedTab = searchParams.get("tab");
+  const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab : tabs[0].id;
+
+  const handleTabClick = (tabId: string) => {
+    router.replace(tabId === "profile" ? "/settings" : `/settings?tab=${tabId}`);
+  };
+
+  if (canManageOrgSettings && isLoading) return <div className="p-20 text-center animate-pulse text-subtitle/40 font-black uppercase">Cargando...</div>;
 
   return (
     <div className="flex flex-col space-y-6">
@@ -139,7 +241,7 @@ export default function SettingsPage() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
               className={`flex items-center space-x-3 px-8 py-3.5 text-sm font-black transition-all rounded-2xl ${
                 isActive ? "bg-brand/10 text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle hover:bg-app-bg/50"
               }`}
@@ -199,9 +301,9 @@ export default function SettingsPage() {
                         type="text"
                         value={orgName}
                         onChange={e => setOrgName(e.target.value)}
-                        readOnly={!canEdit}
+                        readOnly={!canManageOrgSettings}
                         className={`w-full px-8 py-5 border rounded-3xl text-title font-bold outline-none transition-all ${
-                          canEdit
+                          canManageOrgSettings
                             ? "bg-white border-border-theme/60 focus:ring-2 focus:ring-brand/10 focus:border-brand"
                             : "bg-app-bg/50 border-border-theme/40 opacity-70 cursor-default"
                         }`}
@@ -241,6 +343,140 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {activeTab === "my_profile" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ModuleContainer>
+              <div className="p-10 lg:p-14 space-y-12">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-10">
+                  <div className="relative group shrink-0 w-fit">
+                    <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full bg-app-bg border-[3px] border-white shadow-2xl flex items-center justify-center overflow-hidden transition-all group-hover:scale-105">
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt={profileName} className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon className="w-14 h-14 text-subtitle/25" strokeWidth={1.5} />
+                      )}
+                    </div>
+                    <label className="absolute -bottom-2 -right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center cursor-pointer hover:bg-brand hover:text-white hover:scale-110 active:scale-95 transition-all text-subtitle">
+                      <Camera className="w-5 h-5" />
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            setAvatarFile(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => setAvatarPreview(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-black text-brand uppercase tracking-[0.2em] mb-2">{t.settings.user_profile_section.title}</p>
+                    <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{profileName || user?.email}</h3>
+                    <p className="text-[15px] text-subtitle/50 font-medium max-w-lg leading-relaxed">{t.settings.user_profile_section.subtitle}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
+                      {t.settings.user_profile_section.name}
+                    </label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-subtitle/25" />
+                      <input
+                        type="text"
+                        value={profileName}
+                        onChange={(event) => setProfileName(event.target.value)}
+                        className="w-full pl-14 pr-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
+                      {t.settings.user_profile_section.email}
+                    </label>
+                    <div className="relative">
+                      <AtSign className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-subtitle/25" />
+                      <input
+                        type="email"
+                        value={profileEmail}
+                        onChange={(event) => setProfileEmail(event.target.value)}
+                        className="w-full pl-14 pr-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-50 pt-10 space-y-8">
+                  <div className="space-y-2">
+                    <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.user_profile_section.password_title}</h3>
+                    <p className="text-sm text-subtitle/60 font-medium tracking-tight">{t.settings.user_profile_section.password_subtitle}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
+                        {t.settings.user_profile_section.current_password}
+                      </label>
+                      <div className="relative">
+                        <LockKeyhole className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-subtitle/25" />
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={(event) => setCurrentPassword(event.target.value)}
+                          className="w-full pl-14 pr-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
+                        {t.settings.user_profile_section.new_password}
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        className="w-full px-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
+                        {t.settings.user_profile_section.confirm_password}
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        className="w-full px-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex justify-end">
+                  <button
+                    onClick={handleProfileSave}
+                    disabled={profileMutation.isPending}
+                    className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25 disabled:opacity-50"
+                  >
+                    {profileMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 stroke-[3px]" />}
+                    <span>{t.common.save}</span>
+                  </button>
+                </div>
+              </div>
+            </ModuleContainer>
+          </div>
+        )}
+
         {/* Identity & Assets Combined Section */}
         {activeTab === "branding_assets" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -257,7 +493,7 @@ export default function SettingsPage() {
                   <div className="flex flex-wrap gap-4">
                     {BRAND_PALETTES.map((palette) => {
                       const isSelected = selectedPalette === palette.id;
-                      const paletteName = (t.settings.branding_section.palettes as any)[palette.id] || palette.name;
+                      const paletteName = (t.settings.branding_section.palettes as Record<string, string>)[palette.id] || palette.name;
                       return (
                         <button
                           key={palette.id}
@@ -294,7 +530,7 @@ export default function SettingsPage() {
                     {ASSET_ICONS.map((item) => {
                       const Icon = item.icon;
                       const isSelected = selectedIcon === item.id;
-                      const iconLabel = (t.settings.asset_section.icons as any)[item.id] || item.label;
+                      const iconLabel = (t.settings.asset_section.icons as Record<string, string>)[item.id] || item.label;
                       return (
                         <button
                           key={item.id}

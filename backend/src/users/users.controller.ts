@@ -6,6 +6,7 @@ import { Role } from '@prisma/client';
 import { UserResponseDto } from './dto/users.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { imageUploadOptions } from '../common/files/multer-image-options';
@@ -50,6 +51,24 @@ export class UsersController {
       role: req.user.role,
       orgId: req.user.orgId,
     });
+  }
+
+  @Patch('me')
+  @UseInterceptors(FileInterceptor('avatar', imageUploadOptions(2 * 1024 * 1024)))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Actualizar el perfil del usuario autenticado' })
+  @ApiBody({ type: UpdateOwnProfileDto })
+  @ApiResponse({ type: UserResponseDto })
+  updateMe(
+    @Body() dto: UpdateOwnProfileDto,
+    @Request() req: any,
+    @UploadedFile() avatar?: Express.Multer.File
+  ) {
+    return this.usersService.updateOwnProfile({
+      id: req.user.id,
+      role: req.user.role,
+      orgId: req.user.orgId,
+    }, dto, avatar);
   }
 
   @Patch(':id')
