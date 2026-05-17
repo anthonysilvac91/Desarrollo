@@ -71,7 +71,7 @@ export default function WorkerServiceViewPage() {
            <div>
               <h1 className="text-2xl font-black text-title leading-tight mb-6">{job.title}</h1>
 
-              <div className="prose prose-sm max-w-none text-subtitle/80 leading-relaxed font-medium">
+              <div className="prose prose-sm max-w-none text-subtitle/80 leading-relaxed font-medium whitespace-pre-wrap">
                  <p>{job.description}</p>
               </div>
            </div>
@@ -85,8 +85,8 @@ export default function WorkerServiceViewPage() {
                </h3>
                
                <div className="flex overflow-x-auto space-x-3 pb-2 -mx-5 px-5 no-scrollbar">
-                 {job.attachments.map((att, idx) => (
-                   <div key={(att as any).id || idx} className="flex-shrink-0">
+                  {job.attachments.map((att, idx) => (
+                    <div key={idx} className="flex-shrink-0">
                      <ServiceAttachmentCard
                        attachment={att}
                        alt={`Evidencia ${idx + 1}`}

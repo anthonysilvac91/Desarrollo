@@ -68,7 +68,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
           <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em]">{t.services.drawer.report_label}</h3>
           <div className="p-6 bg-app-bg rounded-3xl border border-border-theme/40">
             <h4 className="text-lg font-black text-brand mb-3">{currentService.title}</h4>
-            <p className="text-sm text-subtitle/80 leading-relaxed font-medium">
+            <p className="text-sm text-subtitle/80 leading-relaxed font-medium whitespace-pre-wrap">
               {currentService.description}
             </p>
           </div>

@@ -80,7 +80,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
       const formData = new FormData();
       formData.append("asset_id", assetId);
       formData.append("title", title.trim());
-      formData.append("description", description.trim());
+      formData.append("description", description);
       images.forEach(img => formData.append("files", img.file));
 
       await servicesService.create(formData);

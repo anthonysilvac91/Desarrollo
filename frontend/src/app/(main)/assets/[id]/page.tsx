@@ -65,7 +65,7 @@ const JobCard = ({ job, onClick }: { job: Service, onClick?: () => void }) => {
         <div className="relative">
           <p 
             ref={textRef}
-            className={`text-[15px] text-subtitle/70 leading-relaxed font-bold transition-all duration-300 ${isExpanded ? "" : "line-clamp-3"}`}
+            className={`text-[15px] text-subtitle/70 leading-relaxed font-bold transition-all duration-300 whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-3"}`}
           >
             {job.description}
           </p>
