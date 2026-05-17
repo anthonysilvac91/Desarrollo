@@ -81,7 +81,7 @@ const JobDescription = ({ description }: { description: string }) => {
     <div className="mb-3">
       <p 
         ref={textRef}
-        className={`text-xs font-semibold text-subtitle/70 leading-relaxed ${isExpanded ? "" : "line-clamp-3"}`}
+        className={`text-xs font-semibold text-subtitle/70 leading-relaxed whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-3"}`}
       >
         {description}
       </p>
