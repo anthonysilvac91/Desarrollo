@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
-import { 
-  Box, 
-  LayoutGrid, 
-  Briefcase, 
-  Users, 
+import {
+  Box,
+  LayoutGrid,
+  Briefcase,
+  Users,
   Users2,
   Settings,
-  LayoutDashboard
+  LayoutDashboard,
+  Building2
 } from "lucide-react";
 
 interface SidebarProps {
@@ -26,11 +27,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
+    { href: "/organizations", label: t.sidebar.organizations, icon: Building2 },
     { href: "/assets", label: t.sidebar.assets, icon: Box },
     { href: "/service", label: t.sidebar.services, icon: Briefcase },
-    { id: 'users', label: t.sidebar.users, icon: Users, href: '/users' },
-    { id: 'owners', label: t.sidebar.owners || "Propietarios", icon: Users2, href: '/owners' },
-    { id: 'settings', label: t.sidebar.settings, icon: Settings, href: '/settings' },
+    { href: "/users", label: t.sidebar.users, icon: Users },
+    { href: "/owners", label: t.sidebar.owners || "Propietarios", icon: Users2 },
+    { href: "/settings", label: t.sidebar.settings, icon: Settings },
   ];
 
   const visibleLinks = links.filter(link => canAccess(link.href));

@@ -10,18 +10,18 @@ import Modal from "@/components/ui/Modal";
 import OrganizationForm from "@/components/master/OrganizationForm";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
-import { 
-  Building2, 
-  Plus, 
-  ToggleLeft, 
-  ToggleRight, 
-  Clock, 
+import {
+  Building2,
+  Plus,
+  ToggleLeft,
+  ToggleRight,
+  Clock,
   Globe,
   Loader2,
   AlertCircle
 } from "lucide-react";
 
-export default function MasterOrganizationsPage() {
+export default function OrganizationsPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,8 +101,8 @@ export default function MasterOrganizationsPage() {
             handleToggleStatus(org);
           }}
           className={`p-2 rounded-xl transition-all ${
-            org.is_active 
-              ? "text-brand hover:bg-brand/10" 
+            org.is_active
+              ? "text-brand hover:bg-brand/10"
               : "text-subtitle/30 hover:text-subtitle hover:bg-subtitle/10"
           }`}
           title={org.is_active ? "Desactivar" : "Activar"}
@@ -129,8 +129,8 @@ export default function MasterOrganizationsPage() {
           <AlertCircle className="w-8 h-8" />
         </div>
         <h3 className="text-xl font-bold text-title mb-2">Error de conexión</h3>
-        <p className="text-subtitle/60 text-sm mb-6 max-w-xs">No pudimos cargar la lista de organizaciones maestras.</p>
-        <button 
+        <p className="text-subtitle/60 text-sm mb-6 max-w-xs">No pudimos cargar la lista de organizaciones.</p>
+        <button
           onClick={() => refetch()}
           className="px-6 py-3 bg-title text-white rounded-2xl font-bold text-sm shadow-xl shadow-title/20 active:scale-95 transition-all"
         >
@@ -146,7 +146,7 @@ export default function MasterOrganizationsPage() {
         title={t.sidebar.organizations}
         subtitle="Gestión multitenant de la plataforma Recall"
         actions={
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
           >
@@ -170,11 +170,11 @@ export default function MasterOrganizationsPage() {
         onClose={() => setIsModalOpen(false)}
         title="Crear Organización"
       >
-        <OrganizationForm 
+        <OrganizationForm
           onSuccess={() => {
             setIsModalOpen(false);
             refetch();
-          }} 
+          }}
         />
       </Modal>
     </ModuleContainer>

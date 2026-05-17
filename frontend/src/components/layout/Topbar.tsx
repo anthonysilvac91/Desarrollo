@@ -20,7 +20,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     if (pathname === "/users") return t.topbar.titles.users;
     if (pathname === "/settings") return t.topbar.titles.settings;
     if (pathname === "/dashboard") return t.topbar.titles.dashboard;
-    if (pathname.startsWith("/master")) return t.sidebar.master_console;
+    if (pathname.startsWith("/organizations")) return t.sidebar.organizations;
     return t.topbar.titles.dashboard;
   };
 

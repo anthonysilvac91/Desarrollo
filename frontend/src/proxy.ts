@@ -12,7 +12,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/settings') ||
     pathname.startsWith('/service') ||
     pathname.startsWith('/app') ||
-    pathname.startsWith('/master');
+    pathname.startsWith('/organizations');
 
   if (isProtectedRoute && !token) {
     return NextResponse.redirect(new URL('/login', request.url));
@@ -33,7 +33,7 @@ export const config = {
     '/settings/:path*',
     '/service/:path*',
     '/app/:path*',
-    '/master/:path*',
+    '/organizations/:path*',
     '/login',
   ],
 };

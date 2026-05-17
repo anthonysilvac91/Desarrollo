@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Mapa de permisos por rol para el MVP
    */
   const ROUTE_PERMISSIONS: Record<string, string[]> = {
+    "/organizations": ["SUPER_ADMIN"],
     "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
     "/users": ["SUPER_ADMIN", "ADMIN"],
     "/owners": ["SUPER_ADMIN", "ADMIN"],
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // Otros roles -> Prohibido entrar a /app
           if (pathname.startsWith("/app")) {
-            if (user.role === "SUPER_ADMIN") router.replace("/master");
+            if (user.role === "SUPER_ADMIN") router.replace("/organizations");
             else if (user.role === "ADMIN") router.replace("/dashboard");
             else router.replace("/assets");
             return;
@@ -144,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // B. Redirección desde login o home
         if (isPublicPath) {
-          if (user.role === "SUPER_ADMIN") router.push("/master");
+          if (user.role === "SUPER_ADMIN") router.push("/organizations");
           else if (user.role === "ADMIN") router.push(isMobile ? "/app" : "/dashboard");
           else if (user.role === "WORKER") router.push(isMobile ? "/app" : "/assets");
           else router.push("/assets"); // EXTERNAL
