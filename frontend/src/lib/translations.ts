@@ -197,6 +197,29 @@ export const translations = {
         error_delete: "Error deleting user.",
       }
     },
+    organizations: {
+      search_placeholder: "Search organizations...",
+      add_new: "New Organization",
+      modal_title: "Create Organization",
+      table: {
+        status: "Status",
+      },
+      pagination: {
+        showing: "Showing",
+        of: "of",
+        organizations: "organizations",
+      },
+      states: {
+        loading: "Syncing organizations...",
+        empty_title: "No organizations yet",
+        empty_subtitle: "No organizations match your search.",
+        error_title: "Connection error",
+        error_subtitle: "Could not load the organization list.",
+        toggle_success_active: "Organization activated successfully.",
+        toggle_success_inactive: "Organization deactivated successfully.",
+        toggle_error: "Error changing organization status.",
+      },
+    },
     owners: {
       search_placeholder: "Search owners by name...",
       add_new: "New Owner",
@@ -612,6 +635,29 @@ export const translations = {
         error_update: "Error al actualizar el usuario.",
         error_delete: "Error al eliminar el usuario.",
       }
+    },
+    organizations: {
+      search_placeholder: "Buscar organización...",
+      add_new: "Nueva Organización",
+      modal_title: "Crear Organización",
+      table: {
+        status: "Estado",
+      },
+      pagination: {
+        showing: "Mostrando",
+        of: "de",
+        organizations: "organizaciones",
+      },
+      states: {
+        loading: "Sincronizando organizaciones...",
+        empty_title: "Sin organizaciones todavía",
+        empty_subtitle: "No hay organizaciones que coincidan con tu búsqueda.",
+        error_title: "Error de conexión",
+        error_subtitle: "No pudimos cargar la lista de organizaciones.",
+        toggle_success_active: "Organización activada correctamente.",
+        toggle_success_inactive: "Organización desactivada correctamente.",
+        toggle_error: "Error al cambiar el estado de la organización.",
+      },
     },
     owners: {
       search_placeholder: "Buscar owners por nombre...",
