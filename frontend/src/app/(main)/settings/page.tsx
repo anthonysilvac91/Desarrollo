@@ -69,7 +69,8 @@ const ASSET_ICONS = [
 export default function SettingsPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
+  const canEdit = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab ] = useState("profile");
   
@@ -78,6 +79,7 @@ export default function SettingsPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedPalette, setSelectedPalette] = useState<string | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState("");
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["my-organization"],
@@ -97,6 +99,7 @@ export default function SettingsPage() {
   // Effect to sync initial state
   React.useEffect(() => {
     if (org) {
+      setOrgName(org.name || "");
       if (org.logo_url) setLogoPreview(org.logo_url);
       if (org.brand_color) {
         const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
@@ -111,8 +114,7 @@ export default function SettingsPage() {
     if (logoFile) fd.append("logo", logoFile);
     if (selectedPalette) fd.append("brand_color", selectedPalette);
     if (selectedIcon) fd.append("default_asset_icon", selectedIcon);
-    
-    // Also include text fields if you want to make them dynamic (currently they are hardcoded placeholders)
+    if (canEdit && orgName.trim()) fd.append("name", orgName.trim());
     mutation.mutate(fd);
   };
 
@@ -187,10 +189,21 @@ export default function SettingsPage() {
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                     <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.owner_section.name}</label>
-                      <input type="text" readOnly defaultValue={org?.name} className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold opacity-70 outline-none" />
+                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
+                        {t.settings.owner_section.name}
+                      </label>
+                      <input
+                        type="text"
+                        value={orgName}
+                        onChange={e => setOrgName(e.target.value)}
+                        readOnly={!canEdit}
+                        className={`w-full px-8 py-5 border rounded-3xl text-title font-bold outline-none transition-all ${
+                          canEdit
+                            ? "bg-white border-border-theme/60 focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                            : "bg-app-bg/50 border-border-theme/40 opacity-70 cursor-default"
+                        }`}
+                      />
                     </div>
-                    {/* (Website, Email, etc could be added to schema later if needed) */}
                  </div>
 
                  <div className="pt-6 flex justify-end">

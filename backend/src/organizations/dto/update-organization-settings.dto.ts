@@ -3,6 +3,11 @@ import { WorkerEditPolicy } from '@prisma/client';
 import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateOrganizationSettingsDto {
+  @ApiPropertyOptional({ description: 'Nombre de la organización.' })
+  @IsString()
+  @IsOptional()
+  name?: string;
+
   @ApiPropertyOptional({ description: 'Indica si los Services creados se publican directamente al cliente.' })
   @IsBoolean()
   @IsOptional()
