@@ -56,6 +56,15 @@ export class AssetsController {
     return this.assetsService.removeOwner(assetId, ownerId, req.user.orgId);
   }
 
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Activar o desactivar un activo (solo Admin)' })
+  toggleStatus(@Param('id') id: string, @Body('is_active') is_active: boolean, @Request() req) {
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user.role)) {
+      throw new ForbiddenException('No tienes permiso para cambiar el estado de activos');
+    }
+    return this.assetsService.toggleStatus(id, is_active, req.user);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un activo permanentemente' })
   remove(@Param('id') id: string, @Request() req) {

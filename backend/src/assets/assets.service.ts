@@ -177,10 +177,15 @@ export class AssetsService {
       },
     };
 
-    const baseWhere: any = { is_active: true };
+    const baseWhere: any = {};
 
     if (role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = orgId;
+    }
+
+    // Workers and external users can only see active assets
+    if (role === 'WORKER' || isExternalRole(role)) {
+      baseWhere.is_active = true;
     }
 
     if (isExternalRole(role)) {
@@ -197,6 +202,8 @@ export class AssetsService {
       ];
     }
 
+    const orderBy = [{ is_active: 'desc' as const }, { updated_at: 'desc' as const }];
+
     if (query.page && query.limit) {
       const page = Number(query.page);
       const limit = Number(query.limit);
@@ -204,6 +211,7 @@ export class AssetsService {
         this.prisma.asset.findMany({
           where: baseWhere,
           include,
+          orderBy,
           skip: (page - 1) * limit,
           take: limit,
         }),
@@ -227,7 +235,7 @@ export class AssetsService {
       };
     }
 
-    const assets = await this.prisma.asset.findMany({ where: baseWhere, include });
+    const assets = await this.prisma.asset.findMany({ where: baseWhere, include, orderBy });
     return Promise.all(
       assets.map(async (asset: any) =>
         this.resolveAssetFileUrls(
@@ -297,6 +305,17 @@ export class AssetsService {
     }
 
     throw new BadRequestException('Un activo debe mantener un owner asociado');
+  }
+
+  async toggleStatus(id: string, is_active: boolean, user: any) {
+    const asset = await this.prisma.asset.findUnique({ where: { id } });
+    if (!asset) {
+      throw new NotFoundException('Activo no encontrado');
+    }
+    if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
+      throw new ForbiddenException('No tienes permiso');
+    }
+    return this.prisma.asset.update({ where: { id }, data: { is_active } });
   }
 
   async remove(id: string, user: any) {

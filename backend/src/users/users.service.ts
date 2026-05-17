@@ -120,7 +120,7 @@ export class UsersService {
       const [data, total] = await Promise.all([
         this.prisma.user.findMany({
           where,
-          orderBy: { created_at: 'desc' },
+          orderBy: [{ is_active: 'desc' }, { updated_at: 'desc' }],
           select: selectFields,
           skip: (page - 1) * limit,
           take: limit
@@ -139,7 +139,7 @@ export class UsersService {
 
     const users = await this.prisma.user.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: [{ is_active: 'desc' }, { updated_at: 'desc' }],
       select: selectFields,
     });
 

@@ -87,6 +87,11 @@ export const assetsService = {
     return res.data;
   },
 
+  toggleStatus: async (id: string, is_active: boolean) => {
+    const res = await api.patch(`/assets/${id}/status`, { is_active });
+    return res.data;
+  },
+
   delete: async (id: string) => {
     const res = await api.delete(`/assets/${id}`);
     return res.data;

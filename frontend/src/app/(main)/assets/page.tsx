@@ -7,7 +7,7 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship, Calendar } from "lucide-react";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Ship, Calendar, ToggleLeft, ToggleRight } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
@@ -80,6 +80,18 @@ export default function AssetsPage() {
   const clearFilters = () => {
     setSelectedOwners([]);
     setSelectedCategories([]);
+  };
+
+  const canManage = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+
+  const handleToggleStatus = async (asset: Asset) => {
+    try {
+      await assetsService.toggleStatus(asset.id, !asset.is_active);
+      showToast(asset.is_active ? "Activo desactivado" : "Activo activado", "success");
+      refetch();
+    } catch {
+      showToast(t.feedback.generic_error, "error");
+    }
   };
 
   const handleDeleteRequest = (e: React.MouseEvent, asset: Asset) => {
@@ -186,17 +198,22 @@ export default function AssetsPage() {
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center space-x-3">
-          <button 
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              setAssetToEdit(item);
-              setIsModalOpen(true);
-            }}
+          {canManage && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
+              className={`p-2.5 transition-all rounded-full ${item.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50"}`}
+              title={item.is_active ? "Desactivar activo" : "Activar activo"}
+            >
+              {item.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setAssetToEdit(item); setIsModalOpen(true); }}
             className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
           >
             <Pencil className="w-5 h-5" />
           </button>
-          <button 
+          <button
             onClick={(e) => handleDeleteRequest(e, item)}
             className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
           >
