@@ -8,10 +8,10 @@ export class CreateInvitationDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ enum: ['ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], description: 'Rol del usuario. SUPER_ADMIN bloqueado.' })
-  @IsIn(['ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'])
+  @ApiProperty({ enum: ['ADMIN', 'WORKER', 'EXTERNAL'], description: 'Rol del usuario. SUPER_ADMIN bloqueado.' })
+  @IsIn(['ADMIN', 'WORKER', 'EXTERNAL'])
   @IsNotEmpty()
-  role: Role | 'EXTERNAL';
+  role: Role;
 
   @ApiPropertyOptional({ description: 'Obligatorio si lo crea un SUPER_ADMIN. Ignorado si lo crea un ADMIN.' })
   @IsUUID()

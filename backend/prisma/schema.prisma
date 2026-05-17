@@ -12,7 +12,6 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   WORKER
-  CLIENT
   EXTERNAL
 }
 

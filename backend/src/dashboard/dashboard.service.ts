@@ -13,11 +13,11 @@ export class DashboardService {
   ) {}
 
   async getStats(
-    currentUser: { id: string; role: Role; orgId?: string; customer_id?: string; company_id?: string },
+    currentUser: { id: string; role: Role; orgId?: string; owner_id?: string; customer_id?: string; company_id?: string },
     organizationId?: string,
     query?: { startDate?: string; endDate?: string }
   ): Promise<DashboardStatsDto> {
-    const authorizedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN, Role.WORKER, Role.CLIENT, Role.EXTERNAL];
+    const authorizedRoles: Role[] = [Role.ADMIN, Role.SUPER_ADMIN, Role.WORKER, Role.EXTERNAL];
     if (!authorizedRoles.includes(currentUser.role)) {
       throw new ForbiddenException('No tienes permiso para acceder al dashboard');
     }

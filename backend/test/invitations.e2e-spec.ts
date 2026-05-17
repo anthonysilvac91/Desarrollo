@@ -65,7 +65,7 @@ describe('Invitations (e2e)', () => {
       expect(invBD?.organization_id).toBe(org.id);
     });
 
-    it('bloquea temporalmente invitacion CLIENT', async () => {
+    it('bloquea temporalmente invitacion EXTERNAL', async () => {
       const org = await testUtils.createTestOrganization();
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
       const token = testUtils.getBearerToken(admin);
@@ -73,7 +73,7 @@ describe('Invitations (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
-        .send({ email: 'client@test.com', role: Role.CLIENT });
+        .send({ email: 'client@test.com', role: Role.EXTERNAL });
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('External invitations are not available yet');
@@ -125,7 +125,7 @@ describe('Invitations (e2e)', () => {
     it('deberia retornar datos si el token es valido y no expirado', async () => {
       const org = await testUtils.createTestOrganization();
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'check@check.com', Role.CLIENT, admin.id);
+      const inv = await testUtils.seedTestInvitation(org.id, 'check@check.com', Role.EXTERNAL, admin.id);
 
       const res = await request(app.getHttpServer())
         .post('/invitations/validate')

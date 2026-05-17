@@ -209,7 +209,7 @@ export class ServicesService {
 
       whereClause.is_public = true;
       whereClause.status = 'COMPLETED';
-      whereClause.asset = { company_id: currentCompanyId };
+      whereClause.asset = { owner_id: currentCompanyId };
     }
 
     if (user.role === 'WORKER') {

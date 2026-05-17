@@ -9,7 +9,7 @@ const API_URL = process.env.API_URL || 'http://localhost:3001';
 async function main() {
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' }});
   const worker = await prisma.user.findFirst({ where: { role: 'WORKER' }});
-  const client = await prisma.user.findFirst({ where: { role: 'CLIENT' }});
+  const client = await prisma.user.findFirst({ where: { role: 'EXTERNAL' }});
   const org = await prisma.organization.findFirst();
   const asset = await prisma.asset.findFirst();
 
@@ -53,10 +53,10 @@ async function main() {
   const adminJobs = await res.json();
   console.log('Status:', res.status, 'Count:', adminJobs.length, adminJobs.map((j:any)=>j.title));
 
-  console.log('\n--- Testing CLIENT Listing Jobs ---');
+  console.log('\n--- Testing EXTERNAL Listing Jobs ---');
   res = await fetch(`${API_URL}/jobs?asset_id=` + asset!.id, {
     method: 'GET',
-    headers: { 'x-user-id': client!.id, 'x-org-id': org!.id, 'x-role': 'CLIENT' }
+    headers: { 'x-user-id': client!.id, 'x-org-id': org!.id, 'x-role': 'EXTERNAL' }
   });
   const clientJobs = await res.json();
   console.log('Status:', res.status, 'Count:', clientJobs.length, clientJobs.map((j:any)=>j.title));

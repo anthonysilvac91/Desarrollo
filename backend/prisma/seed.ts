@@ -56,7 +56,7 @@ async function main() {
     data: { 
       organization_id: orgOceanic.id, 
       owner_id: oceanicCompanyA.id, 
-      role: Role.CLIENT, 
+      role: Role.EXTERNAL, 
       email: 'gestor.charter@mail.com', 
       password_hash: hashedPwd, 
       name: 'Eduardo (Gestor Charter)' 
@@ -66,7 +66,7 @@ async function main() {
     data: { 
       organization_id: orgOceanic.id, 
       owner_id: oceanicCompanyB.id, 
-      role: Role.CLIENT, 
+      role: Role.EXTERNAL, 
       email: 'propietario@mail.com', 
       password_hash: hashedPwd, 
       name: 'Andrés (Dueño Naomi)' 

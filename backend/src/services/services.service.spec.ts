@@ -80,34 +80,34 @@ describe('ServicesService.create - Auto Publish Logic', () => {
       }));
     });
 
-    it('Deberia inyectar is_public = true y status = COMPLETED obligatoriamente si es CLIENT', async () => {
+    it('Deberia inyectar is_public = true y status = COMPLETED obligatoriamente si es EXTERNAL', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      await service.findAll({}, { id: 'client-1', orgId: 'org-tenant-xx', role: 'CLIENT', company_id: 'cust-123' });
+      await service.findAll({}, { id: 'external-1', orgId: 'org-tenant-xx', role: 'EXTERNAL', owner_id: 'owner-123' });
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           organization_id: 'org-tenant-xx',
           is_public: true,
           status: 'COMPLETED',
-          asset: { company_id: 'cust-123' }
+          asset: { owner_id: 'owner-123' }
         })
       }));
     });
 
-    it('Un CLIENT no deberia ver servicios de otras companies aunque compartan Organizacion', async () => {
+    it('Un EXTERNAL no deberia ver servicios de otros owners aunque compartan Organizacion', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      const myCompanyId = 'empresa-a';
+      const myOwnerId = 'owner-a';
 
-      await service.findAll({}, { id: 'user-a', orgId: 'org-1', role: 'CLIENT', company_id: myCompanyId });
+      await service.findAll({}, { id: 'user-a', orgId: 'org-1', role: 'EXTERNAL', owner_id: myOwnerId });
 
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          asset: { company_id: myCompanyId }
+          asset: { owner_id: myOwnerId }
         })
       }));
     });
 
-    it('Un CLIENT sin company_id no debe ver servicios del tenant', async () => {
-      const result = await service.findAll({}, { id: 'client-1', orgId: 'org-1', role: 'CLIENT' });
+    it('Un EXTERNAL sin owner_id no debe ver servicios del tenant', async () => {
+      const result = await service.findAll({}, { id: 'external-1', orgId: 'org-1', role: 'EXTERNAL' });
 
       expect(result).toEqual([]);
       expect(prisma.service.findMany).not.toHaveBeenCalled();

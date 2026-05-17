@@ -43,7 +43,7 @@ describe('Dashboard (e2e)', () => {
     // Crear datos para la org
     const worker = await testUtils.createTestUser(Role.WORKER, 'worker1@org1.com', org.id);
     await prisma.asset.create({ 
-      data: { name: 'Asset 1', organization_id: org.id, company_id: company.id } 
+      data: { name: 'Asset 1', organization_id: org.id, owner_id: company.id } 
     });
     const asset = await prisma.asset.findFirst({ where: { organization_id: org.id } });
     await prisma.service.create({ 
@@ -77,7 +77,7 @@ describe('Dashboard (e2e)', () => {
     const admin1 = await testUtils.createTestUser(Role.ADMIN, 'admin1@org1.com', org1.id);
     
     // Crear datos solo en org2
-    await prisma.asset.create({ data: { name: 'Asset 2', organization_id: org2.id, company_id: company2.id } });
+    await prisma.asset.create({ data: { name: 'Asset 2', organization_id: org2.id, owner_id: company2.id } });
 
     const token = testUtils.getBearerToken(admin1);
     const response = await request(app.getHttpServer())
@@ -93,8 +93,8 @@ describe('Dashboard (e2e)', () => {
     const org2 = await testUtils.createTestOrganization('Org2');
     const company1 = await testUtils.createTestCustomer('Empresa Org1', org1.id);
     const company2 = await testUtils.createTestCustomer('Empresa Org2', org2.id);
-    await prisma.asset.create({ data: { name: 'A1', organization_id: org1.id, company_id: company1.id } });
-    await prisma.asset.create({ data: { name: 'A2', organization_id: org2.id, company_id: company2.id } });
+    await prisma.asset.create({ data: { name: 'A1', organization_id: org1.id, owner_id: company1.id } });
+    await prisma.asset.create({ data: { name: 'A2', organization_id: org2.id, owner_id: company2.id } });
     
     const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
     const token = testUtils.getBearerToken(superAdmin);
@@ -127,9 +127,9 @@ describe('Dashboard (e2e)', () => {
     expect(response.body.total_clients).toBe(0);
   });
 
-  it('CLIENT debería ver sus propios activos y servicios públicos (no administrativos)', async () => {
+  it('EXTERNAL debería ver sus propios activos y servicios públicos (no administrativos)', async () => {
     const org = await testUtils.createTestOrganization('OrgClient');
-    const client = await testUtils.createTestUser(Role.CLIENT, 'client@orgclient.com', org.id);
+    const client = await testUtils.createTestUser(Role.EXTERNAL, 'client@orgclient.com', org.id);
     const token = testUtils.getBearerToken(client);
 
     const response = await request(app.getHttpServer())

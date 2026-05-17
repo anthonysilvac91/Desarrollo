@@ -40,7 +40,7 @@ describe('Services (e2e)', () => {
       const org = await testUtils.createTestOrganization();
       const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote X' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote X' } });
       const token = testUtils.getBearerToken(worker);
 
       const res = await request(app.getHttpServer())
@@ -53,13 +53,13 @@ describe('Services (e2e)', () => {
       expect(res.body.worker_id).toBe(worker.id);
     });
 
-    it('CLIENT solo ve services públicos de un Asset asignado', async () => {
+    it('EXTERNAL solo ve services públicos de un Asset asignado', async () => {
       const org = await testUtils.createTestOrganization();
       const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const client = await testUtils.createTestUser(Role.CLIENT, 'client@test.com', org.id, company.id);
+      const client = await testUtils.createTestUser(Role.EXTERNAL, 'client@test.com', org.id, company.id);
       
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote X' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote X' } });
 
       await prisma.service.create({ data: { title: 'Público', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true }});
       await prisma.service.create({ data: { title: 'Privado', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: false }});
@@ -80,7 +80,7 @@ describe('Services (e2e)', () => {
       const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote X' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote X' } });
 
       const srv = await prisma.service.create({ data: { title: 'Viejo', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true }});
 
@@ -101,7 +101,7 @@ describe('Services (e2e)', () => {
       const company2 = await testUtils.createTestCustomer('Empresa B', org2.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org1.id);
       const foreignAsset = await prisma.asset.create({
-        data: { organization_id: org2.id, company_id: company2.id, name: 'Bote externo' },
+        data: { organization_id: org2.id, owner_id: company2.id, name: 'Bote externo' },
       });
       const token = testUtils.getBearerToken(worker);
 
@@ -119,7 +119,7 @@ describe('Services (e2e)', () => {
       const org = await testUtils.createTestOrganization();
       const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote' } });
       const srv = await prisma.service.create({ 
         data: { title: 'Test', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true },
         include: { attachments: true }
@@ -134,12 +134,12 @@ describe('Services (e2e)', () => {
       expect(res.body.attachments).toBeInstanceOf(Array);
     });
 
-    it('CLIENT no puede ver un servicio privado.', async () => {
+    it('EXTERNAL no puede ver un servicio privado.', async () => {
       const org = await testUtils.createTestOrganization();
       const company = await testUtils.createTestCustomer('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const client = await testUtils.createTestUser(Role.CLIENT, 'client@test.com', org.id, company.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, company_id: company.id, name: 'Bote' } });
+      const client = await testUtils.createTestUser(Role.EXTERNAL, 'client@test.com', org.id, company.id);
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote' } });
       const srv = await prisma.service.create({ 
         data: { title: 'Privado', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: false }
       });

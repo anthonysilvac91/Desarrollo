@@ -23,7 +23,7 @@ export class TestUtils {
       this.prisma.invitation.deleteMany(),
       this.prisma.asset.deleteMany(),
       this.prisma.user.deleteMany(),
-      this.prisma.company.deleteMany(),
+      this.prisma.owner.deleteMany(),
       this.prisma.storedFile.deleteMany(),
       this.prisma.organization.deleteMany(),
     ]);
@@ -50,8 +50,8 @@ export class TestUtils {
     const password_hash = await bcrypt.hash('123456', 10);
     let resolvedCompanyId = companyId;
 
-    if (role === Role.CLIENT && orgId && !resolvedCompanyId) {
-      const company = await this.prisma.company.create({
+    if (role === Role.EXTERNAL && orgId && !resolvedCompanyId) {
+      const company = await this.prisma.owner.create({
         data: {
           name: `Company ${email}`,
           organization_id: orgId,
@@ -67,13 +67,13 @@ export class TestUtils {
         password_hash,
         name: `User ${role} ${email}`,
         organization_id: orgId || null,
-        company_id: resolvedCompanyId || null,
+        owner_id: resolvedCompanyId || null,
       }
     });
   }
 
   async createTestCustomer(name: string, orgId: string) {
-    return this.prisma.company.create({
+    return this.prisma.owner.create({
       data: {
         name,
         organization_id: orgId
@@ -90,8 +90,8 @@ export class TestUtils {
       sub: user.id,
       orgId: user.organization_id,
       role: user.role,
-      customer_id: user.company_id,
-      company_id: user.company_id,
+      customer_id: user.owner_id,
+      owner_id: user.owner_id,
     };
     return this.jwtService.sign(payload, { secret: process.env.JWT_SECRET || 'RECALL_TEST_STRICT_SAFE_SECRET' });
   }

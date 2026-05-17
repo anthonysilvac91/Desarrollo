@@ -19,10 +19,10 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'El nombre es requerido' })
   name: string;
 
-  @ApiProperty({ enum: ['SUPER_ADMIN', 'ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], description: 'Rol del usuario. EXTERNAL es el rol canónico para usuarios externos.' })
-  @IsIn(['SUPER_ADMIN', 'ADMIN', 'WORKER', 'CLIENT', 'EXTERNAL'], { message: 'Rol invalido' })
+  @ApiProperty({ enum: ['SUPER_ADMIN', 'ADMIN', 'WORKER', 'EXTERNAL'], description: 'Rol del usuario. EXTERNAL es el rol canónico para usuarios externos.' })
+  @IsIn(['SUPER_ADMIN', 'ADMIN', 'WORKER', 'EXTERNAL'], { message: 'Rol invalido' })
   @IsNotEmpty({ message: 'El rol es requerido' })
-  role: Role | 'EXTERNAL';
+  role: Role;
 
   @ApiProperty({ required: false, description: 'ID de la organizacion (Opcional para SUPER_ADMIN)' })
   @IsOptional()
