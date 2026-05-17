@@ -4,11 +4,14 @@ import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
-import { assetsService } from "@/services/assets.service";
+import { Asset, assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/lib/formatDate";
+
+const TITLE_MAX_LENGTH = 120;
+const DESCRIPTION_MAX_LENGTH = 400;
 
 export default function WorkerNewServicePage() {
   const router = useRouter();
@@ -18,16 +21,14 @@ export default function WorkerNewServicePage() {
   const { t } = useLanguage();
   const assetId = params.id as string;
   
-  const [assetName, setAssetName] = useState("");
-  const [assetError, setAssetError] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const cachedAsset = queryClient.getQueryData<any>(["asset", assetId]);
-  const cachedAssets = queryClient.getQueryData<any[]>(["assets"]);
+  const cachedAsset = queryClient.getQueryData<Asset>(["asset", assetId]);
+  const cachedAssets = queryClient.getQueryData<Asset[]>(["assets"]);
   const cachedAssetFromList = cachedAssets?.find((asset) => asset.id === assetId);
 
   const { data: asset, isError: isAssetQueryError } = useQuery({
@@ -37,19 +38,14 @@ export default function WorkerNewServicePage() {
     initialData: cachedAsset || cachedAssetFromList,
   });
 
-  useEffect(() => {
-    if (asset?.name) {
-      setAssetName(asset.name);
-      setAssetError(false);
-      return;
-    }
+  const assetName = asset?.name || "";
+  const assetError = isAssetQueryError;
 
+  useEffect(() => {
     if (isAssetQueryError) {
-      setAssetName(t.mobile.new_service.loading_asset);
-      setAssetError(true);
       showToast(t.mobile.new_service.error_asset, "error");
     }
-  }, [asset?.name, isAssetQueryError, showToast, t]);
+  }, [isAssetQueryError, showToast, t]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -158,9 +154,13 @@ export default function WorkerNewServicePage() {
               placeholder={t.mobile.new_service.title_placeholder}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={TITLE_MAX_LENGTH}
               disabled={isSubmitting}
               className="w-full bg-surface border border-border-theme/40 rounded-3xl px-6 py-4 text-base font-bold text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 shadow-soft transition-all disabled:opacity-50"
             />
+            <p className="text-right text-[10px] font-black text-subtitle/30 tracking-widest pr-1">
+              {title.length}/{TITLE_MAX_LENGTH}
+            </p>
           </div>
 
           {/* Service Description */}
@@ -170,9 +170,13 @@ export default function WorkerNewServicePage() {
               placeholder={t.mobile.new_service.description_placeholder}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              maxLength={DESCRIPTION_MAX_LENGTH}
               disabled={isSubmitting}
               className="w-full bg-surface border border-border-theme/40 rounded-3xl p-6 min-h-[140px] text-sm font-semibold text-subtitle leading-relaxed focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 shadow-soft transition-all resize-none outline-none disabled:opacity-50"
             />
+            <p className="text-right text-[10px] font-black text-subtitle/30 tracking-widest pr-1">
+              {description.length}/{DESCRIPTION_MAX_LENGTH}
+            </p>
           </div>
 
           {/* Photos Carousel */}

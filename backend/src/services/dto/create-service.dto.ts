@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty, IsUUID, IsBoolean, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsUUID, IsBoolean, IsEnum, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateServiceDto {
@@ -10,11 +10,13 @@ export class CreateServiceDto {
   @ApiProperty({ description: 'Título conciso descriptivo del servicio realizado', example: 'Sincronización de correas realizada' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(120, { message: 'El titulo no puede superar los 120 caracteres' })
   title: string;
 
   @ApiPropertyOptional({ description: 'Descripción adicional del operario', example: 'Falta un repuesto para el faro izquierdo.' })
   @IsString()
   @IsOptional()
+  @MaxLength(400, { message: 'La descripcion no puede superar los 400 caracteres' })
   description?: string;
 
   @ApiPropertyOptional({ description: 'Indica si es visible para los clientes' })

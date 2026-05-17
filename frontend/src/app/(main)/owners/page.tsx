@@ -7,7 +7,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { ownersService, Owner } from "@/services/owners.service";
 import OwnerModal from "@/components/owners/OwnerModal";
-import DataTable from "@/components/ui/DataTable";
+import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -67,7 +67,7 @@ export default function OwnersPage() {
     ? responseData.meta
     : { total: ownersList.length, page: 1, limit: 10, totalPages: 1 };
 
-  const columns = [
+  const columns: ColumnDef<Owner>[] = [
     {
       header: t.owners.table.name.toUpperCase(),
       key: "name",

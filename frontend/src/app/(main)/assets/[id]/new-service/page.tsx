@@ -10,6 +10,9 @@ import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 
+const TITLE_MAX_LENGTH = 120;
+const DESCRIPTION_MAX_LENGTH = 400;
+
 export default function NewAssetServicePage() {
   const router = useRouter();
   const params = useParams();
@@ -155,10 +158,14 @@ export default function NewAssetServicePage() {
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
+                maxLength={TITLE_MAX_LENGTH}
                 disabled={isSubmitting}
                 placeholder={t.mobile.new_service.title_placeholder}
                 className="w-full bg-app-bg border border-border-theme/40 rounded-2xl px-5 py-4 text-title font-bold placeholder:text-subtitle/30 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all disabled:opacity-50"
               />
+              <p className="text-right text-[10px] font-black text-subtitle/30 tracking-widest">
+                {title.length}/{TITLE_MAX_LENGTH}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -168,10 +175,14 @@ export default function NewAssetServicePage() {
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
+                maxLength={DESCRIPTION_MAX_LENGTH}
                 disabled={isSubmitting}
                 placeholder={t.mobile.new_service.description_placeholder}
                 className="w-full bg-app-bg border border-border-theme/40 rounded-2xl p-5 min-h-[180px] text-title font-semibold placeholder:text-subtitle/30 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all resize-none disabled:opacity-50"
               />
+              <p className="text-right text-[10px] font-black text-subtitle/30 tracking-widest">
+                {description.length}/{DESCRIPTION_MAX_LENGTH}
+              </p>
             </div>
           </div>
 
