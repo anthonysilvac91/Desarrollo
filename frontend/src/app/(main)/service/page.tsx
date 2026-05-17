@@ -4,10 +4,12 @@ import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
+import ServiceModal from "@/components/services/ServiceModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { servicesService, Service } from "@/services/services.service";
 import { useToast } from "@/lib/ToastContext";
@@ -16,6 +18,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 export default function ServicesPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const canCreate = user?.role === "ADMIN" || user?.role === "WORKER";
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [dateFilter, setDateFilter] = useState<{preset: string, start?: string, end?: string}>({ preset: "Todo" });
@@ -99,7 +104,6 @@ export default function ServicesPage() {
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-title text-sm leading-tight">{item.title}</span>
-            <span className="text-[11px] font-bold text-brand uppercase tracking-wider mt-0.5">COMPLETED</span>
           </div>
         </div>
       )
@@ -191,11 +195,20 @@ export default function ServicesPage() {
 
   return (
     <div className="flex flex-col space-y-8">
-      <FiltersBar 
+      <FiltersBar
         searchPlaceholder={t.services.search_placeholder}
         onSearchChange={setSearch}
         onDateChange={handleDateChange}
         showQuickFilters={true}
+        actions={canCreate ? (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+          >
+            <Plus className="w-5 h-5 stroke-[4px]" />
+            <span>{t.services.add_new}</span>
+          </button>
+        ) : undefined}
       />
 
       <div className="flex-1 min-h-[400px]">
@@ -249,9 +262,15 @@ export default function ServicesPage() {
         )}
       </div>
 
-      <ServiceDrawer 
-        service={selectedService} 
-        onClose={() => setSelectedService(null)} 
+      <ServiceDrawer
+        service={selectedService}
+        onClose={() => setSelectedService(null)}
+      />
+
+      <ServiceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={refetch}
       />
 
       <ConfirmModal 
