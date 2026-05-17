@@ -45,10 +45,10 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       const newOwner = await ownersService.create({ name });
       queryClient.invalidateQueries({ queryKey: ["owners"] });
       setFormData(prev => ({ ...prev, owner_id: newOwner.id }));
-      showToast("Propietario creado", "success");
+      showToast(t.assets.modal.owner_created, "success");
     } catch (error) {
       console.error(error);
-      showToast("Error al crear propietario", "error");
+      showToast(t.assets.modal.owner_error, "error");
     } finally {
       setLoading(false);
     }
@@ -94,7 +94,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
   const handleSave = async () => {
     if (!formData.name) {
-      showToast("El nombre es obligatorio", "error");
+      showToast(t.assets.modal.name_required, "error");
       return;
     }
 
@@ -116,13 +116,11 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       console.log('📤 Enviando barco:', { name: formData.name, owner_id: formData.owner_id });
 
       if (asset?.id) {
-        // Modo Edición
         await assetsService.update(asset.id, data);
-        showToast(t.feedback?.save_success || "Cambios guardados", "success");
+        showToast(t.feedback.save_success, "success");
       } else {
-        // Modo Creación
         await assetsService.create(data);
-        showToast(t.feedback?.save_success || "Embarcación creada", "success");
+        showToast(t.feedback.save_success, "success");
       }
 
       onSuccess();
@@ -140,7 +138,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={asset ? "Editar Embarcación" : t.assets.add_new}>
+    <Modal isOpen={isOpen} onClose={onClose} title={asset ? t.assets.modal.title_edit : t.assets.add_new}>
       <div className="flex flex-col space-y-8 mt-2">
         {/* Photo Upload Area */}
         <div className="flex justify-center">
@@ -167,14 +165,14 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
           {/* Asset Name */}
           <div className="flex flex-col space-y-2">
             <label className="text-[13px] font-bold text-subtitle uppercase tracking-widest pl-1">
-              Nombre de la embarcación
+              {t.assets.modal.name_label}
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-5 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm"
-              placeholder="Ej. Black Pearl"
+              placeholder={t.assets.modal.name_placeholder}
             />
           </div>
 
@@ -184,7 +182,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
             options={ownerOptions}
             value={formData.owner_id}
             onChange={(val) => setFormData({ ...formData, owner_id: val })}
-            placeholder="Selecciona un owner..."
+            placeholder={t.assets.modal.owner_placeholder}
             onCreate={
               (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN")
                 ? handleQuickCreateOwner
@@ -213,7 +211,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
             onClick={onClose}
             className="flex-1 py-4 px-6 rounded-2xl text-sm font-bold text-subtitle hover:bg-gray-100 transition-all"
           >
-            Cancelar
+            {t.common.cancel}
           </button>
           <button
             onClick={handleSave}
@@ -223,7 +221,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <span>{asset ? "Guardar Cambios" : "Crear Embarcación"}</span>
+              <span>{asset ? t.assets.modal.submit_edit : t.assets.modal.submit_create}</span>
             )}
           </button>
         </div>
