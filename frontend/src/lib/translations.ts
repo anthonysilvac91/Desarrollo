@@ -171,7 +171,7 @@ export const translations = {
         full_name_placeholder: "e.g. John Doe",
         email: "Corporate Email",
         email_placeholder: "john@owner.com",
-        owner: "Owner / Organization",
+        owner: "Owner",
         owner_placeholder: "Type or select an owner...",
         role: "Assigned Role",
         password: "Password",
