@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { X, Camera, Loader2, ImagePlus } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { X, Loader2, ImagePlus } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { servicesService } from "@/services/services.service";
-import { assetsService } from "@/services/assets.service";
+import { Asset, assetsService } from "@/services/assets.service";
+
+const TITLE_MAX_LENGTH = 120;
+const DESCRIPTION_MAX_LENGTH = 400;
 
 interface ServiceModalProps {
   isOpen: boolean;
@@ -28,23 +31,25 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
 
-  const { data: assetsData = [] } = useQuery({
+  const { data: assetsData = [] } = useQuery<Asset[] | { data: Asset[] }>({
     queryKey: ["assets"],
     queryFn: () => assetsService.findAll(),
     enabled: isOpen,
   });
 
-  const assets = (Array.isArray(assetsData) ? assetsData : (assetsData as any).data || [])
-    .map((a: any) => ({ id: a.id, name: a.name }));
+  const assets = Array.isArray(assetsData) ? assetsData : assetsData.data || [];
 
-  useEffect(() => {
-    if (!isOpen) {
-      setAssetId("");
-      setTitle("");
-      setDescription("");
-      setImages([]);
-    }
-  }, [isOpen]);
+  const resetForm = () => {
+    setAssetId("");
+    setTitle("");
+    setDescription("");
+    setImages([]);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -82,7 +87,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
       queryClient.invalidateQueries({ queryKey: ["services"] });
       showToast(t.services.modal.success, "success");
       onSuccess();
-      onClose();
+      handleClose();
     } catch {
       showToast(t.services.modal.error, "error");
     } finally {
@@ -91,7 +96,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t.services.modal.title_create}>
+    <Modal isOpen={isOpen} onClose={handleClose} title={t.services.modal.title_create}>
       <form onSubmit={handleSubmit} className="flex flex-col space-y-6 mt-2">
 
         {/* Asset */}
@@ -112,9 +117,13 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
+            maxLength={TITLE_MAX_LENGTH}
             placeholder={t.services.modal.title_placeholder}
             className="w-full px-5 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm"
           />
+          <p className="text-right text-[10px] font-black text-subtitle/30 tracking-widest pr-1">
+            {title.length}/{TITLE_MAX_LENGTH}
+          </p>
         </div>
 
         {/* Description */}
@@ -125,10 +134,14 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
+            maxLength={DESCRIPTION_MAX_LENGTH}
             placeholder={t.services.modal.description_placeholder}
             rows={3}
             className="w-full px-5 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm resize-none"
           />
+          <p className="text-right text-[10px] font-black text-subtitle/30 tracking-widest pr-1">
+            {description.length}/{DESCRIPTION_MAX_LENGTH}
+          </p>
         </div>
 
         {/* Evidence */}
@@ -176,7 +189,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
         <div className="flex items-center space-x-4 pt-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="flex-1 py-4 px-6 rounded-2xl text-sm font-bold text-subtitle hover:bg-gray-100 transition-all"
           >
             {t.common.cancel}
