@@ -1,130 +1,166 @@
-import { PrismaClient, Role, WorkerEditPolicy } from '@prisma/client';
+import { PrismaClient, Role, ServiceStatus, WorkerEditPolicy } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Iniciando DB Seed para MVP (Estructura B2B)...');
-  
-  // Limpieza en cascada (inverso a dependencias)
+  console.log('Iniciando DB Seed para modelo Owner/EXTERNAL...');
+
+  // Limpieza en cascada inversa a dependencias.
   await prisma.serviceAttachment.deleteMany();
   await prisma.service.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.storedFile.deleteMany();
   await prisma.owner.deleteMany();
   await prisma.organization.deleteMany();
 
   const hashedPwd = await bcrypt.hash('password123', 10);
 
-  // 1. SUPER ADMIN GLOBAL
   await prisma.user.create({
-    data: { role: Role.SUPER_ADMIN, email: 'sys@recall.app', password_hash: hashedPwd, name: 'Sistema Recall' },
+    data: {
+      role: Role.SUPER_ADMIN,
+      email: 'sys@recall.app',
+      password_hash: hashedPwd,
+      name: 'Sistema Recall',
+    },
   });
-  console.log(`[SYS] Creado Super Admin (sys@recall.app)`);
 
-  // --- ORGANIZACIÓN 1: OCEANIC YACHTS ---
-  const orgOceanic = await prisma.organization.create({
+  const organization = await prisma.organization.create({
     data: {
       name: 'Oceanic Yacht Management',
       slug: 'oceanic-yachts',
-      auto_publish_services: true, 
+      auto_publish_services: true,
       worker_edit_policy: WorkerEditPolicy.TIME_WINDOW,
     },
   });
 
-  // Clientes Corporativos de Oceanic
-  const oceanicCompanyA = await prisma.owner.create({
-    data: { name: 'Empresa Charter Balear', organization_id: orgOceanic.id }
-  });
-  const oceanicCompanyB = await prisma.owner.create({
-    data: { name: 'Yacht Owners Group', organization_id: orgOceanic.id }
-  });
-
-  // Usuarios de Oceanic
-  await prisma.user.create({
-    data: { organization_id: orgOceanic.id, role: Role.ADMIN, email: 'admin@oceanic.app', password_hash: hashedPwd, name: 'Marina Admin' },
-  });
-  const oWorker1 = await prisma.user.create({
-    data: { organization_id: orgOceanic.id, role: Role.WORKER, email: 'roberto@oceanic.app', password_hash: hashedPwd, name: 'Roberto (Mecánico)' },
-  });
-  const oWorker2 = await prisma.user.create({
-    data: { organization_id: orgOceanic.id, role: Role.WORKER, email: 'carlos@oceanic.app', password_hash: hashedPwd, name: 'Carlos (Detailing)' },
-  });
-
-  // Usuarios Clientes vinculados a Empresa
-  await prisma.user.create({
-    data: { 
-      organization_id: orgOceanic.id, 
-      owner_id: oceanicCompanyA.id, 
-      role: Role.EXTERNAL, 
-      email: 'gestor.charter@mail.com', 
-      password_hash: hashedPwd, 
-      name: 'Eduardo (Gestor Charter)' 
-    },
-  });
-  await prisma.user.create({
-    data: { 
-      organization_id: orgOceanic.id, 
-      owner_id: oceanicCompanyB.id, 
-      role: Role.EXTERNAL, 
-      email: 'propietario@mail.com', 
-      password_hash: hashedPwd, 
-      name: 'Andrés (Dueño Naomi)' 
+  const charterOwner = await prisma.owner.create({
+    data: {
+      organization_id: organization.id,
+      name: 'Empresa Charter Balear',
     },
   });
 
-  // Activos vinculados a Empresa
-  const oAsset1 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyB.id, name: 'Lady Nelly' } });
-  const oAsset2 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyA.id, name: 'Azimut 58' } });
-  const oAsset3 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyA.id, name: 'Naomi' } });
-  const oAsset4 = await prisma.asset.create({ data: { organization_id: orgOceanic.id, owner_id: oceanicCompanyB.id, name: 'Verve 42' } });
+  const privateOwner = await prisma.owner.create({
+    data: {
+      organization_id: organization.id,
+      name: 'Yacht Owners Group',
+    },
+  });
 
-  console.log(`[ORG] Creada Org 1: Oceanic Yachts (4 yates, 2 empresas clientes)`);
+  await prisma.user.create({
+    data: {
+      organization_id: organization.id,
+      role: Role.ADMIN,
+      email: 'admin@oceanic.app',
+      password_hash: hashedPwd,
+      name: 'Marina Admin',
+    },
+  });
 
-  // --- HISTORIAL DE SERVICIOS ---
+  const workerA = await prisma.user.create({
+    data: {
+      organization_id: organization.id,
+      role: Role.WORKER,
+      email: 'roberto@oceanic.app',
+      password_hash: hashedPwd,
+      name: 'Roberto Mecanico',
+    },
+  });
+
+  const workerB = await prisma.user.create({
+    data: {
+      organization_id: organization.id,
+      role: Role.WORKER,
+      email: 'carlos@oceanic.app',
+      password_hash: hashedPwd,
+      name: 'Carlos Detailing',
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      organization_id: organization.id,
+      owner_id: charterOwner.id,
+      role: Role.EXTERNAL,
+      email: 'gestor.charter@mail.com',
+      password_hash: hashedPwd,
+      name: 'Eduardo Gestor Charter',
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      organization_id: organization.id,
+      owner_id: privateOwner.id,
+      role: Role.EXTERNAL,
+      email: 'propietario@mail.com',
+      password_hash: hashedPwd,
+      name: 'Andres Owner Naomi',
+    },
+  });
+
+  const assets = await Promise.all([
+    prisma.asset.create({
+      data: { organization_id: organization.id, owner_id: privateOwner.id, name: 'Lady Nelly' },
+    }),
+    prisma.asset.create({
+      data: { organization_id: organization.id, owner_id: charterOwner.id, name: 'Azimut 58' },
+    }),
+    prisma.asset.create({
+      data: { organization_id: organization.id, owner_id: charterOwner.id, name: 'Naomi' },
+    }),
+    prisma.asset.create({
+      data: { organization_id: organization.id, owner_id: privateOwner.id, name: 'Verve 42' },
+    }),
+  ]);
+
   const serviceTemplates = [
-    { title: 'Lavado General exterior', desc: 'Lavado con jabón marino, teca y secado total', isPublic: true },
-    { title: 'Mantenimiento Preventivo', desc: 'Revisión mensual de líquidos y encendido', isPublic: true },
+    { title: 'Lavado general exterior', desc: 'Lavado con jabon marino, teca y secado total', isPublic: true },
+    { title: 'Mantenimiento preventivo', desc: 'Revision mensual de liquidos y encendido', isPublic: true },
     { title: 'Pulido parcial', desc: 'Detallado en proa y costado de estribor', isPublic: true },
-    { title: 'Falla bomba reportada', desc: 'Bomba de sentina bloqueada, requiere cotización repuesto', isPublic: false },
-    { title: 'Inspección de sistemas', desc: 'Sistemas ok, baterías a 12.8v', isPublic: true },
+    { title: 'Falla bomba reportada', desc: 'Bomba de sentina bloqueada, requiere cotizacion de repuesto', isPublic: false },
+    { title: 'Inspeccion de sistemas', desc: 'Sistemas ok, baterias a 12.8v', isPublic: true },
   ];
 
-  const createRandomServices = async (orgId: string, assets: any[], workers: any[], count: number) => {
-    for (let i = 0; i < count; i++) {
-        const randTemplate = serviceTemplates[Math.floor(Math.random() * serviceTemplates.length)];
-        const randAsset = assets[Math.floor(Math.random() * assets.length)];
-        const randWorker = workers[Math.floor(Math.random() * workers.length)];
-        const randomDaysAgo = Math.floor(Math.random() * 30); 
-        const date = new Date(Date.now() - randomDaysAgo * 24 * 60 * 60 * 1000);
+  const workers = [workerA, workerB];
 
-        await prisma.service.create({
-            data: {
-                organization_id: orgId,
-                asset_id: randAsset.id,
-                worker_id: randWorker.id,
-                title: randTemplate.title,
-                description: randTemplate.desc,
-                is_public: randTemplate.isPublic,
-                status: 'COMPLETED',
-                created_at: date
-            }
-        });
-    }
-  };
+  for (let i = 0; i < 20; i++) {
+    const template = serviceTemplates[i % serviceTemplates.length];
+    const asset = assets[i % assets.length];
+    const worker = workers[i % workers.length];
+    const createdAt = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
 
-  await createRandomServices(orgOceanic.id, [oAsset1, oAsset2, oAsset3, oAsset4], [oWorker1, oWorker2], 20);
-
-  console.log(`[DATA] Inyectados servicios históricos\n`);
+    await prisma.service.create({
+      data: {
+        organization_id: organization.id,
+        asset_id: asset.id,
+        worker_id: worker.id,
+        title: template.title,
+        description: template.desc,
+        is_public: template.isPublic,
+        status: ServiceStatus.COMPLETED,
+        created_at: createdAt,
+      },
+    });
+  }
 
   console.log('=========================================');
-  console.log(' SEED B2B COMPLETADO CON EXITO');
+  console.log(' SEED OWNER/EXTERNAL COMPLETADO CON EXITO');
   console.log('=========================================');
-  console.log('Password global: password123\n');
+  console.log('Password global: password123');
+  console.log(' [SUPER ADMIN]: sys@recall.app');
   console.log(' [ADMIN OCEANIC]: admin@oceanic.app');
-  console.log(' [CLIENTE CHARTER]: gestor.charter@mail.com');
-  console.log(' [CLIENTE OWNERS]: propietario@mail.com');
-  console.log('=========================================\n');
+  console.log(' [WORKER OCEANIC]: roberto@oceanic.app');
+  console.log(' [EXTERNAL CHARTER]: gestor.charter@mail.com');
+  console.log(' [EXTERNAL OWNER]: propietario@mail.com');
+  console.log('=========================================');
 }
 
-main().catch(e => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());
