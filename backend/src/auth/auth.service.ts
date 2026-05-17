@@ -38,6 +38,10 @@ export class AuthService {
         this.logger.warn(`SUPER_ADMIN ${user.id} has organization_id, rejecting`);
         throw new UnauthorizedException('Invalid credentials');
       }
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { last_login_at: new Date() },
+      });
       const payload = { sub: user.id, orgId: null, role: 'SUPER_ADMIN', owner_id: null };
       this.logger.log(`User ${user.id} logged in successfully`);
       return { access_token: this.jwtService.sign(payload) };
@@ -59,6 +63,11 @@ export class AuthService {
       role: toApiRole(user.role),
       owner_id: user.owner_id ?? null,
     };
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { last_login_at: new Date() },
+    });
 
     this.logger.log(`User ${user.id} logged in successfully`);
     return { access_token: this.jwtService.sign(payload) };

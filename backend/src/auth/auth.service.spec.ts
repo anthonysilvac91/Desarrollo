@@ -12,7 +12,7 @@ describe('AuthService', () => {
   let jwt: JwtService;
 
   const prismaMock = {
-    user: { findFirst: jest.fn(), findUnique: jest.fn() },
+    user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   };
   const jwtMock = { sign: jest.fn().mockReturnValue('mocked-token') };
 
@@ -90,9 +90,13 @@ describe('AuthService', () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(makeSuperAdmin({ password_hash: hash }));
 
-      const result = await service.login({ email: 'sa@test.com', password: 'pass' });
+    const result = await service.login({ email: 'sa@test.com', password: 'pass' });
 
       expect(result.access_token).toBe('mocked-token');
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'u-super' },
+        data: { last_login_at: expect.any(Date) },
+      });
       expect(jwt.sign).toHaveBeenCalledWith({ sub: 'u-super', orgId: null, role: 'SUPER_ADMIN', owner_id: null });
     });
 
@@ -115,6 +119,10 @@ describe('AuthService', () => {
       const result = await service.login({ email: 'admin@test.com', password: 'pass' });
 
       expect(result.access_token).toBe('mocked-token');
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'u-1' },
+        data: { last_login_at: expect.any(Date) },
+      });
       expect(jwt.sign).toHaveBeenCalledWith(expect.objectContaining({ orgId: 'org-real', role: 'ADMIN' }));
     });
 
