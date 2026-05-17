@@ -155,6 +155,12 @@ export const translations = {
         of: "of",
         services: "completed services",
       },
+      drawer: {
+        report_label: "Service",
+        evidence_label: "Gallery",
+        no_photos: "No attached photos",
+        close: "Close Report",
+      },
       modal: {
         title_create: "New Service",
         asset_label: "Asset",
@@ -627,6 +633,12 @@ export const translations = {
         showing: "Mostrando",
         of: "de",
         services: "servicios completados",
+      },
+      drawer: {
+        report_label: "Servicio",
+        evidence_label: "Galería",
+        no_photos: "Sin fotos adjuntas",
+        close: "Cerrar Reporte",
       },
       modal: {
         title_create: "Nuevo Servicio",

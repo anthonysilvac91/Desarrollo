@@ -9,6 +9,7 @@ export interface Service {
     id: string;
     name: string;
     location?: string;
+    thumbnail_url?: string | null;
   };
   worker?: {
     id: string;
