@@ -73,6 +73,7 @@ export const translations = {
         location: "Location",
         services: "Services",
         last_service: "Last Service",
+        status: "Status",
         actions: "Actions",
       },
       pagination: {
@@ -594,6 +595,7 @@ export const translations = {
         location: "Ubicación",
         services: "Servicios",
         last_service: "Último Servicio",
+        status: "Estado",
         actions: "Acciones",
       },
       pagination: {

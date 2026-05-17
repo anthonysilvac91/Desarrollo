@@ -130,7 +130,7 @@ export default function UsersPage() {
       sortValue: (item) => item.name,
       cell: (item) => (
         <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0 font-black text-xs border border-brand/5 overflow-hidden">
+          <div className={`w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0 font-black text-xs border border-brand/5 overflow-hidden ${!item.is_active ? 'grayscale opacity-40' : ''}`}>
             {item.avatar_url ? (
               <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
             ) : (
@@ -138,8 +138,8 @@ export default function UsersPage() {
             )}
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-title text-sm tracking-tight">{item.name}</span>
-            <div className="flex items-center space-x-1 text-subtitle/40">
+            <span className={`font-bold text-title text-sm tracking-tight ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
+            <div className={`flex items-center space-x-1 text-subtitle/40 ${!item.is_active ? 'opacity-40' : ''}`}>
               <Mail className="w-3 h-3" />
               <span className="text-xs font-semibold tracking-tight">{item.email}</span>
             </div>
@@ -169,7 +169,7 @@ export default function UsersPage() {
         const currentLabel = roleLabels[item.role] ?? item.role;
 
         return (
-          <div className={`px-3 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider w-fit ${currentStyle}`}>
+          <div className={`inline-flex justify-center w-28 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider ${currentStyle}`}>
             {currentLabel}
           </div>
         );
@@ -181,9 +181,9 @@ export default function UsersPage() {
       sortable: true,
       sortValue: (item) => item.organization?.name || item.owner?.name || "",
       cell: (item) => (
-        <div className="flex items-center text-subtitle/80">
-          <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">{item.organization?.name || item.owner?.name || "Global"}</span>
+        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border-theme/40 bg-app-bg text-[11px] font-black text-subtitle/70 uppercase tracking-wider ${!item.is_active ? 'opacity-40' : ''}`}>
+          <Building2 className="w-3 h-3 shrink-0" />
+          <span className="truncate max-w-25">{item.organization?.name || item.owner?.name || "Global"}</span>
         </div>
       )
     },
@@ -193,17 +193,9 @@ export default function UsersPage() {
       align: "center",
       sortable: true,
       sortValue: (item) => (item.is_active ? 1 : 0),
-      cell: (item) => {
-        const isActive = item.is_active;
-        return (
-          <div className="flex items-center justify-center">
-            <div className={`flex items-center space-x-2.5 font-black uppercase tracking-widest text-[13px] ${isActive ? 'text-emerald-500' : 'text-subtitle/30'}`}>
-              <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-subtitle/20'}`} />
-              <span>{isActive ? t.common.active : t.common.inactive}</span>
-            </div>
-          </div>
-        );
-      }
+      cell: (item) => item.is_active
+        ? <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-green-100 text-green-700 border-green-200">{t.common.active}</span>
+        : <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-red-100 text-red-700 border-red-200">{t.common.inactive}</span>
     },
     {
       key: "last_access",

@@ -133,11 +133,6 @@ export default function AssetsPage() {
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className={`font-bold text-title text-sm ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
-              {!item.is_active && (
-                <span className="px-2 py-0.5 rounded-full bg-error/10 text-error text-[10px] font-black uppercase tracking-wider border border-error/20">
-                  {t.common?.inactive || "INACTIVO"}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -191,6 +186,14 @@ export default function AssetsPage() {
           <span className="font-semibold text-sm">{item.last_service?.date ? formatDate(item.last_service.date) : "---"}</span>
         </div>
       )
+    },
+    {
+      key: "status",
+      header: t.assets.table.status,
+      align: "center",
+      cell: (item) => item.is_active
+        ? <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-green-100 text-green-700 border-green-200">{t.common.active}</span>
+        : <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-red-100 text-red-700 border-red-200">{t.common.inactive}</span>
     },
     {
       key: "actions",

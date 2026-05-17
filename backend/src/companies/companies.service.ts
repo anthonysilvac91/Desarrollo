@@ -159,11 +159,13 @@ export class OwnersService {
   }
 
   async findAll(orgId: string, query?: PaginationQueryDto) {
-    const where: any = { organization_id: orgId, is_active: true };
-    
+    const where: any = { organization_id: orgId };
+
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
     }
+
+    const orderBy = [{ is_active: 'desc' as const }, { created_at: 'desc' as const }];
 
     if (query?.page && query?.limit) {
       const page = Number(query.page);
@@ -178,7 +180,7 @@ export class OwnersService {
               },
             },
           },
-          orderBy: { created_at: 'desc' },
+          orderBy,
           skip: (page - 1) * limit,
           take: limit
         }),
@@ -200,7 +202,7 @@ export class OwnersService {
           },
         },
       },
-      orderBy: { created_at: 'desc' }
+      orderBy
     });
     const ownersWithCounts = await this.attachOwnerUsageCounts(orgId, owners);
     return Promise.all(ownersWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item))));

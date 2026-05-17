@@ -21,6 +21,7 @@ export default function Combobox({ options, value, onChange, placeholder, label,
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Sincronizar el query con el nombre de la opción seleccionada (cuando cambia el value desde fuera)
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function Combobox({ options, value, onChange, placeholder, label,
       
       <div className="relative group">
         <input
+          ref={inputRef}
           type="text"
           value={query}
           onChange={handleInputChange}
@@ -94,42 +96,43 @@ export default function Combobox({ options, value, onChange, placeholder, label,
       {isOpen && (
         <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl border border-border-theme/60 shadow-xl z-10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="max-h-[148px] overflow-y-auto custom-scroll">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => (
+            {/* Create option — always first */}
+            {onCreate && (
+              query !== "" && !isSelected ? (
                 <button
-                  key={opt.id}
-                  onClick={() => handleSelect(opt)}
-                  className="w-full text-left px-5 py-3.5 text-sm font-semibold text-title hover:bg-gray-50 transition-colors"
+                  onClick={(e) => { e.stopPropagation(); onCreate(query); setIsOpen(false); }}
+                  className="w-full text-left px-5 py-3.5 text-sm font-black text-brand bg-brand/5 hover:bg-brand/10 transition-colors flex items-center space-x-2 border-b border-border-theme/10"
                 >
-                  {opt.name}
+                  <Plus className="w-4 h-4" />
+                  <span>Crear &quot;{query}&quot;</span>
                 </button>
-              ))
-            ) : null}
-
-            {/* Create option */}
-            {onCreate && query !== "" && !isSelected && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreate(query);
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-5 py-3.5 text-sm font-black text-brand bg-brand/5 hover:bg-brand/10 transition-colors flex items-center space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Crear &quot;{query}&quot;</span>
-              </button>
+              ) : (
+                <button
+                  onClick={() => { inputRef.current?.focus(); }}
+                  className="w-full text-left px-5 py-3.5 text-sm font-black text-brand/40 hover:text-brand/60 hover:bg-brand/5 transition-colors flex items-center space-x-2 border-b border-border-theme/10"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear nuevo...</span>
+                </button>
+              )
             )}
 
-            {filteredOptions.length === 0 && !onCreate && query !== "" && (
-              <div className="px-5 py-3.5 text-sm text-subtitle/40 italic">
-                Sin resultados para &quot;{query}&quot;
-              </div>
-            )}
-
-            {query === "" && options.length === 0 && (
-              <div className="px-5 py-3.5 text-sm text-subtitle/40">Comienza a escribir...</div>
-            )}
+            {filteredOptions.length > 0
+              ? filteredOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleSelect(opt)}
+                    className="w-full text-left px-5 py-3.5 text-sm font-semibold text-title hover:bg-gray-50 transition-colors"
+                  >
+                    {opt.name}
+                  </button>
+                ))
+              : !onCreate && query !== "" && (
+                  <div className="px-5 py-3.5 text-sm text-subtitle/40 italic">
+                    Sin resultados para &quot;{query}&quot;
+                  </div>
+                )
+            }
           </div>
         </div>
       )}

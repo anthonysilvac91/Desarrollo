@@ -198,7 +198,7 @@ export class AssetsService {
     if (query.search) {
       baseWhere.OR = [
         { name: { contains: query.search, mode: 'insensitive' } },
-        { location: { contains: query.search, mode: 'insensitive' } },
+        { owner: { name: { contains: query.search, mode: 'insensitive' } } },
       ];
     }
 

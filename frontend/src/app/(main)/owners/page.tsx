@@ -73,55 +73,47 @@ export default function OwnersPage() {
       key: "name",
       cell: (item: Owner) => (
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className={`w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center shrink-0 overflow-hidden ${!item.is_active ? 'grayscale opacity-40' : ''}`}>
             {item.logo_url ? (
               <img src={item.logo_url} alt={item.name} className="w-full h-full object-contain p-2" />
             ) : (
               <Building2 className="w-5 h-5 text-brand" />
             )}
           </div>
-          <span className="font-bold text-sm text-title">{item.name}</span>
+          <span className={`font-bold text-sm text-title ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
         </div>
       )
     },
     {
       header: t.owners.table.assets.toUpperCase(),
       key: "assets_count",
+      align: "center",
       cell: (item: Owner) => (
-        <div className="flex items-center space-x-2 text-title">
-          <Package className="w-4 h-4 text-brand/60" />
-          <span className="font-black text-sm">{item.assets_count ?? 0}</span>
+        <div className="flex items-center justify-center">
+          <span className="min-w-12.5 h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
+            {item.assets_count ?? 0}
+          </span>
         </div>
       )
     },
     {
       header: t.owners.table.services.toUpperCase(),
       key: "services_count",
+      align: "center",
       cell: (item: Owner) => (
-        <div className="flex items-center space-x-2 text-title">
-          <ClipboardList className="w-4 h-4 text-brand/60" />
-          <span className="font-black text-sm">{item.services_count ?? 0}</span>
+        <div className="flex items-center justify-center">
+          <span className="min-w-12.5 h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
+            {item.services_count ?? 0}
+          </span>
         </div>
       )
     },
     {
       header: t.owners.table.status.toUpperCase(),
       key: "is_active",
-      cell: (item: Owner) => (
-        <div className="flex items-center space-x-2">
-          {item.is_active ? (
-            <>
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-              <span className="text-[13px] font-bold text-emerald-600/80 uppercase tracking-widest">{t.common.active}</span>
-            </>
-          ) : (
-            <>
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
-              <span className="text-[13px] font-bold text-red-600/80 uppercase tracking-widest">{t.common.inactive}</span>
-            </>
-          )}
-        </div>
-      )
+      cell: (item: Owner) => item.is_active
+        ? <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-green-100 text-green-700 border-green-200">{t.common.active}</span>
+        : <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-red-100 text-red-700 border-red-200">{t.common.inactive}</span>
     },
     {
       header: t.owners.table.actions.toUpperCase(),
