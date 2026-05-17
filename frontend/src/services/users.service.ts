@@ -4,7 +4,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "SUPER_ADMIN" | "ADMIN" | "WORKER" | "CLIENT" | "EXTERNAL";
+  role: "SUPER_ADMIN" | "ADMIN" | "WORKER" | "EXTERNAL";
   organization_id: string | null;
   company_id?: string | null;
   owner_id?: string | null;

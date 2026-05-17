@@ -79,8 +79,13 @@ export const assetsService = {
     return res.data;
   },
 
-  assignCompany: async (assetId: string, companyId: string) => {
-    const res = await api.post(`/assets/${assetId}/companies/${companyId}`);
+  assignOwner: async (assetId: string, ownerId: string) => {
+    const res = await api.post(`/assets/${assetId}/owners/${ownerId}`);
+    return res.data;
+  },
+
+  removeOwner: async (assetId: string, ownerId: string) => {
+    const res = await api.delete(`/assets/${assetId}/owners/${ownerId}`);
     return res.data;
   },
 
@@ -102,7 +107,4 @@ export const assetsService = {
     return res.data;
   },
 
-  assignClient: async (assetId: string, clientId: string) => {
-    return assetsService.assignCompany(assetId, clientId);
-  },
 };

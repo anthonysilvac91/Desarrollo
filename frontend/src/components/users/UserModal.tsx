@@ -105,7 +105,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           password: formData.password,
         };
         if (isSuperAdmin && formData.role !== "SUPER_ADMIN") payload.organization_id = formData.organization_id;
-        if ((formData.role === "EXTERNAL" || formData.role === "CLIENT") && formData.company_id) payload.owner_id = formData.company_id;
+        if (formData.role === "EXTERNAL" && formData.company_id) payload.owner_id = formData.company_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }
@@ -246,7 +246,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
             </div>
           )}
 
-          {!isEditMode && (formData.role === "EXTERNAL" || formData.role === "CLIENT") && (
+          {!isEditMode && formData.role === "EXTERNAL" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
               <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
               <div className="relative group">

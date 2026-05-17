@@ -28,7 +28,6 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
     SUPER_ADMIN: "Super Admin",
     ADMIN: "Admin",
     WORKER: "Operador",
-    CLIENT: "Externo",
     EXTERNAL: "Externo",
   };
 

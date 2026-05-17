@@ -44,30 +44,18 @@ export class AssetsController {
     return this.assetsService.findOne(id, req.user);
   }
 
-  @Post(':id/companies/:companyId')
+  @Post(':id/owners/:ownerId')
   @ApiOperation({ summary: 'Vincular un owner a un activo (Solo Admin)' })
-  assignCompany(@Param('id') assetId: string, @Param('companyId') companyId: string, @Request() req) {
+  assignOwner(@Param('id') assetId: string, @Param('ownerId') ownerId: string, @Request() req) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede asignar');
-    return this.assetsService.assignCompany(assetId, companyId, req.user.orgId);
+    return this.assetsService.assignCompany(assetId, ownerId, req.user.orgId);
   }
 
-  @Post(':id/clients/:clientId')
-  @ApiOperation({ summary: '[Deprecated] Vincular una company a un activo (Solo Admin)', deprecated: true, description: 'Ruta legacy. El parametro clientId representa el id de la company. La ruta oficial es /assets/:id/companies/:companyId.' })
-  assignClient(@Param('id') assetId: string, @Param('clientId') clientId: string, @Request() req) {
-    return this.assignCompany(assetId, clientId, req);
-  }
-
-  @Delete(':id/companies/:companyId')
+  @Delete(':id/owners/:ownerId')
   @ApiOperation({ summary: 'Desvincular un owner de un activo (Solo Admin)' })
-  removeCompany(@Param('id') assetId: string, @Param('companyId') companyId: string, @Request() req) {
+  removeOwner(@Param('id') assetId: string, @Param('ownerId') ownerId: string, @Request() req) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede desasignar');
-    return this.assetsService.removeCompany(assetId, companyId, req.user.orgId);
-  }
-
-  @Delete(':id/clients/:clientId')
-  @ApiOperation({ summary: '[Deprecated] Desvincular una company de un activo (Solo Admin)', deprecated: true, description: 'Ruta legacy. El parametro clientId representa el id de la company. La ruta oficial es /assets/:id/companies/:companyId.' })
-  removeClient(@Param('id') assetId: string, @Param('clientId') clientId: string, @Request() req) {
-    return this.removeCompany(assetId, clientId, req);
+    return this.assetsService.removeCompany(assetId, ownerId, req.user.orgId);
   }
 
   @Delete(':id')

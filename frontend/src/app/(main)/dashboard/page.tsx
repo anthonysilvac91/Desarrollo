@@ -35,7 +35,7 @@ export default function DashboardPage() {
   });
 
   const isWorker = user?.role === "WORKER";
-  const isClient = user?.role === "CLIENT" || user?.role === "EXTERNAL";
+  const isClient = user?.role === "EXTERNAL";
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setActivePreset(preset);
