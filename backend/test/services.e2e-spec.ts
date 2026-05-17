@@ -38,9 +38,9 @@ describe('Services (e2e)', () => {
   describe('Flujos básicos de Services', () => {
     it('WORKER puede crear un service correctamente', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote X' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: owner.id, name: 'Bote X' } });
       const token = testUtils.getBearerToken(worker);
 
       const res = await request(app.getHttpServer())
@@ -55,16 +55,16 @@ describe('Services (e2e)', () => {
 
     it('EXTERNAL solo ve services públicos de un Asset asignado', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const client = await testUtils.createTestUser(Role.EXTERNAL, 'client@test.com', org.id, company.id);
+      const external = await testUtils.createTestUser(Role.EXTERNAL, 'external@test.com', org.id, owner.id);
       
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote X' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: owner.id, name: 'Bote X' } });
 
       await prisma.service.create({ data: { title: 'Público', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true }});
       await prisma.service.create({ data: { title: 'Privado', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: false }});
 
-      const token = testUtils.getBearerToken(client);
+      const token = testUtils.getBearerToken(external);
 
       const res = await request(app.getHttpServer())
         .get(`/services?asset_id=${asset.id}`)
@@ -77,10 +77,10 @@ describe('Services (e2e)', () => {
 
     it('ADMIN puede actualizar un service (editarlo)', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote X' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: owner.id, name: 'Bote X' } });
 
       const srv = await prisma.service.create({ data: { title: 'Viejo', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true }});
 
@@ -98,10 +98,10 @@ describe('Services (e2e)', () => {
     it('rechaza crear service con asset de otra organization', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
       const org2 = await testUtils.createTestOrganization('Org2');
-      const company2 = await testUtils.createTestCustomer('Empresa B', org2.id);
+      const owner2 = await testUtils.createTestOwner('Empresa B', org2.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org1.id);
       const foreignAsset = await prisma.asset.create({
-        data: { organization_id: org2.id, owner_id: company2.id, name: 'Bote externo' },
+        data: { organization_id: org2.id, owner_id: owner2.id, name: 'Bote externo' },
       });
       const token = testUtils.getBearerToken(worker);
 
@@ -117,9 +117,9 @@ describe('Services (e2e)', () => {
   describe('GET /services/:id', () => {
     it('WORKER puede ver el detalle con attachments y datos de operario.', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote' } });
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: owner.id, name: 'Bote' } });
       const srv = await prisma.service.create({ 
         data: { title: 'Test', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: true },
         include: { attachments: true }
@@ -136,15 +136,15 @@ describe('Services (e2e)', () => {
 
     it('EXTERNAL no puede ver un servicio privado.', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
-      const client = await testUtils.createTestUser(Role.EXTERNAL, 'client@test.com', org.id, company.id);
-      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: company.id, name: 'Bote' } });
+      const external = await testUtils.createTestUser(Role.EXTERNAL, 'external@test.com', org.id, owner.id);
+      const asset = await prisma.asset.create({ data: { organization_id: org.id, owner_id: owner.id, name: 'Bote' } });
       const srv = await prisma.service.create({ 
         data: { title: 'Privado', asset_id: asset.id, worker_id: worker.id, organization_id: org.id, is_public: false }
       });
       
-      const token = testUtils.getBearerToken(client);
+      const token = testUtils.getBearerToken(external);
       const res = await request(app.getHttpServer()).get(`/services/${srv.id}`).set('Authorization', `Bearer ${token}`);
       
       expect(res.status).toBe(403); // Forbidden

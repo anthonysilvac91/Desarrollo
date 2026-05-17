@@ -55,8 +55,8 @@ async function runTests() {
       console.log(`    Nombre: ${detailData.name}`);
       console.log(`    Organización: ${detailData.organization_id}\n`);
 
-      // 4. TEST LISTAR CLIENTES
-      console.log('🔹 Probando listado de Clientes (Rol EXTERNAL)...');
+      // 4. TEST LISTAR OWNERS
+      console.log('🔹 Probando listado de owners (Rol EXTERNAL)...');
       const clientsRes = await fetch(`${API_URL}/users?role=EXTERNAL`, { headers: authHeaders });
       if (!clientsRes.ok) throw new Error('No se pudo obtener el listado de clientes');
       const clients: any = await clientsRes.json();

@@ -62,7 +62,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
     enabled: isOpen
   });
 
-  const companies = Array.isArray(ownersData) ? ownersData : (ownersData as any).data || [];
+  const owners = Array.isArray(ownersData) ? ownersData : (ownersData as any).data || [];
 
   // Hydrate form when editing
   React.useEffect(() => {
@@ -80,7 +80,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
     }
   }, [isOpen, asset]);
 
-  const companyOptions = companies.map((c: any) => ({ id: c.id, name: c.name }));
+  const ownerOptions = owners.map((owner: any) => ({ id: owner.id, name: owner.name }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -178,13 +178,13 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
             />
           </div>
 
-          {/* Client (Combobox) */}
+          {/* Owner (Combobox) */}
           <Combobox
             label={t.assets.detail.owner}
-            options={companyOptions}
+            options={ownerOptions}
             value={formData.owner_id}
             onChange={(val) => setFormData({ ...formData, owner_id: val })}
-            placeholder="Selecciona una empresa..."
+            placeholder="Selecciona un owner..."
             onCreate={
               (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN")
                 ? handleQuickCreateOwner

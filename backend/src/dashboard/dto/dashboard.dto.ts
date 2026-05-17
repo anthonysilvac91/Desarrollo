@@ -39,7 +39,7 @@ export class DashboardStatsDto {
   @ApiProperty()
   total_workers: number;
   @ApiProperty()
-  total_clients: number;
+  total_owners: number;
   @ApiProperty()
   total_admins: number;
   @ApiProperty()
@@ -57,7 +57,7 @@ export class DashboardStatsDto {
   top_assets: RankingItemDto[];
 
   @ApiProperty({ type: [RankingItemDto] })
-  top_clients: RankingItemDto[];
+  top_owners: RankingItemDto[];
 
   @ApiProperty({ type: [RankingItemDto] })
   top_workers: RankingItemDto[];

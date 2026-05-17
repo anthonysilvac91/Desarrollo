@@ -53,9 +53,9 @@ export class AssetsService {
     return resolvedAsset;
   }
 
-  private async ensureCompanyBelongsToOrg(companyId: string, orgId: string) {
+  private async ensureOwnerBelongsToOrg(ownerId: string, orgId: string) {
     const owner = await this.prisma.owner.findFirst({
-      where: { id: companyId, organization_id: orgId, is_active: true },
+      where: { id: ownerId, organization_id: orgId, is_active: true },
       select: { id: true },
     });
 
@@ -74,7 +74,7 @@ export class AssetsService {
     if (hasLegacyOwnerAliases(createAssetDto)) {
       throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const companyId = createAssetDto.owner_id ?? null;
+    const ownerId = createAssetDto.owner_id ?? null;
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
     let thumbnail_url: string | undefined;
@@ -85,7 +85,7 @@ export class AssetsService {
       throw new Error('Es necesario especificar una organizaciÃ³n para el activo');
     }
 
-    if (!companyId) {
+    if (!ownerId) {
       throw new BadRequestException('Un activo debe asociarse a un owner');
     }
 
@@ -127,7 +127,7 @@ export class AssetsService {
       thumbnailFileId = storedFile.id;
     }
 
-    await this.ensureCompanyBelongsToOrg(companyId, targetOrgId);
+    await this.ensureOwnerBelongsToOrg(ownerId, targetOrgId);
 
     let newAsset;
     try {
@@ -137,7 +137,7 @@ export class AssetsService {
           ...assetData,
           thumbnail_file_id: thumbnailFileId,
           organization_id: targetOrgId,
-          owner_id: companyId,
+          owner_id: ownerId,
         },
       });
     } catch (error) {
@@ -162,7 +162,7 @@ export class AssetsService {
     return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
   }
 
-  async findAll(query: any, orgId: string, role: string, userId: string, companyId?: string) {
+  async findAll(query: any, orgId: string, role: string, userId: string, ownerId?: string) {
     const include = {
       organization: { select: { name: true } },
       owner: { select: { id: true, name: true } },
@@ -181,10 +181,10 @@ export class AssetsService {
     }
 
     if (isExternalRole(role)) {
-      if (!companyId) {
+      if (!ownerId) {
         return [];
       }
-      baseWhere.owner_id = companyId;
+      baseWhere.owner_id = ownerId;
     }
 
     if (role === 'WORKER') {
@@ -294,8 +294,8 @@ export class AssetsService {
     }
 
     if (isExternalRole(user.role)) {
-      const currentCompanyId = user.owner_id;
-      if (asset.owner_id !== currentCompanyId) {
+      const currentOwnerId = user.owner_id;
+      if (asset.owner_id !== currentOwnerId) {
         throw new NotFoundException('No tienes acceso a este activo');
       }
       asset.services = asset.services.filter((service) => service.is_public);
@@ -304,9 +304,9 @@ export class AssetsService {
     return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
   }
 
-  async assignCompany(assetId: string, companyId: string, orgId: string) {
+  async assignOwner(assetId: string, ownerId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
-    const owner = await this.prisma.owner.findFirst({ where: { id: companyId, organization_id: orgId } });
+    const owner = await this.prisma.owner.findFirst({ where: { id: ownerId, organization_id: orgId } });
 
     if (!asset || !owner) {
       throw new NotFoundException('Activo o propietario no existe en su organización');
@@ -314,13 +314,13 @@ export class AssetsService {
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id: assetId },
-      data: { owner_id: companyId },
+      data: { owner_id: ownerId },
     });
 
     return this.mapAssetRelations(updatedAsset);
   }
 
-  async removeCompany(assetId: string, companyId: string, orgId: string) {
+  async removeOwner(assetId: string, ownerId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
     if (!asset) {
       throw new NotFoundException('Activo no encontrado');
@@ -371,7 +371,7 @@ export class AssetsService {
     if (hasLegacyOwnerAliases(updateDto)) {
       throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const companyId = updateDto.owner_id ?? null;
+    const ownerId = updateDto.owner_id ?? null;
     let thumbnail_url: string | undefined;
     let thumbnailFileId = (asset as any).thumbnail_file_id ?? null;
 
@@ -421,12 +421,12 @@ export class AssetsService {
     };
 
     if (_ownerId !== undefined) {
-      if (!companyId) {
+      if (!ownerId) {
         throw new BadRequestException('Un activo debe asociarse a un owner');
       }
 
-      await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);
-      updatePayload.owner_id = companyId;
+      await this.ensureOwnerBelongsToOrg(ownerId, asset.organization_id);
+      updatePayload.owner_id = ownerId;
     }
 
     let updatedAsset;

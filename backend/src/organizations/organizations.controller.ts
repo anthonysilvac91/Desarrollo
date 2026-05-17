@@ -34,7 +34,7 @@ export class OrganizationsController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Obtener datos de la organizacion propia (Solo Admin/Worker/Client)' })
+  @ApiOperation({ summary: 'Obtener datos de la organizacion propia (Solo Admin/Worker/External)' })
   findOneMe(@Request() req) {
     if (!req.user.orgId) throw new ForbiddenException('El usuario no pertenece a ninguna organizacion');
     return this.orgService.findOne(req.user.orgId);

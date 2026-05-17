@@ -193,8 +193,8 @@ export class ServicesService {
     }
 
     if (isExternalRole(user.role)) {
-      const currentCompanyId = user.owner_id ?? null;
-      if (!currentCompanyId) {
+      const currentOwnerId = user.owner_id ?? null;
+      if (!currentOwnerId) {
         return query.page && query.limit
           ? {
               data: [],
@@ -205,7 +205,7 @@ export class ServicesService {
 
       whereClause.is_public = true;
       whereClause.status = 'COMPLETED';
-      whereClause.asset = { owner_id: currentCompanyId };
+      whereClause.asset = { owner_id: currentOwnerId };
     }
 
     if (user.role === 'WORKER') {
@@ -300,8 +300,8 @@ export class ServicesService {
         throw new ForbiddenException('No tienes permiso para ver este servicio privado');
       }
 
-      const currentCompanyId = user.owner_id ?? null;
-      if (!currentCompanyId || service.asset.owner_id !== currentCompanyId) {
+      const currentOwnerId = user.owner_id ?? null;
+      if (!currentOwnerId || service.asset.owner_id !== currentOwnerId) {
         throw new NotFoundException('Service no encontrado o acceso denegado');
       }
     }

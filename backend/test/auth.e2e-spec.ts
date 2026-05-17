@@ -80,29 +80,29 @@ describe('Auth & Register (e2e)', () => {
     it('rechaza registro EXTERNAL sin owner_id', async () => {
       const org = await testUtils.createTestOrganization();
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'client@test.com', Role.EXTERNAL, admin.id);
+      const inv = await testUtils.seedTestInvitation(org.id, 'external@test.com', Role.EXTERNAL, admin.id);
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ token: inv.token, name: 'Client User', password: 'securepassword123' });
+        .send({ token: inv.token, name: 'External User', password: 'securepassword123' });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Un usuario externo debe asociarse a una company');
+      expect(response.body.message).toBe('Un usuario externo debe asociarse a un owner');
     });
 
     it('registra EXTERNAL con owner_id valida', async () => {
       const org = await testUtils.createTestOrganization();
-      const company = await testUtils.createTestCustomer('Empresa A', org.id);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'client@test.com', Role.EXTERNAL, admin.id);
+      const inv = await testUtils.seedTestInvitation(org.id, 'external@test.com', Role.EXTERNAL, admin.id);
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ token: inv.token, name: 'Client User', password: 'securepassword123', owner_id: company.id });
+        .send({ token: inv.token, name: 'Owner User', password: 'securepassword123', owner_id: owner.id });
 
       expect(response.status).toBe(201);
-      const user = await prisma.user.findFirst({ where: { email: 'client@test.com' } });
-      expect(user?.owner_id).toBe(company.id);
+      const user = await prisma.user.findFirst({ where: { email: 'external@test.com' } });
+      expect(user?.owner_id).toBe(owner.id);
     });
 
     it('debería arrojar 401 si mandan token usado', async () => {

@@ -32,7 +32,7 @@ export default function AssetsPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [selectedClients, setSelectedClients] = useState<string[]>([]);
+  const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -56,18 +56,18 @@ export default function AssetsPage() {
     setPage(1);
   }, [debouncedSearch, limit]);
 
-  // Client and Category filtering is still local for the current page
+  // Owner and Category filtering is still local for the current page
   const filteredData = useMemo(() => {
     return rawAssets.filter((item: any) => {
-      const companyName = item.owner?.name;
-      const matchesClient = selectedClients.length === 0 || (companyName && selectedClients.includes(companyName));
+      const ownerName = item.owner?.name;
+      const matchesOwner = selectedOwners.length === 0 || (ownerName && selectedOwners.includes(ownerName));
       const matchesCategory = selectedCategories.length === 0 || (item.category && selectedCategories.includes(item.category));
-      return matchesClient && matchesCategory;
+      return matchesOwner && matchesCategory;
     });
-  }, [selectedClients, selectedCategories, rawAssets]);
+  }, [selectedOwners, selectedCategories, rawAssets]);
 
-  const toggleClient = (client: string) => {
-    setSelectedClients(prev => prev.includes(client) ? prev.filter(c => c !== client) : [...prev, client]);
+  const toggleOwner = (owner: string) => {
+    setSelectedOwners(prev => prev.includes(owner) ? prev.filter(c => c !== owner) : [...prev, owner]);
   };
 
   const toggleCategory = (category: string) => {
@@ -75,7 +75,7 @@ export default function AssetsPage() {
   };
 
   const clearFilters = () => {
-    setSelectedClients([]);
+    setSelectedOwners([]);
     setSelectedCategories([]);
   };
 
@@ -127,11 +127,11 @@ export default function AssetsPage() {
       )
     },
     { 
-      key: "client", 
-      header: t.assets.table.client,
+      key: "owner", 
+      header: t.assets.table.owner,
       cell: (item) => {
-        const clientName = item.owner?.name || "---";
-        return <span className="font-bold text-subtitle/80 text-sm">{clientName}</span>;
+        const ownerName = item.owner?.name || "---";
+        return <span className="font-bold text-subtitle/80 text-sm">{ownerName}</span>;
       }
     },
     { 

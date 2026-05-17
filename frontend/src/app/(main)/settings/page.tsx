@@ -161,7 +161,7 @@ export default function SettingsPage() {
                         ) : (
                           <div className="flex flex-col items-center space-y-3 opacity-30">
                             <ImageIcon className="w-12 h-12 text-subtitle" strokeWidth={1.5} />
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-subtitle">{t.settings.company_section.upload_logo}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-subtitle">{t.settings.owner_section.upload_logo}</span>
                           </div>
                         )}
                       </div>
@@ -179,15 +179,15 @@ export default function SettingsPage() {
                       </label>
                     </div>
                     <div className="space-y-2">
-                       <p className="text-xs font-black text-brand uppercase tracking-[0.2em] mb-2">{t.settings.company_section.title}</p>
-                      <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.company_section.logo}</h3>
-                      <p className="text-[15px] text-subtitle/50 font-medium max-w-sm leading-relaxed">{t.settings.company_section.logo_help}</p>
+                       <p className="text-xs font-black text-brand uppercase tracking-[0.2em] mb-2">{t.settings.owner_section.title}</p>
+                      <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.owner_section.logo}</h3>
+                      <p className="text-[15px] text-subtitle/50 font-medium max-w-sm leading-relaxed">{t.settings.owner_section.logo_help}</p>
                     </div>
                  </div>
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                     <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.company_section.name}</label>
+                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.settings.owner_section.name}</label>
                       <input type="text" readOnly defaultValue={org?.name} className="w-full px-8 py-5 bg-app-bg/50 border border-border-theme/40 rounded-3xl text-title font-bold opacity-70 outline-none" />
                     </div>
                     {/* (Website, Email, etc could be added to schema later if needed) */}

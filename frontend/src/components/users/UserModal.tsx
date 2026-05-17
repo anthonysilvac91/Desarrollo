@@ -248,7 +248,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
 
           {!isEditMode && formData.role === "EXTERNAL" && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.company}</label>
+              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.owner}</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
                   <Building2 className="h-5 w-5 opacity-30" />
@@ -259,9 +259,9 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
                   value={formData.owner_id}
                   onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
                 >
-                  <option value="" disabled>Selecciona una empresa...</option>
-                  {owners.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                  <option value="" disabled>Selecciona un owner...</option>
+                  {owners.map((owner) => (
+                    <option key={owner.id} value={owner.id}>{owner.name}</option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">

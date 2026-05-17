@@ -73,7 +73,7 @@ describe('Invitations (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
-        .send({ email: 'client@test.com', role: Role.EXTERNAL });
+        .send({ email: 'external@test.com', role: Role.EXTERNAL });
 
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('External invitations are not available yet');

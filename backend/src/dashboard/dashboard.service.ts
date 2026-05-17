@@ -32,14 +32,14 @@ export class DashboardService {
     }
 
     const isWorker = currentUser.role === Role.WORKER;
-    const isClient = isExternalRole(currentUser.role);
-    const companyId = currentUser.owner_id ?? null;
+    const isExternal = isExternalRole(currentUser.role);
+    const currentOwnerId = currentUser.owner_id ?? null;
     const restrictedWorkerAssetWhere =
       isWorker
         ? await this.buildRestrictedWorkerAssetWhere(currentUser.orgId, currentUser.id)
         : undefined;
 
-    if (isClient && !companyId) {
+    if (isExternal && !currentOwnerId) {
       return this.emptyStats();
     }
 
@@ -49,9 +49,9 @@ export class DashboardService {
       if (restrictedWorkerAssetWhere) {
         statsWhere.asset = restrictedWorkerAssetWhere;
       }
-    } else if (isClient) {
+    } else if (isExternal) {
       statsWhere.is_public = true;
-      statsWhere.asset = { owner_id: companyId };
+      statsWhere.asset = { owner_id: currentOwnerId };
     }
 
     // Filtros de fecha si se proveen
@@ -67,7 +67,7 @@ export class DashboardService {
       publicServices,
       privateServices,
       workersCount,
-      clientsCount,
+      ownersCount,
       adminsCount,
       recentServices,
       evolutionData,
@@ -75,8 +75,8 @@ export class DashboardService {
       workerRanking
     ] = await Promise.all([
       // Assets Count
-      isClient
-        ? this.prisma.asset.count({ where: { ...baseWhere, owner_id: companyId } })
+      isExternal
+        ? this.prisma.asset.count({ where: { ...baseWhere, owner_id: currentOwnerId } })
         : restrictedWorkerAssetWhere
           ? this.prisma.asset.count({ where: { ...baseWhere, ...restrictedWorkerAssetWhere } })
         : this.prisma.asset.count({ where: baseWhere }),
@@ -87,9 +87,9 @@ export class DashboardService {
       this.prisma.service.count({ where: { ...statsWhere, is_public: false } }),
 
       // User Counts
-      (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.WORKER } }),
-      (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.EXTERNAL } }),
-      (isWorker || isClient) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.ADMIN } }),
+      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.WORKER } }),
+      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.EXTERNAL } }),
+      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.ADMIN } }),
 
       // Recent Services
       this.prisma.service.findMany({
@@ -119,7 +119,7 @@ export class DashboardService {
       }),
 
       // Top Workers
-      (isWorker || isClient) ? [] : this.prisma.service.groupBy({
+      (isWorker || isExternal) ? [] : this.prisma.service.groupBy({
         by: ['worker_id'],
         where: statsWhere,
         _count: { id: true },
@@ -141,7 +141,7 @@ export class DashboardService {
       total_assets: assetsCount,
       total_services: servicesCount,
       total_workers: workersCount,
-      total_clients: clientsCount,
+      total_owners: ownersCount,
       total_admins: adminsCount,
       public_services: publicServices,
       private_services: privateServices,
@@ -155,7 +155,7 @@ export class DashboardService {
       evolution,
       top_assets: topAssets,
       top_workers: topWorkers,
-      top_clients: [], // Por simplicidad en MVP, Clients ranking opcional
+      top_owners: [],
     };
   }
 
@@ -179,7 +179,7 @@ export class DashboardService {
       total_assets: 0,
       total_services: 0,
       total_workers: 0,
-      total_clients: 0,
+      total_owners: 0,
       total_admins: 0,
       public_services: 0,
       private_services: 0,
@@ -187,7 +187,7 @@ export class DashboardService {
       evolution: this.processEvolution([]),
       top_assets: [],
       top_workers: [],
-      top_clients: [],
+      top_owners: [],
     };
   }
 

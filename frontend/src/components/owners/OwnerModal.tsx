@@ -57,15 +57,15 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
 
       if (ownerToEdit) {
         await ownersService.update(ownerToEdit.id, payload);
-        showToast(t.clients.states.update_success, "success");
+        showToast(t.owners.states.update_success, "success");
       } else {
         await ownersService.create(payload);
-        showToast(t.clients.states.save_success, "success");
+        showToast(t.owners.states.save_success, "success");
       }
       onSuccess();
       onClose();
     } catch {
-      showToast(t.clients.states.save_error, "error");
+      showToast(t.owners.states.save_error, "error");
     } finally {
       setLoading(false);
     }
@@ -82,10 +82,10 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
         <div className="px-8 pt-10 pb-6 flex justify-between items-center border-b border-gray-50 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-black text-title tracking-tight">
-              {ownerToEdit ? t.clients.modal.title_edit : t.clients.modal.title_new}
+              {ownerToEdit ? t.owners.modal.title_edit : t.owners.modal.title_new}
             </h2>
             <p className="text-subtitle/50 text-xs font-bold uppercase tracking-widest mt-1">
-              {t.clients.modal.subtitle}
+              {t.owners.modal.subtitle}
             </p>
           </div>
           <button
@@ -130,7 +130,7 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
 
           <div className="space-y-2">
             <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-              {t.clients.modal.full_name} <span className="text-error">*</span>
+              {t.owners.modal.full_name} <span className="text-error">*</span>
             </label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors group-focus-within:text-brand">
@@ -140,7 +140,7 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
                 required
                 type="text"
                 className="block w-full pl-14 pr-4 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm"
-                placeholder={t.clients.modal.name_placeholder}
+                placeholder={t.owners.modal.name_placeholder}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
@@ -150,7 +150,7 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
           <div className="flex items-center justify-between px-1 py-2">
             <div>
               <p className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em]">
-                {t.clients.table.status}
+                {t.owners.table.status}
               </p>
               <p className="text-sm font-bold text-title mt-0.5">
                 {formData.is_active ? t.common.active : t.common.inactive}
@@ -175,7 +175,7 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
           >
             {loading
               ? <Loader2 className="w-6 h-6 animate-spin" />
-              : (ownerToEdit ? t.clients.modal.submit_edit : t.clients.modal.submit)}
+              : (ownerToEdit ? t.owners.modal.submit_edit : t.owners.modal.submit)}
           </button>
         </form>
       </div>

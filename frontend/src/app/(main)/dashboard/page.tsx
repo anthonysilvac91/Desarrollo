@@ -35,7 +35,7 @@ export default function DashboardPage() {
   });
 
   const isWorker = user?.role === "WORKER";
-  const isClient = user?.role === "EXTERNAL";
+  const isExternal = user?.role === "EXTERNAL";
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setActivePreset(preset);
@@ -85,7 +85,7 @@ export default function DashboardPage() {
     id: s.id,
     name: s.asset_name,
     metric: 1,
-    icon: isClient ? Briefcase : Ship
+    icon: isExternal ? Briefcase : Ship
   })) || [];
 
   if (isLoading) {
@@ -122,7 +122,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col space-y-5">
       
-      {!isClient && (
+      {!isExternal && (
         <FiltersBar 
           showQuickFilters={true}
           showSearch={false}
@@ -133,18 +133,18 @@ export default function DashboardPage() {
       {/* KPI Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard 
-          title={isClient ? t.dashboard.kpis.services_received : (isWorker ? t.dashboard.kpis.my_services : t.dashboard.kpis.jobs_performed)}
+          title={isExternal ? t.dashboard.kpis.services_received : (isWorker ? t.dashboard.kpis.my_services : t.dashboard.kpis.jobs_performed)}
           value={stats?.total_services || 0}
         />
         <KPICard 
-          title={isClient ? t.dashboard.kpis.my_assets : (isWorker ? t.dashboard.kpis.assets_attended : t.dashboard.kpis.assets_serviced)}
+          title={isExternal ? t.dashboard.kpis.my_assets : (isWorker ? t.dashboard.kpis.assets_attended : t.dashboard.kpis.assets_serviced)}
           value={stats?.total_assets || 0}
         />
-        {!isWorker && !isClient && (
+        {!isWorker && !isExternal && (
           <>
             <KPICard 
-              title={t.dashboard.kpis.clients_reached}
-              value={stats?.total_clients || 0}
+              title={t.dashboard.kpis.owners_reached}
+              value={stats?.total_owners || 0}
             />
             <KPICard 
               title={t.dashboard.kpis.growth}
@@ -155,7 +155,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Evolution Chart Section */}
-      {!isClient && hasData && (
+      {!isExternal && hasData && (
         <ModuleContainer>
           <div className="p-6 lg:p-7 space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -215,18 +215,18 @@ export default function DashboardPage() {
 
       {/* Rankings Section */}
       {hasData ? (
-        <div className={`grid grid-cols-1 ${ (isWorker || isClient) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
+        <div className={`grid grid-cols-1 ${ (isWorker || isExternal) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
           <ModuleContainer>
             <div className="p-6">
               <PerformanceList 
-                title={isClient ? t.dashboard.rankings.my_last_services : (isWorker ? t.dashboard.rankings.my_last_assets : t.dashboard.rankings.top_assets)}
-                items={(isWorker || isClient) ? recentItems : topAssets} 
-                metricLabel={isClient ? t.dashboard.rankings.listed_label : (isWorker ? t.dashboard.rankings.recent_label : t.dashboard.rankings.jobs_count)}
+                title={isExternal ? t.dashboard.rankings.my_last_services : (isWorker ? t.dashboard.rankings.my_last_assets : t.dashboard.rankings.top_assets)}
+                items={(isWorker || isExternal) ? recentItems : topAssets} 
+                metricLabel={isExternal ? t.dashboard.rankings.listed_label : (isWorker ? t.dashboard.rankings.recent_label : t.dashboard.rankings.jobs_count)}
               />
             </div>
           </ModuleContainer>
 
-          {!isWorker && !isClient && (
+          {!isWorker && !isExternal && (
             <>
               <ModuleContainer>
                 <div className="p-6">
@@ -241,7 +241,7 @@ export default function DashboardPage() {
               <ModuleContainer>
                 <div className="p-6">
                   <PerformanceList 
-                    title={t.dashboard.rankings.top_clients}
+                    title={t.dashboard.rankings.top_owners}
                     items={[]} // Pendiente integración con Prisma groupBy client_id si aplica
                     metricLabel={t.dashboard.rankings.jobs_count}
                   />

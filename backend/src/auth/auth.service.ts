@@ -21,9 +21,9 @@ export class AuthService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
+  private async ensureOwnerBelongsToOrganization(ownerId: string, organizationId: string) {
     const owner = await this.prisma.owner.findFirst({
-      where: { id: companyId, organization_id: organizationId, is_active: true },
+      where: { id: ownerId, organization_id: organizationId, is_active: true },
       select: { id: true },
     });
 
@@ -77,18 +77,18 @@ export class AuthService {
     if (hasLegacyOwnerAliases(registerDto)) {
       throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const companyId = registerDto.owner_id ?? null;
+    const ownerId = registerDto.owner_id ?? null;
 
-    if (isExternalRole(invitation.role) && !companyId) {
+    if (isExternalRole(invitation.role) && !ownerId) {
       throw new BadRequestException('Un usuario externo debe asociarse a un propietario');
     }
 
-    if (companyId) {
+    if (ownerId) {
       if (!isExternalRole(invitation.role)) {
         throw new BadRequestException('Solo un usuario externo puede asociarse a un propietario');
       }
 
-      await this.ensureCompanyBelongsToOrganization(companyId, invitation.organization_id);
+      await this.ensureOwnerBelongsToOrganization(ownerId, invitation.organization_id);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -101,7 +101,7 @@ export class AuthService {
           email: invitation.email,
           name: registerDto.name,
           password_hash: passwordHash,
-          owner_id: companyId ?? null,
+          owner_id: ownerId ?? null,
         },
       });
 

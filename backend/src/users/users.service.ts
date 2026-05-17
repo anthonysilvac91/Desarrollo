@@ -47,9 +47,9 @@ export class UsersService {
     }
   }
 
-  private async ensurecompanyBelongsToOrganization(companyId: string, organizationId: string) {
+  private async ensureOwnerBelongsToOrganization(ownerId: string, organizationId: string) {
     const owner = await this.prisma.owner.findFirst({
-      where: { id: companyId, organization_id: organizationId, is_active: true },
+      where: { id: ownerId, organization_id: organizationId, is_active: true },
       select: { id: true },
     });
 
@@ -60,7 +60,7 @@ export class UsersService {
 
   async findAll(query: { role?: Role | 'EXTERNAL'; organizationId?: string; search?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
     // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
-    // WORKER puede listar pero solo si es para buscar CLIENTES.
+    // WORKER puede listar pero solo si es para buscar owners externos.
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
       if (currentUser.role === Role.WORKER) {
         query.role = Role.EXTERNAL; // Forzamos que solo vea usuarios externos
@@ -206,7 +206,7 @@ export class UsersService {
 
     if (dbRole === Role.SUPER_ADMIN) {
       if (dto.organization_id || ownerId) {
-        throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organización o company');
+        throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organización o owner');
       }
     } else {
       if (!dto.organization_id) {
@@ -221,7 +221,7 @@ export class UsersService {
         throw new BadRequestException('Solo un usuario externo puede asociarse a un owner');
       }
 
-      await this.ensurecompanyBelongsToOrganization(ownerId, dto.organization_id!);
+      await this.ensureOwnerBelongsToOrganization(ownerId, dto.organization_id!);
     }
 
     if (isExternalRole(requestedRole) && !ownerId) {
@@ -298,7 +298,6 @@ export class UsersService {
     const data: any = { ...dto };
     delete data.avatar_url;
     delete data.owner_id;
-    delete data.customer_id;
 
     const organizationChanged =
       dto.organization_id !== undefined &&
@@ -337,15 +336,15 @@ export class UsersService {
         throw new BadRequestException('Un usuario externo debe asociarse a un owner');
       }
 
-      await this.ensurecompanyBelongsToOrganization(ownerId, targetOrganizationId!);
+      await this.ensureOwnerBelongsToOrganization(ownerId, targetOrganizationId!);
       data.owner_id = ownerId;
     } else if (organizationChanged && currentUserRecord.owner_id) {
       data.owner_id = null;
     }
 
-    const targetcompanyId =
+    const targetOwnerId =
       data.owner_id !== undefined ? data.owner_id : currentUserRecord.owner_id;
-    if (isExternalRole(currentUserRecord.role) && !targetcompanyId) {
+    if (isExternalRole(currentUserRecord.role) && !targetOwnerId) {
       throw new BadRequestException('Un usuario externo debe asociarse a un owner');
     }
 

@@ -41,11 +41,11 @@ export default function OwnersPage() {
     mutationFn: (id: string) => ownersService.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owners"] });
-      showToast(t.clients.states.delete_success, "success");
+      showToast(t.owners.states.delete_success, "success");
       setOwnerToDelete(null);
     },
     onError: () => {
-      showToast(t.clients.states.error_delete, "error");
+      showToast(t.owners.states.error_delete, "error");
     }
   });
 
@@ -60,7 +60,7 @@ export default function OwnersPage() {
 
   const columns = [
     {
-      header: t.clients.table.name.toUpperCase(),
+      header: t.owners.table.name.toUpperCase(),
       key: "name",
       cell: (item: Owner) => (
         <div className="flex items-center space-x-3">
@@ -76,7 +76,7 @@ export default function OwnersPage() {
       )
     },
     {
-      header: t.clients.table.status.toUpperCase(),
+      header: t.owners.table.status.toUpperCase(),
       key: "is_active",
       cell: (item: Owner) => (
         <div className="flex items-center space-x-2">
@@ -95,7 +95,7 @@ export default function OwnersPage() {
       )
     },
     {
-      header: t.clients.table.actions.toUpperCase(),
+      header: t.owners.table.actions.toUpperCase(),
       key: "actions",
       cell: (item: Owner) => (
         <div className="flex justify-end space-x-2">
@@ -119,7 +119,7 @@ export default function OwnersPage() {
   return (
     <div className="flex flex-col space-y-8">
       <FiltersBar
-        searchPlaceholder={t.clients.search_placeholder}
+        searchPlaceholder={t.owners.search_placeholder}
         onSearchChange={setSearchTerm}
         showQuickFilters={false}
         actions={
@@ -131,7 +131,7 @@ export default function OwnersPage() {
             className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
           >
             <Plus className="w-5 h-5 stroke-[4px]" />
-            <span>{t.clients.add_new}</span>
+            <span>{t.owners.add_new}</span>
           </button>
         }
       />
@@ -140,15 +140,15 @@ export default function OwnersPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-brand mb-4" />
-            <p className="text-subtitle font-medium animate-pulse">{t.clients.states.loading}</p>
+            <p className="text-subtitle font-medium animate-pulse">{t.owners.states.loading}</p>
           </div>
         ) : ownersList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
               <Building2 className="w-10 h-10 text-subtitle/30" />
             </div>
-            <h3 className="text-lg font-black text-title mb-1">{t.clients.states.empty_title}</h3>
-            <p className="text-subtitle font-medium max-w-sm">{t.clients.states.empty_subtitle}</p>
+            <h3 className="text-lg font-black text-title mb-1">{t.owners.states.empty_title}</h3>
+            <p className="text-subtitle font-medium max-w-sm">{t.owners.states.empty_subtitle}</p>
           </div>
         ) : (
           <DataTable
@@ -158,7 +158,7 @@ export default function OwnersPage() {
               <>
                 <div className="flex items-center space-x-3">
                   <div className="text-[15px] text-subtitle font-medium tracking-tight">
-                    {t.clients.pagination.showing} <span className="text-title font-bold">{ownersList.length}</span> {t.clients.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.clients.pagination.clients}
+                    {t.owners.pagination.showing} <span className="text-title font-bold">{ownersList.length}</span> {t.owners.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.owners.pagination.owners}
                   </div>
                   <select
                     value={limit}

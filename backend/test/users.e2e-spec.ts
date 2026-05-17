@@ -98,7 +98,7 @@ describe('Users Management (e2e)', () => {
 
     it('rechaza owner_id para ADMIN y WORKER', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const company = await testUtils.createTestCustomer('Company', org.id);
+      const owner = await testUtils.createTestOwner('Owner A', org.id);
       const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -112,17 +112,17 @@ describe('Users Management (e2e)', () => {
             name: `User ${role}`,
             role,
             organization_id: org.id,
-            owner_id: company.id,
+            owner_id: owner.id,
           });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe('Solo un usuario con Rol EXTERNAL puede asociarse a una company');
+        expect(response.body.message).toBe('Solo un usuario con Rol EXTERNAL puede asociarse a un owner');
       }
     });
 
-    it('permite owner_id para EXTERNAL si la company pertenece a la misma organizacion', async () => {
+    it('permite owner_id para EXTERNAL si el owner pertenece a la misma organizacion', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const company = await testUtils.createTestCustomer('Company', org.id);
+      const owner = await testUtils.createTestOwner('Owner A', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
       const token = testUtils.getBearerToken(admin);
 
@@ -130,17 +130,17 @@ describe('Users Management (e2e)', () => {
         .post('/users')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          email: 'client@org.com',
+          email: 'external@org.com',
           password: 'SecurePass123!',
-          name: 'Client Org',
+          name: 'External Org',
           role: Role.EXTERNAL,
-          owner_id: company.id,
+          owner_id: owner.id,
         });
 
       expect(response.status).toBe(201);
       expect(response.body.role).toBe('EXTERNAL');
       expect(response.body.organization_id).toBe(org.id);
-      expect(response.body.owner_id).toBe(company.id);
+      expect(response.body.owner_id).toBe(owner.id);
     });
 
     it('rechaza EXTERNAL sin owner_id', async () => {
@@ -152,14 +152,14 @@ describe('Users Management (e2e)', () => {
         .post('/users')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          email: 'client@org.com',
+          email: 'external@org.com',
           password: 'SecurePass123!',
-          name: 'Client Org',
+          name: 'External Org',
           role: Role.EXTERNAL,
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Un usuario externo debe asociarse a una company');
+      expect(response.body.message).toBe('Un usuario externo debe asociarse a un owner');
     });
 
     it('valida email, password minimo y role', async () => {
@@ -250,7 +250,7 @@ describe('Users Management (e2e)', () => {
       const org = await testUtils.createTestOrganization('Org');
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
       await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
-      await testUtils.createTestUser(Role.EXTERNAL, 'client@org.com', org.id);
+      await testUtils.createTestUser(Role.EXTERNAL, 'external@org.com', org.id);
 
       const token = testUtils.getBearerToken(admin);
 
@@ -265,9 +265,9 @@ describe('Users Management (e2e)', () => {
 
     it('mapea filtro role=EXTERNAL a EXTERNAL como rol canonico', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const company = await testUtils.createTestCustomer('Company', org.id);
+      const owner = await testUtils.createTestOwner('Owner A', org.id);
       const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
-      await testUtils.createTestUser(Role.EXTERNAL, 'client@org.com', org.id, company.id);
+      await testUtils.createTestUser(Role.EXTERNAL, 'external@org.com', org.id, owner.id);
       await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
 
       const token = testUtils.getBearerToken(admin);
@@ -279,7 +279,7 @@ describe('Users Management (e2e)', () => {
       expect(response.status).toBe(200);
       expect(response.body.length).toBe(1);
       expect(response.body[0].role).toBe('EXTERNAL');
-      expect(response.body[0].owner_id).toBe(company.id);
+      expect(response.body[0].owner_id).toBe(owner.id);
     });
 
     it('WORKER debería recibir 403 Forbidden', async () => {

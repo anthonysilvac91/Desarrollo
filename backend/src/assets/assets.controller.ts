@@ -47,14 +47,14 @@ export class AssetsController {
   @ApiOperation({ summary: 'Vincular un owner a un activo (Solo Admin)' })
   assignOwner(@Param('id') assetId: string, @Param('ownerId') ownerId: string, @Request() req) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede asignar');
-    return this.assetsService.assignCompany(assetId, ownerId, req.user.orgId);
+    return this.assetsService.assignOwner(assetId, ownerId, req.user.orgId);
   }
 
   @Delete(':id/owners/:ownerId')
   @ApiOperation({ summary: 'Desvincular un owner de un activo (Solo Admin)' })
   removeOwner(@Param('id') assetId: string, @Param('ownerId') ownerId: string, @Request() req) {
     if (req.user.role !== 'ADMIN') throw new ForbiddenException('Solo ADMIN puede desasignar');
-    return this.assetsService.removeCompany(assetId, ownerId, req.user.orgId);
+    return this.assetsService.removeOwner(assetId, ownerId, req.user.orgId);
   }
 
   @Delete(':id')

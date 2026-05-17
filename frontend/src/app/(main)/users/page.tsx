@@ -134,8 +134,8 @@ export default function UsersPage() {
       }
     },
     { 
-      key: "company", 
-      header: t.users.table.company,
+      key: "owner", 
+      header: t.users.table.owner,
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />

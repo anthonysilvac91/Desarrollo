@@ -46,18 +46,18 @@ export class TestUtils {
   /**
    * Crea un usuario con rol específico. Si no se manda orgId asume SUPER_ADMIN
    */
-  async createTestUser(role: Role, email: string, orgId?: string, companyId?: string) {
+  async createTestUser(role: Role, email: string, orgId?: string, ownerId?: string) {
     const password_hash = await bcrypt.hash('123456', 10);
-    let resolvedCompanyId = companyId;
+    let resolvedOwnerId = ownerId;
 
-    if (role === Role.EXTERNAL && orgId && !resolvedCompanyId) {
-      const company = await this.prisma.owner.create({
+    if (role === Role.EXTERNAL && orgId && !resolvedOwnerId) {
+      const owner = await this.prisma.owner.create({
         data: {
-          name: `Company ${email}`,
+          name: `Owner ${email}`,
           organization_id: orgId,
         },
       });
-      resolvedCompanyId = company.id;
+      resolvedOwnerId = owner.id;
     }
 
     return this.prisma.user.create({
@@ -67,12 +67,12 @@ export class TestUtils {
         password_hash,
         name: `User ${role} ${email}`,
         organization_id: orgId || null,
-        owner_id: resolvedCompanyId || null,
+        owner_id: resolvedOwnerId || null,
       }
     });
   }
 
-  async createTestCustomer(name: string, orgId: string) {
+  async createTestOwner(name: string, orgId: string) {
     return this.prisma.owner.create({
       data: {
         name,
@@ -90,7 +90,6 @@ export class TestUtils {
       sub: user.id,
       orgId: user.organization_id,
       role: user.role,
-      customer_id: user.owner_id,
       owner_id: user.owner_id,
     };
     return this.jwtService.sign(payload, { secret: process.env.JWT_SECRET || 'RECALL_TEST_STRICT_SAFE_SECRET' });

@@ -7,11 +7,11 @@ import { useLanguage } from "@/lib/LanguageContext";
 interface FilterPopoverProps {
   isOpen: boolean;
   onClose: () => void;
-  clients: string[];
+  owners: string[];
   categories: string[];
-  selectedClients: string[];
+  selectedOwners: string[];
   selectedCategories: string[];
-  onToggleClient: (client: string) => void;
+  onToggleOwner: (owner: string) => void;
   onToggleCategory: (category: string) => void;
   onClearAll: () => void;
 }
@@ -19,11 +19,11 @@ interface FilterPopoverProps {
 export default function FilterPopover({
   isOpen,
   onClose,
-  clients,
+  owners,
   categories,
-  selectedClients,
+  selectedOwners,
   selectedCategories,
-  onToggleClient,
+  onToggleOwner,
   onToggleCategory,
   onClearAll,
 }: FilterPopoverProps) {
@@ -60,22 +60,22 @@ export default function FilterPopover({
           </button>
         </div>
 
-        {/* Section: By Client */}
+        {/* Section: By Owner */}
         <div className="space-y-4">
           <h4 className="text-[11px] font-black text-subtitle/40 uppercase tracking-[0.15em]">
-            {t.assets.filters.by_client}
+            {t.assets.filters.by_owner}
           </h4>
           <div className="flex flex-col space-y-2 max-h-40 overflow-y-auto custom-scroll pr-2">
-            {clients.map((client) => {
-              const isActive = selectedClients.includes(client);
+            {owners.map((owner) => {
+              const isActive = selectedOwners.includes(owner);
               return (
                 <button
-                  key={client}
-                  onClick={() => onToggleClient(client)}
+                  key={owner}
+                  onClick={() => onToggleOwner(owner)}
                   className="flex items-center justify-between group"
                 >
                   <span className={`text-[13.5px] font-semibold transition-colors ${isActive ? "text-title" : "text-subtitle hover:text-title"}`}>
-                    {client}
+                    {owner}
                   </span>
                   <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
                     isActive ? "bg-brand border-brand text-white" : "border-border-theme bg-gray-50/50 group-hover:border-brand/40"

@@ -22,44 +22,42 @@ export class OwnersService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private mapCompanyRelations<T extends Record<string, any>>(company: T): T & { company_users?: any[]; company_assets?: any[] } {
+  private mapOwnerRelations<T extends Record<string, any>>(owner: T): T & { owner_users?: any[]; owner_assets?: any[] } {
     return {
-      ...withOwner(company),
-      owner_id: company.id,
-      company_users: company.users ?? undefined,
-      company_assets: company.assets ?? undefined,
-      owner_users: company.users ?? undefined,
-      owner_assets: company.assets ?? undefined,
+      ...withOwner(owner),
+      owner_id: owner.id,
+      owner_users: owner.users ?? undefined,
+      owner_assets: owner.assets ?? undefined,
     };
   }
 
-  private async resolveCompanyFileUrls<T extends Record<string, any>>(company: T) {
-    const resolvedCompany = { ...company } as any;
+  private async resolveOwnerFileUrls<T extends Record<string, any>>(owner: T) {
+    const resolvedOwner = { ...owner } as any;
 
-    if (Array.isArray(resolvedCompany.assets)) {
-      resolvedCompany.assets = await Promise.all(
-        resolvedCompany.assets.map(async (asset: any) => ({
+    if (Array.isArray(resolvedOwner.assets)) {
+      resolvedOwner.assets = await Promise.all(
+        resolvedOwner.assets.map(async (asset: any) => ({
           ...asset,
           thumbnail_url: await this.storedFilesService.resolveFileUrl(asset.thumbnail_file_id),
         }))
       );
     }
 
-    resolvedCompany.logo_url = await this.storedFilesService.resolveFileUrl(resolvedCompany.logo_file_id);
+    resolvedOwner.logo_url = await this.storedFilesService.resolveFileUrl(resolvedOwner.logo_file_id);
 
-    return resolvedCompany;
+    return resolvedOwner;
   }
 
-  async create(createCompanyDto: CreateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
-    ensureNoManualFileUrl(createCompanyDto.logo_url, 'Logo de company');
-    const { logo_url: _logoUrl, ...companyData } = createCompanyDto;
+  async create(createOwnerDto: CreateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
+    ensureNoManualFileUrl(createOwnerDto.logo_url, 'Logo de owner');
+    const { logo_url: _logoUrl, ...ownerData } = createOwnerDto;
 
-    const companyId = randomUUID();
+    const ownerId = randomUUID();
     let logoUrl: string | undefined;
     if (logoFile) {
       const imageInfo = validateImageFile(logoFile, {
         maxBytes: 2 * 1024 * 1024,
-        label: 'Logo de company',
+        label: 'Logo de owner',
         maxWidth: 4096,
         maxHeight: 4096,
         maxPixels: 12 * 1024 * 1024,
@@ -73,7 +71,7 @@ export class OwnersService {
       });
       await this.storageGovernance.assertCanStore(orgId, logoFile.size);
       logoUrl = await this.storageService.uploadFile(logoFile, {
-        folder: buildOwnerLogoPath(orgId, companyId),
+        folder: buildOwnerLogoPath(orgId, ownerId),
         visibility: 'private',
       });
     }
@@ -89,17 +87,17 @@ export class OwnersService {
         kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
         entityType: 'OWNER',
-        entityId: companyId,
+        entityId: ownerId,
       });
       logoFileId = storedFile.id;
     }
 
-    let company;
+    let owner;
     try {
-      company = await this.prisma.owner.create({
+      owner = await this.prisma.owner.create({
         data: {
-          id: companyId,
-          ...companyData,
+          id: ownerId,
+          ...ownerData,
           logo_file_id: logoFileId,
           organization_id: orgId,
         },
@@ -110,7 +108,7 @@ export class OwnersService {
       }
       throw error;
     }
-    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
   }
 
   async findAll(orgId: string, query?: PaginationQueryDto) {
@@ -133,50 +131,50 @@ export class OwnersService {
         this.prisma.owner.count({ where })
       ]);
       return {
-        data: await Promise.all(data.map((item: any) => this.resolveCompanyFileUrls(this.mapCompanyRelations(item)))),
+        data: await Promise.all(data.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item)))),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
       };
     }
 
-    const companies = await this.prisma.owner.findMany({
+    const owners = await this.prisma.owner.findMany({
       where,
       orderBy: { created_at: 'desc' }
     });
-    return Promise.all(companies.map((item: any) => this.resolveCompanyFileUrls(this.mapCompanyRelations(item))));
+    return Promise.all(owners.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item))));
   }
 
   async findOne(id: string, orgId: string) {
-    const company = await this.prisma.owner.findUnique({
+    const owner = await this.prisma.owner.findUnique({
       where: { id },
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
         assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_file_id: true } }
       }
     });
-    if (!company || company.organization_id !== orgId) {
-      throw new NotFoundException('Company no encontrada');
+    if (!owner || owner.organization_id !== orgId) {
+      throw new NotFoundException('Owner no encontrado');
     }
-    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
   }
 
-  async update(id: string, updateCompanyDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
-    const existingCompany = await this.prisma.owner.findUnique({
+  async update(id: string, updateOwnerDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
+    const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
       select: { id: true, organization_id: true, logo_file_id: true },
     });
 
-    if (!existingCompany || existingCompany.organization_id !== orgId) {
-      throw new NotFoundException('Company no encontrada');
+    if (!existingOwner || existingOwner.organization_id !== orgId) {
+      throw new NotFoundException('Owner no encontrado');
     }
 
-    ensureNoManualFileUrl(updateCompanyDto.logo_url, 'Logo de company');
-    const { logo_url: _logoUrl, ...companyData } = updateCompanyDto;
+    ensureNoManualFileUrl(updateOwnerDto.logo_url, 'Logo de owner');
+    const { logo_url: _logoUrl, ...ownerData } = updateOwnerDto;
 
     let logoUrl: string | undefined;
     if (logoFile) {
       const imageInfo = validateImageFile(logoFile, {
         maxBytes: 2 * 1024 * 1024,
-        label: 'Logo de company',
+        label: 'Logo de owner',
         maxWidth: 4096,
         maxHeight: 4096,
         maxPixels: 12 * 1024 * 1024,
@@ -191,15 +189,15 @@ export class OwnersService {
       await this.storageGovernance.assertCanStore(
         orgId,
         logoFile.size,
-        existingCompany.logo_file_id ? [existingCompany.logo_file_id] : [],
+        existingOwner.logo_file_id ? [existingOwner.logo_file_id] : [],
       );
       logoUrl = await this.storageService.uploadFile(logoFile, {
-        folder: buildOwnerLogoPath(orgId, existingCompany.id),
+        folder: buildOwnerLogoPath(orgId, existingOwner.id),
         visibility: 'private',
       });
     }
 
-    let logoFileId = existingCompany.logo_file_id;
+    let logoFileId = existingOwner.logo_file_id;
     if (logoFile && logoUrl) {
       const storedFile = await this.storedFilesService.registerUploadedFile({
         organizationId: orgId,
@@ -210,57 +208,57 @@ export class OwnersService {
         kind: StoredFileKind.OWNER_LOGO,
         visibility: 'private',
         entityType: 'OWNER',
-        entityId: existingCompany.id,
+        entityId: existingOwner.id,
       });
       logoFileId = storedFile.id;
     }
 
-    let company;
+    let owner;
     try {
-      company = await this.prisma.owner.update({
-        where: { id: existingCompany.id },
+      owner = await this.prisma.owner.update({
+        where: { id: existingOwner.id },
         data: {
-          ...companyData,
+          ...ownerData,
           logo_file_id: logoFileId,
         },
       });
     } catch (error) {
-      if (logoFile && logoFileId && logoFileId !== existingCompany.logo_file_id) {
+      if (logoFile && logoFileId && logoFileId !== existingOwner.logo_file_id) {
         await this.storedFilesService.deleteStoredFileAndBlob(logoFileId);
       }
       throw error;
     }
 
-    if (logoFile && existingCompany.logo_file_id) {
+    if (logoFile && existingOwner.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
-        existingCompany.logo_file_id,
+        existingOwner.logo_file_id,
       );
     }
 
-    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
   }
 
   async remove(id: string, orgId: string) {
-    const existingCompany = await this.prisma.owner.findUnique({
+    const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
       select: { id: true, organization_id: true, logo_file_id: true },
     });
 
-    if (!existingCompany || existingCompany.organization_id !== orgId) {
-      throw new NotFoundException('Company no encontrada');
+    if (!existingOwner || existingOwner.organization_id !== orgId) {
+      throw new NotFoundException('Owner no encontrado');
     }
 
-    const company = await this.prisma.owner.update({
-      where: { id: existingCompany.id },
+    const owner = await this.prisma.owner.update({
+      where: { id: existingOwner.id },
       data: { is_active: false, logo_file_id: null },
     });
 
-    if (existingCompany.logo_file_id) {
+    if (existingOwner.logo_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
-        existingCompany.logo_file_id,
+        existingOwner.logo_file_id,
       );
     }
 
-    return this.resolveCompanyFileUrls(this.mapCompanyRelations(company));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
   }
 }

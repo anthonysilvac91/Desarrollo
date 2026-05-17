@@ -4,7 +4,7 @@ export interface DashboardStats {
   total_assets: number;
   total_services: number;
   total_workers: number;
-  total_clients: number;
+  total_owners: number;
   total_admins: number;
   public_services: number;
   private_services: number;
