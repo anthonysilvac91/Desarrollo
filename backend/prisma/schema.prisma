@@ -81,7 +81,7 @@ model User {
   id                 String    @id @default(uuid())
   organization_id    String?
   role               Role
-  email              String
+  email              String    @unique
   password_hash      String
   name               String
   phone              String?
@@ -102,7 +102,6 @@ model User {
   invitations_sent      Invitation[]        @relation("InvitedBy")
   stored_files_uploaded StoredFile[]        @relation("StoredFileUploadedBy")
 
-  @@unique([email, organization_id])
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([organization_id, role])

@@ -34,35 +34,50 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findFirst({
-      where: {
-        email: loginDto.email,
-        ...(loginDto.organizationId ? { organization_id: loginDto.organizationId } : {}),
-        is_active: true,
-      },
+      where: { email: loginDto.email },
+      include: { organization: { select: { id: true, is_active: true } } },
     });
 
-    if (!user) {
-      this.logger.warn(`Failed login attempt for email: ${loginDto.email} - User/Org not found`);
-      throw new UnauthorizedException('Credenciales inválidas u organización incorrecta');
+    if (!user || !user.is_active) {
+      this.logger.warn(`Failed login: ${loginDto.email}`);
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const isMatch = await bcrypt.compare(loginDto.password, user.password_hash);
     if (!isMatch) {
-      this.logger.warn(`Failed login attempt for email: ${loginDto.email} - Invalid credentials`);
-      throw new UnauthorizedException('Credenciales inválidas');
+      this.logger.warn(`Failed login (wrong password): ${loginDto.email}`);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.role === 'SUPER_ADMIN') {
+      if (user.organization_id !== null) {
+        this.logger.warn(`SUPER_ADMIN ${user.id} has organization_id, rejecting`);
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      const payload = { sub: user.id, orgId: null, role: 'SUPER_ADMIN', owner_id: null };
+      this.logger.log(`User ${user.id} logged in successfully`);
+      return { access_token: this.jwtService.sign(payload) };
+    }
+
+    if (!user.organization_id || !user.organization || !user.organization.is_active) {
+      this.logger.warn(`User ${user.id} missing or inactive organization`);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.role === 'EXTERNAL' && !user.owner_id) {
+      this.logger.warn(`EXTERNAL user ${user.id} missing owner_id`);
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const payload = {
       sub: user.id,
       orgId: user.organization_id,
       role: toApiRole(user.role),
-      owner_id: user.owner_id,
+      owner_id: user.owner_id ?? null,
     };
 
     this.logger.log(`User ${user.id} logged in successfully`);
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+    return { access_token: this.jwtService.sign(payload) };
   }
 
   async register(registerDto: any) {
