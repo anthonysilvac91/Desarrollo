@@ -5,10 +5,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
 import {
-  hasConflictingOwnerAliases,
+  hasLegacyOwnerAliases,
   isExternalRole,
-  OWNER_ALIAS_CONFLICT_MESSAGE,
-  resolveOwnerId,
+  LEGACY_OWNER_ALIAS_MESSAGE,
   toApiRole,
 } from '../common/compat/owner-role-compat';
 
@@ -57,10 +56,7 @@ export class AuthService {
       sub: user.id,
       orgId: user.organization_id,
       role: toApiRole(user.role),
-      legacy_role: user.role,
       owner_id: user.owner_id,
-      customer_id: user.owner_id,
-      company_id: user.owner_id,
     };
 
     this.logger.log(`User ${user.id} logged in successfully`);
@@ -78,10 +74,10 @@ export class AuthService {
     if (invitation.is_used) throw new UnauthorizedException('Esta invitación ya fue utilizada');
     if (new Date() > invitation.expires_at) throw new UnauthorizedException('Esta invitación ha expirado');
 
-    if (hasConflictingOwnerAliases(registerDto)) {
-      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    if (hasLegacyOwnerAliases(registerDto)) {
+      throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const companyId = resolveOwnerId(registerDto);
+    const companyId = registerDto.owner_id ?? null;
 
     if (isExternalRole(invitation.role) && !companyId) {
       throw new BadRequestException('Un usuario externo debe asociarse a un propietario');
@@ -118,10 +114,7 @@ export class AuthService {
         sub: user.id,
         orgId: user.organization_id,
         role: toApiRole(user.role),
-        legacy_role: user.role,
         owner_id: user.owner_id,
-        customer_id: user.owner_id,
-        company_id: user.owner_id,
       };
 
       this.logger.log(`User ${user.id} registered and logged in successfully via invitation`);
@@ -133,8 +126,6 @@ export class AuthService {
           role: toApiRole(user.role),
           email: user.email,
           owner_id: user.owner_id,
-          company_id: user.owner_id,
-          customer_id: user.owner_id,
         },
       };
     });
@@ -179,8 +170,6 @@ export class AuthService {
       ...result,
       role: toApiRole(result.role),
       owner_id: result.owner_id,
-      customer_id: result.owner_id,
-      company_id: result.owner_id,
     };
   }
 }

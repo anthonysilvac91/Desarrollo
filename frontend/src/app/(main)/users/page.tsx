@@ -42,7 +42,7 @@ export default function UsersPage() {
     setPage(1);
   }, [debouncedSearch, limit]);
 
-  const existingCompanies = useMemo(() => {
+  const existingOwners = useMemo(() => {
     return Array.from(new Set<string>(usersList.map(() => "Recall Co"))).sort();
   }, [usersList]);
 
@@ -139,7 +139,7 @@ export default function UsersPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
           <Building2 className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">{item.organization?.name || item.company?.name || item.customer?.name || "Global"}</span>
+          <span className="font-semibold text-sm">{item.organization?.name || item.owner?.name || "Global"}</span>
         </div>
       )
     },
@@ -317,7 +317,7 @@ export default function UsersPage() {
           setEditingUser(null);
           refetch();
         }}
-        existingCompanies={existingCompanies}
+        existingOwners={existingOwners}
         userToEdit={editingUser}
       />
 

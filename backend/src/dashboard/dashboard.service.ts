@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { DashboardStatsDto, RankingItemDto, EvolutionPointDto } from './dto/dashboard.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
-import { resolveOwnerId, isExternalRole } from '../common/compat/owner-role-compat';
+import { isExternalRole } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class DashboardService {
@@ -13,7 +13,7 @@ export class DashboardService {
   ) {}
 
   async getStats(
-    currentUser: { id: string; role: Role; orgId?: string; owner_id?: string; customer_id?: string; company_id?: string },
+    currentUser: { id: string; role: Role; orgId?: string; owner_id?: string },
     organizationId?: string,
     query?: { startDate?: string; endDate?: string }
   ): Promise<DashboardStatsDto> {
@@ -33,7 +33,7 @@ export class DashboardService {
 
     const isWorker = currentUser.role === Role.WORKER;
     const isClient = isExternalRole(currentUser.role);
-    const companyId = resolveOwnerId(currentUser);
+    const companyId = currentUser.owner_id ?? null;
     const restrictedWorkerAssetWhere =
       isWorker
         ? await this.buildRestrictedWorkerAssetWhere(currentUser.orgId, currentUser.id)

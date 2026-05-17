@@ -10,11 +10,10 @@ import { buildAssetThumbnailPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import {
-  hasConflictingOwnerAliases,
+  hasLegacyOwnerAliases,
   isExternalRole,
-  OWNER_ALIAS_CONFLICT_MESSAGE,
-  resolveOwnerId,
-  withOwnerAliases,
+  LEGACY_OWNER_ALIAS_MESSAGE,
+  withOwner,
 } from '../common/compat/owner-role-compat';
 
 @Injectable()
@@ -26,8 +25,8 @@ export class AssetsService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { owner_id: string | null; owner: any; company_id: string | null; company: any; customer_id: string | null; customer: any } {
-    return withOwnerAliases(asset);
+  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { owner_id: string | null; owner: any } {
+    return withOwner(asset);
   }
 
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
@@ -73,17 +72,15 @@ export class AssetsService {
 
   async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
     const {
-      company_id: _companyId,
       owner_id: _ownerId,
-      customer_id: _customerId,
       organization_id: dtoOrgId,
       thumbnail_url: _thumbnailUrl,
       ...assetData
     } = createAssetDto;
-    if (hasConflictingOwnerAliases(createAssetDto)) {
-      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    if (hasLegacyOwnerAliases(createAssetDto)) {
+      throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const companyId = resolveOwnerId(createAssetDto);
+    const companyId = createAssetDto.owner_id ?? null;
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
     let thumbnail_url: string | undefined;
@@ -95,7 +92,7 @@ export class AssetsService {
     }
 
     if (!companyId) {
-      throw new BadRequestException('Un activo debe asociarse a una company');
+      throw new BadRequestException('Un activo debe asociarse a un owner');
     }
 
     if (photo) {
@@ -303,7 +300,7 @@ export class AssetsService {
     }
 
     if (isExternalRole(user.role)) {
-      const currentCompanyId = user.owner_id ?? user.company_id ?? user.customer_id;
+      const currentCompanyId = user.owner_id;
       if (asset.owner_id !== currentCompanyId) {
         throw new NotFoundException('No tienes acceso a este activo');
       }
@@ -335,7 +332,7 @@ export class AssetsService {
       throw new NotFoundException('Activo no encontrado');
     }
 
-    throw new BadRequestException('Un activo debe mantener una company asociada');
+    throw new BadRequestException('Un activo debe mantener un owner asociado');
   }
 
   async remove(id: string, user: any) {
@@ -373,16 +370,14 @@ export class AssetsService {
     }
 
     const {
-      company_id: _companyId,
       owner_id: _ownerId,
-      customer_id: _customerId,
       thumbnail_url: _thumbnailUrl,
       ...updateData
     } = updateDto;
-    if (hasConflictingOwnerAliases(updateDto)) {
-      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    if (hasLegacyOwnerAliases(updateDto)) {
+      throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const companyId = resolveOwnerId(updateDto);
+    const companyId = updateDto.owner_id ?? null;
     let thumbnail_url: string | undefined;
     let thumbnailFileId = (asset as any).thumbnail_file_id ?? null;
 
@@ -431,9 +426,9 @@ export class AssetsService {
       thumbnail_file_id: thumbnailFileId,
     };
 
-    if (_companyId !== undefined || _ownerId !== undefined || _customerId !== undefined) {
+    if (_ownerId !== undefined) {
       if (!companyId) {
-        throw new BadRequestException('Un activo debe asociarse a una company');
+        throw new BadRequestException('Un activo debe asociarse a un owner');
       }
 
       await this.ensureCompanyBelongsToOrg(companyId, asset.organization_id);

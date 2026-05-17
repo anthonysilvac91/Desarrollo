@@ -2,7 +2,7 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 
 describe('DashboardController', () => {
-  it('pasa company_id/customer_id del JWT al servicio', () => {
+  it('pasa owner_id del JWT al servicio', () => {
     const dashboardService = {
       getStats: jest.fn(),
     } as unknown as DashboardService;
@@ -14,22 +14,20 @@ describe('DashboardController', () => {
       undefined as any,
       {
         user: {
-          id: 'client-1',
-          role: 'CLIENT',
+          id: 'external-1',
+          role: 'EXTERNAL',
           orgId: 'org-1',
-          company_id: 'company-1',
-          customer_id: 'company-1',
+          owner_id: 'owner-1',
         },
       },
     );
 
     expect(dashboardService.getStats).toHaveBeenCalledWith(
       {
-        id: 'client-1',
-        role: 'CLIENT',
+        id: 'external-1',
+        role: 'EXTERNAL',
         orgId: 'org-1',
-        company_id: 'company-1',
-        customer_id: 'company-1',
+        owner_id: 'owner-1',
       },
       undefined,
       { startDate: undefined, endDate: undefined },

@@ -4,10 +4,9 @@ import { CreateInvitationDto } from './dto/invitations.dto';
 import * as crypto from 'crypto';
 import { Role } from '@prisma/client';
 import {
-  hasConflictingOwnerAliases,
+  hasLegacyOwnerAliases,
   isExternalRole,
-  OWNER_ALIAS_CONFLICT_MESSAGE,
-  resolveOwnerId,
+  LEGACY_OWNER_ALIAS_MESSAGE,
   toApiRole,
 } from '../common/compat/owner-role-compat';
 
@@ -26,8 +25,8 @@ export class InvitationsService {
       throw new BadRequestException('External invitations are not available yet');
     }
 
-    if (hasConflictingOwnerAliases(dto)) {
-      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    if (hasLegacyOwnerAliases(dto)) {
+      throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
 
     let targetOrgId = dto.organization_id;
@@ -42,9 +41,9 @@ export class InvitationsService {
     }
 
     const finalOrgId = targetOrgId as string;
-    const companyId = resolveOwnerId(dto);
+    const ownerId = dto.owner_id ?? null;
 
-    if (companyId) {
+    if (ownerId) {
       throw new BadRequestException('Las invitaciones externas no están disponibles aún');
     }
 
@@ -67,9 +66,7 @@ export class InvitationsService {
     return {
       ...invitation,
       role: toApiRole(invitation.role),
-      owner_id: companyId ?? null,
-      company_id: companyId ?? null,
-      customer_id: companyId ?? null,
+      owner_id: ownerId ?? null,
     };
   }
 

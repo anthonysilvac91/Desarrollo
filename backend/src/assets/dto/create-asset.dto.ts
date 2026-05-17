@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmpty, IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAssetDto {
   @ApiProperty({ example: 'Generador Alpha-1', description: 'El nombre identificador de la unidad técnica/inmueble/embarcación' })
@@ -32,9 +32,8 @@ export class CreateAssetDto {
   @IsOptional()
   serial_number?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de owner_id.' })
-  @IsString()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
   @ApiPropertyOptional({ description: 'ID canonico del owner asignado al activo.' })
@@ -42,9 +41,8 @@ export class CreateAssetDto {
   @IsOptional()
   owner_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de owner_id.' })
-  @IsString()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
 
   @ApiPropertyOptional({ description: 'ID de la organización (opcional, defaults a la del usuario).' })

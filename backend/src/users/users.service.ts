@@ -11,12 +11,11 @@ import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildUserAvatarPath } from '../common/files/storage-paths';
 import {
-  hasConflictingOwnerAliases,
+  hasLegacyOwnerAliases,
   isExternalRole,
-  OWNER_ALIAS_CONFLICT_MESSAGE,
-  resolveOwnerId,
+  LEGACY_OWNER_ALIAS_MESSAGE,
   toDbRole,
-  withOwnerAliases,
+  withOwner,
 } from '../common/compat/owner-role-compat';
 @Injectable()
 export class UsersService {
@@ -27,8 +26,8 @@ export class UsersService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private mapUserRelations<T extends Record<string, any>>(user: T): T & { owner_id: string | null; owner: any; company_id: string | null; company: any; customer_id: string | null; customer: any } {
-    return withOwnerAliases(user);
+  private mapUserRelations<T extends Record<string, any>>(user: T): T & { owner_id: string | null; owner: any } {
+    return withOwner(user);
   }
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
@@ -51,7 +50,7 @@ export class UsersService {
     }
   }
 
-  private async ensureCompanyBelongsToOrganization(companyId: string, organizationId: string) {
+  private async ensurecompanyBelongsToOrganization(companyId: string, organizationId: string) {
     const owner = await this.prisma.owner.findFirst({
       where: { id: companyId, organization_id: organizationId, is_active: true },
       select: { id: true },
@@ -194,10 +193,10 @@ export class UsersService {
   async create(dto: CreateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
     const requestedRole = dto.role;
     const dbRole = toDbRole(requestedRole) as Role;
-    if (hasConflictingOwnerAliases(dto)) {
-      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+    if (hasLegacyOwnerAliases(dto)) {
+      throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const ownerId = resolveOwnerId(dto);
+    const ownerId = dto.owner_id ?? null;
     // 1. Validar permisos de creación por rol
     if (currentUser.role === Role.ADMIN) {
       // Un admin no puede crear un SuperAdmin
@@ -224,14 +223,14 @@ export class UsersService {
 
     if (ownerId) {
       if (!isExternalRole(requestedRole)) {
-        throw new BadRequestException('Solo un usuario externo puede asociarse a una company');
+        throw new BadRequestException('Solo un usuario externo puede asociarse a un owner');
       }
 
-      await this.ensureCompanyBelongsToOrganization(ownerId, dto.organization_id!);
+      await this.ensurecompanyBelongsToOrganization(ownerId, dto.organization_id!);
     }
 
     if (isExternalRole(requestedRole) && !ownerId) {
-      throw new BadRequestException('Un usuario externo debe asociarse a una company');
+      throw new BadRequestException('Un usuario externo debe asociarse a un owner');
     }
 
     // 2. Verificar email duplicado en el mismo tenant (u org_id null para SuperAdmin)
@@ -329,31 +328,31 @@ export class UsersService {
     }
 
     const ownerProvided =
-      dto.company_id !== undefined || dto.owner_id !== undefined || dto.customer_id !== undefined;
-    if (hasConflictingOwnerAliases(dto)) {
-      throw new BadRequestException(OWNER_ALIAS_CONFLICT_MESSAGE);
+      dto.owner_id !== undefined;
+    if (hasLegacyOwnerAliases(dto)) {
+      throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
-    const ownerId = resolveOwnerId(dto);
+    const ownerId = dto.owner_id ?? null;
 
     if (ownerProvided) {
       if (!isExternalRole(currentUserRecord.role)) {
-        throw new BadRequestException('Solo un usuario externo puede asociarse a una company');
+        throw new BadRequestException('Solo un usuario externo puede asociarse a un owner');
       }
 
       if (!ownerId) {
-        throw new BadRequestException('Un usuario externo debe asociarse a una company');
+        throw new BadRequestException('Un usuario externo debe asociarse a un owner');
       }
 
-      await this.ensureCompanyBelongsToOrganization(ownerId, targetOrganizationId!);
+      await this.ensurecompanyBelongsToOrganization(ownerId, targetOrganizationId!);
       data.owner_id = ownerId;
     } else if (organizationChanged && currentUserRecord.owner_id) {
       data.owner_id = null;
     }
 
-    const targetCompanyId =
+    const targetcompanyId =
       data.owner_id !== undefined ? data.owner_id : currentUserRecord.owner_id;
-    if (isExternalRole(currentUserRecord.role) && !targetCompanyId) {
-      throw new BadRequestException('Un usuario externo debe asociarse a una company');
+    if (isExternalRole(currentUserRecord.role) && !targetcompanyId) {
+      throw new BadRequestException('Un usuario externo debe asociarse a un owner');
     }
 
     let avatarFileId = currentUserRecord.avatar_file_id;

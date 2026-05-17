@@ -13,7 +13,7 @@ export interface UserFormData {
   name: string;
   email: string;
   organization_id: string;
-  company_id: string;
+  owner_id: string;
   role: string;
   password?: string;
 }
@@ -22,11 +22,11 @@ interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  existingCompanies?: string[];
+  existingOwners?: string[];
   userToEdit?: any | null;
 }
 
-export default function UserModal({ isOpen, onClose, onSuccess, existingCompanies = [], userToEdit }: UserModalProps) {
+export default function UserModal({ isOpen, onClose, onSuccess, existingOwners = [], userToEdit }: UserModalProps) {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -41,13 +41,13 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
     name: "",
     email: "",
     organization_id: "",
-    company_id: "",
+    owner_id: "",
     role: "WORKER",
     password: ""
   });
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -57,7 +57,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
 
       ownersService.findAll().then((data: any) => {
         const list = Array.isArray(data) ? data : data.data || [];
-        setCompanies(list);
+        setOwners(list);
       }).catch(() => {});
 
       if (userToEdit) {
@@ -65,14 +65,14 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           name: userToEdit.name || "",
           email: userToEdit.email || "",
           organization_id: userToEdit.organization_id || "",
-          company_id: userToEdit.company_id || userToEdit.customer_id || "",
+          owner_id: userToEdit.owner_id || "",
           role: userToEdit.role || "WORKER",
           password: ""
         });
         setAvatarFile(null);
         setAvatarPreview(userToEdit.avatar_url || null);
       } else {
-        setFormData({ name: "", email: "", organization_id: "", company_id: "", role: "WORKER", password: "" });
+        setFormData({ name: "", email: "", organization_id: "", owner_id: "", role: "WORKER", password: "" });
         setAvatarFile(null);
         setAvatarPreview(null);
       }
@@ -105,7 +105,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
           password: formData.password,
         };
         if (isSuperAdmin && formData.role !== "SUPER_ADMIN") payload.organization_id = formData.organization_id;
-        if (formData.role === "EXTERNAL" && formData.company_id) payload.owner_id = formData.company_id;
+        if (formData.role === "EXTERNAL" && formData.owner_id) payload.owner_id = formData.owner_id;
         await usersService.create(payload);
         showToast(t.users.states.invite_success, "success");
       }
@@ -232,7 +232,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                   required
                   className="block w-full pl-14 pr-10 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm appearance-none"
                   value={formData.organization_id}
-                  onChange={(e) => setFormData({ ...formData, organization_id: e.target.value, company_id: "" })}
+                  onChange={(e) => setFormData({ ...formData, organization_id: e.target.value, owner_id: "" })}
                 >
                   <option value="" disabled>Selecciona una organizaciÃ³n...</option>
                   {organizations.map((org) => (
@@ -256,11 +256,11 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                 <select
                   required
                   className="block w-full pl-14 pr-10 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm appearance-none"
-                  value={formData.company_id}
-                  onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                  value={formData.owner_id}
+                  onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
                 >
                   <option value="" disabled>Selecciona una empresa...</option>
-                  {companies.map((c) => (
+                  {owners.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -300,7 +300,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingCompanie
                             setFormData({
                               ...formData,
                               role: role.id,
-                              company_id: role.id === "EXTERNAL" ? formData.company_id : "",
+                              owner_id: role.id === "EXTERNAL" ? formData.owner_id : "",
                             });
                             setIsRoleDropdownOpen(false);
                           }}

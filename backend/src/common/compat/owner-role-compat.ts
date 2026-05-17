@@ -1,53 +1,34 @@
 export const EXTERNAL_ROLE = 'EXTERNAL';
-export const LEGACY_CLIENT_ROLE = 'CLIENT';
+export const LEGACY_OWNER_ALIAS_MESSAGE =
+  'company_id and customer_id are no longer accepted; use owner_id';
 
-export function isExternalRole(role?: string | null) {
-  return role === LEGACY_CLIENT_ROLE || role === EXTERNAL_ROLE;
-}
-
-// After Phase 6.1: EXTERNAL is the canonical DB role. CLIENT is the legacy alias.
-// Convert legacy CLIENT → EXTERNAL so old API clients stay compatible.
-export function toDbRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
-  return (role === LEGACY_CLIENT_ROLE ? EXTERNAL_ROLE : role) as T | 'EXTERNAL';
-}
-
-export function toApiRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
-  return role === LEGACY_CLIENT_ROLE ? EXTERNAL_ROLE : role;
-}
-
-export type OwnerAliasInput = {
+export type OwnerInput = {
   owner_id?: string | null;
   company_id?: string | null;
   customer_id?: string | null;
 };
 
-export const OWNER_ALIAS_CONFLICT_MESSAGE =
-  'owner_id, company_id and customer_id must match when provided together';
-
-export function hasConflictingOwnerAliases(input: OwnerAliasInput) {
-  const values = [input.owner_id, input.company_id, input.customer_id].filter(
-    (value): value is string => value !== undefined && value !== null && value !== '',
-  );
-
-  return new Set(values).size > 1;
+export function isExternalRole(role?: string | null) {
+  return role === EXTERNAL_ROLE;
 }
 
-export function resolveOwnerId(input: OwnerAliasInput) {
-  return input.owner_id ?? input.company_id ?? input.customer_id ?? null;
+export function toDbRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
+  return role as T | 'EXTERNAL';
 }
 
-export function withOwnerAliases<T extends Record<string, any>>(record: T) {
-  const ownerId = resolveOwnerId(record);
-  const owner = record.owner ?? record.company ?? record.customer ?? null;
+export function toApiRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
+  return role as T | 'EXTERNAL';
+}
 
+export function hasLegacyOwnerAliases(input: OwnerInput) {
+  return input.company_id !== undefined || input.customer_id !== undefined;
+}
+
+export function withOwner<T extends Record<string, any>>(record: T) {
   return {
     ...record,
     role: record.role ? toApiRole(record.role) : record.role,
-    owner_id: ownerId,
-    owner,
-    company_id: ownerId,
-    company: record.company ?? owner,
-    customer_id: ownerId,
-    customer: record.customer ?? owner,
+    owner_id: record.owner_id ?? null,
+    owner: record.owner ?? null,
   };
 }

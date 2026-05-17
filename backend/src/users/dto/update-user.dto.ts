@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, IsUrl, IsUUID } from 'class-validator';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsEmpty, IsOptional, IsString, IsUrl, IsUUID } from 'class-validator';
 
 export class UpdateUserDto {
   @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
@@ -27,9 +27,8 @@ export class UpdateUserDto {
   @IsOptional()
   organization_id?: string;
 
-  @ApiProperty({ required: false })
-  @IsUUID('4', { message: 'ID de company invalido' })
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
   @ApiProperty({ required: false })
@@ -37,8 +36,7 @@ export class UpdateUserDto {
   @IsOptional()
   owner_id?: string;
 
-  @ApiProperty({ required: false })
-  @IsUUID('4', { message: 'ID de customer invalido' })
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
 }

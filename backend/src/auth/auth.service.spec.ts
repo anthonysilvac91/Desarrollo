@@ -28,22 +28,21 @@ describe('AuthService Auth Validations', () => {
     jwt = module.get<JwtService>(JwtService);
   });
 
-  it('Debería denegar login con usuario no encontrado', async () => {
+  it('deniega login con usuario no encontrado', async () => {
     jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
     await expect(service.login({ email: 'a@test.com', password: '123', organizationId: 'org' }))
-      .rejects.toThrow('Credenciales inválidas');
+      .rejects.toThrow('Credenciales');
   });
 
-  it('Debería retornar un token válido si bcrypt aprueba la contraseña', async () => {
+  it('retorna token con owner_id sin aliases legacy', async () => {
     const realHash = await bcrypt.hash('123', 10);
     jest.spyOn(prisma.user, 'findFirst').mockResolvedValue({
       id: 'u-1',
       organization_id: 'org-1',
-      role: 'WORKER',
+      role: 'EXTERNAL',
       password_hash: realHash,
-      owner_id: null,
+      owner_id: 'owner-1',
     } as any);
-    
     jest.spyOn(jwt, 'sign').mockReturnValue('mocked-token');
 
     const result = await service.login({ email: 'a@test.com', password: '123', organizationId: 'org-1' });
@@ -52,44 +51,18 @@ describe('AuthService Auth Validations', () => {
     expect(jwt.sign).toHaveBeenCalledWith({
       sub: 'u-1',
       orgId: 'org-1',
-      role: 'WORKER',
-      legacy_role: 'WORKER',
-      owner_id: null,
-      customer_id: null,
-      company_id: null,
+      role: 'EXTERNAL',
+      owner_id: 'owner-1',
     });
   });
 
-  it('Debería canonizar CLIENT como EXTERNAL en login', async () => {
-    const realHash = await bcrypt.hash('123', 10);
-    jest.spyOn(prisma.user, 'findFirst').mockResolvedValue({
-      id: 'u-2',
-      organization_id: 'org-2',
-      role: 'CLIENT',
-      password_hash: realHash,
-      owner_id: 'company-1',
-    } as any);
-
-    jest.spyOn(jwt, 'sign').mockReturnValue('mocked-token');
-
-    await service.login({ email: 'external@test.com', password: '123', organizationId: 'org-2' });
-
-    expect(jwt.sign).toHaveBeenCalledWith(expect.objectContaining({
-      role: 'EXTERNAL',
-      legacy_role: 'CLIENT',
-      owner_id: 'company-1',
-      company_id: 'company-1',
-      customer_id: 'company-1',
-    }));
-  });
-
-  it('Debería canonizar CLIENT como EXTERNAL en getMe', async () => {
+  it('getMe devuelve owner_id sin company_id/customer_id', async () => {
     jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
       id: 'u-3',
       organization_id: 'org-3',
-      role: 'CLIENT',
+      role: 'EXTERNAL',
       password_hash: 'hash',
-      owner_id: 'company-2',
+      owner_id: 'owner-2',
       avatar_file_id: null,
       avatar_url: null,
       organization: null,
@@ -99,7 +72,8 @@ describe('AuthService Auth Validations', () => {
     const result = await service.getMe('u-3');
 
     expect(result.role).toBe('EXTERNAL');
-    expect(result.owner_id).toBe('company-2');
-    expect(result.company_id).toBe('company-2');
+    expect(result.owner_id).toBe('owner-2');
+    expect((result as any).company_id).toBeUndefined();
+    expect((result as any).customer_id).toBeUndefined();
   });
 });

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { ApiHideProperty } from '@nestjs/swagger';
+import { IsEmail, IsEmpty, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
@@ -29,9 +30,8 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de organizacion invalido' })
   organization_id?: string;
 
-  @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
-  @IsOptional()
-  @IsUUID('4', { message: 'ID de company invalido' })
+  @ApiHideProperty()
+  @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
   @ApiProperty({ required: false, description: 'ID canonico del owner asociado' })
@@ -39,8 +39,7 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de owner invalido' })
   owner_id?: string;
 
-  @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
-  @IsOptional()
-  @IsUUID('4', { message: 'ID de customer invalido' })
+  @ApiHideProperty()
+  @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
 }

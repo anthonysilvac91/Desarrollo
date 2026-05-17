@@ -55,7 +55,7 @@ export class UsersController {
   @Patch(':id')
   @UseInterceptors(FileInterceptor('avatar', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Actualizar perfil de usuario', description: 'Los aliases owner_id, company_id y customer_id siguen siendo equivalentes.' })
+  @ApiOperation({ summary: 'Actualizar perfil de usuario', description: 'owner_id es el campo canonico para usuarios externos.' })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ type: UserResponseDto })
   update(

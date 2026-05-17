@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, MinLength, IsOptional, IsUUID } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmpty, IsString, IsNotEmpty, MinLength, IsOptional, IsUUID } from 'class-validator';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty({ description: 'Token de invitación.' })
@@ -18,13 +18,16 @@ export class RegisterDto {
   @MinLength(6, { message: 'La contraseña requiere min. 6 caracteres' })
   password: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de owner_id para el registro.' })
-  @IsUUID()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de owner_id para el registro.' })
+  @ApiPropertyOptional({ description: 'ID canonico del owner para el registro.' })
   @IsUUID()
   @IsOptional()
   owner_id?: string;
+
+  @ApiHideProperty()
+  @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
+  customer_id?: string;
 }

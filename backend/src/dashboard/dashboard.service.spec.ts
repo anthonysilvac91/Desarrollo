@@ -54,17 +54,17 @@ describe('DashboardService tenant scoping', () => {
       id: 'client-1',
       role: Role.EXTERNAL,
       orgId: 'org-1',
-      company_id: 'company-1',
+      owner_id: 'owner-1',
     });
 
     expect(prisma.asset.count).toHaveBeenCalledWith({
-      where: { organization_id: 'org-1', owner_id: 'company-1' },
+      where: { organization_id: 'org-1', owner_id: 'owner-1' },
     });
     expect(prisma.service.count).toHaveBeenCalledWith({
       where: expect.objectContaining({
         organization_id: 'org-1',
         is_public: true,
-        asset: { owner_id: 'company-1' },
+        asset: { owner_id: 'owner-1' },
       }),
     });
   });

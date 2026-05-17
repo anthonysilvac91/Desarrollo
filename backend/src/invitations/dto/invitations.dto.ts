@@ -1,5 +1,5 @@
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsEmpty, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
 export class CreateInvitationDto {
@@ -18,9 +18,8 @@ export class CreateInvitationDto {
   @IsOptional()
   organization_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de owner_id para la invitacion.' })
-  @IsUUID()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
   @ApiPropertyOptional({ description: 'ID canonico del owner para la invitacion.' })
@@ -28,9 +27,8 @@ export class CreateInvitationDto {
   @IsOptional()
   owner_id?: string;
 
-  @ApiPropertyOptional({ description: 'Alias legacy de owner_id.' })
-  @IsUUID()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
 }
 

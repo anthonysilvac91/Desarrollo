@@ -150,7 +150,7 @@ describe('ServicesService.create - Auto Publish Logic', () => {
         id: 'service-1',
         organization_id: 'org-1',
         is_public: true,
-        asset: { id: 'asset-1', company_id: null },
+        asset: { id: 'asset-1', owner_id: null },
       } as any);
       jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
         worker_restricted_access: true,

@@ -69,7 +69,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
     if (isOpen && asset) {
       setFormData({
         name: asset.name || "",
-        owner_id: asset.owner?.id || asset.company?.id || asset.customer?.id || "",
+        owner_id: asset.owner?.id || "",
         location: asset.location || "",
         photo: null,
       });

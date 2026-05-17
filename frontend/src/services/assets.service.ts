@@ -18,9 +18,8 @@ export interface Service {
     id: string;
     category?: string;
     location?: string;
-    company_id?: string | null;
-    company?: { id: string; name: string } | null;
-    customer?: { id: string; name: string } | null;
+    owner_id?: string | null;
+    owner?: { id: string; name: string } | null;
   };
 }
 
@@ -33,16 +32,8 @@ export interface Asset {
   thumbnail_url?: string;
   serial_number?: string;
   is_active: boolean;
-  client_access?: {
-    client: { id: string; name: string };
-  }[];
-  company_id?: string | null;
-  company?: {
-    id: string;
-    name: string;
-    action_type?: string;
-  } | null;
-  customer?: {
+  owner_id?: string | null;
+  owner?: {
     id: string;
     name: string;
     action_type?: string;

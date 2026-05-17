@@ -28,8 +28,7 @@ export class DashboardController {
         id: req.user.id,
         role: req.user.role,
         orgId: req.user.orgId,
-        company_id: req.user.company_id,
-        customer_id: req.user.customer_id,
+        owner_id: req.user.owner_id,
       },
       organizationId,
       { startDate, endDate }

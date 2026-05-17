@@ -46,18 +46,18 @@ describe('AssetsService.create - Worker Roles', () => {
   });
 
   it('Debería inyectar el organization_id del Worker al crear un activo', async () => {
-    const mockAsset = { id: 'asset-1', name: 'Nuevo Activo de Terreno', organization_id: 'org-tenant-123', owner_id: 'company-1' };
-    jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue({ id: 'company-1' } as any);
+    const mockAsset = { id: 'asset-1', name: 'Nuevo Activo de Terreno', organization_id: 'org-tenant-123', owner_id: 'owner-1' };
+    jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue({ id: 'owner-1' } as any);
     jest.spyOn(prisma.asset, 'create').mockResolvedValue(mockAsset as any);
     jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(mockAsset as any);
 
-    const result = await service.create({ name: 'Nuevo Activo de Terreno', company_id: 'company-1' }, 'org-tenant-123');
+    const result = await service.create({ name: 'Nuevo Activo de Terreno', owner_id: 'owner-1' }, 'org-tenant-123');
 
     expect(prisma.asset.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         name: 'Nuevo Activo de Terreno',
         organization_id: 'org-tenant-123',
-        owner_id: 'company-1',
+        owner_id: 'owner-1',
       })
     }));
     expect(result).toHaveProperty('organization_id', 'org-tenant-123');

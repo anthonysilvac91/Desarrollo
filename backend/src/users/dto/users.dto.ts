@@ -15,10 +15,7 @@ export class UserResponseDto {
   owner_id: string | null;
 
   @ApiProperty({ required: false, nullable: true })
-  company_id: string | null;
-
-  @ApiProperty({ required: false, nullable: true })
-  customer_id: string | null;
+  owner?: { id?: string; name: string } | null;
 
   @ApiProperty()
   email: string;

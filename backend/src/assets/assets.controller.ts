@@ -6,7 +6,6 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
-import { resolveOwnerId } from '../common/compat/owner-role-compat';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
@@ -34,7 +33,7 @@ export class AssetsController {
       req.user.orgId,
       req.user.role,
       req.user.id,
-      resolveOwnerId(req.user) ?? undefined,
+      req.user.owner_id ?? undefined,
     );
   }
 

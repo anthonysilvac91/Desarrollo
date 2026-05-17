@@ -11,7 +11,7 @@ import { processUploadedImage } from '../common/files/image-processing';
 import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
-import { isExternalRole, resolveOwnerId, withOwnerAliases } from '../common/compat/owner-role-compat';
+import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
 
 @Injectable()
 export class ServicesService {
@@ -32,7 +32,7 @@ export class ServicesService {
     return {
       ...service,
       asset: {
-        ...withOwnerAliases(service.asset),
+        ...withOwner(service.asset),
       }
     };
   }
@@ -197,7 +197,7 @@ export class ServicesService {
     }
 
     if (isExternalRole(user.role)) {
-      const currentCompanyId = resolveOwnerId(user);
+      const currentCompanyId = user.owner_id ?? null;
       if (!currentCompanyId) {
         return query.page && query.limit
           ? {
@@ -304,7 +304,7 @@ export class ServicesService {
         throw new ForbiddenException('No tienes permiso para ver este servicio privado');
       }
 
-      const currentCompanyId = resolveOwnerId(user);
+      const currentCompanyId = user.owner_id ?? null;
       if (!currentCompanyId || service.asset.owner_id !== currentCompanyId) {
         throw new NotFoundException('Service no encontrado o acceso denegado');
       }
