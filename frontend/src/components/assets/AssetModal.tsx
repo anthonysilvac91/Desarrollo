@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 import { Camera, ImagePlus, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,6 +56,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
   };
 
   const [preview, setPreview] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   const { data: ownersData = [] } = useQuery({
     queryKey: ["owners"],
@@ -84,12 +86,17 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setFormData({ ...formData, photo: file });
-      const reader = new FileReader();
-      reader.onloadend = () => setPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onloadend = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropConfirm = (croppedFile: File) => {
+    setFormData(prev => ({ ...prev, photo: croppedFile }));
+    setPreview(URL.createObjectURL(croppedFile));
+    setCropSrc(null);
   };
 
   const handleSave = async () => {
@@ -138,6 +145,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
   };
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title={asset ? t.assets.modal.title_edit : t.assets.add_new}>
       <div className="flex flex-col space-y-8 mt-2">
         {/* Photo Upload Area */}
@@ -226,5 +234,14 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
         </div>
       </div>
     </Modal>
+
+    {cropSrc && (
+      <ImageCropModal
+        src={cropSrc}
+        onConfirm={handleCropConfirm}
+        onCancel={() => setCropSrc(null)}
+      />
+    )}
+    </>
   );
 }
