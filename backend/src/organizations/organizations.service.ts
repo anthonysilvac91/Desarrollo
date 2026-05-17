@@ -29,10 +29,7 @@ export class OrganizationsService {
 
     return Promise.all(
       organizations.map(async (organization: any) => {
-        organization.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
-          organization.logo_file_id,
-          organization.logo_url,
-        );
+        organization.logo_url = await this.storedFilesService.resolveFileUrl(organization.logo_file_id);
 
         return organization;
       }),
@@ -48,10 +45,7 @@ export class OrganizationsService {
       return organization;
     }
 
-    organization.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
-      organization.logo_file_id,
-      organization.logo_url,
-    );
+    (organization as any).logo_url = await this.storedFilesService.resolveFileUrl(organization.logo_file_id);
 
     return organization;
   }
@@ -107,7 +101,7 @@ export class OrganizationsService {
     const data: any = { ...dto };
     const currentOrg = await this.prisma.organization.findUnique({
       where: { id: orgId },
-      select: { logo_url: true, logo_file_id: true },
+      select: { logo_file_id: true },
     });
 
     ensureNoManualFileUrl(dto.logo_url, 'Logo de organizacion');
@@ -172,10 +166,7 @@ export class OrganizationsService {
       );
     }
 
-    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
-      updatedOrg.logo_file_id,
-      updatedOrg.logo_url,
-    );
+    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrl(updatedOrg.logo_file_id);
 
     return updatedOrg;
   }

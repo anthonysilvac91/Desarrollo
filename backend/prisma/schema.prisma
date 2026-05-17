@@ -54,7 +54,6 @@ model Organization {
   is_active Boolean @default(true)
 
   logo_file_id       String? @unique
-  logo_url           String?
   brand_color        String?
   default_asset_icon String?
 
@@ -87,7 +86,6 @@ model User {
   name               String
   phone              String?
   avatar_file_id     String?   @unique
-  avatar_url         String?
   owner_id           String?
   is_active          Boolean   @default(true)
   last_login_at      DateTime?
@@ -121,7 +119,6 @@ model Asset {
   category          String?
   location          String?
   thumbnail_file_id String? @unique
-  thumbnail_url     String?
   serial_number     String?
   owner_id          String
   is_active         Boolean @default(true)
@@ -177,7 +174,6 @@ model ServiceAttachment {
   id              String  @id @default(uuid())
   service_id      String
   file_id         String? @unique
-  file_url        String?
   file_type       String?
   file_name       String?
   file_size_bytes Int?
@@ -195,7 +191,6 @@ model Owner {
   organization_id String
   name            String
   logo_file_id    String? @unique
-  logo_url        String?
   is_active       Boolean @default(true)
 
   created_at DateTime @default(now())

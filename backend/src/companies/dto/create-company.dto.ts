@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsBoolean } from 'class-validator';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsEmpty, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateOwnerDto {
   @ApiProperty({ description: 'Nombre del owner.' })
@@ -12,8 +12,7 @@ export class CreateOwnerDto {
   @IsOptional()
   is_active?: boolean;
 
-  @ApiProperty({ description: 'URL del logo del owner.', required: false })
-  @IsString()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'logo_url is no longer accepted; upload logo file instead' })
   logo_url?: string;
 }

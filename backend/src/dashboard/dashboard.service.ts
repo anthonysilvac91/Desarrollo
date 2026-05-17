@@ -222,15 +222,12 @@ export class DashboardService {
     const ids = rankingData.map(r => r[idKey]);
     const items = type === 'asset' 
       ? await this.prisma.asset.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
-      : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, avatar_file_id: true, avatar_url: true } });
+      : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, avatar_file_id: true } });
 
     return Promise.all(
       rankingData.map(async (r) => {
         const item = items.find(i => i.id === r[idKey]);
-        const avatarUrl = await this.storedFilesService.resolveFileUrlOrRef(
-          (item as any)?.avatar_file_id,
-          (item as any)?.avatar_url,
-        );
+        const avatarUrl = await this.storedFilesService.resolveFileUrl((item as any)?.avatar_file_id);
 
         return {
           id: r[idKey],

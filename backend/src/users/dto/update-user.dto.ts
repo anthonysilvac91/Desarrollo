@@ -1,5 +1,5 @@
 import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEmpty, IsOptional, IsString, IsUrl, IsUUID } from 'class-validator';
+import { IsEmail, IsEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateUserDto {
   @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
@@ -17,9 +17,8 @@ export class UpdateUserDto {
   @IsOptional()
   phone?: string;
 
-  @ApiProperty({ required: false })
-  @IsUrl({}, { message: 'Avatar URL invalido' })
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'avatar_url is no longer accepted; upload avatar file instead' })
   avatar_url?: string;
 
   @ApiProperty({ required: false })

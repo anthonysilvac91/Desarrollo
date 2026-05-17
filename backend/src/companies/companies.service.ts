@@ -40,18 +40,12 @@ export class OwnersService {
       resolvedCompany.assets = await Promise.all(
         resolvedCompany.assets.map(async (asset: any) => ({
           ...asset,
-          thumbnail_url: await this.storedFilesService.resolveFileUrlOrRef(
-            asset.thumbnail_file_id,
-            asset.thumbnail_url,
-          ),
+          thumbnail_url: await this.storedFilesService.resolveFileUrl(asset.thumbnail_file_id),
         }))
       );
     }
 
-    resolvedCompany.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
-      resolvedCompany.logo_file_id,
-      resolvedCompany.logo_url,
-    );
+    resolvedCompany.logo_url = await this.storedFilesService.resolveFileUrl(resolvedCompany.logo_file_id);
 
     return resolvedCompany;
   }
@@ -156,7 +150,7 @@ export class OwnersService {
       where: { id },
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
-        assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_url: true, thumbnail_file_id: true } }
+        assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_file_id: true } }
       }
     });
     if (!company || company.organization_id !== orgId) {
@@ -168,7 +162,7 @@ export class OwnersService {
   async update(id: string, updateCompanyDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
     const existingCompany = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },
+      select: { id: true, organization_id: true, logo_file_id: true },
     });
 
     if (!existingCompany || existingCompany.organization_id !== orgId) {
@@ -249,7 +243,7 @@ export class OwnersService {
   async remove(id: string, orgId: string) {
     const existingCompany = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, logo_url: true, logo_file_id: true },
+      select: { id: true, organization_id: true, logo_file_id: true },
     });
 
     if (!existingCompany || existingCompany.organization_id !== orgId) {

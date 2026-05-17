@@ -12,7 +12,6 @@ export interface Owner {
 
 export interface OwnerFormData {
   name: string;
-  logo_url?: string;
   is_active?: boolean;
 }
 

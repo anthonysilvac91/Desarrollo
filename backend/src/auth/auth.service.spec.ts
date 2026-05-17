@@ -19,7 +19,7 @@ describe('AuthService Auth Validations', () => {
         AuthService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: JwtService, useValue: jwtMock },
-        { provide: StoredFilesService, useValue: { resolveFileUrlOrRef: jest.fn() } },
+        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn() } },
       ],
     }).compile();
 
@@ -64,10 +64,9 @@ describe('AuthService Auth Validations', () => {
       password_hash: 'hash',
       owner_id: 'owner-2',
       avatar_file_id: null,
-      avatar_url: null,
       organization: null,
     } as any);
-    jest.spyOn((service as any).storedFilesService, 'resolveFileUrlOrRef').mockResolvedValue(null);
+    jest.spyOn((service as any).storedFilesService, 'resolveFileUrl').mockResolvedValue(null);
 
     const result = await service.getMe('u-3');
 

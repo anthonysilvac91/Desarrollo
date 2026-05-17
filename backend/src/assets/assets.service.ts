@@ -32,10 +32,7 @@ export class AssetsService {
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
     const resolvedAsset = { ...asset } as any;
 
-    resolvedAsset.thumbnail_url = await this.storedFilesService.resolveFileUrlOrRef(
-      resolvedAsset.thumbnail_file_id,
-      resolvedAsset.thumbnail_url,
-    );
+    resolvedAsset.thumbnail_url = await this.storedFilesService.resolveFileUrl(resolvedAsset.thumbnail_file_id);
 
     if (Array.isArray(resolvedAsset.services)) {
       resolvedAsset.services = await Promise.all(
@@ -45,10 +42,7 @@ export class AssetsService {
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
                   ...attachment,
-                  file_url: await this.storedFilesService.resolveFileUrlOrRef(
-                    attachment.file_id,
-                    attachment.file_url,
-                  ),
+                  file_url: await this.storedFilesService.resolveFileUrl(attachment.file_id),
                 }))
               )
             : service.attachments,
@@ -260,7 +254,7 @@ export class AssetsService {
         services: {
           include: {
             worker: { select: { name: true, id: true } },
-            attachments: { select: { id: true, file_id: true, file_url: true, file_type: true } },
+            attachments: { select: { id: true, file_id: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
         },

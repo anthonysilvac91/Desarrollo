@@ -32,10 +32,7 @@ export class UsersService {
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
     const resolvedUser = { ...user } as any;
-    resolvedUser.avatar_url = await this.storedFilesService.resolveFileUrlOrRef(
-      resolvedUser.avatar_file_id,
-      resolvedUser.avatar_url,
-    );
+    resolvedUser.avatar_url = await this.storedFilesService.resolveFileUrl(resolvedUser.avatar_file_id);
     return resolvedUser;
   }
 
@@ -109,7 +106,6 @@ export class UsersService {
       name: true,
       phone: true,
       avatar_file_id: true,
-      avatar_url: true,
       is_active: true,
       last_login_at: true,
       created_at: true,
@@ -167,7 +163,6 @@ export class UsersService {
         name: true,
         phone: true,
         avatar_file_id: true,
-        avatar_url: true,
         owner_id: true,
         organization: { select: { id: true, name: true, slug: true } },
         owner: { select: { id: true, name: true } },
@@ -288,7 +283,6 @@ export class UsersService {
         role: true,
         owner_id: true,
         avatar_file_id: true,
-        avatar_url: true,
       },
     });
 
@@ -422,7 +416,6 @@ export class UsersService {
           organization_id: true,
           owner_id: true,
           avatar_file_id: true,
-          avatar_url: true,
           is_active: true,
           organization: { select: { id: true, name: true, slug: true } },
           owner: { select: { id: true, name: true } },

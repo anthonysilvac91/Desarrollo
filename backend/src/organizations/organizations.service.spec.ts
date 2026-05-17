@@ -29,7 +29,7 @@ describe('OrganizationsService', () => {
         {
           provide: StoredFilesService,
           useValue: {
-            resolveFileUrlOrRef: jest.fn((_: string | null, fallback?: string | null) => fallback ?? null),
+            resolveFileUrl: jest.fn().mockResolvedValue(null),
             registerUploadedFile: jest.fn(),
             deleteStoredFileAndBlob: jest.fn(),
           },
@@ -42,8 +42,8 @@ describe('OrganizationsService', () => {
   });
 
   it('Debería poder actualizar settings de la organización', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ logo_url: null, logo_file_id: null } as any);
-    jest.spyOn(prisma.organization, 'update').mockResolvedValue({ logo_url: null, logo_file_id: null } as any);
+    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ logo_file_id: null } as any);
+    jest.spyOn(prisma.organization, 'update').mockResolvedValue({ logo_file_id: null } as any);
     await service.updateSettings('org-1', { auto_publish_jobs: false, worker_edit_policy: 'ALWAYS_OPEN' });
     expect(prisma.organization.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'org-1' },

@@ -142,7 +142,6 @@ export class AuthService {
             slug: true,
             brand_color: true,
             logo_file_id: true,
-            logo_url: true,
             default_asset_icon: true,
           },
         },
@@ -153,15 +152,11 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    user.avatar_url = await this.storedFilesService.resolveFileUrlOrRef(
-      user.avatar_file_id,
-      user.avatar_url,
-    );
+    (user as any).avatar_url = await this.storedFilesService.resolveFileUrl(user.avatar_file_id);
 
     if (user.organization) {
-      user.organization.logo_url = await this.storedFilesService.resolveFileUrlOrRef(
+      (user.organization as any).logo_url = await this.storedFilesService.resolveFileUrl(
         user.organization.logo_file_id,
-        user.organization.logo_url,
       );
     }
 

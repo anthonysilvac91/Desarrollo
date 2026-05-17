@@ -22,9 +22,8 @@ export class CreateAssetDto {
   @IsOptional()
   location?: string;
 
-  @ApiPropertyOptional({ description: 'URL de la foto principal del activo.' })
-  @IsString()
-  @IsOptional()
+  @ApiHideProperty()
+  @IsEmpty({ message: 'thumbnail_url is no longer accepted; upload thumbnail file instead' })
   thumbnail_url?: string;
 
   @ApiPropertyOptional({ description: 'Número de serie o matrícula.' })

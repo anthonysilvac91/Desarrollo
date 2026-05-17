@@ -41,9 +41,8 @@ export class ServicesService {
     const resolvedService = { ...service } as any;
 
     if (resolvedService.asset) {
-      resolvedService.asset.thumbnail_url = await this.storedFilesService.resolveFileUrlOrRef(
+      resolvedService.asset.thumbnail_url = await this.storedFilesService.resolveFileUrl(
         resolvedService.asset.thumbnail_file_id,
-        resolvedService.asset.thumbnail_url,
       );
     }
 
@@ -51,10 +50,7 @@ export class ServicesService {
       resolvedService.attachments = await Promise.all(
         resolvedService.attachments.map(async (attachment: any) => ({
           ...attachment,
-          file_url: await this.storedFilesService.resolveFileUrlOrRef(
-            attachment.file_id,
-            attachment.file_url,
-          ),
+          file_url: await this.storedFilesService.resolveFileUrl(attachment.file_id),
         }))
       );
     }
@@ -235,7 +231,7 @@ export class ServicesService {
           where: whereClause,
           include: {
             worker: { select: { id: true, name: true } },
-            asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_url: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
+            asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
@@ -257,7 +253,7 @@ export class ServicesService {
       where: whereClause,
       include: { 
         worker: { select: { id: true, name: true } },
-        asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_url: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
+        asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
       },
       orderBy: { created_at: 'desc' }
     });
@@ -287,7 +283,7 @@ export class ServicesService {
       include: {
         attachments: true,
         worker: { select: { name: true, id: true } },
-        asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_url: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } }
+        asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } }
       }
     });
 
@@ -331,7 +327,7 @@ export class ServicesService {
 
     const attachments = await this.prisma.serviceAttachment.findMany({
       where: { service_id: id },
-      select: { file_id: true, file_url: true },
+      select: { file_id: true },
     });
 
     // Eliminar primero los archivos adjuntos relacionados (Foreign Key)

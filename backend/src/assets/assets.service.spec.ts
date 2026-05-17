@@ -33,7 +33,7 @@ describe('AssetsService.create - Worker Roles', () => {
         {
           provide: StoredFilesService,
           useValue: {
-            resolveFileUrlOrRef: jest.fn((_: string | null, fallback?: string | null) => fallback ?? null),
+            resolveFileUrl: jest.fn().mockResolvedValue(null),
             registerUploadedFile: jest.fn(),
             deleteStoredFileAndBlob: jest.fn(),
           },
