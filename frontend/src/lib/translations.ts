@@ -450,6 +450,7 @@ export const translations = {
         error_title: "Connection error",
         error_subtitle: "We couldn't load your assigned assets.",
         retry: "Retry",
+        add_asset: "New Asset",
       },
       asset_detail: {
         total_services: "Total Services",
@@ -974,6 +975,7 @@ export const translations = {
         error_title: "Error de conexión",
         error_subtitle: "No pudimos cargar tus activos asignados.",
         retry: "Reintentar",
+        add_asset: "Nuevo Activo",
       },
       asset_detail: {
         total_services: "Servicios Totales",

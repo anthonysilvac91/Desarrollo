@@ -2,12 +2,13 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, ChevronRight, Ship, Search, Loader2, AlertCircle, Inbox } from "lucide-react";
+import { MapPin, ChevronRight, Ship, Search, Loader2, AlertCircle, Inbox, Plus } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Asset } from "@/services/assets.service";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import AssetModal from "@/components/assets/AssetModal";
 
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
@@ -22,6 +23,9 @@ export default function WorkerHomePage() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
+
+  const queryClient = useQueryClient();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: assets = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["assets"],
@@ -62,6 +66,8 @@ export default function WorkerHomePage() {
       </div>
     );
   }
+
+  const canAddAsset = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || user?.role === "WORKER";
 
   return (
     <>
@@ -132,6 +138,27 @@ export default function WorkerHomePage() {
            </div>
         )}
       </main>
+
+      {canAddAsset && (
+        <div className="fixed bottom-0 w-full max-w-md p-5 bg-linear-to-t from-app-bg via-app-bg to-transparent pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full flex items-center justify-center space-x-2 bg-brand text-white py-4 rounded-full font-black text-base shadow-xl shadow-brand/30 active:scale-95 transition-all"
+          >
+            <Plus className="w-6 h-6 stroke-[3px]" />
+            <span>{t.mobile.home.add_asset}</span>
+          </button>
+        </div>
+      )}
+
+      <AssetModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          queryClient.invalidateQueries({ queryKey: ["assets"] });
+        }}
+      />
     </>
   );
 }

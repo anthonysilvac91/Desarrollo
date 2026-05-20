@@ -41,7 +41,7 @@ const JobCard = ({ job, onClick }: { job: Service, onClick?: () => void }) => {
   return (
     <div 
       onClick={onClick}
-      className="group flex flex-col bg-surface rounded-[32px] border border-border-theme/40 overflow-hidden hover:border-brand/40 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+      className="group flex flex-col bg-surface rounded-4xl border border-border-theme/40 overflow-hidden hover:border-brand/40 hover:shadow-2xl transition-all duration-300 cursor-pointer"
     >
       <div className="flex-1 p-8">
         <div className="flex items-center justify-between mb-4">
@@ -102,7 +102,7 @@ export default function AssetDetailPage() {
   const assetId = params.id as string;
   const { t } = useLanguage();
   const { user } = useAuth();
-  const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER";
+  const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
   
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<string | null>(null);
@@ -231,7 +231,7 @@ export default function AssetDetailPage() {
       {/* 2. ASSET SUMMARY (Mantenimiento de Barco ARRIBA) */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 bg-surface p-8 rounded-[40px] border border-border-theme/40 shadow-soft">
         <div className="flex items-center space-x-6 lg:col-span-2 border-r border-border-theme/20 pr-6">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg flex-shrink-0 bg-app-bg flex items-center justify-center">
+          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg shrink-0 bg-app-bg flex items-center justify-center">
             {asset.thumbnail_url ? (
               <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
             ) : (
@@ -425,7 +425,7 @@ export default function AssetDetailPage() {
               </div>
            </div>
            
-           <button className="w-full py-5 bg-app-bg border-2 border-dashed border-border-theme/60 rounded-[32px] text-xs font-black text-subtitle/40 uppercase tracking-[0.2em] hover:bg-app-bg/80 transition-all">
+           <button className="w-full py-5 bg-app-bg border-2 border-dashed border-border-theme/60 rounded-4xl text-xs font-black text-subtitle/40 uppercase tracking-[0.2em] hover:bg-app-bg/80 transition-all">
               {t.assets.detail.export_pdf}
            </button>
         </div>

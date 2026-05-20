@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, User as UserIcon, Camera, X, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, User as UserIcon, Camera, X, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { assetsService, Service } from "@/services/assets.service";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -14,7 +14,8 @@ export default function WorkerServiceViewPage() {
   const router = useRouter();
   const params = useParams();
   const { t } = useLanguage();
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   const { data: job, isLoading, isError, refetch } = useQuery({
     queryKey: ["service", params.id],
@@ -86,42 +87,85 @@ export default function WorkerServiceViewPage() {
                
                <div className="flex overflow-x-auto space-x-3 pb-2 -mx-5 px-5 no-scrollbar">
                   {job.attachments.map((att, idx) => (
-                    <div key={idx} className="flex-shrink-0">
-                     <ServiceAttachmentCard
-                       attachment={att}
-                       alt={`Evidencia ${idx + 1}`}
-                       size="md"
-                       onImageClick={setSelectedImage}
-                     />
-                   </div>
-                 ))}
+                    <div key={idx} className="flex-shrink-0" onClick={() => setSelectedIndex(idx)}>
+                      <ServiceAttachmentCard
+                        attachment={att}
+                        alt={`Evidencia ${idx + 1}`}
+                        size="md"
+                      />
+                    </div>
+                  ))}
                </div>
              </div>
            )}
         </article>
       </main>
 
-      {/* Image Preview Modal */}
-      {selectedImage && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Image Gallery Modal */}
+      {selectedIndex !== null && job.attachments && (
+        <div
+          className="absolute inset-0 z-100 flex items-center justify-center"
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null || selectedIndex === null || !job.attachments) return;
+            const delta = touchStartX.current - e.changedTouches[0].clientX;
+            touchStartX.current = null;
+            if (Math.abs(delta) < 40) return;
+            if (delta > 0 && selectedIndex < job.attachments.length - 1) setSelectedIndex(selectedIndex + 1);
+            if (delta < 0 && selectedIndex > 0) setSelectedIndex(selectedIndex - 1);
+          }}
+        >
           {/* Blur Backdrop */}
-          <div 
-            className="absolute inset-0 bg-app-bg/60 backdrop-blur-2xl animate-in fade-in duration-300"
-            onClick={() => setSelectedImage(null)}
+          <div
+            className="absolute inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-300"
+            onClick={() => setSelectedIndex(null)}
           />
-          
+
           {/* Close Button */}
-          <button 
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-12 right-6 z-[110] p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all font-black text-xs"
+          <button
+            onClick={() => setSelectedIndex(null)}
+            className="absolute top-12 right-6 z-110 p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 active:scale-90 transition-all"
           >
             <X className="w-5 h-5 text-brand" />
           </button>
 
-          {/* Large Image */}
-          <div className="relative w-full max-w-sm aspect-square rounded-[40px] overflow-hidden border border-white/20 shadow-2xl animate-in zoom-in-95 duration-300">
-            <img src={selectedImage} className="w-full h-full object-cover" alt="Preview" />
+          {/* Counter */}
+          <div className="absolute top-14 left-0 right-0 flex justify-center z-110">
+            <span className="text-xs font-black text-subtitle/60 uppercase tracking-widest">
+              {selectedIndex + 1} / {job.attachments.length}
+            </span>
           </div>
+
+          {/* Image */}
+          <div className="relative w-full px-16 z-105 animate-in zoom-in-95 duration-300">
+            <div className="aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl">
+              <img
+                src={job.attachments[selectedIndex].file_url ?? ""}
+                className="w-full h-full object-cover"
+                alt={`Evidencia ${selectedIndex + 1}`}
+              />
+            </div>
+          </div>
+
+          {/* Left Arrow */}
+          {selectedIndex > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedIndex(selectedIndex - 1); }}
+              className="absolute left-4 z-110 p-3 rounded-full bg-surface/80 backdrop-blur-sm shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+            >
+              <ChevronLeft className="w-6 h-6 text-title" />
+            </button>
+          )}
+
+          {/* Right Arrow */}
+          {selectedIndex < job.attachments.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedIndex(selectedIndex + 1); }}
+              className="absolute right-4 z-110 p-3 rounded-full bg-surface/80 backdrop-blur-sm shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+            >
+              <ChevronRight className="w-6 h-6 text-title" />
+            </button>
+          )}
         </div>
       )}
     </>
