@@ -10,6 +10,7 @@ import { useToast } from "@/lib/ToastContext";
 import { authService } from "@/services/auth.service";
 import { Loader2, Mail, Lock, Eye, EyeOff, Ship, Download, Share, PlusSquare } from "lucide-react";
 import { usePWA } from "@/hooks/usePWA";
+import Link from "next/link";
 
 export default function LoginPage() {
   const { t } = useLanguage();
@@ -107,12 +108,12 @@ export default function LoginPage() {
                 <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest">
                   {t.auth.login.password_label}
                 </label>
-                <button 
-                  type="button" 
+                <Link
+                  href="/forgot-password"
                   className="text-[10px] font-black text-brand uppercase tracking-widest hover:opacity-70 transition-opacity"
                 >
                   {t.auth.login.forgot_password}
-                </button>
+                </Link>
               </div>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">

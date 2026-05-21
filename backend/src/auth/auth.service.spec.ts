@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcryptjs';
 
 describe('AuthService', () => {
@@ -12,9 +14,14 @@ describe('AuthService', () => {
   let jwt: JwtService;
 
   const prismaMock = {
-    user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
+    invitation: { findUnique: jest.fn(), update: jest.fn() },
+    emailToken: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    $transaction: jest.fn(),
   };
   const jwtMock = { sign: jest.fn().mockReturnValue('mocked-token') };
+  const configMock = { get: jest.fn().mockReturnValue('http://localhost:3000') };
+  const emailMock = { sendPasswordReset: jest.fn(), sendEmailVerification: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -25,7 +32,9 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: JwtService, useValue: jwtMock },
+        { provide: ConfigService, useValue: configMock },
         { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn() } },
+        { provide: EmailService, useValue: emailMock },
       ],
     }).compile();
 
@@ -281,14 +290,14 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── register() — MVP disabled ───────────────────────────────────────────────
+  // ─── register() — token inválido ─────────────────────────────────────────────
 
   describe('register()', () => {
-    it('POST /auth/register devuelve ForbiddenException — disabled para MVP', async () => {
-      await expect(service.register({ token: 'any-token' })).rejects.toThrow(ForbiddenException);
-      await expect(service.register({ token: 'any-token' })).rejects.toThrow(
-        'Registration by invitation is disabled for MVP',
-      );
+    it('POST /auth/register con token inválido devuelve BadRequestException', async () => {
+      prismaMock.invitation.findUnique.mockResolvedValue(null);
+      await expect(
+        service.register({ token: 'invalid-token', name: 'Test User', password: 'password123' }),
+      ).rejects.toThrow('Token de invitación inválido o expirado');
     });
   });
 

@@ -1,9 +1,13 @@
-import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { EmailService } from '../email/email.service';
 import { toApiRole } from '../common/compat/owner-role-compat';
 
 @Injectable()
@@ -13,7 +17,9 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private config: ConfigService,
     private storedFilesService: StoredFilesService,
+    private emailService: EmailService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -73,15 +79,124 @@ export class AuthService {
     return { access_token: this.jwtService.sign(payload) };
   }
 
-  async register(_registerDto: any) {
-    throw new ForbiddenException('Registration by invitation is disabled for MVP');
+  async register(registerDto: RegisterDto) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { token: registerDto.token },
+      include: { organization: { select: { id: true, name: true, is_active: true } } },
+    });
+
+    if (!invitation || invitation.is_used || invitation.expires_at < new Date()) {
+      throw new BadRequestException('Token de invitación inválido o expirado');
+    }
+
+    if (!invitation.organization.is_active) {
+      throw new ForbiddenException('La organización no está activa');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email: invitation.email } });
+    if (existingUser) {
+      throw new BadRequestException('Ya existe una cuenta con este correo');
+    }
+
+    const passwordHash = await bcrypt.hash(registerDto.password, 10);
+
+    const [user] = await this.prisma.$transaction([
+      this.prisma.user.create({
+        data: {
+          email: invitation.email,
+          name: registerDto.name,
+          password_hash: passwordHash,
+          role: invitation.role,
+          organization_id: invitation.organization_id,
+          owner_id: invitation.owner_id ?? registerDto.owner_id ?? null,
+          email_verified_at: new Date(),
+        },
+      }),
+      this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { is_used: true },
+      }),
+    ]);
+
+    const jwtPayload = {
+      sub: user.id,
+      orgId: user.organization_id,
+      role: toApiRole(user.role),
+      owner_id: user.owner_id ?? null,
+    };
+
+    this.logger.log(`User ${user.id} registered via invitation`);
+    return { access_token: this.jwtService.sign(jwtPayload) };
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findFirst({ where: { email, is_active: true } });
+
+    // Respuesta genérica para no exponer si el email existe
+    if (!user) {
+      return { message: 'Si el correo existe recibirás un enlace de recuperación.' };
+    }
+
+    await this.prisma.emailToken.updateMany({
+      where: { user_id: user.id, type: 'PASSWORD_RESET', used_at: null },
+      data: { used_at: new Date() },
+    });
+
+    const token = randomBytes(32).toString('hex');
+    await this.prisma.emailToken.create({
+      data: {
+        user_id: user.id,
+        type: 'PASSWORD_RESET',
+        token,
+        expires_at: new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    await this.emailService.sendPasswordReset(user.email, user.name, resetUrl);
+    this.logger.log(`Password reset email sent to ${user.email}`);
+
+    return { message: 'Si el correo existe recibirás un enlace de recuperación.' };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const emailToken = await this.prisma.emailToken.findUnique({
+      where: { token },
+    });
+
+    if (
+      !emailToken ||
+      emailToken.type !== 'PASSWORD_RESET' ||
+      emailToken.used_at !== null ||
+      emailToken.expires_at < new Date()
+    ) {
+      throw new BadRequestException('Token inválido o expirado');
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    await Promise.all([
+      this.prisma.user.update({
+        where: { id: emailToken.user_id },
+        data: { password_hash: hash },
+      }),
+      this.prisma.emailToken.update({
+        where: { id: emailToken.id },
+        data: { used_at: new Date() },
+      }),
+    ]);
+
+    this.logger.log(`Password reset completed for user ${emailToken.user_id}`);
+    return { message: 'Contraseña actualizada correctamente' };
   }
 
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, is_active: true },
       include: {
-          organization: {
+        organization: {
           select: {
             id: true,
             name: true,

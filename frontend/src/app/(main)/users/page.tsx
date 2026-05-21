@@ -7,13 +7,14 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import UserModal from "@/components/users/UserModal";
 import UserDrawer from "@/components/users/UserDrawer";
+import InvitationModal from "@/components/users/InvitationModal";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 export default function UsersPage() {
@@ -23,6 +24,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -294,13 +296,22 @@ export default function UsersPage() {
         hasExternalFilter={!!activeSortKey}
         onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
         actions={
-          <button 
-            onClick={() => { setEditingUser(null); setIsModalOpen(true); }}
-            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
-          >
-            <Plus className="w-5 h-5 stroke-[4px]" />
-            <span>{t.users.add_new}</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsInviteModalOpen(true)}
+              className="flex items-center space-x-2 border-2 border-brand text-brand px-6 py-3.5 rounded-full text-base font-black transition-all hover:bg-brand/5 active:scale-95"
+            >
+              <Send className="w-4 h-4" />
+              <span>{t.invitations.modal.invite_button}</span>
+            </button>
+            <button
+              onClick={() => { setEditingUser(null); setIsModalOpen(true); }}
+              className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+            >
+              <Plus className="w-5 h-5 stroke-[4px]" />
+              <span>{t.users.add_new}</span>
+            </button>
+          </div>
         }
       />
 
@@ -375,7 +386,7 @@ export default function UsersPage() {
       />
 
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={!!userToDelete}
         onClose={() => setUserToDelete(null)}
         onConfirm={handleConfirmDelete}
@@ -384,6 +395,12 @@ export default function UsersPage() {
         confirmText={t.confirm_modal.confirm_delete}
         cancelText={t.confirm_modal.cancel_delete}
         variant="danger"
+      />
+
+      <InvitationModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onSuccess={() => refetch()}
       />
     </div>
   );

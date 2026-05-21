@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
@@ -17,12 +18,22 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { StorageModule } from './storage/storage.module';
 import { ConfigModule } from '@nestjs/config';
 import { CompaniesModule } from './companies/companies.module';
+import { EmailModule } from './email/email.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000,
+        limit: 60,
+      },
+    ]),
+    EmailModule,
     AuthModule,
     UsersModule,
     InvitationsModule,
@@ -35,6 +46,13 @@ import { CompaniesModule } from './companies/companies.module';
     CompaniesModule,
   ],
   controllers: [AppController, AssetsController, ServicesController, OrganizationsController],
-  providers: [AppService, PrismaService, AssetsService, ServicesService, OrganizationsService],
+  providers: [
+    AppService,
+    PrismaService,
+    AssetsService,
+    ServicesService,
+    OrganizationsService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

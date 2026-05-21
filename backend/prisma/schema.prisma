@@ -47,6 +47,11 @@ enum StoredFileKind {
   OWNER_LOGO
 }
 
+enum EmailTokenType {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
 model Organization {
   id        String  @id @default(uuid())
   name      String
@@ -90,6 +95,7 @@ model User {
   owner_id           String?
   is_active          Boolean   @default(true)
   last_login_at      DateTime?
+  email_verified_at  DateTime?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -102,6 +108,7 @@ model User {
   access_granted_w      WorkerAssetAccess[] @relation("GrantedByAdminW")
   invitations_sent      Invitation[]        @relation("InvitedBy")
   stored_files_uploaded StoredFile[]        @relation("StoredFileUploadedBy")
+  email_tokens          EmailToken[]
 
   @@index([organization_id])
   @@index([organization_id, created_at])
@@ -261,6 +268,7 @@ model Invitation {
   role            Role
   token           String   @unique
   invited_by_id   String
+  owner_id        String?
   is_used         Boolean  @default(false)
   expires_at      DateTime
 
@@ -272,5 +280,21 @@ model Invitation {
   @@index([email, organization_id])
   @@index([token])
   @@index([is_used])
+  @@index([expires_at])
+}
+
+model EmailToken {
+  id         String         @id @default(uuid())
+  user_id    String
+  type       EmailTokenType
+  token      String         @unique
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime       @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token])
   @@index([expires_at])
 }

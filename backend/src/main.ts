@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import helmet from 'helmet';
 
 function requireProductionEnv(configService: ConfigService) {
   if (configService.get<string>('NODE_ENV') !== 'production') {
@@ -47,6 +48,8 @@ async function bootstrap() {
   requireProductionEnv(configService);
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   const allowedOrigins = parseCorsOrigins(configService);
+
+  app.use(helmet());
 
   const logger = new Logger('RequestTiming');
   app.use((req, res, next) => {
