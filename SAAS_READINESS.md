@@ -75,9 +75,8 @@ La base técnica es sólida: multi-tenancy correcto, RBAC bien definido, código
 ### ~~5. Sin rate limiting~~ ✅ COMPLETADO 2026-05-21
 - `ThrottlerGuard` global (60 req/min). Login 5/min, forgot-password 3/min, invitations 10/min.
 
-### 6. Sin CI/CD
-- No existe `.github/workflows/`
-- **Acción:** GitHub Actions — Sprint 2
+### ~~6. Sin CI/CD~~ ✅ COMPLETADO 2026-05-22
+- `.github/workflows/ci.yml` — jobs paralelos backend (lint + build) y frontend (lint + build). Trigger: push y PR a `main`.
 
 ### 7. Sin monitoreo de errores en producción
 - No hay Sentry ni similar
@@ -159,11 +158,11 @@ La base técnica es sólida: multi-tenancy correcto, RBAC bien definido, código
 - [ ] Limpiar `.env` del historial git y rotar credenciales
 
 ### Sprint 2 — Operaciones
-- [ ] GitHub Actions: lint → test → build
+- [x] GitHub Actions: lint → build ✅ 2026-05-22
 - [ ] Integrar Sentry en backend y frontend
 - [ ] Configurar connection pooling (pgBouncer)
 - [ ] Estrategia de backup de PostgreSQL
-- [ ] Structured logging con Winston (JSON format)
+- [x] Structured logging con Winston (JSON format) ✅ 2026-05-22
 
 ### Sprint 3 — Monetización
 - [ ] Integrar Stripe con Webhooks

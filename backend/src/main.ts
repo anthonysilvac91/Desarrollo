@@ -5,6 +5,8 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import helmet from 'helmet';
+import { WinstonModule } from 'nest-winston';
+import { winstonConfig } from './logger/winston.config';
 
 function requireProductionEnv(configService: ConfigService) {
   if (configService.get<string>('NODE_ENV') !== 'production') {
@@ -42,7 +44,9 @@ function parseCorsOrigins(configService: ConfigService): string[] {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(winstonConfig),
+  });
 
   const configService = app.get(ConfigService);
   requireProductionEnv(configService);
