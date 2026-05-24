@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import Cropper, { Area } from "react-easy-crop";
-import { ZoomIn, ZoomOut } from "lucide-react";
+import { ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 interface ImageCropModalProps {
@@ -11,20 +11,35 @@ interface ImageCropModalProps {
   onCancel: () => void;
 }
 
+const MAX_CANVAS_DIM = 1600;
+
 async function getCroppedFile(imageSrc: string, pixelCrop: Area): Promise<File> {
   const image = new Image();
-  image.src = imageSrc;
-  await new Promise<void>(resolve => { image.onload = () => resolve(); });
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Failed to load image"));
+    image.src = imageSrc;
+  });
+
+  // Cap canvas dimensions to avoid OOM / size-limit issues with high-res camera photos
+  const scale = Math.min(1, MAX_CANVAS_DIM / Math.max(pixelCrop.width, pixelCrop.height));
+  const canvasWidth = Math.round(pixelCrop.width * scale);
+  const canvasHeight = Math.round(pixelCrop.height * scale);
 
   const canvas = document.createElement("canvas");
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, pixelCrop.width, pixelCrop.height);
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get canvas context");
+  ctx.drawImage(image, pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height, 0, 0, canvasWidth, canvasHeight);
 
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     canvas.toBlob(blob => {
-      resolve(new File([blob!], "thumbnail.webp", { type: "image/webp" }));
+      if (!blob) {
+        reject(new Error("canvas.toBlob returned null"));
+        return;
+      }
+      resolve(new File([blob], "thumbnail.webp", { type: "image/webp" }));
     }, "image/webp", 0.92);
   });
 }
@@ -34,15 +49,24 @@ export default function ImageCropModal({ src, onConfirm, onCancel }: ImageCropMo
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
   }, []);
 
   const handleConfirm = async () => {
-    if (!croppedAreaPixels) return;
-    const file = await getCroppedFile(src, croppedAreaPixels);
-    onConfirm(file);
+    if (!croppedAreaPixels || confirming) return;
+    setConfirming(true);
+    try {
+      const file = await getCroppedFile(src, croppedAreaPixels);
+      onConfirm(file);
+    } catch (err) {
+      console.error("getCroppedFile failed:", err);
+      onCancel();
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -121,9 +145,10 @@ export default function ImageCropModal({ src, onConfirm, onCancel }: ImageCropMo
             </button>
             <button
               onClick={handleConfirm}
-              className="flex-2 py-3 rounded-2xl text-sm font-black text-white bg-brand hover:bg-brand/90 active:scale-95 transition-all shadow-lg shadow-brand/20"
+              disabled={confirming}
+              className="flex-2 py-3 rounded-2xl text-sm font-black text-white bg-brand hover:bg-brand/90 active:scale-95 disabled:opacity-60 disabled:scale-100 transition-all shadow-lg shadow-brand/20 flex items-center justify-center"
             >
-              {t.common.confirm}
+              {confirming ? <Loader2 className="w-4 h-4 animate-spin" /> : t.common.confirm}
             </button>
           </div>
         </div>
