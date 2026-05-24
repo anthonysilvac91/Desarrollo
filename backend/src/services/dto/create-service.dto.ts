@@ -16,7 +16,7 @@ export class CreateServiceDto {
   @ApiPropertyOptional({ description: 'Descripción adicional del operario', example: 'Falta un repuesto para el faro izquierdo.' })
   @IsString()
   @IsOptional()
-  @MaxLength(400, { message: 'La descripcion no puede superar los 400 caracteres' })
+  @MaxLength(2000, { message: 'La descripcion no puede superar los 2000 caracteres' })
   description?: string;
 
   @ApiPropertyOptional({ description: 'Indica si es visible para los clientes' })
