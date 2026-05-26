@@ -9,6 +9,7 @@ import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/lib/formatDate";
+import { SERVICE_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 400;
@@ -25,6 +26,7 @@ export default function WorkerNewServicePage() {
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [isImageSourceOpen, setIsImageSourceOpen] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -49,13 +51,30 @@ export default function WorkerNewServicePage() {
     }
   }, [isAssetQueryError, showToast, t]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map(file => ({
-        url: URL.createObjectURL(file),
-        file
-      }));
-      setImages(prev => [...prev, ...newFiles]);
+      setIsProcessingImages(true);
+      try {
+        const compressedFiles = await Promise.all(
+          Array.from(e.target.files).map((file, index) =>
+            compressImageFile(file, {
+              maxDimension: 2400,
+              quality: 0.82,
+              maxBytes: SERVICE_IMAGE_MAX_BYTES,
+              fileNamePrefix: `service-attachment-${Date.now()}-${index}`,
+            }),
+          ),
+        );
+        const newFiles = compressedFiles.map(file => ({
+          url: URL.createObjectURL(file),
+          file
+        }));
+        setImages(prev => [...prev, ...newFiles]);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "No se pudo procesar la imagen seleccionada.", "error");
+      } finally {
+        setIsProcessingImages(false);
+      }
     }
     e.target.value = "";
     setIsImageSourceOpen(false);
@@ -73,7 +92,7 @@ export default function WorkerNewServicePage() {
   const isFormValid = title.trim().length > 0 && !assetError;
 
   const handleSubmit = async () => {
-    if (!isFormValid || isSubmitting) return;
+    if (!isFormValid || isSubmitting || isProcessingImages) return;
     setIsSubmitting(true);
     
     try {
@@ -192,8 +211,8 @@ export default function WorkerNewServicePage() {
                 <div className="flex overflow-x-auto pb-4 -mx-5 px-5 space-x-3 custom-scroll">
                <button 
                   type="button"
-                  onClick={() => !isSubmitting && setIsImageSourceOpen(true)}
-                  disabled={isSubmitting}
+                  onClick={() => !isSubmitting && !isProcessingImages && setIsImageSourceOpen(true)}
+                  disabled={isSubmitting || isProcessingImages}
                   className="w-[90px] h-[90px] flex-shrink-0 bg-surface border-2 border-dashed border-brand/50 rounded-2xl flex flex-col items-center justify-center text-brand active:scale-95 transition-transform disabled:opacity-30"
                >
                  <Camera className="w-6 h-6 mb-1 opacity-80" />
@@ -257,7 +276,7 @@ export default function WorkerNewServicePage() {
             <div className="rounded-[28px] bg-surface border border-border-theme/20 shadow-2xl p-3">
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isProcessingImages}
                 onClick={() => cameraInputRef.current?.click()}
                 className="w-full flex items-center justify-between rounded-2xl px-4 py-4 text-left text-title active:scale-[0.99] transition-transform disabled:opacity-40"
               >
@@ -266,7 +285,7 @@ export default function WorkerNewServicePage() {
               </button>
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isProcessingImages}
                 onClick={() => libraryInputRef.current?.click()}
                 className="w-full flex items-center justify-between rounded-2xl px-4 py-4 text-left text-title active:scale-[0.99] transition-transform disabled:opacity-40"
               >
@@ -281,17 +300,17 @@ export default function WorkerNewServicePage() {
       {/* Persistent Save Button Container */}
       <div className="fixed bottom-0 w-full p-5 bg-gradient-to-t from-app-bg via-app-bg to-transparent pb-[calc(1.25rem+env(safe-area-inset-bottom))] z-10">
         <button 
-          disabled={!isFormValid || isSubmitting}
+          disabled={!isFormValid || isSubmitting || isProcessingImages}
           onClick={handleSubmit}
           className={`w-full flex items-center justify-center space-x-2 py-4 rounded-full font-black text-base transition-all shadow-xl bg-brand text-white shadow-brand/30 active:scale-95 disabled:opacity-50`}
         >
-          {isSubmitting ? (
-             <Loader2 className="w-6 h-6 animate-spin" />
+          {isProcessingImages || isSubmitting ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
           ) : (
-             <>
-               <Check className="w-6 h-6 stroke-[3px]" />
-               <span>{t.mobile.new_service.save}</span>
-             </>
+            <>
+              <Check className="w-6 h-6 stroke-[3px]" />
+              <span>{t.mobile.new_service.save}</span>
+            </>
           )}
         </button>
       </div>

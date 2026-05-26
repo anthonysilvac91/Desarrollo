@@ -9,6 +9,7 @@ import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
+import { SERVICE_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 400;
@@ -27,6 +28,7 @@ export default function NewAssetServicePage() {
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
 
   const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER";
 
@@ -36,16 +38,33 @@ export default function NewAssetServicePage() {
     enabled: !!assetId,
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files?.length) return;
 
-    const newImages = Array.from(files).map((file) => ({
-      url: URL.createObjectURL(file),
-      file,
-    }));
-    setImages((current) => [...current, ...newImages]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setIsProcessingImages(true);
+    try {
+      const compressedFiles = await Promise.all(
+        Array.from(files).map((file, index) =>
+          compressImageFile(file, {
+            maxDimension: 2400,
+            quality: 0.82,
+            maxBytes: SERVICE_IMAGE_MAX_BYTES,
+            fileNamePrefix: `service-attachment-${Date.now()}-${index}`,
+          }),
+        ),
+      );
+      const newImages = compressedFiles.map((file) => ({
+        url: URL.createObjectURL(file),
+        file,
+      }));
+      setImages((current) => [...current, ...newImages]);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo procesar la imagen seleccionada.", "error");
+    } finally {
+      setIsProcessingImages(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const removeImage = (index: number) => {
@@ -58,7 +77,7 @@ export default function NewAssetServicePage() {
   };
 
   const handleSubmit = async () => {
-    if (!canCreateService || !title.trim() || isSubmitting) return;
+    if (!canCreateService || !title.trim() || isSubmitting || isProcessingImages) return;
 
     setIsSubmitting(true);
     try {
@@ -199,8 +218,8 @@ export default function NewAssetServicePage() {
               </div>
               <button
                 type="button"
-                onClick={() => !isSubmitting && fileInputRef.current?.click()}
-                disabled={isSubmitting}
+                onClick={() => !isSubmitting && !isProcessingImages && fileInputRef.current?.click()}
+                disabled={isSubmitting || isProcessingImages}
                 className="w-full h-24 border-2 border-dashed border-brand/40 rounded-2xl flex flex-col items-center justify-center text-brand bg-surface active:scale-95 transition-all disabled:opacity-40"
               >
                 <Camera className="w-6 h-6 mb-1" />
@@ -236,10 +255,10 @@ export default function NewAssetServicePage() {
 
             <button
               onClick={handleSubmit}
-              disabled={!title.trim() || isSubmitting}
+              disabled={!title.trim() || isSubmitting || isProcessingImages}
               className="w-full flex items-center justify-center space-x-2 py-4 rounded-full font-black text-base transition-all shadow-xl bg-brand text-white shadow-brand/30 active:scale-95 disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {isSubmitting || isProcessingImages ? (
                 <Loader2 className="w-6 h-6 animate-spin" />
               ) : (
                 <>

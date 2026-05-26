@@ -77,7 +77,7 @@ export class AssetsController {
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar un activo existente' })
   update(@Param('id') id: string, @Body() updateAssetDto: any, @Request() req, @UploadedFile() photo?: Express.Multer.File) {
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+    if (!['SUPER_ADMIN', 'ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para editar activos');
     }
     return this.assetsService.update(id, updateAssetDto, req.user.orgId, req.user.role, photo);

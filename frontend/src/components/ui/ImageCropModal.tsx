@@ -4,14 +4,16 @@ import React, { useState, useCallback } from "react";
 import Cropper, { Area } from "react-easy-crop";
 import { ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { ASSET_IMAGE_MAX_BYTES, formatBytes } from "@/lib/imageCompression";
 
 interface ImageCropModalProps {
   src: string;
   onConfirm: (file: File) => void;
   onCancel: () => void;
+  onError?: (message: string) => void;
 }
 
-const MAX_CANVAS_DIM = 1600;
+const MAX_CANVAS_DIM = 1200;
 
 async function getCroppedFile(imageSrc: string, pixelCrop: Area): Promise<File> {
   const image = new Image();
@@ -39,12 +41,16 @@ async function getCroppedFile(imageSrc: string, pixelCrop: Area): Promise<File> 
         reject(new Error("canvas.toBlob returned null"));
         return;
       }
+      if (blob.size > ASSET_IMAGE_MAX_BYTES) {
+        reject(new Error(`La imagen comprimida pesa ${formatBytes(blob.size)}. El maximo permitido es ${formatBytes(ASSET_IMAGE_MAX_BYTES)}.`));
+        return;
+      }
       resolve(new File([blob], "thumbnail.webp", { type: "image/webp" }));
-    }, "image/webp", 0.92);
+    }, "image/webp", 0.8);
   });
 }
 
-export default function ImageCropModal({ src, onConfirm, onCancel }: ImageCropModalProps) {
+export default function ImageCropModal({ src, onConfirm, onCancel, onError }: ImageCropModalProps) {
   const { t } = useLanguage();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -63,6 +69,7 @@ export default function ImageCropModal({ src, onConfirm, onCancel }: ImageCropMo
       onConfirm(file);
     } catch (err) {
       console.error("getCroppedFile failed:", err);
+      onError?.(err instanceof Error ? err.message : "No se pudo procesar la imagen seleccionada.");
       onCancel();
     } finally {
       setConfirming(false);

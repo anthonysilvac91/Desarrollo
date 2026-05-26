@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { 
   MapPin, 
@@ -10,13 +10,17 @@ import {
   Briefcase, 
   Loader2, 
   AlertCircle, 
-  Inbox
+  Inbox,
+  Pencil
 } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
-import { assetsService, Service } from "@/services/assets.service";
-import { useQuery } from "@tanstack/react-query";
+import { assetsService } from "@/services/assets.service";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/lib/LanguageContext";
 import { formatDate } from "@/lib/formatDate";
+import ImageCropModal from "@/components/ui/ImageCropModal";
+import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
+import { useToast } from "@/lib/ToastContext";
 
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
@@ -103,14 +107,83 @@ const JobDescription = ({ description }: { description: string }) => {
 export default function WorkerAssetDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const assetId = params.id as string;
   const { t } = useLanguage();
+  const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
 
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
     queryFn: () => assetsService.findOne(assetId),
     enabled: !!assetId
   });
+
+  const handlePhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = "";
+
+    setIsPhotoUpdating(true);
+    try {
+      const compressedFile = await compressImageFile(file, {
+        maxDimension: 2400,
+        quality: 0.85,
+        maxBytes: ASSET_IMAGE_MAX_BYTES,
+        fileNamePrefix: "asset-photo-source",
+      });
+      const reader = new FileReader();
+      reader.onloadend = () => setCropSrc(reader.result as string);
+      reader.onerror = () => showToast("No se pudo leer la imagen seleccionada.", "error");
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo procesar la imagen seleccionada.", "error");
+    } finally {
+      setIsPhotoUpdating(false);
+    }
+  };
+
+  const handleCropConfirm = async (croppedFile: File) => {
+    if (!asset || isPhotoUpdating) return;
+
+    setIsPhotoUpdating(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", croppedFile);
+      await assetsService.update(asset.id, formData);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["assets"] }),
+        queryClient.invalidateQueries({ queryKey: ["asset", asset.id] }),
+      ]);
+      await refetch();
+      showToast("Foto del activo actualizada.", "success");
+      setCropSrc(null);
+    } catch (error) {
+      const serverMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response !== null &&
+        "data" in error.response &&
+        typeof error.response.data === "object" &&
+        error.response.data !== null &&
+        "message" in error.response.data
+          ? error.response.data.message
+          : undefined;
+
+      showToast(
+        Array.isArray(serverMessage)
+          ? serverMessage[0]
+          : serverMessage || "No se pudo actualizar la foto del activo.",
+        "error",
+      );
+    } finally {
+      setIsPhotoUpdating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -156,8 +229,26 @@ export default function WorkerAssetDetailPage() {
       <main className="flex-1 overflow-y-auto px-5 pt-2 pb-28">
         {/* Asset Quick Summary */}
         <div className="flex flex-col items-center justify-center pt-2 pb-8">
-           <div className="w-28 h-28 rounded-full bg-surface border-4 border-white shadow-xl flex items-center justify-center mb-6 overflow-hidden ring-1 ring-border-theme/20">
+           <div className="relative mb-6">
+            <div className="w-28 h-28 rounded-full bg-surface border-4 border-white shadow-xl flex items-center justify-center overflow-hidden ring-1 ring-border-theme/20">
               <AssetImage src={asset.thumbnail_url} alt={asset.name} />
+            </div>
+            <button
+              type="button"
+              onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
+              disabled={isPhotoUpdating}
+              className="absolute -right-1 bottom-1 w-10 h-10 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center active:scale-95 transition-all disabled:opacity-60"
+              aria-label="Cambiar foto del activo"
+            >
+              {isPhotoUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Pencil className="w-4 h-4" />}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.heic,.heif"
+              className="hidden"
+              onChange={handlePhotoSelect}
+            />
            </div>
 
            <div className="text-center px-4 mb-8">
@@ -236,6 +327,15 @@ export default function WorkerAssetDetailPage() {
           <span>{t.mobile.asset_detail.add_service}</span>
         </button>
       </div>
+
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropSrc(null)}
+          onError={(message) => showToast(message, "error")}
+        />
+      )}
     </div>
   );
 }

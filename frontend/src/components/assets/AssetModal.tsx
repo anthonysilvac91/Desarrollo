@@ -11,6 +11,7 @@ import { assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
 import { ownersService } from "@/services/owners.service";
 import { useAuth } from "@/lib/AuthContext";
+import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 
 export interface AssetFormData {
   name: string;
@@ -84,13 +85,28 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
 
   const ownerOptions = owners.map((owner: any) => ({ id: owner.id, name: owner.name }));
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    const reader = new FileReader();
-    reader.onloadend = () => setCropSrc(reader.result as string);
-    reader.readAsDataURL(file);
+
+    try {
+      setLoading(true);
+      const compressedFile = await compressImageFile(file, {
+        maxDimension: 2400,
+        quality: 0.85,
+        maxBytes: ASSET_IMAGE_MAX_BYTES,
+        fileNamePrefix: "asset-photo-source",
+      });
+      const reader = new FileReader();
+      reader.onloadend = () => setCropSrc(reader.result as string);
+      reader.onerror = () => showToast("No se pudo leer la imagen seleccionada.", "error");
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo procesar la imagen seleccionada.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCropConfirm = (croppedFile: File) => {
@@ -138,7 +154,34 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       setPreview(null);
     } catch (err) {
       console.error(err);
-      showToast(t.feedback.generic_error, "error");
+      const serverMessage =
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof err.response === "object" &&
+        err.response !== null &&
+        "data" in err.response &&
+        typeof err.response.data === "object" &&
+        err.response.data !== null &&
+        "message" in err.response.data
+          ? err.response.data.message
+          : undefined;
+      const serverStatus =
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof err.response === "object" &&
+        err.response !== null &&
+        "status" in err.response
+          ? err.response.status
+          : undefined;
+
+      showToast(
+        Array.isArray(serverMessage)
+          ? serverMessage[0]
+          : serverMessage || (serverStatus === 413 ? "La imagen supera el maximo permitido." : t.feedback.generic_error),
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -240,6 +283,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
         src={cropSrc}
         onConfirm={handleCropConfirm}
         onCancel={() => setCropSrc(null)}
+        onError={(message) => showToast(message, "error")}
       />
     )}
     </>

@@ -352,6 +352,16 @@ export class AssetsService {
       throw new ForbiddenException('No tienes permiso para editar este activo');
     }
 
+    if (role === 'WORKER') {
+      const submittedFields = Object.entries(updateDto ?? {}).filter(
+        ([, value]) => value !== undefined && value !== null && value !== '',
+      );
+
+      if (!photo || submittedFields.length > 0) {
+        throw new ForbiddenException('Solo puedes actualizar la foto del activo');
+      }
+    }
+
     const {
       owner_id: _ownerId,
       thumbnail_url: _thumbnailUrl,
