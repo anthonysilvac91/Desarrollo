@@ -75,7 +75,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         <div className="flex shrink-0 items-center space-x-2 sm:space-x-4">
           
           {/* Language Switcher */}
-          <div className="hidden sm:flex items-center bg-app-bg/80 p-0.5 rounded-full border border-border-theme/50">
+          <div className="flex items-center bg-app-bg/80 p-0.5 rounded-full border border-border-theme/50">
             <button 
               onClick={() => setLanguage("en")}
               className={`px-2.5 py-1 text-[9px] font-black rounded-full transition-all ${

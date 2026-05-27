@@ -89,7 +89,7 @@ export default function FiltersBar({
   };
 
   return (
-    <div className="px-0 py-0 flex flex-col lg:flex-row items-start lg:items-center gap-5 shrink-0 transition-colors">
+    <div className="px-0 py-0 flex flex-col lg:flex-row items-start lg:items-center gap-0 lg:gap-5 shrink-0 transition-colors">
       
       {/* Search Input */}
       {showSearch && (

@@ -43,6 +43,7 @@ export const translations = {
       sorted_asc: "Sorted: A → Z",
       sorted_desc: "Sorted: Z → A",
       clear_filters: "Clear filters",
+      all: "All",
     },
     date_filters: {
       today: "Today",
@@ -64,7 +65,7 @@ export const translations = {
       cancel_delete: "Cancel",
     },
     assets: {
-      search_placeholder: "Search assets by name, location, owner...",
+      search_placeholder: "Search by name...",
       filter: "Filter",
       add_new: "Add new",
       table: {
@@ -85,7 +86,8 @@ export const translations = {
         clear_all: "Clear filters",
         by_owner: "By Owner",
         by_category: "By Category",
-        apply: "Apply Filters"
+        apply: "Apply Filters",
+        search_owner: "Search owner..."
       },
       drawer: {
         location: "Geographic Location",
@@ -623,6 +625,7 @@ export const translations = {
       sorted_asc: "Ordenado: A → Z",
       sorted_desc: "Ordenado: Z → A",
       clear_filters: "Limpiar filtros",
+      all: "Todos",
     },
     date_filters: {
       today: "Hoy",
@@ -644,7 +647,7 @@ export const translations = {
       cancel_delete: "Cancelar",
     },
     assets: {
-      search_placeholder: "Buscar activos por nombre, ubicación, empresa...",
+      search_placeholder: "Buscar por nombre...",
       filter: "Filtrar",
       add_new: "Agregar nuevo",
       table: {
@@ -665,7 +668,8 @@ export const translations = {
         clear_all: "Limpiar filtros",
         by_owner: "Por Owner",
         by_category: "Por Categoría",
-        apply: "Aplicar Filtros"
+        apply: "Aplicar Filtros",
+        search_owner: "Buscar propietario..."
       },
       drawer: {
         location: "Ubicación Geográfica",
