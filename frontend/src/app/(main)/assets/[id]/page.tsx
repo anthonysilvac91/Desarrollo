@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService, Service, ServiceAttachment } from "@/services/assets.service";
-import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus } from "lucide-react";
+import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus, Pencil, SlidersHorizontal, X } from "lucide-react";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 import { formatDate } from "@/lib/formatDate";
 import { useAuth } from "@/lib/AuthContext";
+import { useToast } from "@/lib/ToastContext";
+import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
@@ -102,13 +105,62 @@ export default function AssetDetailPage() {
   const assetId = params.id as string;
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
-  
+
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [datePreset, setDatePreset] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+  // Photo edit
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setIsPhotoUpdating(true);
+    try {
+      const compressed = await compressImageFile(file, {
+        maxDimension: 2400,
+        quality: 0.85,
+        maxBytes: ASSET_IMAGE_MAX_BYTES,
+        fileNamePrefix: "asset-photo-source",
+      });
+      const reader = new FileReader();
+      reader.onloadend = () => setCropSrc(reader.result as string);
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "No se pudo procesar la imagen.", "error");
+    } finally {
+      setIsPhotoUpdating(false);
+    }
+  };
+
+  const handleCropConfirm = async (croppedFile: File) => {
+    if (!asset || isPhotoUpdating) return;
+    setIsPhotoUpdating(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", croppedFile);
+      await assetsService.update(asset.id, formData);
+      await queryClient.invalidateQueries({ queryKey: ["asset", asset.id] });
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      showToast("Foto actualizada.", "success");
+      setCropSrc(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      showToast(Array.isArray(msg) ? msg[0] : msg || "No se pudo actualizar la foto.", "error");
+    } finally {
+      setIsPhotoUpdating(false);
+    }
+  };
 
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
@@ -205,22 +257,20 @@ export default function AssetDetailPage() {
   }
 
   return (
-    <div className="flex flex-col space-y-8 pb-20 animate-in fade-in duration-500">
-      
-      {/* 1. HERO - Identidad Simple */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div className="flex items-center space-x-6">
-          <button onClick={() => router.back()} className="p-3.5 rounded-full bg-surface border border-border-theme/60 hover:bg-app-bg transition-all shadow-sm">
+    <div className="flex flex-col space-y-6 lg:space-y-8 pb-24 lg:pb-20 animate-in fade-in duration-500">
+
+      {/* 1. HERO */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
+        <div className="flex items-center space-x-4 sm:space-x-6">
+          <button onClick={() => router.back()} className="p-3 sm:p-3.5 rounded-full bg-surface border border-border-theme/60 hover:bg-app-bg transition-all shadow-sm shrink-0">
             <ChevronLeft className="w-5 h-5 stroke-[2.5px]" />
           </button>
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-black text-title tracking-tight leading-none mb-2">{asset.name}</h1>
-          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-title tracking-tight leading-none">{asset.name}</h1>
         </div>
         {canCreateService && (
           <button
             onClick={() => router.push(`/assets/${asset.id}/new-service`)}
-            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+            className="hidden sm:flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
           >
             <Plus className="w-5 h-5 stroke-[4px]" />
             <span>{t.services.add_new}</span>
@@ -228,15 +278,34 @@ export default function AssetDetailPage() {
         )}
       </div>
 
-      {/* 2. ASSET SUMMARY (Mantenimiento de Barco ARRIBA) */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 bg-surface p-8 rounded-[40px] border border-border-theme/40 shadow-soft">
-        <div className="flex items-center space-x-6 lg:col-span-2 border-r border-border-theme/20 pr-6">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg shrink-0 bg-app-bg flex items-center justify-center">
-            {asset.thumbnail_url ? (
-              <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
-            ) : (
-              <Ship className="w-10 h-10 text-brand/20" />
-            )}
+      {/* 2. ASSET SUMMARY */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 bg-surface p-5 sm:p-8 rounded-3xl lg:rounded-[40px] border border-border-theme/40 shadow-soft">
+        <div className="flex items-center space-x-5 lg:col-span-2 lg:border-r border-border-theme/20 lg:pr-6">
+          {/* Thumbnail con botón de editar */}
+          <div className="relative shrink-0">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg bg-app-bg flex items-center justify-center">
+              {asset.thumbnail_url ? (
+                <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
+              ) : (
+                <Ship className="w-8 h-8 sm:w-10 sm:h-10 text-brand/20" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
+              disabled={isPhotoUpdating}
+              className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center active:scale-95 transition-all disabled:opacity-60"
+              aria-label="Cambiar foto"
+            >
+              {isPhotoUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.heic,.heif"
+              className="hidden"
+              onChange={handlePhotoSelect}
+            />
           </div>
           <div>
             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-1 block">{t.assets.detail.owner}</span>
@@ -271,12 +340,20 @@ export default function AssetDetailPage() {
       </div>
 
       {/* 3. SECTION TITLE */}
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex items-center justify-between pt-2 lg:pt-4">
         <h3 className="text-[14px] font-black text-title uppercase tracking-[0.2em] flex items-center">
            <History className="w-4 h-4 mr-3 text-brand" />
            {t.assets.detail.activity_history}
         </h3>
         <div className="flex items-center gap-3">
+          {/* Botón filtros sólo en móvil */}
+          <button
+            onClick={() => setIsFiltersOpen(v => !v)}
+            className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl border border-border-theme/40 text-subtitle text-xs font-bold"
+          >
+            {isFiltersOpen ? <X className="w-3.5 h-3.5" /> : <SlidersHorizontal className="w-3.5 h-3.5" />}
+            Filtros
+          </button>
           {canCreateService && user && (
             <button
               onClick={() => toggleWorker(user.name)}
@@ -301,11 +378,56 @@ export default function AssetDetailPage() {
         </div>
       </div>
 
+      {/* Filtros expandibles en móvil */}
+      {isFiltersOpen && (
+        <div className="lg:hidden bg-surface rounded-2xl border border-border-theme/40 p-5 space-y-6">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest">{t.assets.detail.responsible}</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedWorkers([])}
+                className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition-all ${selectedWorkers.length === 0 ? "bg-brand text-white border-transparent" : "border-border-theme/40 text-subtitle/60"}`}
+              >
+                {t.assets.detail.all_workers}
+              </button>
+              {Array.from(new Set(asset.services?.map(s => s.worker.name) || [])).map(worker => (
+                <button
+                  key={worker}
+                  onClick={() => toggleWorker(worker)}
+                  className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition-all ${selectedWorkers.includes(worker) ? "bg-brand text-white border-transparent" : "border-border-theme/40 text-subtitle/60"}`}
+                >
+                  {worker}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest">{t.assets.detail.temporality}</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "Hoy", trans: t.assets.detail.today },
+                { key: "Semana", trans: t.assets.detail.week },
+                { key: "Mes", trans: t.assets.detail.month },
+                { key: "Año", trans: t.assets.detail.year },
+              ].map(preset => (
+                <button
+                  key={preset.key}
+                  onClick={() => { setDatePreset(p => p === preset.key ? null : preset.key); setStartDate(""); setEndDate(""); }}
+                  className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition-all ${datePreset === preset.key ? "bg-brand text-white border-transparent" : "border-border-theme/40 text-subtitle/60"}`}
+                >
+                  {preset.trans}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 4. MAIN GRID (Timeline + Advanced Filters Side) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
+
         {/* Timeline (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="lg:col-span-8 space-y-4 lg:space-y-6">
             {filteredJobs.map((job) => (
               <JobCard 
                 key={job.id} 
@@ -432,10 +554,30 @@ export default function AssetDetailPage() {
 
       </div>
 
-      <ServiceDrawer 
-        service={selectedService} 
-        onClose={() => setSelectedService(null)} 
+      {/* FAB móvil para agregar servicio */}
+      {canCreateService && (
+        <button
+          onClick={() => router.push(`/assets/${asset.id}/new-service`)}
+          className="fixed bottom-6 right-6 sm:hidden z-20 w-14 h-14 bg-brand text-white rounded-full shadow-xl shadow-brand/30 flex items-center justify-center active:scale-95 transition-all"
+          aria-label={t.services.add_new}
+        >
+          <Plus className="w-6 h-6 stroke-[3px]" />
+        </button>
+      )}
+
+      <ServiceDrawer
+        service={selectedService}
+        onClose={() => setSelectedService(null)}
       />
+
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropSrc(null)}
+          onError={(msg) => showToast(msg, "error")}
+        />
+      )}
     </div>
   );
 }

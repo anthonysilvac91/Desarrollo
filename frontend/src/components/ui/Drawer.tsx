@@ -7,11 +7,12 @@ interface DrawerProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  leftAction?: React.ReactNode; // Added optional left action (like expand)
+  leftAction?: React.ReactNode;
+  panelClassName?: string;
   children: React.ReactNode;
 }
 
-export default function Drawer({ isOpen, onClose, title, leftAction, children }: DrawerProps) {
+export default function Drawer({ isOpen, onClose, title, leftAction, panelClassName, children }: DrawerProps) {
   // Handle Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -37,9 +38,9 @@ export default function Drawer({ isOpen, onClose, title, leftAction, children }:
       
       {/* Drawer Panel */}
       <div 
-        className={`absolute top-0 right-0 h-full w-full max-w-md sm:max-w-lg bg-white shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.1)] transform transition-transform duration-300 ease-out flex flex-col ${
+        className={`absolute top-0 right-0 h-full w-full max-w-md sm:max-w-lg shadow-[-20px_0_50px_-15px_rgba(0,0,0,0.1)] transform transition-transform duration-300 ease-out flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        } ${panelClassName ?? "bg-white"}`}
       >
         {/* Buttons Group */}
         <div className="absolute top-8 left-8 right-8 z-10 flex items-center justify-between">

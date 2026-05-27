@@ -7,7 +7,7 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, ChevronRight as ChevronRightIcon, Wrench, ChevronDown, X, Search } from "lucide-react";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -73,8 +73,8 @@ const AssetCard = ({ item, canManage, iconId, onEdit, onDelete, onToggle, onClic
         )}
       </div>
 
-      <div className="w-9 h-9 rounded-full bg-app-bg flex items-center justify-center shrink-0">
-        <ChevronRightIcon className="w-4 h-4 text-subtitle/30" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center text-brand">
+        <ChevronRight className="w-5 h-5 shrink-0" />
       </div>
     </div>
 
