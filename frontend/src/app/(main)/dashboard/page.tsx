@@ -51,7 +51,7 @@ export default function DashboardPage() {
     }
 
     const now = new Date();
-    let startDate = new Date();
+    const startDate = new Date();
 
     if (preset === "Hoy") {
       startDate.setHours(0, 0, 0, 0);
@@ -120,18 +120,19 @@ export default function DashboardPage() {
   const hasData = (stats?.total_assets || 0) > 0 || (stats?.total_services || 0) > 0;
 
   return (
-    <div className="flex flex-col space-y-5">
+    <div className="flex min-w-0 flex-col space-y-5 sm:space-y-6">
       
       {!isExternal && (
         <FiltersBar 
           showQuickFilters={true}
           showSearch={false}
+          defaultDatePreset={activePreset}
           onDateChange={handleDateChange}
         />
       )}
 
       {/* KPI Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <KPICard 
           title={isExternal ? t.dashboard.kpis.services_received : (isWorker ? t.dashboard.kpis.my_services : t.dashboard.kpis.jobs_performed)}
           value={stats?.total_services || 0}
@@ -157,10 +158,10 @@ export default function DashboardPage() {
       {/* Evolution Chart Section */}
       {!isExternal && hasData && (
         <ModuleContainer>
-          <div className="p-6 lg:p-7 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="p-4 sm:p-6 lg:p-7 space-y-5 sm:space-y-8">
+            <div className="flex flex-row items-start justify-between gap-3">
               <div className="space-y-0.5">
-                <h2 className="text-xl lg:text-2xl font-black text-title tracking-tight">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-black text-title tracking-tight">
                   {t.dashboard.charts.evolution_title}
                 </h2>
                 <p className="text-[13px] text-subtitle/60 font-medium tracking-tight">
@@ -168,15 +169,15 @@ export default function DashboardPage() {
                 </p>
               </div>
               
-              <div className="flex items-center space-x-2.5 px-4 py-2 bg-brand/5 border border-brand/10 rounded-xl w-fit">
+              <div className="flex shrink-0 items-center space-x-2 px-3 sm:px-4 py-2 bg-brand/5 border border-brand/10 rounded-xl w-fit">
                 <div className="w-2 h-2 rounded-full bg-brand animate-pulse" />
-                <span className="text-[11px] font-black text-brand uppercase tracking-wider">{t.dashboard.charts.live_badge}</span>
+                <span className="text-[10px] sm:text-[11px] font-black text-brand uppercase tracking-wider">{t.dashboard.charts.live_badge}</span>
               </div>
             </div>
 
-            <div className="h-[260px] w-full">
+            <div className="h-[240px] sm:h-[280px] lg:h-[260px] w-full min-w-0 overflow-hidden">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats?.evolution || []} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <AreaChart data={stats?.evolution || []} margin={{ top: 5, right: 8, left: -20, bottom: 8 }}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
@@ -215,7 +216,7 @@ export default function DashboardPage() {
 
       {/* Rankings Section */}
       {hasData ? (
-        <div className={`grid grid-cols-1 ${ (isWorker || isExternal) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${ (isWorker || isExternal) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
           <ModuleContainer>
             <div className="p-6">
               <PerformanceList 

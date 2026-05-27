@@ -7,6 +7,7 @@ interface PerformanceItem {
   name: string;
   metric: string | number;
   image?: string;
+  avatar?: string | null;
   icon?: React.ElementType;
 }
 
@@ -22,7 +23,7 @@ export default function PerformanceList({
   metricLabel
 }: PerformanceListProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <h3 className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{title}</h3>
       
       <div className="flex flex-col">
@@ -37,10 +38,10 @@ export default function PerformanceList({
                 !isLast ? "border-b border-border-theme/20" : ""
               }`}
             >
-              <div className="flex items-center space-x-4">
+              <div className="flex min-w-0 items-center space-x-3 sm:space-x-4">
                 <div className="w-11 h-11 rounded-full bg-app-bg flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ring-1 ring-border-theme/10 group-hover:scale-105 transition-transform shrink-0">
-                  {item.image ? (
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  {item.image || item.avatar ? (
+                    <img src={item.image || item.avatar || ""} alt={item.name} className="w-full h-full object-cover" />
                   ) : Icon ? (
                     <Icon className="w-5 h-5 text-brand opacity-30 group-hover:opacity-100 transition-opacity" />
                   ) : (
@@ -48,13 +49,13 @@ export default function PerformanceList({
                   )}
                 </div>
                 
-                <div className="flex flex-col">
+                <div className="flex min-w-0 flex-col">
                   <span className="text-[15px] font-bold text-title tracking-tight group-hover:text-brand transition-colors line-clamp-1">{item.name}</span>
                 </div>
               </div>
 
-              <div className="flex items-center">
-                <span className="h-8 flex items-center justify-center text-[12px] font-bold text-title bg-app-bg group-hover:bg-brand/5 group-hover:text-brand rounded-lg border border-border-theme/40 px-3 transition-all min-w-[90px]">
+              <div className="flex shrink-0 items-center pl-2">
+                <span className="h-8 flex items-center justify-center text-[12px] font-bold text-title bg-app-bg group-hover:bg-brand/5 group-hover:text-brand rounded-lg border border-border-theme/40 px-2.5 sm:px-3 transition-all min-w-[70px] sm:min-w-[90px]">
                   {item.metric} <span className="ml-1.5 text-[10px] opacity-30 font-black uppercase tracking-widest">{metricLabel}</span>
                 </span>
               </div>

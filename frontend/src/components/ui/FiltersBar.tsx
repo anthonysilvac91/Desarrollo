@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, SlidersHorizontal, ChevronDown, RotateCcw } from "lucide-react";
+import { Search, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 interface FiltersBarProps {
@@ -15,6 +15,7 @@ interface FiltersBarProps {
   // Clear all
   hasExternalFilter?: boolean;
   onClearAll?: () => void;
+  defaultDatePreset?: string | null;
   // Others
   actions?: React.ReactNode;
 }
@@ -27,11 +28,12 @@ export default function FiltersBar({
   showSearch = true,
   hasExternalFilter = false,
   onClearAll,
+  defaultDatePreset = null,
   actions,
 }: FiltersBarProps) {
   const { t } = useLanguage();
   const [searchValue, setSearchValue] = useState("");
-  const [activePreset, setActivePreset] = useState<string | null>(null);
+  const [activePreset, setActivePreset] = useState<string | null>(defaultDatePreset);
   const [customRange, setCustomRange] = useState({ start: "", end: "" });
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -105,10 +107,10 @@ export default function FiltersBar({
         </div>
       )}
 
-      <div className="flex-1" />
+      <div className="hidden lg:block flex-1" />
 
       {/* Quick Filters + Actions */}
-      <div className="flex items-center space-x-4 w-full lg:w-auto justify-end relative">
+      <div className="flex items-center space-x-3 w-full lg:w-auto justify-end relative min-w-0">
 
         {/* Global reset button — shown when any filter is active */}
         {hasAnyFilter && (
@@ -122,15 +124,15 @@ export default function FiltersBar({
         )}
 
         {showQuickFilters && (
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
 
 
-            <div className="relative flex items-center bg-subtitle/5 p-1 rounded-full border border-border-theme/30">
+            <div className="relative flex w-full max-w-full items-center overflow-x-auto bg-subtitle/5 p-1 rounded-full border border-border-theme/30 custom-scroll lg:w-auto">
               {["Hoy", "Mes", "Año", "Personalizado"].map((preset) => (
                 <button
                   key={preset}
                   onClick={() => handlePresetChange(preset)}
-                  className={`px-6 py-3 rounded-full text-[15px] font-bold transition-all duration-200 ${
+                  className={`shrink-0 px-4 sm:px-5 lg:px-6 py-2.5 lg:py-3 rounded-full text-[13px] sm:text-[15px] font-bold transition-all duration-200 ${
                     activePreset === preset
                       ? "bg-white text-brand shadow-md shadow-brand/5 ring-1 ring-black/5"
                       : "text-subtitle/50 hover:text-subtitle"
@@ -147,7 +149,7 @@ export default function FiltersBar({
               {isRangePickerOpen && (
                 <div 
                   ref={popoverRef}
-                  className="absolute top-full right-0 mt-3 p-5 bg-white rounded-3xl border border-border-theme/60 shadow-2xl z-50 min-w-[320px] animate-in fade-in zoom-in-95 duration-200"
+                  className="absolute top-full right-0 mt-3 p-5 bg-white rounded-3xl border border-border-theme/60 shadow-2xl z-50 w-[min(320px,calc(100vw-2rem))] animate-in fade-in zoom-in-95 duration-200"
                 >
                   <div className="flex flex-col gap-4">
                     <div className="space-y-2">

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, Menu, LogOut, User, ChevronDown } from "lucide-react";
+import { Bell, LogOut, User, ChevronDown, LayoutDashboard, Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -25,19 +25,45 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     return t.topbar.titles.dashboard;
   };
 
+  const userInitial = user?.name?.charAt(0) || user?.email?.charAt(0) || "U";
+  const organizationName = user?.organization?.show_org_name ? user.organization.name : "Recall";
+
   return (
-    <header className="h-20 bg-surface border-b border-border-theme/50 sticky top-0 z-20 w-full shrink-0 transition-colors">
-      <div className="max-w-[1700px] w-full mx-auto h-full flex items-center justify-between px-6 sm:px-8 lg:px-14">
+    <header className="h-[92px] lg:h-20 bg-surface border-b border-border-theme/50 sticky top-0 z-20 w-full shrink-0 transition-colors">
+      <div className="max-w-[1700px] w-full mx-auto h-full flex items-center justify-between px-4 sm:px-8 lg:px-14">
         
-        {/* Mobile menu button & Title */}
-        <div className="flex items-center space-x-4 lg:hidden">
+        {/* Mobile app header */}
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-brand/10 flex items-center justify-center border border-brand/10">
+            {user?.organization?.logo_url ? (
+              <img
+                src={user.organization.logo_url}
+                alt={user.organization.name || "Logo"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <LayoutDashboard className="h-6 w-6 text-brand" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-black text-title tracking-tight">{getTitle()}</h1>
+            {(user?.name || organizationName) && (
+              <p className="truncate text-xs font-bold text-subtitle/45">
+                {user?.name ? `Hola, ${user.name}` : organizationName}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Tablet menu button and title */}
+        <div className="hidden min-w-0 flex-1 items-center space-x-4 md:flex lg:hidden">
           <button 
             onClick={onMenuClick}
             className="p-2 -ml-2 text-subtitle hover:text-title focus:outline-none bg-app-bg/50 rounded-xl active:scale-90 transition-all"
           >
             <Menu className="w-6 h-6" />
           </button>
-          <h1 className="text-lg font-black text-title tracking-tight truncate max-w-[140px] lowercase first-letter:uppercase">{getTitle()}</h1>
+          <h1 className="text-lg font-black text-title tracking-tight truncate max-w-[280px]">{getTitle()}</h1>
         </div>
 
         {/* Page Title */}
@@ -46,10 +72,10 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center space-x-4">
+        <div className="flex shrink-0 items-center space-x-2 sm:space-x-4">
           
           {/* Language Switcher */}
-          <div className="flex items-center bg-app-bg/80 p-0.5 rounded-full border border-border-theme/50">
+          <div className="hidden sm:flex items-center bg-app-bg/80 p-0.5 rounded-full border border-border-theme/50">
             <button 
               onClick={() => setLanguage("en")}
               className={`px-2.5 py-1 text-[9px] font-black rounded-full transition-all ${
@@ -68,16 +94,16 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             </button>
           </div>
 
-          <button className="p-2 text-subtitle opacity-40 hover:opacity-100 rounded-xl hover:bg-app-bg transition-all">
+          <button className="p-2 text-subtitle opacity-50 hover:opacity-100 rounded-xl hover:bg-app-bg transition-all">
             <span className="sr-only">{t.topbar.notifications}</span>
             <Bell className="w-5 h-5" />
           </button>
 
           {/* User Profile Dropdown */}
-          <div className="relative ml-2">
+          <div className="relative lg:ml-2">
             <button 
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`flex items-center space-x-3 p-1.5 pl-3 rounded-2xl transition-all border border-transparent ${
+              className={`flex items-center space-x-2 lg:space-x-3 p-1.5 lg:pl-3 rounded-2xl transition-all border border-transparent ${
                 isProfileOpen ? "bg-app-bg border-border-theme/40" : "hover:bg-app-bg"
               }`}
             >
@@ -86,14 +112,14 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                 <span className="text-[9px] text-subtitle/40 font-bold uppercase tracking-widest">{user?.role || "Admin"}</span>
               </div>
               
-              <div className="w-9 h-9 rounded-xl bg-brand/10 flex items-center justify-center border border-brand/20 overflow-hidden shadow-inner">
+              <div className="w-10 h-10 lg:w-9 lg:h-9 rounded-xl bg-brand/10 flex items-center justify-center border border-brand/20 overflow-hidden shadow-inner">
                 {user?.avatar_url ? (
                   <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-brand text-xs font-black">{user?.name?.charAt(0) || "U"}</span>
+                  <span className="text-brand text-xs font-black">{userInitial}</span>
                 )}
               </div>
-              <ChevronDown className={`w-4 h-4 text-subtitle/30 transition-transform duration-300 ${isProfileOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`hidden lg:block w-4 h-4 text-subtitle/30 transition-transform duration-300 ${isProfileOpen ? "rotate-180" : ""}`} />
             </button>
 
             {isProfileOpen && (

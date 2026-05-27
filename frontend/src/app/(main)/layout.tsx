@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
+import BottomNav from "@/components/layout/BottomNav";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Loader2 } from "lucide-react";
@@ -15,7 +16,6 @@ export default function MainLayout({
   const { loading } = useAuth();
   const { t } = useLanguage();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-app-bg">
@@ -40,9 +40,10 @@ export default function MainLayout({
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         
         {/* Main Content Area */}
-        <main className="flex-1 px-4 pb-8 sm:px-8 lg:px-14 lg:pb-12 pt-6 sm:pt-10 max-w-[1700px] w-full mx-auto">
+        <main className="flex-1 px-4 pb-28 md:pb-8 sm:px-8 lg:px-14 lg:pb-12 pt-4 sm:pt-8 lg:pt-10 max-w-[1700px] w-full mx-auto">
           {children}
         </main>
+        <BottomNav />
       </div>
     </div>
   );
