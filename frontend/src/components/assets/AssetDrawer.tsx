@@ -230,7 +230,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
               {currentAsset.thumbnail_url ? (
                 <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
               ) : (
-                <Ship className="w-10 h-10 text-brand/30" />
+                <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
               )}
             </div>
             <button
@@ -501,9 +501,9 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           <div className="space-y-6">
             {loading ? (
               <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-brand/20" /></div>
-            ) : history.slice(0, visibleCount).map((service) => (
-              <div 
-                key={service.id} 
+            ) : history.slice(0, visibleCount).map((service, idx) => (
+              <div
+                key={service.id ?? `service-${idx}`}
                 className="group bg-surface border border-border-theme/40 rounded-2xl hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all min-h-35 flex flex-col overflow-hidden"
               >
                 <div className="p-5 flex flex-1 flex-col">
