@@ -353,13 +353,10 @@ export class AssetsService {
     }
 
     if (role === 'WORKER') {
-      const submittedFields = Object.entries(updateDto ?? {}).filter(
-        ([, value]) => value !== undefined && value !== null && value !== '',
-      );
-
-      if (!photo || submittedFields.length > 0) {
+      if (!photo) {
         throw new ForbiddenException('Solo puedes actualizar la foto del activo');
       }
+      updateDto = {};
     }
 
     const {
