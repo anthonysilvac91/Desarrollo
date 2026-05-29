@@ -34,7 +34,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         
         {/* Mobile app header */}
         <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-brand/10 flex items-center justify-center border border-brand/10">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-brand/10 flex items-center justify-center border border-brand/10">
             {user?.organization?.logo_url ? (
               <img
                 src={user.organization.logo_url}
@@ -42,17 +42,10 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <LayoutDashboard className="h-6 w-6 text-brand" />
+              <LayoutDashboard className="h-5 w-5 text-brand" />
             )}
           </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-black text-title tracking-tight">{getTitle()}</h1>
-            {(user?.name || organizationName) && (
-              <p className="truncate text-xs font-bold text-subtitle/45">
-                {user?.name ? `Hola, ${user.name}` : organizationName}
-              </p>
-            )}
-          </div>
+          <p className="truncate text-sm font-black text-title min-w-0">{organizationName}</p>
         </div>
 
         {/* Tablet menu button and title */}
@@ -112,7 +105,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                 <span className="text-[9px] text-subtitle/40 font-bold uppercase tracking-widest">{user?.role || "Admin"}</span>
               </div>
               
-              <div className="w-10 h-10 lg:w-9 lg:h-9 rounded-xl bg-brand/10 flex items-center justify-center border border-brand/20 overflow-hidden shadow-inner">
+              <div className="w-10 h-10 lg:w-9 lg:h-9 rounded-full bg-brand/10 flex items-center justify-center border border-brand/20 overflow-hidden shadow-inner">
                 {user?.avatar_url ? (
                   <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -124,37 +117,55 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
             {isProfileOpen && (
               <>
-                {/* Overlay for closing */}
                 <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
-                
-                {/* Dropdown Menu */}
-                <div className="absolute right-0 mt-3 w-56 bg-white border border-border-theme/30 rounded-3xl shadow-2xl shadow-title/10 z-40 py-2 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="px-4 py-3 border-b border-gray-50 mb-1">
-                    <p className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em] mb-1">Cuenta</p>
-                    <p className="text-xs font-bold text-title truncate">{user?.email}</p>
+
+                <div className="absolute right-0 mt-2 w-60 bg-surface border border-border-theme/40 rounded-2xl shadow-xl shadow-title/10 z-40 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+
+                  {/* User card */}
+                  <div className="p-3.5 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center shrink-0 overflow-hidden">
+                      {user?.avatar_url ? (
+                        <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-brand text-sm font-black">{userInitial}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-title truncate leading-tight">{user?.name || "Usuario"}</p>
+                      <span className="inline-block mt-0.5 px-1.5 py-px rounded-full bg-brand/10 text-[8px] font-black text-brand uppercase tracking-widest">
+                        {user?.role || "Admin"}
+                      </span>
+                      <p className="text-[9px] font-semibold text-subtitle/40 truncate mt-0.5">{user?.email}</p>
+                    </div>
                   </div>
-                  
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      router.push("/settings?tab=my_profile");
-                    }}
-                    className="w-full flex items-center space-x-3 px-4 py-3 text-subtitle/70 hover:text-brand hover:bg-brand/5 transition-all text-sm font-bold group"
-                  >
-                    <User className="w-4 h-4 opacity-40 group-hover:opacity-100" />
-                    <span>Mi Perfil</span>
-                  </button>
-                  
-                  <button 
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      logout();
-                    }}
-                    className="w-full flex items-center space-x-3 px-4 py-3 text-error/60 hover:text-error hover:bg-error/5 transition-all text-sm font-black group mt-1"
-                  >
-                    <LogOut className="w-4 h-4 opacity-40 group-hover:opacity-100" />
-                    <span>{t.auth.login.submit === "Sign In" ? "Logout" : "Cerrar Sesión"}</span>
-                  </button>
+
+                  <div className="mx-3 h-px bg-border-theme/30" />
+
+                  {/* Actions */}
+                  <div className="p-1.5">
+                    <button
+                      onClick={() => { setIsProfileOpen(false); router.push("/settings?tab=my_profile"); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-subtitle/70 hover:text-brand hover:bg-brand/5 transition-all group"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-app-bg flex items-center justify-center shrink-0 group-hover:bg-brand/10 transition-colors">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold">Mi Perfil</span>
+                    </button>
+
+                    <button
+                      onClick={() => { setIsProfileOpen(false); logout(); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-error/60 hover:text-error hover:bg-error/5 transition-all group"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-app-bg flex items-center justify-center shrink-0 group-hover:bg-error/10 transition-colors">
+                        <LogOut className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-black">
+                        {t.auth.login.submit === "Sign In" ? "Logout" : "Cerrar Sesión"}
+                      </span>
+                    </button>
+                  </div>
+
                 </div>
               </>
             )}
