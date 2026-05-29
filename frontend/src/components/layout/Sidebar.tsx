@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
-  Box,
+  Ship,
   LayoutGrid,
-  Briefcase,
+  Wrench,
   Users,
   Users2,
   Settings,
@@ -28,8 +28,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
     { href: "/organizations", label: t.sidebar.organizations, icon: Building2 },
-    { href: "/assets", label: t.sidebar.assets, icon: Box },
-    { href: "/service", label: t.sidebar.services, icon: Briefcase },
+    { href: "/assets", label: t.sidebar.assets, icon: Ship },
+    { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/owners", label: t.sidebar.owners || "Propietarios", icon: Users2 },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },

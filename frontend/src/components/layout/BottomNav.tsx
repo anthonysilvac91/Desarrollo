@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Box, Briefcase, LayoutGrid, Settings, Users } from "lucide-react";
+import { Ship, Wrench, LayoutGrid, Settings, Users } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 
@@ -13,8 +13,8 @@ export default function BottomNav() {
 
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
-    { href: "/assets", label: t.sidebar.assets, icon: Box },
-    { href: "/service", label: t.sidebar.services, icon: Briefcase },
+    { href: "/assets", label: t.sidebar.assets, icon: Ship },
+    { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },
   ].filter((link) => canAccess(link.href));
