@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, X, Calendar, User, Camera, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Calendar, Camera, FileText, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
 import { formatDate } from "@/lib/formatDate";
+
+const DESCRIPTION_CLAMP_THRESHOLD = 160;
 
 interface ServiceDetailViewProps {
   service: Service;
@@ -58,6 +60,7 @@ function AttachmentThumb({
 export default function ServiceDetailView({ service, onClose }: ServiceDetailViewProps) {
   const { t } = useLanguage();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["service", service.id],
@@ -71,6 +74,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
   const imageAttachments = attachments.filter(
     a => a.file_url && a.file_type?.startsWith("image/"),
   );
+  const descriptionIsLong = (current.description?.length ?? 0) > DESCRIPTION_CLAMP_THRESHOLD;
 
   const handleImageClick = (att: { file_url?: string | null; file_type?: string }) => {
     const idx = imageAttachments.findIndex(a => a.file_url === att.file_url);
@@ -80,7 +84,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
   return (
     <div className="flex flex-col pb-10 animate-in fade-in duration-200">
 
-      {/* Back button */}
+      {/* Back */}
       <div className="px-6 pt-8 pb-5 lg:px-10">
         <button
           onClick={onClose}
@@ -93,51 +97,58 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
         </button>
       </div>
 
-      {/* Title hero */}
-      <div className="px-6 pb-6 lg:px-10">
-        <div className="bg-surface rounded-3xl border border-border-theme/40 p-6 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="text-xl font-black text-title leading-tight flex-1">{current.title}</h2>
-            <div className="bg-brand/10 px-3 py-1.5 rounded-full shrink-0 flex items-center gap-1.5">
-              <Calendar className="w-3 h-3 text-brand" />
-              <span className="text-[10px] font-black text-brand uppercase tracking-wider whitespace-nowrap">
-                {formatDate(current.created_at)}
+      {/* Badges: fecha + operador */}
+      <div className="px-6 pb-4 lg:px-10 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 bg-brand/10 border border-brand/15 px-3 py-1.5 rounded-full">
+          <Calendar className="w-3 h-3 text-brand shrink-0" />
+          <span className="text-[10px] font-black text-brand uppercase tracking-wider whitespace-nowrap">
+            {formatDate(current.created_at)}
+          </span>
+        </div>
+
+        {current.worker && (
+          <div className="flex items-center gap-2 bg-app-bg border border-border-theme/50 pl-1 pr-3 py-1 rounded-full">
+            <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+              <span className="text-[8px] font-black text-brand leading-none">
+                {getInitials(current.worker.name)}
               </span>
             </div>
+            <span className="text-[10px] font-black text-subtitle/60 uppercase tracking-wider truncate max-w-28">
+              {current.worker.name}
+            </span>
           </div>
-          {current.description ? (
-            <p className="text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap">
-              {current.description}
-            </p>
-          ) : (
-            <p className="text-sm text-subtitle/30 font-medium italic">Sin descripción</p>
+        )}
+      </div>
+
+      {/* Título */}
+      <div className="px-6 pb-3 lg:px-10">
+        <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4">
+          <h2 className="text-base font-black text-title leading-snug">{current.title}</h2>
+        </div>
+      </div>
+
+      {/* Descripción */}
+      <div className="px-6 pb-5 lg:px-10">
+        <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4 space-y-3">
+          <p className={`text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap ${
+            !descriptionExpanded && descriptionIsLong
+              ? "overflow-hidden [display:-webkit-box] [-webkit-line-clamp:4] [-webkit-box-orient:vertical]"
+              : ""
+          }`}>
+            {current.description || <span className="italic text-subtitle/30">Sin descripción</span>}
+          </p>
+          {descriptionIsLong && (
+            <button
+              onClick={() => setDescriptionExpanded(v => !v)}
+              className="text-[10px] font-black text-brand uppercase tracking-widest hover:text-brand/70 transition-colors"
+            >
+              {descriptionExpanded ? "Ver menos" : "Ver más"}
+            </button>
           )}
         </div>
       </div>
 
-      {/* Worker */}
-      {current.worker && (
-        <div className="px-6 pb-5 lg:px-10">
-          <div className="bg-surface rounded-2xl border border-border-theme/40 p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-              <span className="text-xs font-black text-brand">
-                {getInitials(current.worker.name)}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest block">
-                {t.mobile.service_detail.worker_label}
-              </span>
-              <span className="text-sm font-bold text-title truncate block">
-                {current.worker.name}
-              </span>
-            </div>
-            <User className="w-4 h-4 text-subtitle/20 ml-auto shrink-0" />
-          </div>
-        </div>
-      )}
-
-      {/* Evidence */}
+      {/* Evidencia */}
       <div className="px-6 lg:px-10">
         <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden">
           <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
@@ -183,14 +194,12 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
             className="absolute inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
             onClick={() => setSelectedImageIndex(null)}
           />
-
           <button
             onClick={() => setSelectedImageIndex(null)}
-            className="absolute top-10 right-5 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 text-title active:scale-90 transition-all"
+            className="absolute top-10 right-5 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
           >
             <X className="w-5 h-5 text-brand" />
           </button>
-
           {selectedImageIndex > 0 && (
             <button
               onClick={() => setSelectedImageIndex(i => (i ?? 0) - 1)}
@@ -199,7 +208,6 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
               <ChevronLeft className="w-5 h-5 text-brand" />
             </button>
           )}
-
           {selectedImageIndex < imageAttachments.length - 1 && (
             <button
               onClick={() => setSelectedImageIndex(i => (i ?? 0) + 1)}
@@ -208,7 +216,6 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
               <ChevronRight className="w-5 h-5 text-brand" />
             </button>
           )}
-
           <div className="relative w-full max-w-sm aspect-square rounded-[32px] overflow-hidden border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
             <img
               src={imageAttachments[selectedImageIndex]?.file_url ?? ""}
@@ -216,7 +223,6 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
               alt="Evidencia"
             />
           </div>
-
           {imageAttachments.length > 1 && (
             <div className="absolute bottom-8 left-0 right-0 flex justify-center z-10">
               <span className="text-xs font-black text-title/50 bg-surface/80 backdrop-blur-sm px-3 py-1 rounded-full border border-border-theme/20">
