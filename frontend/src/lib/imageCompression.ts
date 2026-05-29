@@ -50,8 +50,10 @@ export async function compressImageFile(file: File, options: CompressImageOption
     throw new Error(`La imagen comprimida pesa ${formatBytes(blob.size)}. El maximo permitido es ${formatBytes(options.maxBytes)}.`);
   }
 
-  const extension = blob.type === PREFERRED_OUTPUT_TYPE ? "webp" : "jpg";
-  return new File([blob], `${options.fileNamePrefix}.${extension}`, { type: blob.type });
+  const typeToExt: Record<string, string> = { "image/webp": "webp", "image/png": "png" };
+  const extension = typeToExt[blob.type] ?? "jpg";
+  const fileType = blob.type || FALLBACK_OUTPUT_TYPE;
+  return new File([blob], `${options.fileNamePrefix}.${extension}`, { type: fileType });
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {
@@ -72,6 +74,10 @@ function loadImage(file: File): Promise<HTMLImageElement> {
 }
 
 function isImageFile(file: File) {
+  if (!file.type) {
+    const ext = file.name.toLowerCase().split(".").pop() ?? "";
+    return ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"].includes(ext);
+  }
   return file.type.startsWith("image/") || isHeicFile(file);
 }
 
@@ -107,12 +113,6 @@ function replaceExtension(fileName: string, extension: string) {
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      if (!blob || blob.type !== type) {
-        resolve(null);
-        return;
-      }
-      resolve(blob);
-    }, type, quality);
+    canvas.toBlob((blob) => resolve(blob ?? null), type, quality);
   });
 }
