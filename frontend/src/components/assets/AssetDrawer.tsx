@@ -352,7 +352,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             {t.assets.drawer.maintenance_history}
           </h3>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             {/* Date filter */}
             <div className="flex items-center gap-2">
               <div ref={customPickerRef} className="relative">
