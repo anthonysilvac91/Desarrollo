@@ -13,6 +13,7 @@ import { Asset, assetsService, Service } from "@/services/assets.service";
 import { formatDate } from "@/lib/formatDate";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ImageCropModal from "@/components/ui/ImageCropModal";
+import NewServiceForm from "@/components/assets/NewServiceForm";
 import { useToast } from "@/lib/ToastContext";
 import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
@@ -53,6 +54,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const [fullAsset, setFullAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
+  const [view, setView] = useState<"history" | "new-service">("history");
   const [visibleCount, setVisibleCount] = useState(4);
   const [workerFilter, setWorkerFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<"custom" | null>(null);
@@ -131,6 +133,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   useEffect(() => {
     if (initialAsset?.id) {
       setLoading(true);
+      setView("history");
       setVisibleCount(4);
       setWorkerFilter(null);
       setDateFilter(null);
@@ -175,6 +178,16 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isCustomPickerOpen]);
+
+  const handleServiceCreated = async () => {
+    setView("history");
+    if (initialAsset?.id) {
+      try {
+        const updated = await assetsService.findOne(initialAsset.id);
+        setFullAsset(updated);
+      } catch { /* silently ignore — queries already invalidated */ }
+    }
+  };
 
   if (!initialAsset) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
 
@@ -308,7 +321,21 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           </div>
         </div>
 
+        {/* New service form view */}
+        {view === "new-service" && (
+          <div className="px-6 py-8 flex-1 lg:px-10">
+            <NewServiceForm
+              asset={currentAsset}
+              onSuccess={handleServiceCreated}
+              onCancel={() => setView("history")}
+              inline
+            />
+          </div>
+        )}
+
         {/* Maintenance History */}
+        {view === "history" && (
+        <>
         <div className="px-6 py-8 space-y-4 flex-1 lg:px-10">
           <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
             {t.assets.drawer.maintenance_history}
@@ -540,6 +567,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             </div>
           )}
         </div>
+        </>
+        )}
 
       </div>
 
@@ -548,12 +577,9 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         onClose={() => setSelectedService(null)} 
       />
 
-      {canCreateService && (
+      {canCreateService && view === "history" && (
         <button
-          onClick={() => {
-            onClose();
-            router.push(`/assets/${initialAsset.id}/new-service`);
-          }}
+          onClick={() => setView("new-service")}
           className="fixed bottom-24 right-6 lg:hidden z-60 w-14 h-14 bg-brand text-white rounded-full shadow-xl shadow-brand/30 flex items-center justify-center active:scale-95 transition-all"
           aria-label={t.services.add_new}
         >
