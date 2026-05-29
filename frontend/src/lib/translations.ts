@@ -485,6 +485,7 @@ export const translations = {
         loading_asset: "Loading...",
       },
       service_detail: {
+        title: "Service",
         worker_label: "Operator",
         date_label: "Completed on",
         evidence_label: "Attached Evidence",
@@ -1069,6 +1070,7 @@ export const translations = {
         loading_asset: "Cargando...",
       },
       service_detail: {
+        title: "Servicio",
         worker_label: "Operador",
         date_label: "Completado el",
         evidence_label: "Evidencia Adjunta",

@@ -91,7 +91,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
           className="flex items-center gap-1.5 text-xs font-black text-subtitle/70 uppercase tracking-widest hover:text-subtitle transition-colors"
         >
           <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5px]" />
-          <span>{t.assets.drawer.maintenance_history}</span>
+          <span>{t.mobile.service_detail.title}</span>
         </button>
       </div>
 
