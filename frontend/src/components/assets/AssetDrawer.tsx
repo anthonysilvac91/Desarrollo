@@ -347,7 +347,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         {/* Maintenance History */}
         {view === "history" && (
         <>
-        <div className="px-6 py-8 space-y-4 flex-1 lg:px-10">
+        <div className="px-6 py-8 flex-1 lg:px-10 space-y-6">
           <h3 className="text-2xl font-black text-title tracking-tight leading-none text-center">
             {t.assets.drawer.maintenance_history}
           </h3>
