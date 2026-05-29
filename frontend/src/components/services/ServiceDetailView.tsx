@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, X, Calendar, Camera, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -144,9 +144,13 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
           {descriptionIsLong && (
             <button
               onClick={() => setDescriptionExpanded(v => !v)}
-              className="text-[10px] font-black text-brand uppercase tracking-widest hover:text-brand/70 transition-colors"
+              className="flex items-center gap-1 text-[10px] font-black text-brand uppercase tracking-widest hover:text-brand/70 transition-colors"
             >
-              {descriptionExpanded ? "Ver menos" : "Ver más"}
+              <span>{descriptionExpanded ? "Ver menos" : "Ver más"}</span>
+              {descriptionExpanded
+                ? <ChevronUp className="w-3 h-3 stroke-[2.5px]" />
+                : <ChevronDown className="w-3 h-3 stroke-[2.5px]" />
+              }
             </button>
           )}
         </div>
