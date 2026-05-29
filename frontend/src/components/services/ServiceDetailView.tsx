@@ -121,14 +121,20 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
       </div>
 
       {/* Título */}
-      <div className="px-6 pb-3 lg:px-10">
+      <div className="px-6 pb-3 lg:px-10 space-y-1.5">
+        <span className="block px-1 text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+          {t.mobile.new_service.title_label}
+        </span>
         <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4">
           <h2 className="text-base font-black text-title leading-snug">{current.title}</h2>
         </div>
       </div>
 
       {/* Descripción */}
-      <div className="px-6 pb-5 lg:px-10">
+      <div className="px-6 pb-5 lg:px-10 space-y-1.5">
+        <span className="block px-1 text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+          {t.mobile.new_service.description_label}
+        </span>
         <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4 space-y-3">
           <p className={`text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap ${
             !descriptionExpanded && descriptionIsLong
