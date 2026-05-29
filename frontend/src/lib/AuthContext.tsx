@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return ROUTE_PERMISSIONS[protectedPath].includes(user.role);
   };
 
-  // Proteger rutas (Auth + Roles + Dispositivos)
+  // Proteger rutas (Auth + Roles)
   useEffect(() => {
     if (!loading) {
       const isPublicPath =
@@ -117,55 +117,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pathname === "/forgot-password" ||
         pathname === "/reset-password" ||
         pathname === "/register";
-      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-      
+
       if (!user && !isPublicPath) {
         router.push("/login");
         return;
       }
 
       if (user) {
-        const isWorker = user.role === "WORKER";
-        const isMobileAppRole = user.role === "ADMIN" || user.role === "WORKER";
-
-        // A. Redirecciones basadas en rol para /app (aislamiento)
-        if (isMobileAppRole) {
-          if (!isMobile && pathname.startsWith("/app")) {
-            // Worker en PC -> Web normal
-            router.replace(user.role === "ADMIN" ? "/dashboard" : "/assets");
-            return;
-          } else if (isWorker && isMobile && !pathname.startsWith("/app") && !isPublicPath) {
-            // Worker en Teléfono -> Obligar /app
-            router.replace("/app");
-            return;
-          }
-        } else {
-          // Otros roles -> Prohibido entrar a /app
-          if (pathname.startsWith("/app")) {
-            if (user.role === "SUPER_ADMIN") router.replace("/dashboard");
-            else if (user.role === "ADMIN") router.replace("/dashboard");
-            else router.replace("/assets");
-            return;
-          }
+        // A. /app está en desuso — redirigir a rutas principales
+        if (pathname.startsWith("/app")) {
+          router.replace(
+            user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "/dashboard" : "/assets"
+          );
+          return;
         }
 
         // B. Redirección desde login o home
         if (isPublicPath) {
-          if (user.role === "SUPER_ADMIN") router.push("/dashboard");
-          else if (user.role === "ADMIN") router.push(isMobile ? "/app" : "/dashboard");
-          else if (user.role === "WORKER") router.push(isMobile ? "/app" : "/assets");
-          else router.push("/assets"); // EXTERNAL
+          if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") router.push("/dashboard");
+          else router.push("/assets");
           return;
         }
 
         // C. Validación de permisos genérica
         if (!canAccess(pathname)) {
           const fallback =
-            user.role === "ADMIN"
-              ? (isMobile ? "/app" : "/dashboard")
-              : user.role === "WORKER"
-                ? (isMobile ? "/app" : "/assets")
-                : "/assets";
+            user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "/dashboard" : "/assets";
           router.replace(fallback);
         }
       }
