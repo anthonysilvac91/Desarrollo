@@ -86,13 +86,17 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
 
       {/* Back */}
       <div className="px-6 pt-8 pb-5 lg:px-10">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-1.5 text-xs font-black text-subtitle/70 uppercase tracking-widest hover:text-subtitle transition-colors"
-        >
-          <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5px] text-brand" />
-          <span>{t.mobile.service_detail.title}</span>
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onClose}
+            className="p-3 rounded-full bg-surface border border-border-theme/60 hover:bg-app-bg transition-all shadow-sm shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5 stroke-[2.5px]" />
+          </button>
+          <span className="text-xs font-black text-subtitle/70 uppercase tracking-widest">
+            {t.mobile.service_detail.title}
+          </span>
+        </div>
       </div>
 
       {/* Badges: fecha + operador */}
