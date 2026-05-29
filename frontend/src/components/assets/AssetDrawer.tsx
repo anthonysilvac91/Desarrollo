@@ -347,11 +347,12 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         {/* Maintenance History */}
         {view === "history" && (
         <>
-        <div className="px-6 py-8 flex-1 lg:px-10 space-y-10">
-          <h3 className="text-2xl font-black text-title tracking-tight leading-none text-center">
+        <div className="px-6 py-8 flex-1 lg:px-10">
+          <h3 className="text-2xl font-black text-title tracking-tight leading-none text-center mb-10">
             {t.assets.drawer.maintenance_history}
           </h3>
 
+          <div className="space-y-4">
           <div className="flex items-center gap-2">
             {/* Date filter */}
             <div className="flex items-center gap-2">
@@ -552,6 +553,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                 </button>
               </div>
             ))}
+          </div>
           </div>
         </div>
 
