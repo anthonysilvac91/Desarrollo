@@ -151,47 +151,47 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
         <div className="space-y-5">
 
           {/* Título */}
-          <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
-            <div className="px-6 pt-5 pb-1 border-b border-border-theme/20">
-              <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
-                {t.mobile.new_service.title_label}
-              </label>
-            </div>
-            <input
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              maxLength={TITLE_MAX_LENGTH}
-              disabled={isSubmitting}
-              placeholder={t.mobile.new_service.title_placeholder}
-              className="w-full bg-transparent px-6 py-5 text-title font-bold text-base placeholder:text-subtitle/25 focus:outline-none disabled:opacity-50"
-            />
-            <div className="px-6 pb-4 flex justify-end">
-              <span className={`text-[10px] font-black tracking-widest ${title.length > TITLE_MAX_LENGTH * 0.9 ? "text-brand" : "text-subtitle/25"}`}>
-                {title.length}/{TITLE_MAX_LENGTH}
-              </span>
+          <div className="space-y-1.5">
+            <span className="block px-1 text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+              {t.mobile.new_service.title_label}
+            </span>
+            <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
+              <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                maxLength={TITLE_MAX_LENGTH}
+                disabled={isSubmitting}
+                placeholder={t.mobile.new_service.title_placeholder}
+                className="w-full bg-transparent px-6 py-5 text-title font-bold text-base placeholder:text-subtitle/25 focus:outline-none disabled:opacity-50"
+              />
+              <div className="px-6 pb-4 flex justify-end">
+                <span className={`text-[10px] font-black tracking-widest ${title.length > TITLE_MAX_LENGTH * 0.9 ? "text-brand" : "text-subtitle/25"}`}>
+                  {title.length}/{TITLE_MAX_LENGTH}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Descripción */}
-          <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
-            <div className="px-6 pt-5 pb-1 border-b border-border-theme/20">
-              <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
-                {t.mobile.new_service.description_label}
-              </label>
-            </div>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              maxLength={DESCRIPTION_MAX_LENGTH}
-              disabled={isSubmitting}
-              placeholder={t.mobile.new_service.description_placeholder}
-              rows={6}
-              className="w-full bg-transparent px-6 py-5 text-subtitle font-semibold text-sm placeholder:text-subtitle/25 focus:outline-none resize-none disabled:opacity-50 leading-relaxed"
-            />
-            <div className="px-6 pb-4 flex justify-end">
-              <span className={`text-[10px] font-black tracking-widest ${description.length > DESCRIPTION_MAX_LENGTH * 0.9 ? "text-brand" : "text-subtitle/25"}`}>
-                {description.length}/{DESCRIPTION_MAX_LENGTH}
-              </span>
+          <div className="space-y-1.5">
+            <span className="block px-1 text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+              {t.mobile.new_service.description_label}
+            </span>
+            <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                maxLength={DESCRIPTION_MAX_LENGTH}
+                disabled={isSubmitting}
+                placeholder={t.mobile.new_service.description_placeholder}
+                rows={6}
+                className="w-full bg-transparent px-6 py-5 text-subtitle font-semibold text-sm placeholder:text-subtitle/25 focus:outline-none resize-none disabled:opacity-50 leading-relaxed"
+              />
+              <div className="px-6 pb-4 flex justify-end">
+                <span className={`text-[10px] font-black tracking-widest ${description.length > DESCRIPTION_MAX_LENGTH * 0.9 ? "text-brand" : "text-subtitle/25"}`}>
+                  {description.length}/{DESCRIPTION_MAX_LENGTH}
+                </span>
+              </div>
             </div>
           </div>
 
