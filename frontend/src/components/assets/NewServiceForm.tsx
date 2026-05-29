@@ -15,7 +15,7 @@ import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
 
 const TITLE_MAX_LENGTH = 120;
-const DESCRIPTION_MAX_LENGTH = 400;
+const DESCRIPTION_MAX_LENGTH = 2000;
 const MAX_PHOTOS = 8;
 
 interface NewServiceFormProps {
