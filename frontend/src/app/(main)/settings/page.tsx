@@ -30,6 +30,7 @@ import {
 import { useLanguage } from "@/lib/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import ModuleContainer from "@/components/ui/ModuleContainer";
+import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import { organizationsService } from "@/services/organizations.service";
 import { usersService } from "@/services/users.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -231,8 +232,9 @@ export default function SettingsPage() {
   if (canManageOrgSettings && isLoading) return <div className="p-20 text-center animate-pulse text-subtitle/40 font-black uppercase">Cargando...</div>;
 
   return (
-    <div className="flex flex-col space-y-6">
-      
+    <div>
+      <MobileDevBanner />
+      <div className="hidden lg:flex flex-col space-y-6">
       {/* Horizontal Tabs Navigation */}
       <div className="flex items-center space-x-2 border-b border-border-theme/40 pb-px mb-2">
         {tabs.map((tab) => {
@@ -562,6 +564,7 @@ export default function SettingsPage() {
             </ModuleContainer>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

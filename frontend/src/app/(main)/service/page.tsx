@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
+import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus } from "lucide-react";
@@ -205,7 +206,9 @@ export default function ServicesPage() {
   );
 
   return (
-    <div className="flex flex-col space-y-8">
+    <div>
+      <MobileDevBanner />
+      <div className="hidden lg:flex flex-col space-y-8">
       <FiltersBar
         searchPlaceholder={t.services.search_placeholder}
         onSearchChange={setSearch}
@@ -298,6 +301,7 @@ export default function ServicesPage() {
         cancelText={t.confirm_modal.cancel_delete}
         variant="danger"
       />
+      </div>
     </div>
   );
 }

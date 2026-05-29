@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
+import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -285,7 +286,9 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="flex flex-col space-y-8">
+    <div>
+      <MobileDevBanner />
+      <div className="hidden lg:flex flex-col space-y-8">
       <FiltersBar
         searchPlaceholder={t.users.search_placeholder}
         onSearchChange={(value) => {
@@ -402,6 +405,7 @@ export default function UsersPage() {
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={() => refetch()}
       />
+      </div>
     </div>
   );
 }
