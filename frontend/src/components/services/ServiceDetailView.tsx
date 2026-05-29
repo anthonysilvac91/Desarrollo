@@ -88,12 +88,10 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
       <div className="px-6 pt-8 pb-5 lg:px-10">
         <button
           onClick={onClose}
-          className="flex items-center gap-2 text-subtitle/50 hover:text-brand transition-colors group"
+          className="flex items-center gap-1.5 text-[10px] font-black text-brand uppercase tracking-widest hover:text-brand/70 transition-colors"
         >
-          <ChevronLeft className="w-4 h-4 stroke-[2.5px] group-hover:-translate-x-0.5 transition-transform" />
-          <span className="text-xs font-black uppercase tracking-widest">
-            {t.assets.drawer.maintenance_history}
-          </span>
+          <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5px]" />
+          <span>{t.assets.drawer.maintenance_history}</span>
         </button>
       </div>
 
