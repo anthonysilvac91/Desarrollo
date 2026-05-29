@@ -41,9 +41,10 @@ export const ICON_MAP: Record<string, LucideIcon> = {
 interface AssetIconProps {
   iconId?: string | null;
   className?: string;
+  strokeWidth?: number;
 }
 
-export default function AssetIcon({ iconId, className }: AssetIconProps) {
+export default function AssetIcon({ iconId, className, strokeWidth }: AssetIconProps) {
   const Icon = (iconId && ICON_MAP[iconId]) || Ship;
-  return <Icon className={className} />;
+  return <Icon className={className} strokeWidth={strokeWidth} />;
 }

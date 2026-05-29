@@ -24,7 +24,7 @@ const getInitials = (name: string) =>
 const AssetImage = ({ src, alt, iconId }: { src: string; alt: string | undefined; iconId?: string | null }) => {
   const [error, setError] = useState(false);
   if (!src || error) {
-    return <AssetIcon iconId={iconId} className="w-7 h-7 text-brand opacity-30" />;
+    return <AssetIcon iconId={iconId} className="w-9 h-9 text-brand" strokeWidth={1.5} />;
   }
   return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
 };
@@ -425,6 +425,7 @@ export default function AssetsPage() {
 
   return (
     <div className="flex flex-col space-y-4 lg:space-y-10">
+      <h1 className="lg:hidden text-2xl font-black text-title tracking-tight text-center">{t.topbar.titles.assets}</h1>
       <FiltersBar
         searchPlaceholder={t.assets.search_placeholder}
         onSearchChange={setSearch}

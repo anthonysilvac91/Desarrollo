@@ -287,7 +287,7 @@ export default function AssetDetailPage() {
               {asset.thumbnail_url ? (
                 <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
               ) : (
-                <Ship className="w-8 h-8 sm:w-10 sm:h-10 text-brand/20" />
+                <Ship className="w-10 h-10 sm:w-12 sm:h-12 text-brand" strokeWidth={1.5} />
               )}
             </div>
             <button

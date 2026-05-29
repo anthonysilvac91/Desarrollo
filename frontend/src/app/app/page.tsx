@@ -13,7 +13,7 @@ import AssetModal from "@/components/assets/AssetModal";
 const AssetImage = ({ src, alt }: { src?: string; alt: string }) => {
   const [error, setError] = useState(false);
   if (!src || error) {
-    return <Ship className="w-6 h-6 text-brand opacity-30" />;
+    return <Ship className="w-8 h-8 text-brand" strokeWidth={1.5} />;
   }
   return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
 };

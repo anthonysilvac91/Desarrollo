@@ -35,7 +35,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             {currentService.asset?.thumbnail_url ? (
               <img src={currentService.asset.thumbnail_url} alt={currentService.asset.name} className="w-full h-full object-cover" />
             ) : (
-              <Ship className="w-10 h-10 text-brand/30" />
+              <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
             )}
           </div>
           <div className="flex flex-col space-y-1">
