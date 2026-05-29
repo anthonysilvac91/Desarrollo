@@ -90,7 +90,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
           onClick={onClose}
           className="flex items-center gap-1.5 text-xs font-black text-subtitle/70 uppercase tracking-widest hover:text-subtitle transition-colors"
         >
-          <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5px]" />
+          <ChevronLeft className="w-3.5 h-3.5 stroke-[2.5px] text-brand" />
           <span>{t.mobile.service_detail.title}</span>
         </button>
       </div>
