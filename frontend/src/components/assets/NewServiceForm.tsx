@@ -129,7 +129,6 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
             <h1 className="text-2xl sm:text-3xl font-black text-title tracking-tight leading-none">
               {t.mobile.new_service.header_title}
             </h1>
-            <p className="text-sm font-bold text-subtitle/50 mt-1">{asset.name}</p>
           </div>
         </div>
 
