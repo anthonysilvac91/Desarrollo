@@ -93,7 +93,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
           >
             <ChevronLeft className="w-5 h-5 stroke-[2.5px]" />
           </button>
-          <span className="text-xs font-black text-subtitle/70 uppercase tracking-widest">
+          <span className="text-2xl font-black text-title tracking-tight leading-none">
             {t.mobile.service_detail.title}
           </span>
         </div>
