@@ -107,13 +107,13 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
         </div>
 
         {current.worker && (
-          <div className="flex items-center gap-2 bg-app-bg border border-border-theme/50 pl-1 pr-3 py-1 rounded-full">
-            <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-              <span className="text-[8px] font-black text-brand leading-none">
+          <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-2.5 py-1">
+            <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
+              <span className="text-[9px] font-black text-white">
                 {getInitials(current.worker.name)}
               </span>
             </div>
-            <span className="text-[10px] font-black text-subtitle/60 uppercase tracking-wider truncate max-w-28">
+            <span className="text-xs font-bold text-brand truncate max-w-24">
               {current.worker.name}
             </span>
           </div>
