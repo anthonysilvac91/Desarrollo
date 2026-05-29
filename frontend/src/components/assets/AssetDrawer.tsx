@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { Asset, assetsService, Service } from "@/services/assets.service";
 import { formatDate } from "@/lib/formatDate";
-import ServiceDrawer from "@/components/services/ServiceDrawer";
+import ServiceDetailView from "@/components/services/ServiceDetailView";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import NewServiceForm from "@/components/assets/NewServiceForm";
 import { useToast } from "@/lib/ToastContext";
@@ -54,7 +54,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const [fullAsset, setFullAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
-  const [view, setView] = useState<"history" | "new-service">("history");
+  const [view, setView] = useState<"history" | "new-service" | "service-detail">("history");
   const [visibleCount, setVisibleCount] = useState(4);
   const [workerFilter, setWorkerFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<"custom" | null>(null);
@@ -134,6 +134,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
     if (initialAsset?.id) {
       setLoading(true);
       setView("history");
+      setSelectedService(null);
       setVisibleCount(4);
       setWorkerFilter(null);
       setDateFilter(null);
@@ -320,6 +321,16 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             </div>
           </div>
         </div>
+
+        {/* Service detail view */}
+        {view === "service-detail" && selectedService && (
+          <div className="flex-1">
+            <ServiceDetailView
+              service={selectedService}
+              onClose={() => { setView("history"); setSelectedService(null); }}
+            />
+          </div>
+        )}
 
         {/* New service form view */}
         {view === "new-service" && (
@@ -533,7 +544,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSelectedService(service as unknown as DrawerService)}
+                  onClick={() => { setSelectedService(service as unknown as DrawerService); setView("service-detail"); }}
                   className="flex min-h-13 w-full items-center justify-between border-t border-border-theme/30 px-5 py-3 text-brand transition-all hover:bg-brand/5 active:bg-brand/10 cursor-pointer"
                 >
                   <span className="text-sm font-black">Ver detalles</span>
@@ -571,11 +582,6 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         )}
 
       </div>
-
-      <ServiceDrawer 
-        service={selectedService} 
-        onClose={() => setSelectedService(null)} 
-      />
 
       {canCreateService && view === "history" && (
         <button
