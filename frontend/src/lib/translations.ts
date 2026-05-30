@@ -166,7 +166,7 @@ export const translations = {
       },
       drawer: {
         report_label: "Service",
-        evidence_label: "Gallery",
+        evidence_label: "Visual Evidence",
         no_photos: "No attached photos",
         close: "Close Report",
       },
@@ -492,6 +492,14 @@ export const translations = {
         not_found: "Service not found",
         go_back: "Go Back",
         loading: "Loading service...",
+        lightbox: {
+          title: "Visual Evidence",
+          detail_label: "Detail",
+          detail_description: "Visual evidence recorded during the service to document the observed condition and work performed.",
+          photo: "photo",
+          photos: "photos",
+          counter_hint: "Swipe or use the arrows",
+        },
       },
       nav: {
         assets: "Assets",
@@ -749,7 +757,7 @@ export const translations = {
       },
       drawer: {
         report_label: "Servicio",
-        evidence_label: "Galería",
+        evidence_label: "Evidencia visual",
         no_photos: "Sin fotos adjuntas",
         close: "Cerrar Reporte",
       },
@@ -1077,6 +1085,14 @@ export const translations = {
         not_found: "Servicio no encontrado",
         go_back: "Volver",
         loading: "Cargando servicio...",
+        lightbox: {
+          title: "Evidencia visual",
+          detail_label: "Detalle",
+          detail_description: "Evidencia visual registrada durante el servicio para documentar el estado observado y el trabajo realizado.",
+          photo: "foto",
+          photos: "fotos",
+          counter_hint: "Desliza o usa las flechas",
+        },
       },
       nav: {
         assets: "Activos",

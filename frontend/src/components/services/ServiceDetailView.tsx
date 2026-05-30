@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -201,47 +201,107 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
 
       {/* Lightbox */}
       {selectedImageIndex !== null && imageAttachments.length > 0 && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="absolute inset-0 z-[100] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
-            className="absolute inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
+            className="fixed inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
             onClick={() => setSelectedImageIndex(null)}
           />
-          <button
-            onClick={() => setSelectedImageIndex(null)}
-            className="absolute top-10 right-5 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
-          >
-            <X className="w-5 h-5 text-brand" />
-          </button>
-          {selectedImageIndex > 0 && (
-            <button
-              onClick={() => setSelectedImageIndex(i => (i ?? 0) - 1)}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
-            >
-              <ChevronLeft className="w-5 h-5 text-brand" />
-            </button>
-          )}
-          {selectedImageIndex < imageAttachments.length - 1 && (
-            <button
-              onClick={() => setSelectedImageIndex(i => (i ?? 0) + 1)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
-            >
-              <ChevronRight className="w-5 h-5 text-brand" />
-            </button>
-          )}
-          <div className="relative w-full max-w-sm aspect-square rounded-[32px] overflow-hidden border border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
-            <img
-              src={imageAttachments[selectedImageIndex]?.file_url ?? ""}
-              className="w-full h-full object-cover"
-              alt="Evidencia"
-            />
-          </div>
-          {imageAttachments.length > 1 && (
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center z-10">
-              <span className="text-xs font-black text-title/50 bg-surface/80 backdrop-blur-sm px-3 py-1 rounded-full border border-border-theme/20">
-                {selectedImageIndex + 1} / {imageAttachments.length}
-              </span>
+          <div className="relative z-10 flex flex-col items-center gap-4 px-6 pt-10 pb-10 min-h-full animate-in zoom-in-95 duration-200">
+
+            {/* Header */}
+            <div className="w-full max-w-sm flex items-center justify-between">
+              <p className="text-lg font-black text-title">{t.mobile.service_detail.lightbox.title}</p>
+              <button
+                onClick={() => setSelectedImageIndex(null)}
+                className="p-2.5 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+              >
+                <X className="w-5 h-5 text-brand" />
+              </button>
             </div>
-          )}
+
+            {/* Image with navigation */}
+            <div className="relative w-full max-w-sm">
+              {selectedImageIndex > 0 && (
+                <button
+                  onClick={() => setSelectedImageIndex(i => (i ?? 0) - 1)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5 text-brand" />
+                </button>
+              )}
+              {selectedImageIndex < imageAttachments.length - 1 && (
+                <button
+                  onClick={() => setSelectedImageIndex(i => (i ?? 0) + 1)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+                >
+                  <ChevronRight className="w-5 h-5 text-brand" />
+                </button>
+              )}
+              <div className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl">
+                <img
+                  src={imageAttachments[selectedImageIndex]?.file_url ?? ""}
+                  className="w-full h-full object-cover"
+                  alt="Evidencia"
+                />
+              </div>
+            </div>
+
+            {/* Counter */}
+            {imageAttachments.length > 1 && (
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-xs font-black text-title/50">
+                  {selectedImageIndex + 1} / {imageAttachments.length}
+                </span>
+                <span className="text-[10px] text-subtitle/50">{t.mobile.service_detail.lightbox.counter_hint}</span>
+              </div>
+            )}
+
+            {/* Thumbnails */}
+            {imageAttachments.length > 1 && (
+              <div className="w-full max-w-sm overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex w-max min-w-full justify-center gap-2 px-1">
+                  {imageAttachments.map((att, index) => {
+                    const isSelected = index === selectedImageIndex;
+                    return (
+                      <button
+                        key={`${att.file_url}-${index}`}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(index)}
+                        aria-label={`Ver foto ${index + 1}`}
+                        aria-current={isSelected ? "true" : undefined}
+                        className={`h-14 w-14 shrink-0 overflow-hidden rounded-2xl border bg-surface shadow-lg transition-all active:scale-95 ${
+                          isSelected
+                            ? "border-brand ring-2 ring-brand/30 opacity-100"
+                            : "border-white/20 opacity-60"
+                        }`}
+                      >
+                        <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Detail section */}
+            <div className="w-full max-w-sm">
+              <div className="flex items-start gap-3 bg-surface/60 backdrop-blur-sm rounded-2xl p-4 border border-border-theme/20">
+                <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Info className="w-3 h-3 text-brand" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-title mb-1">{t.mobile.service_detail.lightbox.detail_label}</p>
+                  <p className="text-xs text-subtitle leading-relaxed mb-2">
+                    {t.mobile.service_detail.lightbox.detail_description}
+                  </p>
+                  <p className="text-xs text-subtitle/70 font-medium">
+                    {current.worker?.name} · {formatDate(current.created_at)} · {imageAttachments.length} {imageAttachments.length === 1 ? t.mobile.service_detail.lightbox.photo : t.mobile.service_detail.lightbox.photos}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
