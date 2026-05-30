@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RegisterSchema, RegisterFormData } from "@/types/schemas";
@@ -19,6 +19,14 @@ interface InvitationData {
 }
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen w-full flex items-center justify-center bg-app-bg"><Loader2 className="w-8 h-8 text-brand animate-spin" /></div>}>
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const { login } = useAuth();
