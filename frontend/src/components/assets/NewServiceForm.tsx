@@ -41,11 +41,11 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
   const [isProcessingImages, setIsProcessingImages] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
+    const fileArray = Array.from(e.target.files ?? []);
     e.target.value = "";
+    if (!fileArray.length) return;
     const remaining = MAX_PHOTOS - images.length;
-    const toProcess = Array.from(files).slice(0, remaining);
+    const toProcess = fileArray.slice(0, remaining);
     if (!toProcess.length) return;
 
     setIsProcessingImages(true);
