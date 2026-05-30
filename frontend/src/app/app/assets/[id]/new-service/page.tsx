@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle, Image as ImageIcon } from "lucide-react";
+import { X, Camera, Ship, Calendar, Check, Loader2, AlertCircle } from "lucide-react";
 import MobileHeader from "@/components/layout/MobileHeader";
 import { Asset, assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
@@ -27,9 +27,7 @@ export default function WorkerNewServicePage() {
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
-  const [isImageSourceOpen, setIsImageSourceOpen] = useState(false);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const libraryInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const cachedAsset = queryClient.getQueryData<Asset>(["asset", assetId]);
   const cachedAssets = queryClient.getQueryData<Asset[]>(["assets"]);
@@ -77,7 +75,6 @@ export default function WorkerNewServicePage() {
       }
     }
     e.target.value = "";
-    setIsImageSourceOpen(false);
   };
 
   const removeImage = (index: number) => {
@@ -209,9 +206,9 @@ export default function WorkerNewServicePage() {
             </h3>
             
                 <div className="flex overflow-x-auto pb-4 -mx-5 px-5 space-x-3 custom-scroll">
-               <button 
+               <button
                   type="button"
-                  onClick={() => !isSubmitting && !isProcessingImages && setIsImageSourceOpen(true)}
+                  onClick={() => !isSubmitting && !isProcessingImages && fileInputRef.current?.click()}
                   disabled={isSubmitting || isProcessingImages}
                   className="w-[90px] h-[90px] flex-shrink-0 bg-surface border-2 border-dashed border-brand/50 rounded-2xl flex flex-col items-center justify-center text-brand active:scale-95 transition-transform disabled:opacity-30"
                >
@@ -219,21 +216,12 @@ export default function WorkerNewServicePage() {
                  <span className="text-[10px] font-black uppercase">{t.mobile.new_service.evidence_add}</span>
                </button>
 
-               <input 
-                 type="file" 
-                 accept="image/*" 
-                 capture="environment" 
-                 multiple 
-                 className="hidden" 
-                 ref={cameraInputRef}
-                 onChange={handleFileChange}
-               />
-               <input 
-                 type="file" 
-                 accept="image/*" 
-                 multiple 
-                 className="hidden" 
-                 ref={libraryInputRef}
+               <input
+                 type="file"
+                 accept="image/*"
+                 multiple
+                 className="hidden"
+                 ref={fileInputRef}
                  onChange={handleFileChange}
                />
 
@@ -262,40 +250,6 @@ export default function WorkerNewServicePage() {
          </div>
        </div>
       </main>
-
-      {isImageSourceOpen && (
-        <div className="absolute inset-0 z-[90] flex items-end">
-          <button
-            type="button"
-            className="absolute inset-0 bg-app-bg/60 backdrop-blur-sm"
-            onClick={() => setIsImageSourceOpen(false)}
-            aria-label="Cerrar selector de origen de imagen"
-          />
-
-          <div className="relative z-[91] w-full p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            <div className="rounded-[28px] bg-surface border border-border-theme/20 shadow-2xl p-3">
-              <button
-                type="button"
-                disabled={isSubmitting || isProcessingImages}
-                onClick={() => cameraInputRef.current?.click()}
-                className="w-full flex items-center justify-between rounded-2xl px-4 py-4 text-left text-title active:scale-[0.99] transition-transform disabled:opacity-40"
-              >
-                <span className="font-bold">Tomar foto</span>
-                <Camera className="w-5 h-5 text-brand" />
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || isProcessingImages}
-                onClick={() => libraryInputRef.current?.click()}
-                className="w-full flex items-center justify-between rounded-2xl px-4 py-4 text-left text-title active:scale-[0.99] transition-transform disabled:opacity-40"
-              >
-                <span className="font-bold">Elegir de biblioteca</span>
-                <ImageIcon className="w-5 h-5 text-brand" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Persistent Save Button Container */}
       <div className="fixed bottom-0 w-full p-5 bg-gradient-to-t from-app-bg via-app-bg to-transparent pb-[calc(1.25rem+env(safe-area-inset-bottom))] z-10">
