@@ -204,6 +204,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
     }
     return true;
   });
+  const hasServiceHistory = allHistory.length > 0;
 
   // Left action for the drawer (Expand icon)
   const ExpandAction = (
@@ -219,7 +220,13 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   );
 
   return (
-    <Drawer isOpen={!!initialAsset} onClose={onClose} leftAction={ExpandAction} panelClassName="bg-app-bg">
+    <Drawer
+      isOpen={!!initialAsset}
+      onClose={onClose}
+      leftAction={ExpandAction}
+      panelClassName="bg-app-bg"
+      closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
+    >
       <div className="flex flex-col min-h-full">
         
         {/* Header Section */}
@@ -500,6 +507,21 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           <div className="space-y-6">
             {isFetchingAsset && !fullAsset ? (
               <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-brand/20" /></div>
+            ) : !hasServiceHistory ? (
+              <div className="relative overflow-hidden rounded-3xl border border-brand/15 bg-surface px-5 py-10 text-center shadow-sm">
+                <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-brand ring-8 ring-brand/5">
+                  <Wrench className="h-7 w-7" strokeWidth={1.75} />
+                </div>
+                <div className="mx-auto max-w-xs space-y-2">
+                  <h4 className="text-xl font-black tracking-tight text-title">
+                    {t.mobile.asset_detail.no_history_title}
+                  </h4>
+                  <p className="text-sm font-medium leading-relaxed text-subtitle/60">
+                    {t.mobile.asset_detail.no_history_subtitle}
+                  </p>
+                </div>
+              </div>
             ) : history.slice(0, visibleCount).map((service, idx) => (
               <div
                 key={service.id ?? `service-${idx}`}
@@ -557,7 +579,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         </div>
 
         <div className="p-10 pt-4">
-          {history.length > visibleCount ? (
+          {!hasServiceHistory ? null : history.length > visibleCount ? (
             visibleCount < 8 ? (
               <button
                 onClick={() => setVisibleCount(8)}

@@ -100,7 +100,7 @@ export default function AssetsPage() {
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
   const [mobileOwnerFilter, setMobileOwnerFilter] = useState<string | null>(null);
-  const [mobileStatusFilter, setMobileStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [mobileStatusFilter, setMobileStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [isOwnerDropdownOpen, setIsOwnerDropdownOpen] = useState(false);
   const [ownerSearch, setOwnerSearch] = useState("");
   const ownerDropdownRef = useRef<HTMLDivElement>(null);

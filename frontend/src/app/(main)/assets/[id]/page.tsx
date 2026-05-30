@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService, Service, ServiceAttachment } from "@/services/assets.service";
-import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus, Pencil, SlidersHorizontal, X } from "lucide-react";
+import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus, Pencil, SlidersHorizontal, X, Wrench } from "lucide-react";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 import ImageCropModal from "@/components/ui/ImageCropModal";
@@ -214,6 +214,7 @@ export default function AssetDetailPage() {
 
     return jobs;
   }, [selectedWorkers, datePreset, startDate, endDate, asset?.services]);
+  const hasServiceHistory = (asset?.services?.length ?? 0) > 0;
 
   const toggleWorker = (workerName: string) => {
     setSelectedWorkers(prev => 
@@ -431,7 +432,22 @@ export default function AssetDetailPage() {
 
         {/* Timeline (8 cols) */}
         <div className="lg:col-span-8 space-y-4 lg:space-y-6">
-            {filteredJobs.map((job) => (
+            {!hasServiceHistory ? (
+              <div className="relative overflow-hidden rounded-[32px] border border-brand/15 bg-surface px-6 py-10 text-center shadow-soft sm:px-10 sm:py-14">
+                <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-brand/10 text-brand ring-8 ring-brand/5">
+                  <Wrench className="h-9 w-9" strokeWidth={1.75} />
+                </div>
+                <div className="mx-auto max-w-md space-y-2">
+                  <h4 className="text-2xl font-black tracking-tight text-title">
+                    {t.assets.detail.no_history}
+                  </h4>
+                  <p className="text-sm font-medium leading-relaxed text-subtitle/60">
+                    {t.mobile.asset_detail.no_history_subtitle}
+                  </p>
+                </div>
+              </div>
+            ) : filteredJobs.map((job) => (
               <JobCard 
                 key={job.id} 
                 job={job} 
@@ -439,7 +455,7 @@ export default function AssetDetailPage() {
               />
             ))}
             
-            {filteredJobs.length === 0 && (
+            {hasServiceHistory && filteredJobs.length === 0 && (
               <div className="py-24 text-center bg-app-bg/10 border-2 border-dashed border-border-theme/50 rounded-[40px]">
                  <Info className="w-12 h-12 text-subtitle/20 mx-auto mb-4" />
                  <p className="text-subtitle/40 font-black uppercase tracking-widest text-sm">{t.assets.detail.no_results}</p>

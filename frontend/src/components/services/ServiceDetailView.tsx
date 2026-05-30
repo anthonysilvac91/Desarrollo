@@ -61,6 +61,7 @@ function AttachmentThumb({
 export default function ServiceDetailView({ service, onClose }: ServiceDetailViewProps) {
   const { t } = useLanguage();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const { data: detail, isLoading } = useQuery({
@@ -84,6 +85,28 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
     if (idx !== -1) setSelectedImageIndex(idx);
   };
 
+  const handleLightboxSwipeEnd = (x: number) => {
+    if (touchStartX === null || selectedImageIndex === null) return;
+
+    const deltaX = x - touchStartX;
+    const swipeThreshold = 48;
+
+    if (Math.abs(deltaX) < swipeThreshold) {
+      setTouchStartX(null);
+      return;
+    }
+
+    if (deltaX < 0 && selectedImageIndex < imageAttachments.length - 1) {
+      setSelectedImageIndex(selectedImageIndex + 1);
+    }
+
+    if (deltaX > 0 && selectedImageIndex > 0) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    }
+
+    setTouchStartX(null);
+  };
+
   return (
     <div className="flex flex-col pb-10 animate-in fade-in duration-200">
 
@@ -92,9 +115,9 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
         <div className="flex items-center gap-4">
           <button
             onClick={onClose}
-            className="p-3 rounded-full bg-surface border border-border-theme/60 hover:bg-app-bg transition-all shadow-sm shrink-0"
+            className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
           >
-            <ChevronLeft className="w-5 h-5 stroke-[2.5px]" />
+            <ChevronLeft className="w-5 h-5 text-brand" />
           </button>
           <span className="text-2xl font-black text-title tracking-tight leading-none">
             {t.mobile.service_detail.title}
@@ -216,7 +239,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
               <p className="text-lg font-black text-title">{t.mobile.service_detail.lightbox.title}</p>
               <button
                 onClick={() => setSelectedImageIndex(null)}
-                className="p-2.5 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+                className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
               >
                 <X className="w-5 h-5 text-brand" />
               </button>
@@ -227,7 +250,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
               {selectedImageIndex > 0 && (
                 <button
                   onClick={() => setSelectedImageIndex(i => (i ?? 0) - 1)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-110 p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
                 >
                   <ChevronLeft className="w-5 h-5 text-brand" />
                 </button>
@@ -235,12 +258,17 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
               {selectedImageIndex < imageAttachments.length - 1 && (
                 <button
                   onClick={() => setSelectedImageIndex(i => (i ?? 0) + 1)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-surface shadow-xl border border-border-theme/20 active:scale-90 transition-all"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-110 p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
                 >
                   <ChevronRight className="w-5 h-5 text-brand" />
                 </button>
               )}
-              <div className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl">
+              <div
+                className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl touch-pan-y"
+                onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
+                onTouchEnd={(e) => handleLightboxSwipeEnd(e.changedTouches[0]?.clientX ?? 0)}
+                onTouchCancel={() => setTouchStartX(null)}
+              >
                 <img
                   src={imageAttachments[selectedImageIndex]?.file_url ?? ""}
                   className="w-full h-full object-cover"

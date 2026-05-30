@@ -9,10 +9,11 @@ interface DrawerProps {
   title?: string;
   leftAction?: React.ReactNode;
   panelClassName?: string;
+  closeButtonClassName?: string;
   children: React.ReactNode;
 }
 
-export default function Drawer({ isOpen, onClose, title, leftAction, panelClassName, children }: DrawerProps) {
+export default function Drawer({ isOpen, onClose, title, leftAction, panelClassName, closeButtonClassName, children }: DrawerProps) {
   // Handle Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -52,9 +53,9 @@ export default function Drawer({ isOpen, onClose, title, leftAction, panelClassN
           {/* Close Button ("X") */}
           <button 
             onClick={onClose}
-            className="p-2.5 rounded-full hover:bg-gray-100 text-subtitle/40 hover:text-title transition-all group shrink-0"
+            className={closeButtonClassName ?? "p-2.5 rounded-full hover:bg-gray-100 text-subtitle/40 hover:text-title transition-all group shrink-0"}
           >
-            <X className="w-6 h-6" />
+            <X className={closeButtonClassName ? "w-5 h-5 text-brand" : "w-6 h-6"} />
           </button>
         </div>
 
