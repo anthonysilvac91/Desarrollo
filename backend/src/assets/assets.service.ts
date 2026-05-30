@@ -15,6 +15,7 @@ import {
   LEGACY_OWNER_ALIAS_MESSAGE,
   withOwner,
 } from '../common/compat/owner-role-compat';
+import { ASSET_IMAGE_MAX_BYTES } from './asset-upload-limits';
 
 @Injectable()
 export class AssetsService {
@@ -94,7 +95,7 @@ export class AssetsService {
 
     if (photo) {
       const imageInfo = validateImageFile(photo, {
-        maxBytes: 5 * 1024 * 1024,
+        maxBytes: ASSET_IMAGE_MAX_BYTES,
         label: 'Thumbnail del activo',
         maxWidth: 6000,
         maxHeight: 6000,
@@ -375,7 +376,7 @@ export class AssetsService {
 
     if (photo) {
       const imageInfo = validateImageFile(photo, {
-        maxBytes: 5 * 1024 * 1024,
+        maxBytes: ASSET_IMAGE_MAX_BYTES,
         label: 'Thumbnail del activo',
         maxWidth: 6000,
         maxHeight: 6000,
