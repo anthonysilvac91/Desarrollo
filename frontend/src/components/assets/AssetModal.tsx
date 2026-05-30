@@ -136,8 +136,6 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
         data.append("photo", formData.photo);
       }
 
-      console.log('📤 Enviando barco:', { name: formData.name, owner_id: formData.owner_id });
-
       if (asset?.id) {
         await assetsService.update(asset.id, data);
         showToast(t.feedback.save_success, "success");
