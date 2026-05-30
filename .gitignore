@@ -33,6 +33,7 @@ coverage/
 
 # Backend (NestJS, TypeScript, Prisma)
 dist/
+backend/uploads/
 **/*.tsbuildinfo
 dev.db
 *.db

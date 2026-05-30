@@ -53,7 +53,11 @@ async function bootstrap() {
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   const allowedOrigins = parseCorsOrigins(configService);
 
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: {
+      policy: isProduction ? 'same-origin' : 'cross-origin',
+    },
+  }));
 
   const logger = new Logger('RequestTiming');
   app.use((req, res, next) => {
