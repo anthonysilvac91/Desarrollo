@@ -2,7 +2,7 @@
   "name": "Recall Asset Management",
   "short_name": "Recall",
   "description": "Plataforma de gestion de activos y mantenimiento",
-  "start_url": "/app",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",

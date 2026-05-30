@@ -1,10 +1,9 @@
 // Service Worker minimalista para habilitar la instalación PWA (beforeinstallprompt)
 // No intercepta llamadas a la API ni realiza caché agresivo.
 
-const CACHE_NAME = 'recall-pwa-v1';
+const CACHE_NAME = 'recall-pwa-v2';
 const ASSETS_TO_CACHE = [
   '/',
-  '/app',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
