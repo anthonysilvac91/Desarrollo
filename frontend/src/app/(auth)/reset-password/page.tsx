@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ResetPasswordSchema, ResetPasswordFormData } from "@/types/schemas";
@@ -11,7 +11,7 @@ import { Loader2, Lock, Eye, EyeOff, Ship, AlertCircle } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const router = useRouter();
@@ -163,5 +163,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen w-full flex items-center justify-center bg-app-bg"><Loader2 className="w-8 h-8 text-brand animate-spin" /></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

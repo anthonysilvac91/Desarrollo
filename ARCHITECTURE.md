@@ -17,7 +17,7 @@ El sistema usa un modelo RBAC con aislamiento por organization.
 
 ## 3. Stack Tecnologico
 - **Frontend Desktop**: Next.js (App Router), Tailwind CSS, React Query
-- **Frontend Mobile**: experiencia optimizada bajo la ruta `/app`
+- **Frontend Responsive**: vistas principales adaptadas a escritorio y movil
 - **Backend**: NestJS
 - **Base de Datos**: PostgreSQL gestionado mediante Prisma ORM
 - **Storage**:
@@ -36,7 +36,7 @@ Recall utiliza una arquitectura de base de datos compartida con esquema comparti
 
 ## 5. Flujo de Datos Critico
 ### Registro de un `Service`
-1. El **Worker** abre la ruta `/app/assets/[id]/new-service`.
+1. El **Worker** abre la ruta `/assets/[id]/new-service`.
 2. Completa datos y adjunta fotos (`multipart/form-data`).
 3. El **Backend** procesa las imagenes mediante `StorageService`.
 4. Se crea el registro en la DB.

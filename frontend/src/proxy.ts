@@ -11,7 +11,6 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/users') ||
     pathname.startsWith('/settings') ||
     pathname.startsWith('/service') ||
-    pathname.startsWith('/app') ||
     pathname.startsWith('/organizations');
 
   if (isProtectedRoute && !token) {
@@ -28,7 +27,6 @@ export const config = {
     '/users/:path*',
     '/settings/:path*',
     '/service/:path*',
-    '/app/:path*',
     '/organizations/:path*',
     '/login',
   ],

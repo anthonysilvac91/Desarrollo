@@ -78,7 +78,7 @@ Con ambos servidores arriba, abre `http://localhost:3000/login` y valida:
 - **Usuario**: `roberto@oceanic.app`
 - **Pass**: `password123`
 - **Desktop**: redireccion a `/assets`
-- **Movil**: redireccion a `/app`
+- **Movil**: redireccion a `/assets`
 
 ### 4. Middleware
 

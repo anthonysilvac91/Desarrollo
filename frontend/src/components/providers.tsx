@@ -6,6 +6,7 @@ import { LanguageProvider } from "@/lib/LanguageContext";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ToastProvider } from "@/lib/ToastContext";
 import { DynamicBranding } from "@/components/layout/DynamicBranding";
+import PWARegistration from "@/components/PWARegistration";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -27,6 +28,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <LanguageProvider>
           <ToastProvider>
             <DynamicBranding />
+            <PWARegistration />
             {children}
           </ToastProvider>
         </LanguageProvider>

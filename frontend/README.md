@@ -25,6 +25,5 @@ Interfaz de usuario para Recall, incluyendo dashboard web y experiencia movil op
 
 ## Estructura Clave
 
-- `src/app/(main)`: dashboard principal
-- `src/app/app`: experiencia mobile para workers
+- `src/app/(main)`: vistas principales responsive para escritorio y movil
 - `src/lib/AuthContext.tsx`: sesion, permisos y redirecciones

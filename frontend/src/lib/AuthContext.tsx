@@ -94,8 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     "/owners": ["SUPER_ADMIN", "ADMIN"],
     "/settings": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
     "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
-    "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
-    "/app": ["ADMIN", "WORKER"]
+    "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"]
   };
 
   const canAccess = (path: string): boolean => {
@@ -124,22 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (user) {
-        // A. /app está en desuso — redirigir a rutas principales
-        if (pathname.startsWith("/app")) {
-          router.replace(
-            user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "/dashboard" : "/assets"
-          );
-          return;
-        }
-
-        // B. Redirección desde login o home
         if (isPublicPath) {
           if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") router.push("/dashboard");
           else router.push("/assets");
           return;
         }
 
-        // C. Validación de permisos genérica
         if (!canAccess(pathname)) {
           const fallback =
             user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "/dashboard" : "/assets";
