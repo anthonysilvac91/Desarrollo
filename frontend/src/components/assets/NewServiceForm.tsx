@@ -99,8 +99,12 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
       showToast(t.mobile.new_service.success, "success");
       onSuccess();
     } catch (err: any) {
+      console.error('[NewServiceForm] save error:', err?.response?.status, err?.response?.data, err?.message);
       const msg = err?.response?.data?.message;
-      showToast(Array.isArray(msg) ? msg[0] : msg || t.mobile.new_service.error_save, "error");
+      const status = err?.response?.status;
+      const displayMsg = Array.isArray(msg) ? msg[0] : msg
+        || (status ? `Error ${status}` : t.mobile.new_service.error_save);
+      showToast(displayMsg, "error");
     } finally {
       setIsSubmitting(false);
     }
