@@ -4,7 +4,7 @@ import React, { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Camera, Check, ChevronLeft, Loader2,
-  X, Image as ImageIcon, CalendarDays, MapPin,
+  X, CalendarDays, MapPin,
 } from "lucide-react";
 import { Asset, assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
@@ -32,22 +32,18 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const libraryInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
-  const [isSourcePickerOpen, setIsSourcePickerOpen] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
     e.target.value = "";
-    setIsSourcePickerOpen(false);
-
     const remaining = MAX_PHOTOS - images.length;
     const toProcess = Array.from(files).slice(0, remaining);
     if (!toProcess.length) return;
@@ -201,7 +197,7 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
               images={images}
               canAdd={canAddPhoto}
               isProcessing={isProcessingImages}
-              onAdd={() => setIsSourcePickerOpen(true)}
+              onAdd={() => fileInputRef.current?.click()}
               onRemove={removeImage}
               t={t}
             />
@@ -264,7 +260,7 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
               images={images}
               canAdd={canAddPhoto}
               isProcessing={isProcessingImages}
-              onAdd={() => libraryInputRef.current?.click()}
+              onAdd={() => fileInputRef.current?.click()}
               onRemove={removeImage}
               t={t}
             />
@@ -301,53 +297,8 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
         </div>
       )}
 
-      {/* Inputs de archivo */}
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFileChange} />
-      <input ref={libraryInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleFileChange} />
-
-      {/* Picker cámara/galería móvil */}
-      {isSourcePickerOpen && (
-        <div className="fixed inset-0 z-[70] flex items-end lg:hidden">
-          <button
-            className="absolute inset-0 bg-title/20 backdrop-blur-sm"
-            onClick={() => setIsSourcePickerOpen(false)}
-          />
-          <div className="relative z-10 w-full p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <div className="bg-surface rounded-[28px] border border-border-theme/20 shadow-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-border-theme/10">
-                <p className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
-                  {t.mobile.new_service.evidence_label}
-                </p>
-              </div>
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={isSubmitting || isProcessingImages}
-                className="w-full flex items-center justify-between px-5 py-4 text-title active:bg-app-bg transition-colors disabled:opacity-40"
-              >
-                <span className="font-bold text-sm">Tomar foto</span>
-                <Camera className="w-5 h-5 text-brand" />
-              </button>
-              <div className="mx-5 h-px bg-border-theme/20" />
-              <button
-                onClick={() => libraryInputRef.current?.click()}
-                disabled={isSubmitting || isProcessingImages}
-                className="w-full flex items-center justify-between px-5 py-4 text-title active:bg-app-bg transition-colors disabled:opacity-40"
-              >
-                <span className="font-bold text-sm">Elegir de galería</span>
-                <ImageIcon className="w-5 h-5 text-brand" />
-              </button>
-              <div className="p-3 pt-0">
-                <button
-                  onClick={() => setIsSourcePickerOpen(false)}
-                  className="w-full py-3.5 rounded-2xl bg-app-bg text-subtitle/60 font-black text-sm"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Input de archivo */}
+      <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleFileChange} />
     </div>
   );
 }
