@@ -17,6 +17,7 @@ import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import AssetIcon from "@/components/ui/AssetIcon";
 import { Loader2, AlertCircle, Inbox } from "lucide-react";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -109,6 +110,8 @@ export default function AssetsPage() {
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["assets", queryParams],
     queryFn: () => assetsService.findAll(queryParams),
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
   });
 
   const rawAssets = Array.isArray(responseData) ? responseData : responseData?.data || [];
@@ -141,6 +144,8 @@ export default function AssetsPage() {
     queryFn: ({ pageParam }) =>
       assetsService.findAll({ page: pageParam as number, limit: 10, search: debouncedSearch }),
     initialPageParam: 1,
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
     getNextPageParam: (lastPage) => {
       if (Array.isArray(lastPage)) return undefined;
       const m = lastPage?.meta;

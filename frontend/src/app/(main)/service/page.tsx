@@ -16,6 +16,7 @@ import { servicesService, Service } from "@/services/services.service";
 import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/lib/formatDate";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 export default function ServicesPage() {
   const { t } = useLanguage();
@@ -66,6 +67,8 @@ export default function ServicesPage() {
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["services", queryParams],
     queryFn: () => servicesService.findAll(queryParams),
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
   });
 
   const servicesList = Array.isArray(responseData) ? responseData : responseData?.data || [];

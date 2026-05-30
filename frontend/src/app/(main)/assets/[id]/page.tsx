@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/lib/ToastContext";
 import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
   const styles = {
@@ -165,7 +166,9 @@ export default function AssetDetailPage() {
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
     queryFn: () => assetsService.findOne(assetId),
-    enabled: !!assetId
+    enabled: !!assetId,
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
   });
 
   const statusInfo = useMemo(() => {

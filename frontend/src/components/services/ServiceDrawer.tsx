@@ -8,6 +8,7 @@ import { Service, servicesService } from "@/services/services.service";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "@/lib/formatDate";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 interface ServiceDrawerProps {
   service: Service | null;
@@ -22,6 +23,8 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
     queryKey: ["service", service?.id],
     queryFn: () => servicesService.findOne(service!.id),
     enabled: !!service?.id,
+    refetchInterval: AUTO_REFETCH_INTERVALS.detail,
+    ...AUTO_REFETCH_OPTIONS,
   });
 
   if (!service) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;

@@ -19,6 +19,7 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import KPICard from "@/components/dashboard/KPICard";
 import PerformanceList from "@/components/dashboard/PerformanceList";
 import { Loader2, AlertCircle, Briefcase, Ship, Inbox } from "lucide-react";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 export default function DashboardPage() {
   const { t } = useLanguage();
@@ -32,6 +33,8 @@ export default function DashboardPage() {
       startDate: dateRange.start,
       endDate: dateRange.end
     }),
+    refetchInterval: AUTO_REFETCH_INTERVALS.dashboard,
+    ...AUTO_REFETCH_OPTIONS,
   });
 
   const isWorker = user?.role === "WORKER";

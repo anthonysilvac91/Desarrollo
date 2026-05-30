@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
 import { formatDate } from "@/lib/formatDate";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 const DESCRIPTION_CLAMP_THRESHOLD = 160;
 
@@ -67,6 +68,8 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
     queryFn: () => servicesService.findOne(service.id),
     enabled: !!service.id,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: AUTO_REFETCH_INTERVALS.detail,
+    ...AUTO_REFETCH_OPTIONS,
   });
 
   const current = detail ?? service;

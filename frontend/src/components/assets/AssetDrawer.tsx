@@ -8,8 +8,8 @@ import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
-import { useQueryClient } from "@tanstack/react-query";
-import { Asset, assetsService, Service } from "@/services/assets.service";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Asset, assetsService } from "@/services/assets.service";
 import { formatDate } from "@/lib/formatDate";
 import ServiceDetailView from "@/components/services/ServiceDetailView";
 import ImageCropModal from "@/components/ui/ImageCropModal";
@@ -17,6 +17,7 @@ import NewServiceForm from "@/components/assets/NewServiceForm";
 import { useToast } from "@/lib/ToastContext";
 import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
+import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 interface AssetDrawerProps {
   asset: Asset | null;
@@ -51,8 +52,6 @@ const getInitials = (name: string) =>
 export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawerProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [fullAsset, setFullAsset] = useState<Asset | null>(null);
-  const [loading, setLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
   const [view, setView] = useState<"history" | "new-service" | "service-detail">("history");
   const [visibleCount, setVisibleCount] = useState(4);
@@ -71,6 +70,18 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const { t } = useLanguage();
   const { showToast } = useToast();
   const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
+
+  const {
+    data: fullAsset,
+    isFetching: isFetchingAsset,
+    refetch: refetchAsset,
+  } = useQuery({
+    queryKey: ["asset", initialAsset?.id],
+    queryFn: () => assetsService.findOne(initialAsset!.id),
+    enabled: !!initialAsset?.id,
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
+  });
 
   const selectedDateLabel =
     dateFilter === "custom" && customRange?.from
@@ -112,8 +123,6 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
       const formData = new FormData();
       formData.append("photo", croppedFile);
       await assetsService.update(initialAsset.id, formData);
-      const updatedAsset = await assetsService.findOne(initialAsset.id);
-      setFullAsset(updatedAsset);
       await queryClient.invalidateQueries({ queryKey: ["asset", initialAsset.id] });
       await queryClient.invalidateQueries({ queryKey: ["assets"] });
       showToast("Foto actualizada.", "success");
@@ -132,7 +141,6 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
 
   useEffect(() => {
     if (initialAsset?.id) {
-      setLoading(true);
       setView("history");
       setSelectedService(null);
       setVisibleCount(4);
@@ -140,12 +148,6 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
       setDateFilter(null);
       setCustomRange(undefined);
       setIsCustomPickerOpen(false);
-      assetsService.findOne(initialAsset.id)
-        .then(data => setFullAsset(data))
-        .catch(err => console.error("Error loading asset detail:", err))
-        .finally(() => setLoading(false));
-    } else {
-      setFullAsset(null);
     }
   }, [initialAsset?.id]);
 
@@ -183,10 +185,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const handleServiceCreated = async () => {
     setView("history");
     if (initialAsset?.id) {
-      try {
-        const updated = await assetsService.findOne(initialAsset.id);
-        setFullAsset(updated);
-      } catch { /* silently ignore — queries already invalidated */ }
+      await refetchAsset();
     }
   };
 
@@ -499,7 +498,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           </div>
 
           <div className="space-y-6">
-            {loading ? (
+            {isFetchingAsset && !fullAsset ? (
               <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-brand/20" /></div>
             ) : history.slice(0, visibleCount).map((service, idx) => (
               <div
