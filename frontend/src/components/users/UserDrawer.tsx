@@ -323,6 +323,18 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
                   {t.users.drawer.empty_subtitle}
                 </p>
               </div>
+            ) : filteredServices.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
+                  <Calendar className="h-7 w-7" strokeWidth={1.75} />
+                </div>
+                <h4 className="text-xl font-black tracking-tight text-title">
+                  {t.assets.detail.no_results}
+                </h4>
+                <p className="text-sm font-medium leading-relaxed text-subtitle/60">
+                  {t.mobile.asset_detail.no_results_subtitle}
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {filteredServices.map((svc: any) => (
