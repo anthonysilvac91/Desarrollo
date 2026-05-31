@@ -158,7 +158,7 @@ export default function DataTable<T>({
                   key={col.key}
                   scope="col"
                   style={tableFixed && colWidths[col.key] ? { width: colWidths[col.key] } : undefined}
-                  className={`relative px-4 sm:px-6 py-3 text-${col.align || "left"} ${col.width || ""}`}
+                  className={`relative px-4 sm:px-6 py-3 text-center ${col.width || ""}`}
                 >
                   {col.sortable ? (
                     <button
@@ -181,7 +181,7 @@ export default function DataTable<T>({
                       </span>
                     </button>
                   ) : (
-                    <span className="text-[13.5px] font-bold text-subtitle uppercase tracking-widest">
+                    <span className="text-[11px] font-bold text-subtitle uppercase tracking-widest">
                       {col.header}
                     </span>
                   )}
@@ -233,7 +233,7 @@ export default function DataTable<T>({
                   {columns.map((col) => (
                     <td
                       key={`${keyExtractor(item)}-${col.key}`}
-                      className={`px-4 sm:px-6 py-3 whitespace-nowrap text-sm text-title font-medium text-${col.align || "left"} overflow-hidden`}
+                      className={`px-4 sm:px-6 py-2.5 whitespace-nowrap text-sm text-title font-medium text-${col.align || "left"} overflow-hidden`}
                     >
                       {col.cell ? col.cell(item) : (item as Record<string, unknown>)[col.key] as React.ReactNode}
                     </td>

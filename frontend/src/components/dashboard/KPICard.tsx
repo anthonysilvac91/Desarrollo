@@ -10,9 +10,10 @@ interface KPICardProps {
   icon?: LucideIcon;
   iconBg?: string;
   iconColor?: string;
+  roundedClass?: string;
 }
 
-export default function KPICard({ title, value, subtitle, icon: Icon, iconBg, iconColor }: KPICardProps) {
+export default function KPICard({ title, value, subtitle, icon: Icon, iconBg, iconColor, roundedClass }: KPICardProps) {
   const valueStr = String(value);
   const isPositive = valueStr.startsWith('+');
   const isNegative = valueStr.startsWith('-');
@@ -21,7 +22,7 @@ export default function KPICard({ title, value, subtitle, icon: Icon, iconBg, ic
   const colorCls = iconColor ?? "text-brand";
 
   return (
-    <div className="bg-white p-2.5 sm:p-5 lg:p-6 rounded-[18px] sm:rounded-[24px] lg:rounded-[28px] border border-border-theme/40 shadow-sm hover:shadow-xl hover:shadow-brand/5 transition-all group overflow-hidden relative min-w-0">
+    <div className={`bg-white p-2.5 sm:p-5 lg:p-6 ${roundedClass ?? "rounded-[18px] sm:rounded-[24px] lg:rounded-[28px]"} border border-border-theme/40 shadow-sm hover:shadow-xl hover:shadow-brand/5 transition-all group overflow-hidden relative min-w-0`}>
 
       {/* Mobile: vertical layout — icon → value → title, no subtitle */}
       <div className="flex sm:hidden flex-col items-center gap-1.5 relative z-10">

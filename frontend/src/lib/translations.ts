@@ -98,7 +98,9 @@ export const translations = {
         by_owner: "By Owner",
         by_category: "By Category",
         apply: "Apply Filters",
-        search_owner: "Search owner..."
+        search_owner: "Search owner...",
+        all_owners: "Owners",
+        all_statuses: "Status",
       },
       drawer: {
         location: "Geographic Location",
@@ -754,7 +756,9 @@ export const translations = {
         by_owner: "Por Owner",
         by_category: "Por Categoría",
         apply: "Aplicar Filtros",
-        search_owner: "Buscar propietario..."
+        search_owner: "Buscar propietario...",
+        all_owners: "Owners",
+        all_statuses: "Estado",
       },
       drawer: {
         location: "Ubicación Geográfica",

@@ -23,10 +23,10 @@ import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRef
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
 
-const AssetImage = ({ src, alt, iconId }: { src: string; alt: string | undefined; iconId?: string | null }) => {
+const AssetImage = ({ src, alt, iconId, iconSize = "w-9 h-9" }: { src: string; alt: string | undefined; iconId?: string | null; iconSize?: string }) => {
   const [error, setError] = useState(false);
   if (!src || error) {
-    return <AssetIcon iconId={iconId} className="w-9 h-9 text-brand" strokeWidth={1.5} />;
+    return <AssetIcon iconId={iconId} className={`${iconSize} text-brand`} strokeWidth={1.5} />;
   }
   return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
 };
@@ -40,6 +40,87 @@ interface AssetCardProps {
   onDelete: (e: React.MouseEvent) => void;
   onToggle: () => void;
   onClick: () => void;
+}
+
+interface FilterOption { value: string; label: string; }
+
+function FilterDropdown({ value, onChange, options, placeholder, showReset = true, compact = false, up = false, neutral = false }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: FilterOption[];
+  placeholder: string;
+  showReset?: boolean;
+  compact?: boolean;
+  up?: boolean;
+  neutral?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  const selected = options.find(o => o.value === value);
+
+  const triggerBase = compact
+    ? "h-8 px-2.5 rounded-lg text-[11px]"
+    : "h-11 px-4 rounded-2xl text-sm";
+
+  const activeStyle  = "border-brand/40 bg-brand/5 text-brand";
+  const neutralStyle = "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 border font-semibold transition-all shadow-sm whitespace-nowrap ${triggerBase} ${
+          !neutral && value ? activeStyle : neutralStyle
+        }`}
+      >
+        <span>{selected ? selected.label : placeholder}</span>
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className={`absolute ${up ? "bottom-full mb-2" : "top-full mt-2"} right-0 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 min-w-[160px] overflow-hidden animate-in fade-in zoom-in-95 duration-150`}>
+          <div className="max-h-60 overflow-y-auto py-1.5">
+            {showReset && (
+              <>
+                <button
+                  onClick={() => { onChange(""); setOpen(false); }}
+                  className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors ${
+                    !value ? "text-brand bg-brand/5" : "text-subtitle/50 hover:bg-app-bg hover:text-subtitle"
+                  }`}
+                >
+                  {placeholder}
+                </button>
+                <div className="mx-3 my-0.5 h-px bg-border-theme/20" />
+              </>
+            )}
+            {options.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors ${
+                  value === opt.value
+                    ? "text-brand bg-brand/5"
+                    : "text-title hover:bg-app-bg"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const AssetCard = ({ item, canManage, iconId, t, onEdit, onDelete, onToggle, onClick }: AssetCardProps) => (
@@ -101,13 +182,37 @@ export default function AssetsPage() {
   const [limit, setLimit] = useState(5);
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
+  const [desktopOwnerFilter, setDesktopOwnerFilter] = useState("");
+  const [desktopStatusFilter, setDesktopStatusFilter] = useState("");
   const [mobileOwnerFilter, setMobileOwnerFilter] = useState<string | null>(null);
   const [mobileStatusFilter, setMobileStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [isOwnerDropdownOpen, setIsOwnerDropdownOpen] = useState(false);
   const [ownerSearch, setOwnerSearch] = useState("");
   const ownerDropdownRef = useRef<HTMLDivElement>(null);
 
-  const queryParams = { page, limit, search: debouncedSearch };
+  const queryParams = {
+    page, limit, search: debouncedSearch,
+    ...(desktopOwnerFilter ? { owner_id: desktopOwnerFilter } : {}),
+    ...(desktopStatusFilter ? { is_active: desktopStatusFilter } : {}),
+  };
+
+  const { data: allAssetsForOwners } = useQuery({
+    queryKey: ["assets-owners-list"],
+    queryFn: () => assetsService.findAll(),
+    staleTime: 120000,
+    ...AUTO_REFETCH_OPTIONS,
+  });
+
+  const desktopOwners = useMemo(() => {
+    const all: Asset[] = Array.isArray(allAssetsForOwners)
+      ? allAssetsForOwners
+      : (allAssetsForOwners as any)?.data ?? [];
+    const map = new Map<string, { id: string; name: string }>();
+    all.forEach((item: Asset) => {
+      if (item.owner?.id) map.set(item.owner.id, { id: item.owner.id, name: item.owner.name ?? "" });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allAssetsForOwners]);
 
   const { data: assetStats } = useQuery({
     queryKey: ["assets-stats"],
@@ -130,7 +235,7 @@ export default function AssetsPage() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, limit]);
+  }, [debouncedSearch, limit, desktopOwnerFilter, desktopStatusFilter]);
 
   const filteredData = useMemo(() => {
     return rawAssets.filter((item: any) => {
@@ -253,8 +358,8 @@ export default function AssetsPage() {
       sortValue: (item) => item.name,
       cell: (item) => (
         <div className="flex items-center space-x-3">
-          <div className={`w-9 h-9 rounded-full overflow-hidden border-2 border-surface shadow-sm shrink-0 bg-app-bg flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`}>
-            <AssetImage src={item.thumbnail_url || ""} alt={item.name} iconId={iconId} />
+          <div className={`w-13 h-13 rounded-full overflow-hidden border-2 border-surface shadow-sm shrink-0 bg-app-bg flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`} style={{ width: 52, height: 52 }}>
+            <AssetImage src={item.thumbnail_url || ""} alt={item.name} iconId={iconId} iconSize="w-5 h-5" />
           </div>
           <span className={`font-bold text-title text-xs ${!item.is_active ? "opacity-40" : ""}`}>{item.name}</span>
         </div>
@@ -312,6 +417,8 @@ export default function AssetsPage() {
       key: "status",
       header: t.assets.table.status,
       align: "center",
+      sortable: true,
+      sortValue: (item) => item.is_active ? 1 : 0,
       cell: (item) =>
         item.is_active
           ? <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-green-100 text-green-700 border-green-200">{t.common.active}</span>
@@ -353,20 +460,23 @@ export default function AssetsPage() {
   const pagination = (
     <>
       <div className="flex items-center space-x-3">
-        <div className="text-xs text-subtitle font-medium tracking-tight">
+        <div className="text-xs text-subtitle/40 font-medium tracking-tight">
           {t.assets.pagination.showing}{" "}
-          <span className="text-title font-bold">{displayData.length}</span>{" "}
+          <span className="text-subtitle/70 font-bold">{displayData.length}</span>{" "}
           {t.assets.pagination.of}{" "}
-          <span className="text-title font-bold">{meta.total}</span>{" "}
+          <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
           {t.assets.pagination.assets}
         </div>
-        <select
-          value={limit}
-          onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-          className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
-        >
-          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / {t.common.per_page}</option>)}
-        </select>
+        <FilterDropdown
+          value={String(limit)}
+          onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+          options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / ${t.common.per_page}` }))}
+          placeholder=""
+          showReset={false}
+          compact
+          neutral
+          up
+        />
       </div>
       <div className="flex items-center space-x-2">
         <button
@@ -442,13 +552,14 @@ export default function AssetsPage() {
       <h1 className="lg:hidden text-2xl font-black text-title tracking-tight text-center">{t.topbar.titles.assets}</h1>
 
       {/* Asset KPI summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="hidden sm:grid sm:grid-cols-4 gap-4">
         <KPICard
           title={t.assets.kpis.total}
           value={assetStats?.total_assets ?? 0}
           icon={Ship}
           iconBg="bg-blue-50"
           iconColor="text-blue-500"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
         <KPICard
           title={t.assets.kpis.active}
@@ -456,6 +567,7 @@ export default function AssetsPage() {
           icon={CheckCircle2}
           iconBg="bg-green-50"
           iconColor="text-green-600"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
         <KPICard
           title={t.assets.kpis.inactive}
@@ -463,6 +575,7 @@ export default function AssetsPage() {
           icon={MinusCircle}
           iconBg="bg-orange-50"
           iconColor="text-orange-500"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
         <KPICard
           title={t.assets.kpis.with_services}
@@ -470,22 +583,40 @@ export default function AssetsPage() {
           icon={Wrench}
           iconBg="bg-brand/10"
           iconColor="text-brand"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
       </div>
 
       <FiltersBar
         searchPlaceholder={t.assets.search_placeholder}
         onSearchChange={setSearch}
-        hasExternalFilter={!!activeSortKey}
-        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
+        hasExternalFilter={!!activeSortKey || !!desktopOwnerFilter || !!desktopStatusFilter}
+        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); setDesktopOwnerFilter(""); setDesktopStatusFilter(""); }}
         actions={
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="hidden lg:flex items-center justify-center bg-brand hover:bg-brand/90 active:scale-95 text-white w-12 h-12 rounded-full font-black transition-all shadow-lg shadow-brand/25"
-            aria-label={t.assets.add_new}
-          >
-            <Plus className="w-5 h-5 stroke-[4px]" />
-          </button>
+          <div className="hidden lg:flex items-center gap-3">
+            <FilterDropdown
+              value={desktopOwnerFilter}
+              onChange={setDesktopOwnerFilter}
+              options={desktopOwners.map(o => ({ value: o.id, label: o.name }))}
+              placeholder={t.assets.filters.all_owners}
+            />
+            <FilterDropdown
+              value={desktopStatusFilter}
+              onChange={setDesktopStatusFilter}
+              options={[
+                { value: "true",  label: t.common.active },
+                { value: "false", label: t.common.inactive },
+              ]}
+              placeholder={t.assets.filters.all_statuses}
+            />
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
+            >
+              <Plus className="w-4 h-4 stroke-[3px]" />
+              {t.assets.add_new}
+            </button>
+          </div>
         }
       />
 
@@ -496,7 +627,7 @@ export default function AssetsPage() {
             <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.assets.states.loading}</p>
           </div>
         ) : isError ? (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
               <div className="p-4 bg-error/10 rounded-full">
                 <AlertCircle className="w-8 h-8 text-error" />
@@ -515,14 +646,14 @@ export default function AssetsPage() {
           </ModuleContainer>
         ) : rawAssets.length === 0 ? (
           <>
-            <div className="hidden lg:block"><ModuleContainer>{emptyState}</ModuleContainer></div>
+            <div className="hidden lg:block"><ModuleContainer roundedClass="rounded-2xl">{emptyState}</ModuleContainer></div>
             <div className="block lg:hidden">{emptyState}</div>
           </>
         ) : (
           <>
             {/* Desktop: tabla */}
             <div className="hidden lg:block">
-              <ModuleContainer>
+              <ModuleContainer roundedClass="rounded-2xl">
                 <DataTable
                   data={displayData}
                   columns={columns}
