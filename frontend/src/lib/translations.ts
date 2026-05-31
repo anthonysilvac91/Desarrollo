@@ -173,6 +173,12 @@ export const translations = {
       search_placeholder: "Search services by description, asset, owner...",
       filter: "Filter",
       add_new: "Add new",
+      kpis: {
+        total: "Total services",
+        period: "Selected period",
+        assets: "Assets serviced",
+        operators: "Active operators",
+      },
       table: {
         service: "Service",
         asset: "Asset",
@@ -831,6 +837,12 @@ export const translations = {
       search_placeholder: "Buscar servicios por descripción, activo, empresa...",
       filter: "Filtrar",
       add_new: "Agregar nuevo",
+      kpis: {
+        total: "Total servicios",
+        period: "Período seleccionado",
+        assets: "Activos atendidos",
+        operators: "Operadores activos",
+      },
       table: {
         service: "Servicio",
         asset: "Activo",

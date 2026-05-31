@@ -24,9 +24,21 @@ export interface Service {
   created_at: string;
 }
 
+export interface ServiceStats {
+  total_services: number;
+  period_services: number;
+  assets_serviced: number;
+  active_operators: number;
+}
+
 export const servicesService = {
   findAll: async (params?: { page?: number, limit?: number, search?: string, worker_id?: string }): Promise<any> => {
     const res = await api.get("/services", { params });
+    return res.data;
+  },
+
+  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<ServiceStats> => {
+    const res = await api.get<ServiceStats>("/services/stats", { params });
     return res.data;
   },
   findOne: async (id: string) => {

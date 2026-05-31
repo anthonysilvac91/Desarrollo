@@ -4,6 +4,7 @@ import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
+import { ServiceStatsQueryDto } from './dto/service-stats-query.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { imageUploadOptions } from '../common/files/multer-image-options';
@@ -29,6 +30,12 @@ export class ServicesController {
   @ApiOperation({ summary: 'Listar historial de servicios', description: 'Dependiendo del rol que acceda y el param asset_id, devuelve todo o filtra los no públicos.' })
   findAll(@Query() query: ListServicesQueryDto, @Request() req) {
     return this.servicesService.findAll(query, req.user);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'KPI aggregates for the services view' })
+  getStats(@Query() query: ServiceStatsQueryDto, @Request() req) {
+    return this.servicesService.getStats(query, req.user);
   }
 
   @Patch(':id')

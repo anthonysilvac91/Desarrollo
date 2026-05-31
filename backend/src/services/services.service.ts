@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ListServicesQueryDto } from './dto/list-services-query.dto';
+import { ServiceStatsQueryDto } from './dto/service-stats-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
@@ -245,6 +246,48 @@ export class ServicesService {
     return Promise.all(
       services.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item)))
     );
+  }
+
+  async getStats(query: ServiceStatsQueryDto, user: any) {
+    const baseWhere: any = {};
+
+    if (user.role !== 'SUPER_ADMIN') {
+      baseWhere.organization_id = user.orgId;
+    }
+
+    if (isExternalRole(user.role)) {
+      const currentOwnerId = user.owner_id ?? null;
+      if (!currentOwnerId) {
+        return { total_services: 0, period_services: 0, assets_serviced: 0, active_operators: 0 };
+      }
+      baseWhere.is_public = true;
+      baseWhere.status = 'COMPLETED';
+      baseWhere.asset = { owner_id: currentOwnerId };
+    }
+
+    const periodWhere: any = { ...baseWhere };
+
+    if (query.startDate && query.endDate) {
+      const start = new Date(query.startDate);
+      const end = new Date(query.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      periodWhere.created_at = { gte: start, lte: end };
+    }
+
+    const [total_services, period_services, assetGroups, workerGroups] = await Promise.all([
+      this.prisma.service.count({ where: baseWhere }),
+      this.prisma.service.count({ where: periodWhere }),
+      this.prisma.service.groupBy({ by: ['asset_id'], where: periodWhere }),
+      this.prisma.service.groupBy({ by: ['worker_id'], where: { ...periodWhere, worker_id: { not: null } } }),
+    ]);
+
+    return {
+      total_services,
+      period_services,
+      assets_serviced: assetGroups.length,
+      active_operators: workerGroups.length,
+    };
   }
 
   async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {

@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceModal from "@/components/services/ServiceModal";
@@ -67,6 +67,18 @@ export default function ServicesPage() {
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["services", queryParams],
     queryFn: () => servicesService.findAll(queryParams),
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
+  });
+
+  const statsParams = {
+    ...(queryParams.startDate ? { startDate: queryParams.startDate } : {}),
+    ...(queryParams.endDate ? { endDate: queryParams.endDate } : {}),
+  };
+
+  const { data: stats } = useQuery({
+    queryKey: ["services-stats", statsParams],
+    queryFn: () => servicesService.getStats(statsParams),
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
   });
@@ -212,6 +224,50 @@ export default function ServicesPage() {
     <div>
       <MobileDevBanner />
       <div className="hidden lg:flex flex-col space-y-8">
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <Wrench className="w-5 h-5 text-blue-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.total}</p>
+            <p className="text-2xl font-black text-title leading-none">{stats?.total_services ?? 0}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+            <CheckSquare className="w-5 h-5 text-green-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.period}</p>
+            <p className="text-2xl font-black text-title leading-none">{stats?.period_services ?? 0}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+            <Ship className="w-5 h-5 text-orange-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.assets}</p>
+            <p className="text-2xl font-black text-title leading-none">{stats?.assets_serviced ?? 0}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <User className="w-5 h-5 text-blue-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.operators}</p>
+            <p className="text-2xl font-black text-title leading-none">{stats?.active_operators ?? 0}</p>
+          </div>
+        </div>
+      </div>
+
       <FiltersBar
         searchPlaceholder={t.services.search_placeholder}
         onSearchChange={setSearch}
