@@ -352,13 +352,13 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             {uniqueWorkers.length > 0 && (
               <div ref={workerDropdownRef} className="relative">
                 {workerFilter ? (
-                  <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-2.5 py-1">
+                  <div className="flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-2.5 py-1 max-w-[8.5rem] overflow-hidden">
                     <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
                       <span className="text-[9px] font-black text-white">
                         {getInitials(uniqueWorkers.find(w => w.id === workerFilter)?.name ?? "")}
                       </span>
                     </div>
-                    <span className="text-xs font-bold text-brand truncate max-w-24">
+                    <span className="text-xs font-bold text-brand truncate min-w-0 flex-1">
                       {uniqueWorkers.find(w => w.id === workerFilter)?.name}
                     </span>
                     <button onClick={() => { setWorkerFilter(null); setVisibleCount(4); }} className="text-brand/50 hover:text-brand transition-colors shrink-0">
