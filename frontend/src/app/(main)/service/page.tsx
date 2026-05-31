@@ -5,7 +5,8 @@ import ModuleContainer from "@/components/ui/ModuleContainer";
 import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare, LayoutList } from "lucide-react";
+import KPICard from "@/components/dashboard/KPICard";
 import { useLanguage } from "@/lib/LanguageContext";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceModal from "@/components/services/ServiceModal";
@@ -226,46 +227,39 @@ export default function ServicesPage() {
       <div className="hidden lg:flex flex-col space-y-8">
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <Wrench className="w-5 h-5 text-blue-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.total}</p>
-            <p className="text-2xl font-black text-title leading-none">{stats?.total_services ?? 0}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-            <CheckSquare className="w-5 h-5 text-green-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.period}</p>
-            <p className="text-2xl font-black text-title leading-none">{stats?.period_services ?? 0}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
-            <Ship className="w-5 h-5 text-orange-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.assets}</p>
-            <p className="text-2xl font-black text-title leading-none">{stats?.assets_serviced ?? 0}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 border border-border-theme/40 shadow-sm flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <User className="w-5 h-5 text-blue-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest leading-tight mb-1">{t.services.kpis.operators}</p>
-            <p className="text-2xl font-black text-title leading-none">{stats?.active_operators ?? 0}</p>
-          </div>
-        </div>
+      <div className="hidden sm:grid sm:grid-cols-4 gap-4">
+        <KPICard
+          title={t.services.kpis.total}
+          value={stats?.total_services ?? 0}
+          icon={LayoutList}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-500"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+        />
+        <KPICard
+          title={t.services.kpis.period}
+          value={stats?.period_services ?? 0}
+          icon={CheckSquare}
+          iconBg="bg-green-50"
+          iconColor="text-green-600"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+        />
+        <KPICard
+          title={t.services.kpis.assets}
+          value={stats?.assets_serviced ?? 0}
+          icon={Ship}
+          iconBg="bg-orange-50"
+          iconColor="text-orange-500"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+        />
+        <KPICard
+          title={t.services.kpis.operators}
+          value={stats?.active_operators ?? 0}
+          icon={User}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-500"
+          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+        />
       </div>
 
       <FiltersBar
