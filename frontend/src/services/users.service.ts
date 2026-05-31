@@ -25,7 +25,7 @@ type OwnProfileUpdatePayload = FormData | {
 };
 
 export const usersService = {
-  findAll: async (params?: { role?: string, page?: number, limit?: number, search?: string }): Promise<any> => {
+  findAll: async (params?: { role?: string, isActive?: string, page?: number, limit?: number, search?: string }): Promise<any> => {
     const res = await api.get("/users", { params });
     return res.data;
   },

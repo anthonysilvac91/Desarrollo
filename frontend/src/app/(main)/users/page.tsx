@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
-import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -15,8 +14,88 @@ import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send, ChevronDown, X } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
+
+const getInitials = (name: string) =>
+  name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+
+const getUserOwnerName = (item: User) =>
+  item.organization?.name || item.owner?.name || "Global";
+
+const getRoleLabel = (role: User["role"], t: any) => {
+  const roleLabels: Record<User["role"], string> = {
+    SUPER_ADMIN: "Super Admin",
+    ADMIN: t.users.modal.roles.admin,
+    WORKER: t.users.modal.roles.worker,
+    EXTERNAL: t.users.modal.roles.external,
+  };
+
+  return roleLabels[role] ?? role;
+};
+
+const getRoleStyle = (role: User["role"]) => {
+  const roleStyles: Record<User["role"], string> = {
+    SUPER_ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    WORKER: "bg-amber-50 text-amber-600 border-amber-100",
+    EXTERNAL: "bg-slate-100 text-slate-600 border-slate-200",
+  };
+
+  return roleStyles[role] || "bg-gray-50 text-gray-600 border-gray-100";
+};
+
+const ROLE_OPTIONS: User["role"][] = ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"];
+
+interface UserCardProps {
+  item: User;
+  t: any;
+  onClick: () => void;
+}
+
+const UserCard = ({ item, t, onClick }: UserCardProps) => (
+  <div
+    onClick={onClick}
+    className="bg-surface rounded-2xl border border-border-theme/40 shadow-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
+  >
+    <div className="flex items-center gap-4 p-4">
+      <div className={`w-16 h-16 rounded-full overflow-hidden border-2 border-app-bg shadow-sm shrink-0 bg-brand/10 text-brand flex items-center justify-center font-black text-sm ${!item.is_active ? "grayscale opacity-40" : ""}`}>
+        {item.avatar_url ? (
+          <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+        ) : (
+          getInitials(item.name)
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`font-bold text-title text-sm truncate flex-1 ${!item.is_active ? "opacity-40" : ""}`}>
+            {item.name}
+          </span>
+          {item.is_active
+            ? <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-100 text-green-700 border border-green-200">{t.common.active}</span>
+            : <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">{t.common.inactive}</span>
+          }
+        </div>
+
+        <div className={`flex items-center gap-1 mb-1 text-subtitle/60 ${!item.is_active ? "opacity-40" : ""}`}>
+          <Mail className="w-3 h-3 shrink-0" />
+          <span className="text-xs font-semibold truncate">{item.email}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex h-5 w-20 items-center justify-center rounded-full border text-[9px] font-black uppercase tracking-wider ${getRoleStyle(item.role)}`}>
+            {getRoleLabel(item.role, t)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center text-brand">
+        <ChevronRight className="w-5 h-5 shrink-0" />
+      </div>
+    </div>
+  </div>
+);
 
 export default function UsersPage() {
   const { t } = useLanguage();
@@ -34,8 +113,19 @@ export default function UsersPage() {
   const [limit, setLimit] = useState(5);
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [roleFilter, setRoleFilter] = useState<User["role"] | null>(null);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const mobileRoleDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopRoleDropdownRef = useRef<HTMLDivElement>(null);
 
-  const queryParams = { page, limit, search: debouncedSearch };
+  const queryParams = {
+    page,
+    limit,
+    search: debouncedSearch,
+    isActive: statusFilter === "active" ? "true" : statusFilter === "inactive" ? "false" : undefined,
+    role: roleFilter ?? undefined,
+  };
 
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["users", user?.id, user?.role, user?.organization_id, queryParams],
@@ -56,6 +146,34 @@ export default function UsersPage() {
   const existingOwners = useMemo(() => {
     return Array.from(new Set<string>(usersList.map(() => "Recall Co"))).sort();
   }, [usersList]);
+
+  const visibleRoleOptions = useMemo(() => {
+    return user?.role === "SUPER_ADMIN"
+      ? ROLE_OPTIONS
+      : ROLE_OPTIONS.filter(role => role !== "SUPER_ADMIN");
+  }, [user?.role]);
+
+  useEffect(() => {
+    if (user?.role !== "SUPER_ADMIN" && roleFilter === "SUPER_ADMIN") {
+      setRoleFilter(null);
+      setPage(1);
+    }
+  }, [roleFilter, user?.role]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const clickedInsideMobile = mobileRoleDropdownRef.current?.contains(target);
+      const clickedInsideDesktop = desktopRoleDropdownRef.current?.contains(target);
+
+      if (!clickedInsideMobile && !clickedInsideDesktop) {
+        setIsRoleDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // .slice(0,10) was removed since backend paginates
   const displayData = usersList;
@@ -156,24 +274,9 @@ export default function UsersPage() {
       sortable: true,
       sortValue: (item) => item.role,
       cell: (item) => {
-        const roleStyles: Record<string, string> = {
-          SUPER_ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
-          ADMIN: "bg-indigo-50 text-indigo-600 border-indigo-100",
-          WORKER: "bg-amber-50 text-amber-600 border-amber-100",
-          EXTERNAL: "bg-slate-100 text-slate-600 border-slate-200",
-        };
-        const roleLabels: Record<string, string> = {
-          SUPER_ADMIN: "Super Admin",
-          ADMIN: "Admin",
-          WORKER: "Operador",
-          EXTERNAL: "Externo",
-        };
-        const currentStyle = roleStyles[item.role] || "bg-gray-50 text-gray-600 border-gray-100";
-        const currentLabel = roleLabels[item.role] ?? item.role;
-
         return (
-          <div className={`inline-flex justify-center w-28 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider ${currentStyle}`}>
-            {currentLabel}
+          <div className={`inline-flex justify-center w-28 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider ${getRoleStyle(item.role)}`}>
+            {getRoleLabel(item.role, t)}
           </div>
         );
       }
@@ -186,7 +289,7 @@ export default function UsersPage() {
       cell: (item) => (
         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border-theme/40 bg-app-bg text-[11px] font-black text-subtitle/70 uppercase tracking-wider ${!item.is_active ? 'opacity-40' : ''}`}>
           <Building2 className="w-3 h-3 shrink-0" />
-          <span className="truncate max-w-25">{item.organization?.name || item.owner?.name || "Global"}</span>
+          <span className="truncate max-w-25">{getUserOwnerName(item)}</span>
         </div>
       )
     },
@@ -251,6 +354,93 @@ export default function UsersPage() {
     }
   ];
 
+  const hasUserFilters = statusFilter !== "active" || !!roleFilter || !!activeSortKey;
+
+  const clearUserFilters = () => {
+    setResetKey(k => k + 1);
+    setActiveSortKey(null);
+    setStatusFilter("active");
+    setRoleFilter(null);
+    setPage(1);
+  };
+
+  const renderUserFilters = (dropdownRef: React.RefObject<HTMLDivElement | null>) => (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center bg-app-bg rounded-full px-1 border border-border-theme/30 shrink-0">
+        {(["all", "active", "inactive"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => {
+              setStatusFilter(s);
+              setPage(1);
+            }}
+            className={`px-3 py-2 rounded-full border text-xs font-bold transition-all ${
+              statusFilter === s
+                ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
+                : "border-transparent text-subtitle/50"
+            }`}
+          >
+            {s === "all" ? t.common.all : s === "active" ? t.common.active : t.common.inactive}
+          </button>
+        ))}
+      </div>
+
+      <div ref={dropdownRef} className="relative flex-1 min-w-0">
+        {roleFilter ? (
+          <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-3 py-1 max-w-full">
+            <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center shrink-0">
+              <span className="text-[10px] font-black text-white">
+                {getRoleLabel(roleFilter, t).slice(0, 1)}
+              </span>
+            </div>
+            <span className="text-sm font-bold text-brand truncate min-w-0">
+              {getRoleLabel(roleFilter, t)}
+            </span>
+            <button
+              onClick={() => {
+                setRoleFilter(null);
+                setPage(1);
+              }}
+              className="text-brand/50 hover:text-brand transition-colors shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsRoleDropdownOpen(v => !v)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-theme/50 bg-surface text-subtitle/60 text-sm font-semibold transition-colors hover:border-brand/30 w-full justify-between"
+          >
+            <span>{t.users.table.role}</span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+          </button>
+        )}
+
+        {isRoleDropdownOpen && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-20 w-full overflow-hidden">
+            <div className="max-h-60 overflow-y-auto py-1">
+              {visibleRoleOptions.map(role => (
+                <button
+                  key={role}
+                  onClick={() => {
+                    setRoleFilter(role);
+                    setIsRoleDropdownOpen(false);
+                    setPage(1);
+                  }}
+                  className="w-full flex items-center px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                >
+                  <span className="text-sm font-semibold text-title">
+                    {getRoleLabel(role, t)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const pagination = (
     <>
       <div className="flex items-center space-x-3">
@@ -287,7 +477,71 @@ export default function UsersPage() {
 
   return (
     <div>
-      <MobileDevBanner />
+      <div className="lg:hidden flex flex-col space-y-4">
+        <h1 className="text-2xl font-black text-title tracking-tight text-center">{t.topbar.titles.users}</h1>
+        <FiltersBar
+          searchPlaceholder={t.users.search_placeholder}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+          showQuickFilters={false}
+          showClearAll={false}
+          hasExternalFilter={hasUserFilters}
+          onClearAll={clearUserFilters}
+        />
+
+        {renderUserFilters(mobileRoleDropdownRef)}
+
+        <div className="min-h-[400px]">
+          {isLoading ? (
+            <div className="w-full flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+              <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.users.states.loading}</p>
+            </div>
+          ) : isError ? (
+            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+              <div className="p-4 bg-error/10 rounded-full">
+                <AlertCircle className="w-8 h-8 text-error" />
+              </div>
+              <div className="text-center">
+                <p className="font-black text-title text-xl tracking-tight">{t.users.states.error_title}</p>
+                <p className="text-subtitle font-medium text-sm">{t.users.states.error_subtitle}</p>
+              </div>
+              <button
+                onClick={() => refetch()}
+                className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/10 transition-all"
+              >
+                {t.common.retry}
+              </button>
+            </div>
+          ) : usersList.length === 0 ? (
+            <div className="w-full flex flex-col items-center justify-center py-20 space-y-5 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
+                <UsersIcon className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black tracking-tight text-title">{t.users.states.empty_title}</h3>
+                <p className="text-sm font-medium leading-relaxed text-subtitle/60 max-w-xs mx-auto">
+                  {t.users.states.empty_subtitle}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {usersList.map((item: User) => (
+                <UserCard
+                  key={item.id}
+                  item={item}
+                  t={t}
+                  onClick={() => setSelectedUser(item)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="hidden lg:flex flex-col space-y-8">
       <FiltersBar
         searchPlaceholder={t.users.search_placeholder}
@@ -296,8 +550,8 @@ export default function UsersPage() {
           setPage(1);
         }}
         showQuickFilters={false}
-        hasExternalFilter={!!activeSortKey}
-        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
+        hasExternalFilter={hasUserFilters}
+        onClearAll={clearUserFilters}
         actions={
           <div className="flex items-center space-x-3">
             <button
@@ -317,6 +571,8 @@ export default function UsersPage() {
           </div>
         }
       />
+
+      {renderUserFilters(desktopRoleDropdownRef)}
 
       <div className="flex-1 min-h-100">
         {isLoading ? (
@@ -345,12 +601,12 @@ export default function UsersPage() {
         ) : usersList.length === 0 ? (
           <ModuleContainer>
             <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
-              <div className="p-6 bg-app-bg/50 rounded-full">
-                <UsersIcon className="w-12 h-12 text-subtitle/20" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
+                <UsersIcon className="w-8 h-8" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-2xl font-black text-title tracking-tight">{t.users.states.empty_title}</h3>
-                <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
+                <h3 className="text-xl font-black tracking-tight text-title">{t.users.states.empty_title}</h3>
+                <p className="text-sm font-medium leading-relaxed text-subtitle/60 max-w-xs mx-auto">
                   {t.users.states.empty_subtitle}
                 </p>
               </div>
@@ -369,6 +625,8 @@ export default function UsersPage() {
             />
           </ModuleContainer>
         )}
+      </div>
+
       </div>
 
       <UserDrawer
@@ -405,7 +663,17 @@ export default function UsersPage() {
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={() => refetch()}
       />
-      </div>
+
+      <button
+        onClick={() => {
+          setEditingUser(null);
+          setIsModalOpen(true);
+        }}
+        className="fixed bottom-24 right-6 lg:hidden z-20 w-14 h-14 bg-brand text-white rounded-full shadow-xl shadow-brand/30 flex items-center justify-center active:scale-95 transition-all"
+        aria-label={t.users.add_new}
+      >
+        <Plus className="w-6 h-6 stroke-[3px]" />
+      </button>
     </div>
   );
 }
