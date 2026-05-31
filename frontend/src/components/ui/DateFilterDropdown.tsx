@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ChevronDown, Calendar } from "lucide-react";
+import { ChevronDown, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { DayPicker, useDayPicker } from "react-day-picker";
+import type { DateRange, MonthCaptionProps } from "react-day-picker";
 import { useLanguage } from "@/lib/LanguageContext";
 
 interface PresetOption { value: string; label: string; }
@@ -15,6 +17,31 @@ interface DateFilterDropdownProps {
   placeholder: string;
 }
 
+function CalendarCaption({ calendarMonth }: MonthCaptionProps) {
+  const { previousMonth, nextMonth, goToMonth } = useDayPicker();
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <button
+        onClick={() => previousMonth && goToMonth(previousMonth)}
+        disabled={!previousMonth}
+        className="p-1 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all disabled:opacity-30"
+      >
+        <ChevronLeft className="w-3 h-3" />
+      </button>
+      <span className="text-xs font-black text-title capitalize">
+        {calendarMonth.date.toLocaleDateString("es", { month: "long", year: "numeric" })}
+      </span>
+      <button
+        onClick={() => nextMonth && goToMonth(nextMonth)}
+        disabled={!nextMonth}
+        className="p-1 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all disabled:opacity-30"
+      >
+        <ChevronRight className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
 export default function DateFilterDropdown({
   value,
   customStart = "",
@@ -26,13 +53,19 @@ export default function DateFilterDropdown({
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
-  const [localStart, setLocalStart] = useState(customStart);
-  const [localEnd, setLocalEnd] = useState(customEnd);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(() =>
+    customStart && customEnd
+      ? { from: new Date(customStart + "T00:00:00"), to: new Date(customEnd + "T00:00:00") }
+      : undefined
+  );
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLocalStart(customStart);
-    setLocalEnd(customEnd);
+    setCustomRange(
+      customStart && customEnd
+        ? { from: new Date(customStart + "T00:00:00"), to: new Date(customEnd + "T00:00:00") }
+        : undefined
+    );
   }, [customStart, customEnd]);
 
   useEffect(() => {
@@ -57,14 +90,6 @@ export default function DateFilterDropdown({
 
   const activeStyle  = "border-brand/40 bg-brand/5 text-brand";
   const neutralStyle = "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80";
-
-  const handleApply = () => {
-    if (localStart && localEnd) {
-      onChange("Personalizado", localStart, localEnd);
-      setOpen(false);
-      setShowCustom(false);
-    }
-  };
 
   return (
     <div ref={ref} className="relative">
@@ -116,47 +141,65 @@ export default function DateFilterDropdown({
       )}
 
       {open && showCustom && (
-        <div className="absolute top-full mt-2 right-0 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 w-64 p-4 animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex flex-col gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-brand uppercase tracking-wider block">
+        <div className="absolute top-full mt-2 right-0 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 w-[min(270px,calc(100vw-2rem))] p-3 animate-in fade-in zoom-in-95 duration-150">
+          <div className="mb-4 mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-app-bg px-2 py-1.5">
+              <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">
                 {t.date_filters.from}
-              </label>
-              <input
-                type="date"
-                value={localStart}
-                onChange={e => setLocalStart(e.target.value)}
-                className="w-full px-3 py-2.5 bg-app-bg border border-border-theme/40 rounded-xl text-sm font-bold text-title focus:outline-none focus:border-brand transition-all"
-              />
+              </span>
+              <span className="block truncate text-[11px] font-bold text-title">
+                {customRange?.from
+                  ? customRange.from.toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })
+                  : "--"}
+              </span>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-brand uppercase tracking-wider block">
+            <div className="rounded-xl bg-app-bg px-2 py-1.5">
+              <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">
                 {t.date_filters.to}
-              </label>
-              <input
-                type="date"
-                value={localEnd}
-                min={localStart}
-                onChange={e => setLocalEnd(e.target.value)}
-                className="w-full px-3 py-2.5 bg-app-bg border border-border-theme/40 rounded-xl text-sm font-bold text-title focus:outline-none focus:border-brand transition-all"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCustom(false)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-black text-subtitle/50 border border-border-theme/40 hover:bg-app-bg transition-all"
-              >
-                ←
-              </button>
-              <button
-                onClick={handleApply}
-                disabled={!localStart || !localEnd}
-                className="flex-1 py-2.5 bg-brand text-white rounded-xl text-xs font-black hover:bg-brand/90 transition-all disabled:opacity-40"
-              >
-                {t.date_filters.apply}
-              </button>
+              </span>
+              <span className="block truncate text-[11px] font-bold text-title">
+                {customRange?.to && customRange.to.getTime() !== customRange.from?.getTime()
+                  ? customRange.to.toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })
+                  : "--"}
+              </span>
             </div>
           </div>
+          <DayPicker
+            mode="range"
+            selected={customRange}
+            onSelect={(range) => {
+              const alreadyHadFrom = !!customRange?.from;
+              setCustomRange(range);
+              if (alreadyHadFrom && range?.from && range?.to && range.from.getTime() !== range.to.getTime()) {
+                onChange("Personalizado", toDateStr(range.from), toDateStr(range.to));
+                setOpen(false);
+                setShowCustom(false);
+              }
+            }}
+            classNames={{
+              root: "text-xs",
+              nav: "hidden",
+              month_grid: "w-full border-collapse mt-1",
+              weekday: "text-center text-[9px] font-black text-subtitle/30 uppercase pb-1.5 w-7",
+              day: "p-0 text-center",
+              day_button: "w-7 h-7 rounded-full text-[11px] font-semibold flex items-center justify-center transition-all hover:bg-brand/10 hover:text-brand mx-auto",
+              selected: "!bg-brand !text-white rounded-full",
+              today: "text-brand font-black",
+              range_start: "!bg-brand !text-white rounded-full",
+              range_end: "!bg-brand !text-white rounded-full",
+              range_middle: "bg-brand/10 !text-brand rounded-none",
+              outside: "opacity-20",
+            }}
+            components={{
+              MonthCaption: CalendarCaption,
+            }}
+          />
+          <button
+            onClick={() => setShowCustom(false)}
+            className="mt-2 w-full py-2 rounded-xl text-xs font-black text-subtitle/50 border border-border-theme/40 hover:bg-app-bg transition-all"
+          >
+            ←
+          </button>
         </div>
       )}
     </div>
@@ -166,4 +209,8 @@ export default function DateFilterDropdown({
 function formatShort(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("es", { day: "2-digit", month: "short" });
+}
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
