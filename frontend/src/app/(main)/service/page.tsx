@@ -42,23 +42,9 @@ export default function ServicesPage() {
   const getQueryParams = () => {
     const params: any = { page, limit };
     if (debouncedSearch) params.search = debouncedSearch;
-    
     if (dateFilter.preset !== "Todo") {
-      const now = new Date();
-      if (dateFilter.preset === "Hoy") {
-        params.startDate = now.toISOString();
-        params.endDate = now.toISOString();
-      } else if (dateFilter.preset === "Mes") {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        params.startDate = start.toISOString();
-        params.endDate = end.toISOString();
-      } else if (dateFilter.preset === "Año") {
-        const start = new Date(now.getFullYear(), 0, 1);
-        const end = new Date(now.getFullYear(), 11, 31);
-        params.startDate = start.toISOString();
-        params.endDate = end.toISOString();
-      } else if (dateFilter.preset === "Personalizado" && dateFilter.start && dateFilter.end) {
+      params.preset = dateFilter.preset;
+      if (dateFilter.preset === "Personalizado" && dateFilter.start && dateFilter.end) {
         params.startDate = dateFilter.start;
         params.endDate = dateFilter.end;
       }
@@ -79,6 +65,7 @@ export default function ServicesPage() {
   });
 
   const statsParams = {
+    ...(queryParams.preset ? { preset: queryParams.preset } : {}),
     ...(queryParams.startDate ? { startDate: queryParams.startDate } : {}),
     ...(queryParams.endDate ? { endDate: queryParams.endDate } : {}),
   };

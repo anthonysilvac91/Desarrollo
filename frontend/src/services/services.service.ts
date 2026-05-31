@@ -33,12 +33,12 @@ export interface ServiceStats {
 }
 
 export const servicesService = {
-  findAll: async (params?: { page?: number, limit?: number, search?: string, worker_id?: string }): Promise<any> => {
+  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; preset?: string; startDate?: string; endDate?: string }): Promise<any> => {
     const res = await api.get("/services", { params });
     return res.data;
   },
 
-  getStats: async (params?: { startDate?: string; endDate?: string }): Promise<ServiceStats> => {
+  getStats: async (params?: { preset?: string; startDate?: string; endDate?: string }): Promise<ServiceStats> => {
     const res = await api.get<ServiceStats>("/services/stats", { params });
     return res.data;
   },
