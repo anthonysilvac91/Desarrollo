@@ -215,6 +215,7 @@ export class ServicesService {
           include: {
             worker: { select: { id: true, name: true } },
             asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
+            attachments: { select: { id: true, file_id: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
@@ -234,9 +235,10 @@ export class ServicesService {
 
     const services = await this.prisma.service.findMany({
       where: whereClause,
-      include: { 
+      include: {
         worker: { select: { id: true, name: true } },
         asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
+        attachments: { select: { id: true, file_id: true, file_type: true } },
       },
       orderBy: { created_at: 'desc' }
     });

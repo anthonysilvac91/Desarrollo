@@ -30,6 +30,15 @@ export class AssetsService {
     return withOwner(asset);
   }
 
+  private withLastService<T extends Record<string, any>>(asset: T): T & { last_service: { date: any } | null } {
+    const services = Array.isArray(asset.services) ? asset.services : [];
+
+    return {
+      ...asset,
+      last_service: services[0]?.created_at ? { date: services[0].created_at } : null,
+    };
+  }
+
   private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
     const resolvedAsset = { ...asset } as any;
 
@@ -222,10 +231,7 @@ export class AssetsService {
       const mappedData = await Promise.all(
         data.map(async (asset: any) =>
           this.resolveAssetFileUrls(
-            this.mapAssetRelations({
-              ...asset,
-              last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
-            })
+            this.mapAssetRelations(this.withLastService(asset))
           )
         )
       );
@@ -240,10 +246,7 @@ export class AssetsService {
     return Promise.all(
       assets.map(async (asset: any) =>
         this.resolveAssetFileUrls(
-          this.mapAssetRelations({
-            ...asset,
-            last_service: asset.services[0] ? { date: asset.services[0].created_at } : null,
-          })
+          this.mapAssetRelations(this.withLastService(asset))
         )
       )
     );
@@ -280,7 +283,7 @@ export class AssetsService {
       asset.services = asset.services.filter((service) => service.is_public);
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
+    return this.resolveAssetFileUrls(this.mapAssetRelations(this.withLastService(asset)));
   }
 
   async assignOwner(assetId: string, ownerId: string, orgId: string) {

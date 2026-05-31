@@ -22,18 +22,20 @@ export class UsersController {
   @ApiOperation({ summary: 'Listar usuarios (Solo ADMIN/SUPER_ADMIN)', description: 'El filtro role usa EXTERNAL como valor canonico.' })
   @ApiQuery({ name: 'role', enum: [...Object.values(Role), 'EXTERNAL'], required: false })
   @ApiQuery({ name: 'organizationId', required: false, description: 'Solo para SUPER_ADMIN' })
+  @ApiQuery({ name: 'isActive', required: false, enum: ['true', 'false'] })
   @ApiResponse({ type: [UserResponseDto] })
   findAll(
     @Request() req: any,
     @Query('role') role?: Role | 'EXTERNAL',
     @Query('organizationId') organizationId?: string,
+    @Query('isActive') isActive?: string,
     @Query() pagination?: PaginationQueryDto
   ) {
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para listar usuarios');
     }
     return this.usersService.findAll(
-      { role, organizationId, search: pagination?.search, page: pagination?.page, limit: pagination?.limit },
+      { role, organizationId, isActive, search: pagination?.search, page: pagination?.page, limit: pagination?.limit },
       { id: req.user.id, role: req.user.role, orgId: req.user.orgId }
     );
   }

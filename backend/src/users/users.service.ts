@@ -59,7 +59,7 @@ export class UsersService {
     }
   }
 
-  async findAll(query: { role?: Role | 'EXTERNAL'; organizationId?: string; search?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
+  async findAll(query: { role?: Role | 'EXTERNAL'; organizationId?: string; search?: string; isActive?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
     // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
     // WORKER puede listar pero solo si es para buscar owners externos.
     if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
@@ -77,6 +77,10 @@ export class UsersService {
       where.role = toDbRole(query.role);
     }
 
+    if (currentUser.role !== Role.SUPER_ADMIN) {
+      where.AND = [...(where.AND ?? []), { role: { not: Role.SUPER_ADMIN } }];
+    }
+
     // Aislamiento Multi-tenant
     if (currentUser.role === Role.SUPER_ADMIN) {
       // Si es SUPER_ADMIN, puede filtrar opcionalmente por orgId
@@ -92,11 +96,13 @@ export class UsersService {
     }
 
     if (query.search) {
-      where.OR = [
-        { name: { contains: query.search, mode: 'insensitive' } },
-        { email: { contains: query.search, mode: 'insensitive' } },
-        { phone: { contains: query.search, mode: 'insensitive' } }
-      ];
+      where.name = { contains: query.search, mode: 'insensitive' };
+    }
+
+    if (query.isActive === 'true') {
+      where.is_active = true;
+    } else if (query.isActive === 'false') {
+      where.is_active = false;
     }
 
     const selectFields = {
