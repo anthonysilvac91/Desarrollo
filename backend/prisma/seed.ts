@@ -148,15 +148,134 @@ async function main() {
     });
   }
 
+  // ── Yates Alejandro ────────────────────────────────────────────────────────
+
+  const orgYates = await prisma.organization.create({
+    data: {
+      name: 'Yates Alejandro',
+      slug: 'yates-alejandro',
+      auto_publish_services: true,
+      worker_edit_policy: WorkerEditPolicy.TIME_WINDOW,
+    },
+  });
+
+  const ownerYatesA = await prisma.owner.create({
+    data: { organization_id: orgYates.id, name: 'Flota Privada Alejandro' },
+  });
+
+  const ownerYatesB = await prisma.owner.create({
+    data: { organization_id: orgYates.id, name: 'Charter del Mediterráneo' },
+  });
+
+  await prisma.user.create({
+    data: {
+      organization_id: orgYates.id,
+      role: Role.ADMIN,
+      email: 'admin@yatesalejandro.app',
+      password_hash: hashedPwd,
+      name: 'Alejandro Admin',
+    },
+  });
+
+  const yatesWorkerA = await prisma.user.create({
+    data: {
+      organization_id: orgYates.id,
+      role: Role.WORKER,
+      email: 'miguel@yatesalejandro.app',
+      password_hash: hashedPwd,
+      name: 'Miguel Técnico',
+    },
+  });
+
+  const yatesWorkerB = await prisma.user.create({
+    data: {
+      organization_id: orgYates.id,
+      role: Role.WORKER,
+      email: 'pedro@yatesalejandro.app',
+      password_hash: hashedPwd,
+      name: 'Pedro Limpieza',
+    },
+  });
+
+  const yatesWorkerC = await prisma.user.create({
+    data: {
+      organization_id: orgYates.id,
+      role: Role.WORKER,
+      email: 'lucia@yatesalejandro.app',
+      password_hash: hashedPwd,
+      name: 'Lucía Mecánica',
+    },
+  });
+
+  const yatesBoatNames = [
+    'Alba Marina', 'Tramontana', 'Levante', 'Sol de Ibiza', 'Brisa del Sur',
+    'Estrella del Mar', 'Dos Mares', 'Viento Norte', 'La Sultana', 'Sirocco',
+    'Coral Blue', 'Mediterráneo', 'Santa Clara', 'Isla Bonita', 'Mar Abierto',
+    'Bahía Grande', 'Poniente', 'El Mirador', 'Luna de Plata', 'Altamar',
+  ];
+
+  const ownersYates = [ownerYatesA, ownerYatesB];
+
+  const yatesAssets = await Promise.all(
+    yatesBoatNames.map((name, i) =>
+      prisma.asset.create({
+        data: {
+          organization_id: orgYates.id,
+          owner_id: ownersYates[i % ownersYates.length].id,
+          name,
+        },
+      })
+    )
+  );
+
+  const yatesServiceTemplates = [
+    { title: 'Lavado exterior completo',      desc: 'Lavado con jabón marino, aclarado y secado de casco y cubierta', isPublic: true },
+    { title: 'Mantenimiento motor',            desc: 'Cambio de aceite, filtros y revisión de correas', isPublic: true },
+    { title: 'Pulido y encerado de casco',    desc: 'Pulido en dos pasadas y aplicación de cera náutica', isPublic: true },
+    { title: 'Revisión de electrónica',       desc: 'Comprobación de VHF, GPS y panel eléctrico', isPublic: true },
+    { title: 'Limpieza interior cabinas',      desc: 'Limpieza profunda de camarotes, cocina y baños', isPublic: true },
+    { title: 'Inspección de líneas y velas',  desc: 'Revisión de jarcias, drizas y estado general de velas', isPublic: true },
+    { title: 'Antifouling',                   desc: 'Aplicación de pintura antiincrustante en obra viva', isPublic: false },
+    { title: 'Falla motor reportada',         desc: 'Motor no arranca, requiere diagnóstico urgente', isPublic: false },
+  ];
+
+  const yatesWorkers = [yatesWorkerA, yatesWorkerB, yatesWorkerC];
+
+  for (let i = 0; i < 40; i++) {
+    const template = yatesServiceTemplates[i % yatesServiceTemplates.length];
+    const asset    = yatesAssets[i % yatesAssets.length];
+    const worker   = yatesWorkers[i % yatesWorkers.length];
+    const createdAt = new Date(Date.now() - i * 18 * 60 * 60 * 1000);
+
+    await prisma.service.create({
+      data: {
+        organization_id: orgYates.id,
+        asset_id: asset.id,
+        worker_id: worker.id,
+        title: template.title,
+        description: template.desc,
+        is_public: template.isPublic,
+        status: ServiceStatus.COMPLETED,
+        created_at: createdAt,
+      },
+    });
+  }
+
   console.log('=========================================');
-  console.log(' SEED OWNER/EXTERNAL COMPLETADO CON EXITO');
+  console.log(' SEED COMPLETADO CON EXITO');
   console.log('=========================================');
   console.log('Password global: password123');
-  console.log(' [SUPER ADMIN]: sys@recall.app');
-  console.log(' [ADMIN OCEANIC]: admin@oceanic.app');
-  console.log(' [WORKER OCEANIC]: roberto@oceanic.app');
-  console.log(' [EXTERNAL CHARTER]: gestor.charter@mail.com');
-  console.log(' [EXTERNAL OWNER]: propietario@mail.com');
+  console.log(' [SUPER ADMIN]:          sys@recall.app');
+  console.log(' ── Oceanic Yacht Management ──');
+  console.log(' [ADMIN]:                admin@oceanic.app');
+  console.log(' [WORKER]:               roberto@oceanic.app');
+  console.log(' [EXTERNAL CHARTER]:     gestor.charter@mail.com');
+  console.log(' [EXTERNAL OWNER]:       propietario@mail.com');
+  console.log(' ── Yates Alejandro ──');
+  console.log(' [ADMIN]:                admin@yatesalejandro.app');
+  console.log(' [WORKER]:               miguel@yatesalejandro.app');
+  console.log(' [WORKER]:               pedro@yatesalejandro.app');
+  console.log(' [WORKER]:               lucia@yatesalejandro.app');
   console.log('=========================================');
 }
 
