@@ -69,11 +69,11 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
       {/* Donut */}
       <div className="flex flex-col items-center justify-center flex-1 gap-4 px-5 py-4">
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
-          <PieChart width={SIZE} height={SIZE}>
+          <PieChart width={SIZE} height={SIZE} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <Pie
               data={donutData}
-              cx={SIZE / 2 - 1}
-              cy={SIZE / 2 - 1}
+              cx={SIZE / 2}
+              cy={SIZE / 2}
               innerRadius={INNER}
               outerRadius={OUTER}
               startAngle={90}
@@ -90,10 +90,10 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
 
           {/* Center text */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-1 leading-none">
-              <span className="text-2xl font-black text-brand">{assetsServiced}</span>
-              <span className="text-2xl font-black text-subtitle/30">of</span>
-              <span className="text-2xl font-black text-title">{totalAssets}</span>
+            <div className="flex items-center gap-0.5">
+              <span className="text-lg font-black text-brand leading-none">{assetsServiced}</span>
+              <span className="text-[9px] font-black text-subtitle/30 leading-none px-0.5">of</span>
+              <span className="text-lg font-black text-title leading-none">{totalAssets}</span>
             </div>
           </div>
         </div>

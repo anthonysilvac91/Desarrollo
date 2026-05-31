@@ -45,16 +45,16 @@ export default function RecentServicesCard({ services, t }: Props) {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-border-theme/10">
-                  <th className="px-4 py-2 text-left text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[35%]">{m.col_service}</th>
-                  <th className="px-2 py-2 text-left text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[25%]">{m.col_asset}</th>
-                  <th className="px-2 py-2 text-left text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[25%]">{m.col_operator}</th>
-                  <th className="px-3 py-2 text-right text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[15%]">{m.col_completed}</th>
+                  <th className="px-5 py-2 text-center text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[35%]">{m.col_service}</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[25%]">{m.col_asset}</th>
+                  <th className="px-2 py-2 text-center text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[25%]">{m.col_operator}</th>
+                  <th className="px-5 py-2 text-center text-[9px] font-black text-subtitle/30 uppercase tracking-[0.15em] w-[15%]">{m.col_completed}</th>
                 </tr>
               </thead>
               <tbody>
                 {services.map((s, idx) => (
                   <tr key={s.id} className={`group transition-colors hover:bg-app-bg/60 ${idx < services.length - 1 ? "border-b border-border-theme/10" : ""}`}>
-                    <td className="px-4 py-2.5">
+                    <td className="px-5 py-2.5">
                       <span className="text-xs font-semibold text-title truncate block">{s.title}</span>
                     </td>
                     <td className="px-2 py-2.5">
@@ -68,7 +68,7 @@ export default function RecentServicesCard({ services, t }: Props) {
                         <span className="text-xs font-semibold text-subtitle/60 truncate">{s.worker_name}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-right">
+                    <td className="px-5 py-2.5 text-right">
                       <span className="text-[11px] font-semibold text-subtitle/50 whitespace-nowrap">
                         {formatDate(s.created_at)}
                       </span>
