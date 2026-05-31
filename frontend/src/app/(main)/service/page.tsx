@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
@@ -36,6 +36,7 @@ export default function ServicesPage() {
   const [limit, setLimit] = useState(5);
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
+  const [desktopWorkerFilter, setDesktopWorkerFilter] = useState("");
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -64,7 +65,10 @@ export default function ServicesPage() {
     return params;
   };
 
-  const queryParams = getQueryParams();
+  const queryParams = {
+    ...getQueryParams(),
+    ...(desktopWorkerFilter ? { worker_id: desktopWorkerFilter } : {}),
+  };
 
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["services", queryParams],
@@ -85,12 +89,28 @@ export default function ServicesPage() {
     ...AUTO_REFETCH_OPTIONS,
   });
 
+  const { data: allServicesData } = useQuery({
+    queryKey: ["services-workers-list"],
+    queryFn: () => servicesService.findAll(),
+    staleTime: 120000,
+    ...AUTO_REFETCH_OPTIONS,
+  });
+
+  const workerOptions = useMemo(() => {
+    const all: Service[] = Array.isArray(allServicesData) ? allServicesData : (allServicesData as any)?.data ?? [];
+    const map = new Map<string, { id: string; name: string }>();
+    all.forEach((s: Service) => {
+      if (s.worker?.id) map.set(s.worker.id, { id: s.worker.id, name: s.worker.name ?? "" });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allServicesData]);
+
   const servicesList = Array.isArray(responseData) ? responseData : responseData?.data || [];
   const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: servicesList.length, page: 1, limit: 10, totalPages: 1 };
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, dateFilter, limit]);
+  }, [debouncedSearch, dateFilter, limit, desktopWorkerFilter]);
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setDateFilter({ preset, start, end });
@@ -287,19 +307,38 @@ export default function ServicesPage() {
       <FiltersBar
         searchPlaceholder={t.services.search_placeholder}
         onSearchChange={setSearch}
-        onDateChange={handleDateChange}
-        showQuickFilters={true}
-        hasExternalFilter={!!activeSortKey}
-        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); }}
-        actions={canCreate ? (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
-          >
-            <Plus className="w-4 h-4 stroke-[3px]" />
-            {t.services.add_new}
-          </button>
-        ) : undefined}
+        showQuickFilters={false}
+        hasExternalFilter={!!activeSortKey || !!desktopWorkerFilter || dateFilter.preset !== "Todo"}
+        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); setDesktopWorkerFilter(""); handleDateChange("Todo"); }}
+        actions={
+          <div className="flex items-center gap-3">
+            <FilterDropdown
+              value={desktopWorkerFilter}
+              onChange={setDesktopWorkerFilter}
+              options={workerOptions.map(w => ({ value: w.id, label: w.name }))}
+              placeholder={t.services.table.operator}
+            />
+            <FilterDropdown
+              value={dateFilter.preset === "Todo" ? "" : dateFilter.preset}
+              onChange={(v) => handleDateChange(v || "Todo")}
+              options={[
+                { value: "Hoy", label: t.date_filters.today },
+                { value: "Mes", label: t.date_filters.month },
+                { value: "Año", label: t.date_filters.year },
+              ]}
+              placeholder={t.date_filters.date}
+            />
+            {canCreate && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
+              >
+                <Plus className="w-4 h-4 stroke-[3px]" />
+                {t.services.add_new}
+              </button>
+            )}
+          </div>
+        }
       />
 
       <div className="flex-1 min-h-[400px]">
