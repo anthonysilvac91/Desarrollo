@@ -5,8 +5,8 @@ import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
 import { MapPin, Ship, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
 import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
-import { DayPicker } from "react-day-picker";
-import type { DateRange } from "react-day-picker";
+import { DayPicker, useDayPicker } from "react-day-picker";
+import type { DateRange, MonthCaptionProps } from "react-day-picker";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,31 @@ const formatCompactDate = (date: string | Date) => {
   const year = String(d.getFullYear()).slice(-2);
   return `${month}-${day}-${year}`;
 };
+
+function CalendarCaption({ calendarMonth }: MonthCaptionProps) {
+  const { previousMonth, nextMonth, goToMonth } = useDayPicker();
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <button
+        onClick={() => previousMonth && goToMonth(previousMonth)}
+        disabled={!previousMonth}
+        className="p-1 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all disabled:opacity-30"
+      >
+        <ChevronLeft className="w-3 h-3" />
+      </button>
+      <span className="text-xs font-black text-title capitalize">
+        {calendarMonth.date.toLocaleDateString("es", { month: "long", year: "numeric" })}
+      </span>
+      <button
+        onClick={() => nextMonth && goToMonth(nextMonth)}
+        disabled={!nextMonth}
+        className="p-1 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all disabled:opacity-30"
+      >
+        <ChevronRight className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
 
 export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawerProps) {
   const router = useRouter();
@@ -491,26 +516,26 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
 
                 {isCustomPickerOpen && (
                   <div
-                    className="fixed left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 w-[min(330px,calc(100vw-2rem))] p-4"
+                    className="fixed left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 w-[min(270px,calc(100vw-2rem))] p-3"
                     style={{ top: (customPickerRef.current?.getBoundingClientRect().bottom ?? 0) + 8 }}
                   >
-                    <div className="mb-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-app-bg px-3 py-2">
+                    <div className="mb-4 mt-2 grid grid-cols-2 gap-2">
+                      <div className="rounded-xl bg-app-bg px-2 py-1.5">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">
                           {t.date_filters.from}
                         </span>
-                        <span className="block truncate text-xs font-bold text-title">
+                        <span className="block truncate text-[11px] font-bold text-title">
                           {customRange?.from
                             ? customRange.from.toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })
                             : "--"}
                         </span>
                       </div>
-                      <div className="rounded-xl bg-app-bg px-3 py-2">
+                      <div className="rounded-xl bg-app-bg px-2 py-1.5">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">
                           {t.date_filters.to}
                         </span>
-                        <span className="block truncate text-xs font-bold text-title">
-                          {customRange?.to
+                        <span className="block truncate text-[11px] font-bold text-title">
+                          {customRange?.to && customRange.to.getTime() !== customRange.from?.getTime()
                             ? customRange.to.toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })
                             : "--"}
                         </span>
@@ -527,16 +552,12 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                         }
                       }}
                       classNames={{
-                        root: "text-sm",
-                        month_caption: "flex justify-center items-center mb-3 relative h-8",
-                        caption_label: "text-sm font-black text-title",
-                        nav: "absolute inset-x-0 top-0 flex justify-between",
-                        button_previous: "p-1.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all",
-                        button_next: "p-1.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all",
+                        root: "text-xs",
+                        nav: "hidden",
                         month_grid: "w-full border-collapse mt-1",
-                        weekday: "text-center text-[10px] font-black text-subtitle/30 uppercase pb-2 w-9",
+                        weekday: "text-center text-[9px] font-black text-subtitle/30 uppercase pb-1.5 w-7",
                         day: "p-0 text-center",
-                        day_button: "w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center transition-all hover:bg-brand/10 hover:text-brand mx-auto",
+                        day_button: "w-7 h-7 rounded-full text-[11px] font-semibold flex items-center justify-center transition-all hover:bg-brand/10 hover:text-brand mx-auto",
                         selected: "!bg-brand !text-white rounded-full",
                         today: "text-brand font-black",
                         range_start: "!bg-brand !text-white rounded-full",
@@ -545,9 +566,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                         outside: "opacity-20",
                       }}
                       components={{
-                        Chevron: ({ orientation }) => orientation === "left"
-                          ? <ChevronLeft className="w-4 h-4" />
-                          : <ChevronRight className="w-4 h-4" />,
+                        MonthCaption: CalendarCaption,
                       }}
                     />
                   </div>
