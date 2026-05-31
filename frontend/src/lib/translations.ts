@@ -182,7 +182,7 @@ export const translations = {
       table: {
         service: "Service",
         asset: "Asset",
-        operator: "Operator",
+        operator: "User",
         owner: "Owner",
         evidence: "Evidence",
         date: "Date",
@@ -194,6 +194,7 @@ export const translations = {
         services: "completed services",
       },
       drawer: {
+        drawer_title: "Service Detail",
         report_label: "Service",
         evidence_label: "Visual Evidence",
         no_photos: "No attached photos",
@@ -847,7 +848,7 @@ export const translations = {
       table: {
         service: "Servicio",
         asset: "Activo",
-        operator: "Operador",
+        operator: "Usuario",
         owner: "Owner",
         evidence: "Evidencia",
         date: "Fecha",
@@ -859,6 +860,7 @@ export const translations = {
         services: "servicios completados",
       },
       drawer: {
+        drawer_title: "Detalle de servicio",
         report_label: "Servicio",
         evidence_label: "Evidencia visual",
         no_photos: "Sin fotos adjuntas",

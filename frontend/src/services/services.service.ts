@@ -10,6 +10,7 @@ export interface Service {
     name: string;
     location?: string;
     thumbnail_url?: string | null;
+    owner?: { id: string; name: string };
   };
   worker?: {
     id: string;
