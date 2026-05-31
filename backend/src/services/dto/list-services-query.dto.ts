@@ -11,6 +11,9 @@ export class ListServicesQueryDto extends PaginationQueryDto {
   worker_id?: string;
 
   @IsOptional()
+  preset?: string;
+
+  @IsOptional()
   startDate?: string;
 
   @IsOptional()

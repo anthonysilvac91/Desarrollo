@@ -14,6 +14,35 @@ import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
 
+function resolveDateRange(preset?: string, startDate?: string, endDate?: string): { gte: Date; lte: Date } | undefined {
+  const now = new Date();
+  if (preset === 'Hoy') {
+    return {
+      gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)),
+      lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)),
+    };
+  }
+  if (preset === 'Mes') {
+    return {
+      gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0)),
+      lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999)),
+    };
+  }
+  if (preset === 'Año') {
+    return {
+      gte: new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0)),
+      lte: new Date(Date.UTC(now.getUTCFullYear(), 11, 31, 23, 59, 59, 999)),
+    };
+  }
+  if (preset === 'Personalizado' && startDate && endDate) {
+    return {
+      gte: new Date(startDate + 'T00:00:00.000Z'),
+      lte: new Date(endDate + 'T23:59:59.999Z'),
+    };
+  }
+  return undefined;
+}
+
 @Injectable()
 export class ServicesService {
   private readonly logger = new Logger(ServicesService.name);
@@ -175,13 +204,8 @@ export class ServicesService {
     if (query.asset_id) whereClause.asset_id = query.asset_id;
     if (query.worker_id) whereClause.worker_id = query.worker_id;
 
-    if (query.startDate && query.endDate) {
-      const start = new Date(query.startDate);
-      const end = new Date(query.endDate);
-      start.setHours(0,0,0,0);
-      end.setHours(23,59,59,999);
-      whereClause.created_at = { gte: start, lte: end };
-    }
+    const dateRange = resolveDateRange(query.preset, query.startDate, query.endDate);
+    if (dateRange) whereClause.created_at = dateRange;
 
     if (isExternalRole(user.role)) {
       const currentOwnerId = user.owner_id ?? null;
@@ -267,13 +291,8 @@ export class ServicesService {
 
     const periodWhere: any = { ...baseWhere };
 
-    if (query.startDate && query.endDate) {
-      const start = new Date(query.startDate);
-      const end = new Date(query.endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      periodWhere.created_at = { gte: start, lte: end };
-    }
+    const dateRange = resolveDateRange(query.preset, query.startDate, query.endDate);
+    if (dateRange) periodWhere.created_at = dateRange;
 
     const [total_services, period_services, assetGroups, workerGroups] = await Promise.all([
       this.prisma.service.count({ where: baseWhere }),
