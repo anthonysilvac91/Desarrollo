@@ -7,6 +7,7 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare, LayoutList } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 import { useLanguage } from "@/lib/LanguageContext";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceModal from "@/components/services/ServiceModal";
@@ -120,13 +121,11 @@ export default function ServicesPage() {
       sortable: true,
       sortValue: (item) => item.title,
       cell: (item) => (
-        <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand shrink-0">
+        <div className="flex items-center space-x-3">
+          <div className="rounded-full overflow-hidden border-2 border-surface shadow-sm bg-brand/10 flex items-center justify-center text-brand shrink-0" style={{ width: 52, height: 52 }}>
             <Wrench className="w-5 h-5" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-title text-sm leading-tight">{item.title}</span>
-          </div>
+          <span className="font-bold text-title text-xs">{item.title}</span>
         </div>
       )
     },
@@ -136,9 +135,9 @@ export default function ServicesPage() {
       sortable: true,
       sortValue: (item) => item.asset?.name || "",
       cell: (item) => (
-        <div className="flex items-center text-subtitle/80 font-semibold group cursor-pointer hover:text-brand transition-colors">
-          <Ship className="w-4 h-4 mr-2 opacity-40" />
-          <span className="text-sm">{item.asset?.name || "---"}</span>
+        <div className="flex items-center text-subtitle/70">
+          <Ship className="w-3.5 h-3.5 mr-1.5 text-brand" />
+          <span className="text-xs font-semibold">{item.asset?.name || "---"}</span>
         </div>
       )
     },
@@ -149,10 +148,26 @@ export default function ServicesPage() {
       sortValue: (item) => item.worker?.name || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/80">
-          <div className="w-6 h-6 rounded-full bg-app-bg border border-border-theme/40 flex items-center justify-center mr-2 overflow-hidden">
-            <User className="w-3.5 h-3.5 opacity-40" />
+          <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center mr-2 shrink-0">
+            <span className="text-[10px] font-black text-brand">
+              {item.worker?.name ? item.worker.name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("") : "?"}
+            </span>
           </div>
-          <span className="font-semibold text-sm">{item.worker?.name || "---"}</span>
+          <span className="font-bold text-subtitle/80 text-xs">{item.worker?.name || "---"}</span>
+        </div>
+      )
+    },
+    {
+      key: "evidence",
+      header: t.services.table.evidence,
+      align: "center",
+      sortable: true,
+      sortValue: (item) => item.attachments?.length || 0,
+      cell: (item) => (
+        <div className="flex items-center justify-center">
+          <span className="min-w-[40px] h-7 flex items-center justify-center text-xs font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
+            {item.attachments?.length || 0}
+          </span>
         </div>
       )
     },
@@ -164,8 +179,8 @@ export default function ServicesPage() {
       sortValue: (item) => item.created_at,
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
-          <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">{formatDate(item.created_at)}</span>
+          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+          <span className="font-semibold text-xs">{formatDate(item.created_at)}</span>
         </div>
       )
     },
@@ -175,9 +190,9 @@ export default function ServicesPage() {
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center">
-          <button 
+          <button
             onClick={(e) => handleDeleteRequest(e, item)}
-            className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
+            className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
             title="Eliminar servicio"
           >
             <Trash2 className="w-5 h-5" />
@@ -197,13 +212,16 @@ export default function ServicesPage() {
           <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
           {t.services.pagination.services}
         </div>
-        <select
-          value={limit}
-          onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-          className="text-xs font-bold text-subtitle/50 border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
-        >
-          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
-        </select>
+        <FilterDropdown
+          value={String(limit)}
+          onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+          options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / pág` }))}
+          placeholder=""
+          showReset={false}
+          compact
+          neutral
+          up
+        />
       </div>
       <div className="flex items-center space-x-2">
         <button
