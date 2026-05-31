@@ -17,15 +17,27 @@ import { dashboardService } from "@/services/dashboard.service";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import KPICard from "@/components/dashboard/KPICard";
-import PerformanceList from "@/components/dashboard/PerformanceList";
-import { Loader2, AlertCircle, Briefcase, Ship, Inbox } from "lucide-react";
+import RecentServicesCard from "@/components/dashboard/RecentServicesCard";
+import AssetCoverageCard from "@/components/dashboard/AssetCoverageCard";
+import OperatorActivityCard from "@/components/dashboard/OperatorActivityCard";
+import SystemSummaryCard from "@/components/dashboard/SystemSummaryCard";
+import { Loader2, AlertCircle, Inbox, Wrench, Clock, Users, Ship } from "lucide-react";
+import { formatRelativeTime } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
 export default function DashboardPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const [dateRange, setDateRange] = useState<{ start?: string; end?: string }>({});
   const [activePreset, setActivePreset] = useState("Mes");
+
+  const presetLabel: Record<string, string> = {
+    "Hoy": t.date_filters.today,
+    "Mes": t.date_filters.month,
+    "Año": t.date_filters.year,
+    "Personalizado": t.date_filters.custom,
+    "Todo": t.common.all,
+  };
 
   const { data: stats, isLoading, isError, refetch } = useQuery({
     queryKey: ["dashboard-stats", dateRange],
@@ -67,29 +79,7 @@ export default function DashboardPage() {
     setDateRange({ start: startDate.toISOString(), end: now.toISOString() });
   };
 
-  // Maps for rankings
-  const topAssets = stats?.top_assets.map(a => ({
-    id: a.id,
-    name: a.name,
-    metric: a.metric,
-    icon: Ship
-  })) || [];
 
-  const topWorkers = stats?.top_workers.map(w => ({
-    id: w.id,
-    name: w.name,
-    metric: w.metric,
-    avatar: w.avatar_url,
-    icon: Briefcase
-  })) || [];
-
-  // Recent items for workers/clients
-  const recentItems = stats?.recent_services.slice(0, 3).map(s => ({
-    id: s.id,
-    name: s.asset_name,
-    metric: 1,
-    icon: isExternal ? Briefcase : Ship
-  })) || [];
 
   if (isLoading) {
     return (
@@ -136,26 +126,30 @@ export default function DashboardPage() {
 
       {/* KPI Section */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <KPICard 
-          title={isExternal ? t.dashboard.kpis.services_received : (isWorker ? t.dashboard.kpis.my_services : t.dashboard.kpis.jobs_performed)}
-          value={stats?.total_services || 0}
+        <KPICard
+          title={t.dashboard.kpis.jobs_performed}
+          value={stats?.total_services ?? 0}
+          subtitle={t.dashboard.kpis.subtitle_services_performed}
+          icon={Wrench}
         />
-        <KPICard 
-          title={isExternal ? t.dashboard.kpis.my_assets : (isWorker ? t.dashboard.kpis.assets_attended : t.dashboard.kpis.assets_serviced)}
-          value={stats?.total_assets || 0}
+        <KPICard
+          title={t.dashboard.kpis.assets_serviced}
+          value={stats?.assets_serviced ?? 0}
+          subtitle={t.dashboard.kpis.subtitle_assets_serviced}
+          icon={Ship}
         />
-        {!isWorker && !isExternal && (
-          <>
-            <KPICard 
-              title={t.dashboard.kpis.owners_reached}
-              value={stats?.total_owners || 0}
-            />
-            <KPICard 
-              title={t.dashboard.kpis.growth}
-              value={hasData ? "+100%" : "---"} 
-            />
-          </>
-        )}
+        <KPICard
+          title={t.dashboard.kpis.last_service}
+          value={stats?.last_service ? formatRelativeTime(stats.last_service, language as "en" | "es") : "---"}
+          subtitle={stats?.last_service ? t.dashboard.kpis.subtitle_last_service : t.dashboard.kpis.subtitle_no_service}
+          icon={Clock}
+        />
+        <KPICard
+          title={t.dashboard.kpis.active_operators}
+          value={stats?.active_operators ?? 0}
+          subtitle={t.dashboard.kpis.subtitle_active_operators}
+          icon={Users}
+        />
       </div>
 
       {/* Evolution Chart Section */}
@@ -168,7 +162,7 @@ export default function DashboardPage() {
                   {t.dashboard.charts.evolution_title}
                 </h2>
                 <p className="text-[13px] text-subtitle/60 font-medium tracking-tight">
-                  {t.dashboard.charts.period_label}: {activePreset}
+                  {t.dashboard.charts.period_label}: {presetLabel[activePreset] ?? activePreset}
                 </p>
               </div>
               
@@ -217,56 +211,33 @@ export default function DashboardPage() {
         </ModuleContainer>
       )}
 
-      {/* Rankings Section */}
-      {hasData ? (
-        <div className={`grid grid-cols-1 md:grid-cols-2 ${ (isWorker || isExternal) ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
-          <ModuleContainer>
-            <div className="p-6">
-              <PerformanceList 
-                title={isExternal ? t.dashboard.rankings.my_last_services : (isWorker ? t.dashboard.rankings.my_last_assets : t.dashboard.rankings.top_assets)}
-                items={(isWorker || isExternal) ? recentItems : topAssets} 
-                metricLabel={isExternal ? t.dashboard.rankings.listed_label : (isWorker ? t.dashboard.rankings.recent_label : t.dashboard.rankings.jobs_count)}
-              />
-            </div>
-          </ModuleContainer>
-
-          {!isWorker && !isExternal && (
-            <>
-              <ModuleContainer>
-                <div className="p-6">
-                  <PerformanceList 
-                    title={t.dashboard.rankings.top_operators}
-                    items={topWorkers}
-                    metricLabel={t.dashboard.rankings.jobs_count}
-                  />
-                </div>
-              </ModuleContainer>
-
-              <ModuleContainer>
-                <div className="p-6">
-                  <PerformanceList 
-                    title={t.dashboard.rankings.top_owners}
-                    items={[]} // Pendiente integración con Prisma groupBy client_id si aplica
-                    metricLabel={t.dashboard.rankings.jobs_count}
-                  />
-                </div>
-              </ModuleContainer>
-            </>
-          )}
+      {/* Lower Dashboard Modules */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[5fr_2fr_3fr_2fr] gap-4 sm:gap-5">
+        <div className="sm:col-span-2 xl:col-span-1">
+          <RecentServicesCard
+            services={stats?.recent_services ?? []}
+            t={t}
+          />
         </div>
-      ) : (
-        <ModuleContainer>
-          <div className="w-full flex flex-col items-center justify-center py-24 space-y-4">
-            <div className="p-5 bg-app-bg rounded-full">
-              <Inbox className="w-10 h-10 text-subtitle/20" />
-            </div>
-            <div className="text-center">
-              <p className="font-black text-title text-xl">{t.dashboard.states.empty_title}</p>
-              <p className="text-subtitle font-medium">{t.dashboard.states.empty_subtitle}</p>
-            </div>
-          </div>
-        </ModuleContainer>
-      )}
+        <AssetCoverageCard
+          totalAssets={stats?.total_assets ?? 0}
+          assetsServiced={stats?.assets_serviced ?? 0}
+          t={t}
+        />
+        <OperatorActivityCard
+          operators={stats?.top_workers ?? []}
+          t={t}
+        />
+        <div className="sm:col-span-2 xl:col-span-1">
+          <SystemSummaryCard
+            totalAssets={stats?.total_assets ?? 0}
+            totalOwners={stats?.total_owners ?? 0}
+            totalWorkers={stats?.total_workers ?? 0}
+            totalAdmins={stats?.total_admins ?? 0}
+            t={t}
+          />
+        </div>
+      </div>
       
     </div>
   );
