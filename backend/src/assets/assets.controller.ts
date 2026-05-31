@@ -2,7 +2,7 @@ import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, 
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { AssetQueryDto } from './dto/asset-query.dto';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
@@ -28,7 +28,7 @@ export class AssetsController {
 
   @Get()
   @ApiOperation({ summary: 'Listar activos segun rol', description: 'El backend filtra: Admin/Worker ven todo, EXTERNAL ve los activos vinculados a su owner.' })
-  findAll(@Query() query: PaginationQueryDto, @Request() req) {
+  findAll(@Query() query: AssetQueryDto, @Request() req) {
     return this.assetsService.findAll(
       query,
       req.user.orgId,

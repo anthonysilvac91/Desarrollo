@@ -212,6 +212,14 @@ export class AssetsService {
       ];
     }
 
+    if ((role === 'ADMIN' || role === 'SUPER_ADMIN') && query.owner_id) {
+      baseWhere.owner_id = query.owner_id;
+    }
+
+    if ((role === 'ADMIN' || role === 'SUPER_ADMIN') && query.is_active !== undefined && query.is_active !== '') {
+      baseWhere.is_active = query.is_active === 'true' || query.is_active === true;
+    }
+
     const orderBy = [{ is_active: 'desc' as const }, { updated_at: 'desc' as const }];
 
     if (query.page && query.limit) {

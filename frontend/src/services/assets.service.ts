@@ -61,7 +61,7 @@ export const assetsService = {
     return res.data;
   },
 
-  findAll: async (params?: { page?: number, limit?: number, search?: string }): Promise<any> => {
+  findAll: async (params?: { page?: number, limit?: number, search?: string, owner_id?: string, is_active?: string }): Promise<any> => {
     const res = await api.get("/assets", { params });
     return res.data;
   },
