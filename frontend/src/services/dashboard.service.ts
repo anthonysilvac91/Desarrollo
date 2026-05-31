@@ -8,6 +8,9 @@ export interface DashboardStats {
   total_admins: number;
   public_services: number;
   private_services: number;
+  assets_serviced: number;
+  last_service: string | null;
+  active_operators: number;
   recent_services: Array<{
     id: string;
     title: string;

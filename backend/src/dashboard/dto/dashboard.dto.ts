@@ -46,6 +46,12 @@ export class DashboardStatsDto {
   public_services: number;
   @ApiProperty()
   private_services: number;
+  @ApiProperty()
+  assets_serviced: number;
+  @ApiProperty({ nullable: true })
+  last_service: string | null;
+  @ApiProperty()
+  active_operators: number;
   
   @ApiProperty({ type: [RecentServiceDto] })
   recent_services: RecentServiceDto[];

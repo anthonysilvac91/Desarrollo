@@ -65,7 +65,9 @@ export class DashboardService {
       recentServices,
       evolutionData,
       assetRanking,
-      workerRanking
+      workerRanking,
+      assetsServicedGroups,
+      activeOperatorsGroups,
     ] = await Promise.all([
       // Assets Count
       isExternal
@@ -92,9 +94,9 @@ export class DashboardService {
 
       // Evolution (Last 7 days)
       this.prisma.service.findMany({
-        where: { 
-          ...statsWhere, 
-          created_at: { gte: new Date(new Date().setDate(new Date().getDate() - 7)) } 
+        where: {
+          ...statsWhere,
+          created_at: { gte: new Date(new Date().setDate(new Date().getDate() - 7)) }
         },
         select: { created_at: true },
         orderBy: { created_at: 'asc' }
@@ -117,6 +119,18 @@ export class DashboardService {
         orderBy: { _count: { id: 'desc' } },
         take: 5,
       }),
+
+      // Assets Serviced (distinct assets with at least one service in period)
+      this.prisma.service.groupBy({
+        by: ['asset_id'],
+        where: statsWhere,
+      }),
+
+      // Active Operators (distinct workers with services in period)
+      (isWorker || isExternal) ? [] : this.prisma.service.groupBy({
+        by: ['worker_id'],
+        where: statsWhere,
+      }),
     ]);
 
     // Procesar Evolución
@@ -136,6 +150,9 @@ export class DashboardService {
       total_admins: adminsCount,
       public_services: publicServices,
       private_services: privateServices,
+      assets_serviced: assetsServicedGroups.length,
+      last_service: recentServices[0]?.created_at?.toISOString() ?? null,
+      active_operators: activeOperatorsGroups.length,
       recent_services: recentServices.map(s => ({
         id: s.id,
         title: s.title,
@@ -159,6 +176,9 @@ export class DashboardService {
       total_admins: 0,
       public_services: 0,
       private_services: 0,
+      assets_serviced: 0,
+      last_service: null,
+      active_operators: 0,
       recent_services: [],
       evolution: this.processEvolution([]),
       top_assets: [],
