@@ -73,6 +73,12 @@ export const translations = {
       search_placeholder: "Search by name...",
       filter: "Filter",
       add_new: "Add new",
+      kpis: {
+        total: "Total assets",
+        active: "Active",
+        inactive: "Inactive",
+        with_services: "With services",
+      },
       table: {
         asset: "Asset",
         owner: "Owner",
@@ -723,6 +729,12 @@ export const translations = {
       search_placeholder: "Buscar por nombre...",
       filter: "Filtrar",
       add_new: "Agregar nuevo",
+      kpis: {
+        total: "Total activos",
+        active: "Activos",
+        inactive: "Inactivos",
+        with_services: "Con servicios",
+      },
       table: {
         asset: "Activo",
         owner: "Owner",

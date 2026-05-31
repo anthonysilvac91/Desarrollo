@@ -252,6 +252,37 @@ export class AssetsService {
     );
   }
 
+  async getStats(orgId: string, role: string, ownerId?: string) {
+    const baseWhere: any = {};
+
+    if (role !== 'SUPER_ADMIN') {
+      baseWhere.organization_id = orgId;
+    }
+    if (role === 'WORKER') {
+      baseWhere.is_active = true;
+    }
+    if (isExternalRole(role)) {
+      if (!ownerId) {
+        return { total_assets: 0, active_assets: 0, inactive_assets: 0, assets_with_services: 0 };
+      }
+      baseWhere.owner_id = ownerId;
+      baseWhere.is_active = true;
+    }
+
+    const [total, active, withServices] = await Promise.all([
+      this.prisma.asset.count({ where: baseWhere }),
+      this.prisma.asset.count({ where: { ...baseWhere, is_active: true } }),
+      this.prisma.asset.count({ where: { ...baseWhere, services: { some: {} } } }),
+    ]);
+
+    return {
+      total_assets: total,
+      active_assets: active,
+      inactive_assets: total - active,
+      assets_with_services: withServices,
+    };
+  }
+
   async findOne(id: string, user: any) {
     const asset = await this.prisma.asset.findUnique({
       where: { id },

@@ -48,7 +48,19 @@ export interface Asset {
   services?: Service[];
 }
 
+export interface AssetStats {
+  total_assets: number;
+  active_assets: number;
+  inactive_assets: number;
+  assets_with_services: number;
+}
+
 export const assetsService = {
+  getStats: async (): Promise<AssetStats> => {
+    const res = await api.get("/assets/stats");
+    return res.data;
+  },
+
   findAll: async (params?: { page?: number, limit?: number, search?: string }): Promise<any> => {
     const res = await api.get("/assets", { params });
     return res.data;

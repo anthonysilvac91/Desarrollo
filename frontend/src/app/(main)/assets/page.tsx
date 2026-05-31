@@ -7,7 +7,8 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search } from "lucide-react";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, Ship, CheckCircle2, MinusCircle } from "lucide-react";
+import KPICard from "@/components/dashboard/KPICard";
 import { formatDate } from "@/lib/formatDate";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -107,6 +108,13 @@ export default function AssetsPage() {
   const ownerDropdownRef = useRef<HTMLDivElement>(null);
 
   const queryParams = { page, limit, search: debouncedSearch };
+
+  const { data: assetStats } = useQuery({
+    queryKey: ["assets-stats"],
+    queryFn: () => assetsService.getStats(),
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
+  });
 
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["assets", queryParams],
@@ -244,11 +252,11 @@ export default function AssetsPage() {
       sortable: true,
       sortValue: (item) => item.name,
       cell: (item) => (
-        <div className="flex items-center space-x-5">
-          <div className={`w-14 h-14 rounded-full overflow-hidden border-2 border-surface shadow-sm shrink-0 bg-app-bg flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`}>
+        <div className="flex items-center space-x-3">
+          <div className={`w-9 h-9 rounded-full overflow-hidden border-2 border-surface shadow-sm shrink-0 bg-app-bg flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`}>
             <AssetImage src={item.thumbnail_url || ""} alt={item.name} iconId={iconId} />
           </div>
-          <span className={`font-bold text-title text-sm ${!item.is_active ? "opacity-40" : ""}`}>{item.name}</span>
+          <span className={`font-bold text-title text-xs ${!item.is_active ? "opacity-40" : ""}`}>{item.name}</span>
         </div>
       ),
     },
@@ -257,7 +265,7 @@ export default function AssetsPage() {
       header: t.assets.table.owner,
       sortable: true,
       sortValue: (item) => item.owner?.name || "",
-      cell: (item) => <span className="font-bold text-subtitle/80 text-sm">{item.owner?.name || "---"}</span>,
+      cell: (item) => <span className="font-bold text-subtitle/80 text-xs">{item.owner?.name || "---"}</span>,
     },
     {
       key: "location",
@@ -266,8 +274,8 @@ export default function AssetsPage() {
       sortValue: (item) => item.location || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
-          <MapPin className="w-4 h-4 mr-2 text-brand" />
-          <span className="text-sm font-semibold">{item.location || t.common.not_available}</span>
+          <MapPin className="w-3.5 h-3.5 mr-1.5 text-brand" />
+          <span className="text-xs font-semibold">{item.location || t.common.not_available}</span>
         </div>
       ),
     },
@@ -279,7 +287,7 @@ export default function AssetsPage() {
       sortValue: (item: any) => item._count?.services || 0,
       cell: (item: any) => (
         <div className="flex items-center justify-center">
-          <span className="min-w-[50px] h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
+          <span className="min-w-[40px] h-7 flex items-center justify-center text-xs font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
             {item._count?.services || 0}
           </span>
         </div>
@@ -293,8 +301,8 @@ export default function AssetsPage() {
       sortValue: (item) => item.last_service?.date || "",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
-          <Calendar className="w-4 h-4 mr-2" />
-          <span className="font-semibold text-sm">
+          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+          <span className="font-semibold text-xs">
             {item.last_service?.date ? formatDate(item.last_service.date) : "---"}
           </span>
         </div>
@@ -314,27 +322,27 @@ export default function AssetsPage() {
       header: t.assets.table.actions,
       align: "center",
       cell: (item) => (
-        <div className="flex items-center justify-center space-x-3">
+        <div className="flex items-center justify-center space-x-1.5">
           {canManage && (
             <button
               onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
-              className={`p-2.5 transition-all rounded-full ${item.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50"}`}
+              className={`p-1.5 transition-all rounded-full ${item.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50"}`}
             >
-              {item.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+              {item.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
             </button>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); setAssetToEdit(item); setIsModalOpen(true); }}
-            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
+            className="p-1.5 text-subtitle/40 hover:text-brand transition-colors"
           >
-            <Pencil className="w-5 h-5" />
+            <Pencil className="w-4 h-4" />
           </button>
           {canManage && (
             <button
               onClick={(e) => handleDeleteRequest(e, item)}
-              className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
+              className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
             >
-              <Trash2 className="w-5 h-5" />
+              <Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -345,7 +353,7 @@ export default function AssetsPage() {
   const pagination = (
     <>
       <div className="flex items-center space-x-3">
-        <div className="text-[15px] text-subtitle font-medium tracking-tight">
+        <div className="text-xs text-subtitle font-medium tracking-tight">
           {t.assets.pagination.showing}{" "}
           <span className="text-title font-bold">{displayData.length}</span>{" "}
           {t.assets.pagination.of}{" "}
@@ -432,6 +440,39 @@ export default function AssetsPage() {
   return (
     <div className="flex flex-col space-y-4 lg:space-y-10">
       <h1 className="lg:hidden text-2xl font-black text-title tracking-tight text-center">{t.topbar.titles.assets}</h1>
+
+      {/* Asset KPI summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <KPICard
+          title={t.assets.kpis.total}
+          value={assetStats?.total_assets ?? 0}
+          icon={Ship}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-500"
+        />
+        <KPICard
+          title={t.assets.kpis.active}
+          value={assetStats?.active_assets ?? 0}
+          icon={CheckCircle2}
+          iconBg="bg-green-50"
+          iconColor="text-green-600"
+        />
+        <KPICard
+          title={t.assets.kpis.inactive}
+          value={assetStats?.inactive_assets ?? 0}
+          icon={MinusCircle}
+          iconBg="bg-orange-50"
+          iconColor="text-orange-500"
+        />
+        <KPICard
+          title={t.assets.kpis.with_services}
+          value={assetStats?.assets_with_services ?? 0}
+          icon={Wrench}
+          iconBg="bg-brand/10"
+          iconColor="text-brand"
+        />
+      </div>
+
       <FiltersBar
         searchPlaceholder={t.assets.search_placeholder}
         onSearchChange={setSearch}

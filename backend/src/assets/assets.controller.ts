@@ -37,6 +37,12 @@ export class AssetsController {
     );
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Estadísticas generales de activos' })
+  getStats(@Request() req) {
+    return this.assetsService.getStats(req.user.orgId, req.user.role, req.user.owner_id ?? undefined);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalle de un activo', description: 'Incluye historial de servicios y acceso de companies. Filtra por tenant y permisos.' })
   findOne(@Param('id') id: string, @Request() req) {
