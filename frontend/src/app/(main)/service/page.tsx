@@ -8,6 +8,7 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare, LayoutList } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
+import DateFilterDropdown from "@/components/ui/DateFilterDropdown";
 import { useLanguage } from "@/lib/LanguageContext";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceModal from "@/components/services/ServiceModal";
@@ -318,9 +319,11 @@ export default function ServicesPage() {
               options={workerOptions.map(w => ({ value: w.id, label: w.name }))}
               placeholder={t.services.table.operator}
             />
-            <FilterDropdown
+            <DateFilterDropdown
               value={dateFilter.preset === "Todo" ? "" : dateFilter.preset}
-              onChange={(v) => handleDateChange(v || "Todo")}
+              customStart={dateFilter.start}
+              customEnd={dateFilter.end}
+              onChange={(preset, start, end) => handleDateChange(preset || "Todo", start, end)}
               options={[
                 { value: "Hoy", label: t.date_filters.today },
                 { value: "Mes", label: t.date_filters.month },
