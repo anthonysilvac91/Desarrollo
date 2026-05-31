@@ -190,30 +190,34 @@ export default function ServicesPage() {
   const pagination = (
     <>
       <div className="flex items-center space-x-3">
-        <div className="text-[15px] text-subtitle font-medium">
-          {t.services.pagination.showing} <span className="text-title font-bold">{servicesList.length}</span> {t.services.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.services.pagination.services}
+        <div className="text-xs text-subtitle/40 font-medium tracking-tight">
+          {t.services.pagination.showing}{" "}
+          <span className="text-subtitle/70 font-bold">{servicesList.length}</span>{" "}
+          {t.services.pagination.of}{" "}
+          <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
+          {t.services.pagination.services}
         </div>
         <select
           value={limit}
           onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-          className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
+          className="text-xs font-bold text-subtitle/50 border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
         >
           {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
         </select>
       </div>
       <div className="flex items-center space-x-2">
-        <button 
+        <button
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
-          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20"
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">{page}</button>
-        <button 
+        <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">{page}</button>
+        <button
           onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
           disabled={page >= meta.totalPages}
-          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20"
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -272,22 +276,22 @@ export default function ServicesPage() {
         actions={canCreate ? (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
+            className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
           >
-            <Plus className="w-5 h-5 stroke-[4px]" />
-            <span>{t.services.add_new}</span>
+            <Plus className="w-4 h-4 stroke-[3px]" />
+            {t.services.add_new}
           </button>
         ) : undefined}
       />
 
-      <div className="flex-1 min-h-100">
+      <div className="flex-1 min-h-[400px]">
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
             <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.services.states.loading}</p>
           </div>
         ) : isError ? (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
               <div className="p-4 bg-error/10 rounded-full">
                 <AlertCircle className="w-8 h-8 text-error" />
@@ -305,7 +309,7 @@ export default function ServicesPage() {
             </div>
           </ModuleContainer>
         ) : servicesList.length === 0 ? (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
               <div className="p-6 bg-app-bg/50 rounded-full">
                 <Inbox className="w-12 h-12 text-subtitle/20" />
@@ -319,7 +323,7 @@ export default function ServicesPage() {
             </div>
           </ModuleContainer>
         ) : (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <DataTable
               data={servicesList}
               columns={columns}
