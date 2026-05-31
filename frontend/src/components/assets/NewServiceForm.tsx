@@ -356,7 +356,7 @@ function EvidenceSection({ images, canAdd, isProcessing, onAdd, onRemove, t }: E
             <button
               type="button"
               onClick={() => onRemove(i)}
-              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-title/60 backdrop-blur-sm text-white flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity"
+              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-title/60 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-transform"
             >
               <X className="w-3.5 h-3.5" />
             </button>
