@@ -90,6 +90,7 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
       const compressed = await compressImageFile(file, {
         maxDimension: 800,
         quality: 0.85,
+        maxBytes: 2 * 1024 * 1024,
         fileNamePrefix: "avatar-source",
       });
       const reader = new FileReader();
