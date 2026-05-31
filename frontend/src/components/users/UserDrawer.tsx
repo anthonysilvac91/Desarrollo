@@ -286,7 +286,7 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
                     <DayPicker
                       mode="range"
                       selected={customRange}
-                      onSelect={(range) => { setCustomRange(range); if (range?.from && range?.to) setIsDatePickerOpen(false); }}
+                      onSelect={(range) => { setCustomRange(range); if (range?.from && range?.to && range.from.getTime() !== range.to.getTime()) setIsDatePickerOpen(false); }}
                       classNames={{
                         caption_label: "text-sm font-black text-title",
                         nav: "absolute inset-x-0 top-0 flex justify-between",
