@@ -34,13 +34,14 @@ interface AssetCardProps {
   item: Asset;
   canManage: boolean;
   iconId?: string | null;
+  t: any;
   onEdit: () => void;
   onDelete: (e: React.MouseEvent) => void;
   onToggle: () => void;
   onClick: () => void;
 }
 
-const AssetCard = ({ item, canManage, iconId, onEdit, onDelete, onToggle, onClick }: AssetCardProps) => (
+const AssetCard = ({ item, canManage, iconId, t, onEdit, onDelete, onToggle, onClick }: AssetCardProps) => (
   <div
     onClick={onClick}
     className="bg-surface rounded-2xl border border-border-theme/40 shadow-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
@@ -59,8 +60,8 @@ const AssetCard = ({ item, canManage, iconId, onEdit, onDelete, onToggle, onClic
             {item.name}
           </span>
           {item.is_active
-            ? <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-100 text-green-700 border border-green-200">activo</span>
-            : <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">inactivo</span>
+            ? <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-100 text-green-700 border border-green-200">{t.common.active}</span>
+            : <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">{t.common.inactive}</span>
           }
         </div>
         {/* Owner */}
@@ -209,7 +210,7 @@ export default function AssetsPage() {
   const handleToggleStatus = async (asset: Asset) => {
     try {
       await assetsService.toggleStatus(asset.id, !asset.is_active);
-      showToast(asset.is_active ? "Activo desactivado" : "Activo activado", "success");
+      showToast(asset.is_active ? t.assets.states.deactivated : t.assets.states.activated, "success");
       refetch(); refetchMobile();
     } catch {
       showToast(t.feedback.generic_error, "error");
@@ -266,7 +267,7 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
           <MapPin className="w-4 h-4 mr-2 text-brand" />
-          <span className="text-sm font-semibold">{item.location || "N/A"}</span>
+          <span className="text-sm font-semibold">{item.location || t.common.not_available}</span>
         </div>
       ),
     },
@@ -356,7 +357,7 @@ export default function AssetsPage() {
           onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
           className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
         >
-          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
+          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / {t.common.per_page}</option>)}
         </select>
       </div>
       <div className="flex items-center space-x-2">
@@ -384,7 +385,7 @@ export default function AssetsPage() {
   const mobilePagination = (
     <div className="flex items-center justify-between pt-2">
       <span className="text-xs text-subtitle/60 font-semibold">
-        {displayData.length} de {meta.total}
+        {displayData.length} {t.assets.pagination.of} {meta.total}
       </span>
       <div className="flex items-center gap-2">
         <button
@@ -503,10 +504,10 @@ export default function AssetsPage() {
                     <button
                       key={s}
                       onClick={() => setMobileStatusFilter(s)}
-                      className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${
+                      className={`px-3 py-2 rounded-full border text-xs font-bold transition-all ${
                         mobileStatusFilter === s
-                          ? "bg-white text-brand shadow-sm ring-1 ring-black/5"
-                          : "text-subtitle/50"
+                          ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
+                          : "border-transparent text-subtitle/50"
                       }`}
                     >
                       {s === "all" ? t.common.all : s === "active" ? t.common.active : t.common.inactive}
@@ -588,6 +589,7 @@ export default function AssetsPage() {
                   item={item}
                   canManage={canManage}
                   iconId={iconId}
+                  t={t}
                   onEdit={() => { setAssetToEdit(item); setIsModalOpen(true); }}
                   onDelete={(e) => handleDeleteRequest(e, item)}
                   onToggle={() => handleToggleStatus(item)}

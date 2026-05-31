@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService, Service, ServiceAttachment } from "@/services/assets.service";
-import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus, Pencil, SlidersHorizontal, X, Wrench } from "lucide-react";
+import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus, Pencil, X, Wrench, ChevronDown } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import type { DateRange } from "react-day-picker";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 import ImageCropModal from "@/components/ui/ImageCropModal";
@@ -115,7 +117,11 @@ export default function AssetDetailPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [mobileDateRange, setMobileDateRange] = useState<DateRange | undefined>(undefined);
+  const [isMobileDateOpen, setIsMobileDateOpen] = useState(false);
+  const mobileDateRef = useRef<HTMLDivElement>(null);
+  const [isMobileUserOpen, setIsMobileUserOpen] = useState(false);
+  const mobileUserRef = useRef<HTMLDivElement>(null);
 
   // Photo edit
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,7 +144,7 @@ export default function AssetDetailPage() {
       reader.onloadend = () => setCropSrc(reader.result as string);
       reader.readAsDataURL(compressed);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo procesar la imagen.", "error");
+      showToast(err instanceof Error ? err.message : t.common.image_process_error, "error");
     } finally {
       setIsPhotoUpdating(false);
     }
@@ -153,15 +159,35 @@ export default function AssetDetailPage() {
       await assetsService.update(asset.id, formData);
       await queryClient.invalidateQueries({ queryKey: ["asset", asset.id] });
       await queryClient.invalidateQueries({ queryKey: ["assets"] });
-      showToast("Foto actualizada.", "success");
+      showToast(t.assets.drawer.photo_updated, "success");
       setCropSrc(null);
     } catch (err: any) {
       const msg = err?.response?.data?.message;
-      showToast(Array.isArray(msg) ? msg[0] : msg || "No se pudo actualizar la foto.", "error");
+      showToast(Array.isArray(msg) ? msg[0] : msg || t.assets.drawer.photo_update_error, "error");
     } finally {
       setIsPhotoUpdating(false);
     }
   };
+
+  React.useEffect(() => {
+    if (!isMobileDateOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (mobileDateRef.current && !mobileDateRef.current.contains(e.target as Node))
+        setIsMobileDateOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [isMobileDateOpen]);
+
+  React.useEffect(() => {
+    if (!isMobileUserOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (mobileUserRef.current && !mobileUserRef.current.contains(e.target as Node))
+        setIsMobileUserOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [isMobileUserOpen]);
 
   const { data: asset, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset", assetId],
@@ -171,15 +197,13 @@ export default function AssetDetailPage() {
     ...AUTO_REFETCH_OPTIONS,
   });
 
-  const statusInfo = useMemo(() => {
-    if (!asset || !asset.services || asset.services.length === 0) return { status: "PENDIENTE" as const, days: 999 };
-    const lastJobDate = new Date(asset.services[0].created_at);
-    const now = new Date();
-    const diffDays = Math.ceil(Math.abs(now.getTime() - lastJobDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 15) return { status: "OPERATIVO" as const, days: diffDays };
-    if (diffDays <= 45) return { status: "ATENCIÓN" as const, days: diffDays };
-    return { status: "PENDIENTE" as const, days: diffDays };
-  }, [asset]);
+  const mobileDateLabel = mobileDateRange?.from
+    ? `${mobileDateRange.from.toLocaleDateString("es", { day: "2-digit", month: "short" })}${
+        mobileDateRange.to
+          ? ` - ${mobileDateRange.to.toLocaleDateString("es", { day: "2-digit", month: "short" })}`
+          : " - ..."
+      }`
+    : t.date_filters.date;
 
   const filteredJobs = useMemo(() => {
     if (!asset?.services) return [];
@@ -189,12 +213,21 @@ export default function AssetDetailPage() {
       jobs = jobs.filter(j => selectedWorkers.includes(j.worker.name));
     }
 
-    if (datePreset) {
+    // Mobile: DayPicker range
+    if (mobileDateRange?.from) {
+      jobs = jobs.filter(j => {
+        const d = new Date(j.created_at);
+        const from = new Date(mobileDateRange.from!); from.setHours(0, 0, 0, 0);
+        const to = mobileDateRange.to ? new Date(mobileDateRange.to) : new Date(mobileDateRange.from!);
+        to.setHours(23, 59, 59, 999);
+        return d >= from && d <= to;
+      });
+    } else if (datePreset) {
+      // Desktop sidebar presets
       const now = new Date();
       const oneDay = 24 * 60 * 60 * 1000;
       jobs = jobs.filter(j => {
-        const jobDate = new Date(j.created_at);
-        const diffDays = (now.getTime() - jobDate.getTime()) / oneDay;
+        const diffDays = (now.getTime() - new Date(j.created_at).getTime()) / oneDay;
         if (datePreset === "Hoy") return diffDays <= 1;
         if (datePreset === "Semana") return diffDays <= 7;
         if (datePreset === "Mes") return diffDays <= 30;
@@ -204,16 +237,14 @@ export default function AssetDetailPage() {
     } else if (startDate || endDate) {
       jobs = jobs.filter(j => {
         const jobDate = new Date(j.created_at);
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
-        if (start && jobDate < start) return false;
-        if (end && jobDate > end) return false;
+        if (startDate && jobDate < new Date(startDate)) return false;
+        if (endDate && jobDate > new Date(endDate)) return false;
         return true;
       });
     }
 
     return jobs;
-  }, [selectedWorkers, datePreset, startDate, endDate, asset?.services]);
+  }, [selectedWorkers, mobileDateRange, datePreset, startDate, endDate, asset?.services]);
   const hasServiceHistory = (asset?.services?.length ?? 0) > 0;
 
   const toggleWorker = (workerName: string) => {
@@ -229,13 +260,14 @@ export default function AssetDetailPage() {
     setDatePreset(null);
     setStartDate("");
     setEndDate("");
+    setMobileDateRange(undefined);
   };
 
   if (isLoading) {
     return (
       <div className="w-full flex flex-col items-center justify-center py-40">
         <Loader2 className="w-12 h-12 text-brand animate-spin mb-4" />
-        <p className="font-black text-subtitle/40 tracking-widest text-xs uppercase">Sincronizando bitácora...</p>
+        <p className="font-black text-subtitle/40 tracking-widest text-xs uppercase">{t.mobile.asset_detail.loading}</p>
       </div>
     );
   }
@@ -247,14 +279,14 @@ export default function AssetDetailPage() {
           <AlertCircle className="w-8 h-8 text-error" />
         </div>
         <div className="text-center">
-          <p className="font-black text-title text-xl">Recurso no disponible</p>
-          <p className="text-subtitle font-medium">No pudimos cargar la información de este activo.</p>
+          <p className="font-black text-title text-xl">{t.mobile.asset_detail.error_title}</p>
+          <p className="text-subtitle font-medium">{t.mobile.asset_detail.error_subtitle}</p>
         </div>
         <button 
           onClick={() => refetch()}
           className="px-8 py-3 bg-title text-white rounded-2xl font-black text-sm"
         >
-          Reintentar
+          {t.mobile.asset_detail.retry}
         </button>
       </div>
     );
@@ -299,7 +331,7 @@ export default function AssetDetailPage() {
               onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
               disabled={isPhotoUpdating}
               className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center active:scale-95 transition-all disabled:opacity-60"
-              aria-label="Cambiar foto"
+              aria-label={t.assets.drawer.change_photo}
             >
               {isPhotoUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
             </button>
@@ -313,11 +345,11 @@ export default function AssetDetailPage() {
           </div>
           <div>
             <span className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-1 block">{t.assets.detail.owner}</span>
-            <h4 className="text-[22px] font-black text-title leading-tight">{asset.owner?.name || "Sin asignar"}</h4>
+            <h4 className="text-[22px] font-black text-title leading-tight">{asset.owner?.name || t.common.unassigned}</h4>
             <div className="mt-2 flex items-center space-x-6">
               <div className="text-[12px] font-bold text-subtitle/60 flex items-center">
                  <MapPin className="w-3.5 h-3.5 text-brand mr-1.5" />
-                 <span className="font-black text-title mr-1">{t.assets.table.location}:</span> {asset.location || "N/A"}
+                 <span className="font-black text-title mr-1">{t.assets.table.location}:</span> {asset.location || t.common.not_available}
               </div>
             </div>
           </div>
@@ -333,36 +365,121 @@ export default function AssetDetailPage() {
         <div className="flex flex-col justify-center items-center lg:items-start space-y-1">
            <span className="text-[10px] font-black text-subtitle/30 uppercase tracking-widest">{t.assets.detail.last_service}</span>
            <span className="text-2xl font-black text-title">
-             {statusInfo.days === 0 
-               ? t.assets.detail.today 
-               : statusInfo.days > 365 
-                 ? "---" 
-                 : `${t.assets.pagination.of === "de" ? "Hace" : ""} ${statusInfo.days} ${t.assets.detail.days_ago}`
-             }
+             {asset.last_service?.date ? formatDate(asset.last_service.date) : "---"}
            </span>
         </div>
       </div>
 
       {/* 3. SECTION TITLE */}
-      <div className="flex items-center justify-between pt-2 lg:pt-4">
-        <h3 className="text-[14px] font-black text-title uppercase tracking-[0.2em] flex items-center">
-           <History className="w-4 h-4 mr-3 text-brand" />
-           {t.assets.detail.activity_history}
+      <div className="flex items-center justify-between gap-3 pt-2 lg:pt-4">
+        <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em] flex items-center shrink-0">
+          <History className="w-4 h-4 mr-3 text-brand" />
+          {t.assets.detail.activity_history}
         </h3>
-        <div className="flex items-center gap-3">
-          {/* Botón filtros sólo en móvil */}
-          <button
-            onClick={() => setIsFiltersOpen(v => !v)}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl border border-border-theme/40 text-subtitle text-xs font-bold"
-          >
-            {isFiltersOpen ? <X className="w-3.5 h-3.5" /> : <SlidersHorizontal className="w-3.5 h-3.5" />}
-            Filtros
-          </button>
+        <div className="flex items-center gap-2">
+
+          {/* USER filter — mobile inline */}
+          <div ref={mobileUserRef} className="relative lg:hidden">
+            <button
+              onClick={() => setIsMobileUserOpen(v => !v)}
+              className={`px-3 py-2 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+                selectedWorkers.length > 0
+                  ? "bg-brand text-white border-brand shadow-sm"
+                  : "bg-surface border-border-theme/40 text-subtitle/60 hover:border-brand/30"
+              }`}
+            >
+              <UserIcon className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-18">
+                {selectedWorkers.length > 0 ? selectedWorkers[0] : "User"}
+              </span>
+              {selectedWorkers.length > 0
+                ? <X className="w-3 h-3 shrink-0" onClick={(e) => { e.stopPropagation(); setSelectedWorkers([]); }} />
+                : <ChevronDown className="w-3 h-3 shrink-0" />
+              }
+            </button>
+            {isMobileUserOpen && (
+              <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 min-w-[160px] overflow-hidden">
+                {Array.from(new Set(asset.services?.map(s => s.worker.name) ?? [])).map(name => (
+                  <button
+                    key={name}
+                    onClick={() => { setSelectedWorkers(selectedWorkers[0] === name ? [] : [name]); setIsMobileUserOpen(false); }}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold transition-colors ${
+                      selectedWorkers.includes(name) ? "bg-brand/10 text-brand" : "text-title hover:bg-app-bg"
+                    }`}
+                  >
+                    <span className="w-6 h-6 rounded-full bg-brand/10 flex items-center justify-center text-[9px] font-black text-brand shrink-0">
+                      {name.split(" ").slice(0,2).map(w => w[0]).join("")}
+                    </span>
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* DATE filter — mobile inline */}
+          <div ref={mobileDateRef} className="relative lg:hidden">
+            <button
+              onClick={() => setIsMobileDateOpen(v => !v)}
+              className={`px-3 py-2 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+                mobileDateRange?.from
+                  ? "bg-brand text-white border-brand shadow-sm"
+                  : "bg-surface border-border-theme/40 text-subtitle/60 hover:border-brand/30"
+              }`}
+            >
+              <Calendar className="w-3 h-3 shrink-0" />
+              {mobileDateLabel}
+              {mobileDateRange?.from && (
+                <X className="w-3 h-3 shrink-0" onClick={(e) => { e.stopPropagation(); setMobileDateRange(undefined); }} />
+              )}
+            </button>
+            {isMobileDateOpen && (
+              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 w-[min(330px,calc(100vw-3rem))] p-4">
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-app-bg px-3 py-2">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">{t.date_filters.from}</span>
+                    <span className="block truncate text-xs font-bold text-title">
+                      {mobileDateRange?.from ? mobileDateRange.from.toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" }) : "--"}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-app-bg px-3 py-2">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">{t.date_filters.to}</span>
+                    <span className="block truncate text-xs font-bold text-title">
+                      {mobileDateRange?.to ? mobileDateRange.to.toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" }) : "--"}
+                    </span>
+                  </div>
+                </div>
+                <DayPicker
+                  mode="range"
+                  selected={mobileDateRange}
+                  onSelect={(range) => { setMobileDateRange(range); if (range?.from && range?.to) setIsMobileDateOpen(false); }}
+                  classNames={{
+                    caption_label: "text-sm font-black text-title",
+                    nav: "absolute inset-x-0 top-0 flex justify-between",
+                    button_previous: "p-1.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all",
+                    button_next: "p-1.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all",
+                    month_grid: "w-full border-collapse mt-1",
+                    weekday: "text-center text-[10px] font-black text-subtitle/30 uppercase pb-2 w-9",
+                    day: "p-0 text-center",
+                    day_button: "w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center transition-all hover:bg-brand/10 hover:text-brand mx-auto",
+                    selected: "!bg-brand !text-white rounded-full",
+                    today: "text-brand font-black",
+                    range_start: "!bg-brand !text-white rounded-full",
+                    range_end: "!bg-brand !text-white rounded-full",
+                    range_middle: "bg-brand/10 !text-brand rounded-none",
+                    outside: "opacity-20",
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Worker filter — desktop sidebar (círculo de iniciales, sin cambios) */}
           {canCreateService && user && (
             <button
               onClick={() => toggleWorker(user.name)}
-              title="Filtrar por mí"
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+              title={t.assets.detail.filter_me}
+              className={`hidden lg:flex w-8 h-8 rounded-full items-center justify-center text-[10px] font-black transition-all ${
                 selectedWorkers.includes(user.name)
                   ? "bg-brand text-white shadow-lg shadow-brand/25 ring-2 ring-brand/30"
                   : "bg-app-bg border border-border-theme/40 text-subtitle/60 hover:border-brand/40 hover:text-brand"
@@ -371,61 +488,14 @@ export default function AssetDetailPage() {
               {user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
             </button>
           )}
-          {(selectedWorkers.length > 0 || datePreset || startDate || endDate) && (
-            <button
-              onClick={clearFilters}
-              className="text-[10px] font-black text-brand uppercase tracking-widest hover:underline"
-            >
+
+          {(selectedWorkers.length > 0 || datePreset || startDate || endDate || mobileDateRange?.from) && (
+            <button onClick={clearFilters} className="text-[10px] font-black text-brand uppercase tracking-widest hover:underline">
               {t.assets.detail.clear_filters}
             </button>
           )}
         </div>
       </div>
-
-      {/* Filtros expandibles en móvil */}
-      {isFiltersOpen && (
-        <div className="lg:hidden bg-surface rounded-2xl border border-border-theme/40 p-5 space-y-6">
-          <div className="space-y-3">
-            <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest">{t.assets.detail.responsible}</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedWorkers([])}
-                className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition-all ${selectedWorkers.length === 0 ? "bg-brand text-white border-transparent" : "border-border-theme/40 text-subtitle/60"}`}
-              >
-                {t.assets.detail.all_workers}
-              </button>
-              {Array.from(new Set(asset.services?.map(s => s.worker.name) || [])).map(worker => (
-                <button
-                  key={worker}
-                  onClick={() => toggleWorker(worker)}
-                  className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition-all ${selectedWorkers.includes(worker) ? "bg-brand text-white border-transparent" : "border-border-theme/40 text-subtitle/60"}`}
-                >
-                  {worker}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-widest">{t.assets.detail.temporality}</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: "Hoy", trans: t.assets.detail.today },
-                { key: "Semana", trans: t.assets.detail.week },
-                { key: "Mes", trans: t.assets.detail.month },
-                { key: "Año", trans: t.assets.detail.year },
-              ].map(preset => (
-                <button
-                  key={preset.key}
-                  onClick={() => { setDatePreset(p => p === preset.key ? null : preset.key); setStartDate(""); setEndDate(""); }}
-                  className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition-all ${datePreset === preset.key ? "bg-brand text-white border-transparent" : "border-border-theme/40 text-subtitle/60"}`}
-                >
-                  {preset.trans}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 4. MAIN GRID (Timeline + Advanced Filters Side) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">

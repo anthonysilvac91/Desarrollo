@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
-import { MapPin, Ship, Calendar, Camera, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
+import { MapPin, Ship, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
+import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -25,29 +26,17 @@ interface AssetDrawerProps {
 }
 
 // Fallback image component for thumbnails/cards
-const JobThumbnail = ({ src }: { src?: string | null }) => {
-  const [error, setError] = useState(false);
-
-  if (error || !src) {
-    return (
-      <div className="w-full h-full bg-gray-50 flex items-center justify-center border border-gray-100 rounded-lg">
-        <Camera className="w-5 h-5 text-subtitle/20" />
-      </div>
-    );
-  }
-
-  return (
-    <img 
-      src={src} 
-      alt="Job proof" 
-      className="w-full h-full object-cover rounded-lg" 
-      onError={() => setError(true)}
-    />
-  );
-};
 
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+
+const formatCompactDate = (date: string | Date) => {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const month = d.toLocaleDateString("en-US", { month: "short" });
+  const day = d.getDate();
+  const year = String(d.getFullYear()).slice(-2);
+  return `${month}-${day}-${year}`;
+};
 
 export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawerProps) {
   const router = useRouter();
@@ -90,7 +79,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             ? ` - ${customRange.to.toLocaleDateString("es", { day: "2-digit", month: "short" })}`
             : " - ..."
         }`
-      : "Date";
+      : t.date_filters.date;
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,7 +98,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
       reader.onloadend = () => setCropSrc(reader.result as string);
       reader.readAsDataURL(compressed);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo procesar la imagen.", "error");
+      showToast(err instanceof Error ? err.message : t.common.image_process_error, "error");
     } finally {
       setIsPhotoUpdating(false);
     }
@@ -125,13 +114,13 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
       await assetsService.update(initialAsset.id, formData);
       await queryClient.invalidateQueries({ queryKey: ["asset", initialAsset.id] });
       await queryClient.invalidateQueries({ queryKey: ["assets"] });
-      showToast("Foto actualizada.", "success");
+      showToast(t.assets.drawer.photo_updated, "success");
       setCropSrc(null);
     } catch (err: unknown) {
       const maybeError = err as { response?: { data?: { message?: string | string[] } } };
       const message = maybeError.response?.data?.message;
       showToast(
-        Array.isArray(message) ? message[0] : message || "No se pudo actualizar la foto.",
+        Array.isArray(message) ? message[0] : message || t.assets.drawer.photo_update_error,
         "error",
       );
     } finally {
@@ -244,7 +233,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
               onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
               disabled={isPhotoUpdating}
               className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center active:scale-95 transition-all disabled:opacity-60"
-              aria-label="Cambiar foto"
+              aria-label={t.assets.drawer.change_photo}
             >
               {isPhotoUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
             </button>
@@ -308,8 +297,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
               <span className="text-[9px] font-black text-subtitle/40 uppercase tracking-widest block">
                 {t.assets.table.last_service}
               </span>
-              <span className="text-sm font-bold text-title truncate block">
-                {currentAsset.last_service?.date ? formatDate(currentAsset.last_service.date) : "---"}
+              <span className="text-[13px] font-bold text-title truncate block">
+                {currentAsset.last_service?.date ? formatCompactDate(currentAsset.last_service.date) : "---"}
               </span>
             </div>
           </div>
@@ -319,7 +308,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             </div>
             <div className="min-w-0">
               <span className="text-[9px] font-black text-subtitle/40 uppercase tracking-widest block">
-                Total
+                {t.assets.drawer.total_label}
               </span>
               <span className="text-sm font-bold text-title block">
                 {currentAsset.services?.length || 0} {t.assets.table.services}
@@ -354,12 +343,77 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         {view === "history" && (
         <>
         <div className="px-6 py-8 flex-1 lg:px-10">
-          <h3 className="text-2xl font-black text-title tracking-tight leading-none text-center mb-10">
-            {t.assets.drawer.maintenance_history}
-          </h3>
+          <div className="flex items-center justify-between gap-2 mb-6">
+            <h3 className="text-[13px] font-black text-title uppercase tracking-[0.15em] shrink-0">
+              {t.assets.detail.activity_history}
+            </h3>
+            <div className="flex items-center gap-2">
+            {/* User filter */}
+            {uniqueWorkers.length > 0 && (
+              <div ref={workerDropdownRef} className="relative">
+                {workerFilter ? (
+                  <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-2.5 py-1">
+                    <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
+                      <span className="text-[9px] font-black text-white">
+                        {getInitials(uniqueWorkers.find(w => w.id === workerFilter)?.name ?? "")}
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-brand truncate max-w-24">
+                      {uniqueWorkers.find(w => w.id === workerFilter)?.name}
+                    </span>
+                    <button onClick={() => { setWorkerFilter(null); setVisibleCount(4); }} className="text-brand/50 hover:text-brand transition-colors shrink-0">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsWorkerDropdownOpen(v => !v)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-theme/50 bg-surface text-subtitle/60 text-sm font-semibold transition-colors hover:border-brand/30"
+                  >
+                    <span>{t.assets.detail.responsible}</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                )}
 
-          <div className="space-y-4">
-          <div className="flex items-center gap-2">
+                {isWorkerDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-20 w-56 overflow-hidden">
+                    <div className="p-2.5 border-b border-border-theme/20">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtitle/40" />
+                        <input
+                          autoFocus
+                          type="text"
+                          value={workerSearch}
+                          onChange={e => setWorkerSearch(e.target.value)}
+                          placeholder={t.assets.detail.search_worker}
+                          className="w-full pl-7 pr-3 py-1.5 text-sm bg-app-bg rounded-xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {uniqueWorkers
+                        .filter(w => !workerSearch.trim() || w.name.toLowerCase().includes(workerSearch.toLowerCase()))
+                        .map(worker => (
+                          <button
+                            key={worker.id}
+                            onClick={() => { setWorkerFilter(worker.id); setVisibleCount(4); setIsWorkerDropdownOpen(false); setWorkerSearch(""); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-app-bg transition-colors text-left"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                              <span className="text-[10px] font-black text-brand">{getInitials(worker.name)}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-title">{worker.name}</span>
+                          </button>
+                        ))}
+                      {uniqueWorkers.filter(w => !workerSearch.trim() || w.name.toLowerCase().includes(workerSearch.toLowerCase())).length === 0 && (
+                        <p className="px-4 py-3 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Date filter */}
             <div className="flex items-center gap-2">
               <div ref={customPickerRef} className="relative">
@@ -371,15 +425,18 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                       : "bg-surface border-border-theme/40 text-subtitle/60 hover:border-brand/30"
                   }`}
                 >
-                  <Calendar className="w-3 h-3 shrink-0" />
-                  {selectedDateLabel}
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  {!(dateFilter === "custom" && customRange?.from) && selectedDateLabel}
                   {dateFilter === "custom" && customRange?.from && (
                     <X className="w-3 h-3 shrink-0" onClick={(e) => { e.stopPropagation(); setDateFilter(null); setCustomRange(undefined); }} />
                   )}
                 </button>
 
                 {isCustomPickerOpen && (
-                  <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 w-[min(330px,calc(100vw-3rem))] p-4">
+                  <div
+                    className="fixed left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 w-[min(330px,calc(100vw-2rem))] p-4"
+                    style={{ top: (customPickerRef.current?.getBoundingClientRect().bottom ?? 0) + 8 }}
+                  >
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       <div className="rounded-xl bg-app-bg px-3 py-2">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-subtitle/35">
@@ -437,144 +494,70 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                 )}
               </div>
             </div>
-
-            {uniqueWorkers.length > 0 && (
-              <div ref={workerDropdownRef} className="relative">
-                {workerFilter ? (
-                  <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-2.5 py-1">
-                    <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
-                      <span className="text-[9px] font-black text-white">
-                        {getInitials(uniqueWorkers.find(w => w.id === workerFilter)?.name ?? "")}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-brand truncate max-w-24">
-                      {uniqueWorkers.find(w => w.id === workerFilter)?.name}
-                    </span>
-                    <button onClick={() => { setWorkerFilter(null); setVisibleCount(4); }} className="text-brand/50 hover:text-brand transition-colors shrink-0">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setIsWorkerDropdownOpen(v => !v)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-theme/50 bg-surface text-subtitle/60 text-sm font-semibold transition-colors hover:border-brand/30"
-                  >
-                    <span>Worker</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                )}
-
-                {isWorkerDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-20 w-56 overflow-hidden">
-                    <div className="p-2.5 border-b border-border-theme/20">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtitle/40" />
-                        <input
-                          autoFocus
-                          type="text"
-                          value={workerSearch}
-                          onChange={e => setWorkerSearch(e.target.value)}
-                          placeholder="Buscar worker..."
-                          className="w-full pl-7 pr-3 py-1.5 text-sm bg-app-bg rounded-xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
-                        />
-                      </div>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto">
-                      {uniqueWorkers
-                        .filter(w => !workerSearch.trim() || w.name.toLowerCase().includes(workerSearch.toLowerCase()))
-                        .map(worker => (
-                          <button
-                            key={worker.id}
-                            onClick={() => { setWorkerFilter(worker.id); setVisibleCount(4); setIsWorkerDropdownOpen(false); setWorkerSearch(""); }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-app-bg transition-colors text-left"
-                          >
-                            <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-                              <span className="text-[10px] font-black text-brand">{getInitials(worker.name)}</span>
-                            </div>
-                            <span className="text-sm font-semibold text-title">{worker.name}</span>
-                          </button>
-                        ))}
-                      {uniqueWorkers.filter(w => !workerSearch.trim() || w.name.toLowerCase().includes(workerSearch.toLowerCase())).length === 0 && (
-                        <p className="px-4 py-3 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
           </div>
+
+          {dateFilter === "custom" && customRange?.from && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-xs font-semibold mb-4">
+              <Calendar className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span>
+                {t.date_filters.from}: {[
+                  customRange.from.toLocaleString("es", { month: "short" }),
+                  String(customRange.from.getDate()).padStart(2, "0"),
+                  customRange.from.getFullYear(),
+                ].join(" - ")}
+              </span>
+              {customRange.to && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span>
+                    {t.date_filters.to}: {[
+                      customRange.to.toLocaleString("es", { month: "short" }),
+                      String(customRange.to.getDate()).padStart(2, "0"),
+                      customRange.to.getFullYear(),
+                    ].join(" - ")}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="space-y-6">
             {isFetchingAsset && !fullAsset ? (
               <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-brand/20" /></div>
             ) : !hasServiceHistory ? (
-              <div className="relative overflow-hidden rounded-3xl border border-brand/15 bg-surface px-5 py-10 text-center shadow-sm">
-                <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
-                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-brand ring-8 ring-brand/5">
+              <div className="py-10 text-center space-y-2">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
                   <Wrench className="h-7 w-7" strokeWidth={1.75} />
                 </div>
-                <div className="mx-auto max-w-xs space-y-2">
-                  <h4 className="text-xl font-black tracking-tight text-title">
-                    {t.mobile.asset_detail.no_history_title}
-                  </h4>
-                  <p className="text-sm font-medium leading-relaxed text-subtitle/60">
-                    {t.mobile.asset_detail.no_history_subtitle}
-                  </p>
+                <h4 className="text-xl font-black tracking-tight text-title">
+                  {t.mobile.asset_detail.no_history_title}
+                </h4>
+                <p className="text-sm font-medium leading-relaxed text-subtitle/60">
+                  {t.mobile.asset_detail.no_history_subtitle}
+                </p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
+                  <Calendar className="h-7 w-7" strokeWidth={1.75} />
                 </div>
+                <h4 className="text-xl font-black tracking-tight text-title">
+                  {t.assets.detail.no_results}
+                </h4>
+                <p className="text-sm font-medium leading-relaxed text-subtitle/60">
+                  {t.mobile.asset_detail.no_results_subtitle}
+                </p>
               </div>
             ) : history.slice(0, visibleCount).map((service, idx) => (
-              <div
+              <ServiceHistoryCard
                 key={service.id ?? `service-${idx}`}
-                className="group bg-surface border border-border-theme/40 rounded-2xl hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all min-h-35 flex flex-col overflow-hidden"
-              >
-                <div className="p-5 flex flex-1 flex-col">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="bg-brand/10 px-3 py-1 rounded-full flex shrink-0 items-center">
-                      <Calendar className="w-3 h-3 text-brand mr-2" />
-                      <span className="text-[10px] font-black text-brand uppercase tracking-wider">
-                        {formatDate(service.created_at)}
-                      </span>
-                    </div>
-                    {service.worker?.name && (
-                      <div className="bg-app-bg px-3 py-1 rounded-full flex min-w-0 max-w-[52%] items-center border border-border-theme/40">
-                        <span className="mr-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[7px] font-black text-brand">
-                          {getInitials(service.worker.name)}
-                        </span>
-                        <span className="truncate text-[10px] font-black text-subtitle/60 uppercase tracking-wider">
-                          {service.worker.name}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <h4 className="text-base font-bold text-title mb-2 group-hover:text-brand transition-colors truncate">{service.title}</h4>
-                  <p className="text-sm text-subtitle/70 leading-relaxed mb-4 font-medium overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-                    {service.description}
-                  </p>
-                  {/* Image Thumbnails */}
-                  {service.attachments && service.attachments.length > 0 && (
-                    <div className="flex items-center gap-2.5 mt-auto">
-                      {service.attachments.slice(0, 4).map((att, idx) => (
-                        <div key={idx} className="w-12 h-12 rounded-lg border border-border-theme/20 overflow-hidden shadow-sm hover:scale-110 transition-transform bg-white">
-                          <JobThumbnail src={att.file_url} />
-                        </div>
-                      ))}
-                      {service.attachments.length > 4 && (
-                        <div className="text-[10px] font-black text-subtitle opacity-30">+{service.attachments.length - 4}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setSelectedService(service as unknown as DrawerService); setView("service-detail"); }}
-                  className="flex min-h-13 w-full items-center justify-between border-t border-border-theme/30 px-5 py-3 text-brand transition-all hover:bg-brand/5 active:bg-brand/10 cursor-pointer"
-                >
-                  <span className="text-sm font-black">Ver detalles</span>
-                  <ChevronRight className="w-5 h-5 shrink-0" />
-                </button>
-              </div>
+                service={service}
+                secondaryBadge="worker"
+                viewDetailsLabel={t.assets.drawer.view_details}
+                onViewDetails={() => { setSelectedService(service as unknown as DrawerService); setView("service-detail"); }}
+              />
             ))}
-          </div>
           </div>
         </div>
 

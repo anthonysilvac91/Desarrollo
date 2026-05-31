@@ -65,7 +65,7 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
         ...compressed.map(f => ({ url: URL.createObjectURL(f), file: f })),
       ]);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "No se pudo procesar la imagen.", "error");
+      showToast(err instanceof Error ? err.message : t.common.image_process_error, "error");
     } finally {
       setIsProcessingImages(false);
     }
@@ -376,7 +376,7 @@ function EvidenceSection({ images, canAdd, isProcessing, onAdd, onRemove, t }: E
 
       {images.length === 0 && (
         <p className="text-center text-xs text-subtitle/30 font-semibold pb-5 -mt-1">
-          Adjunta fotos como evidencia del trabajo
+          {t.mobile.new_service.evidence_empty_hint}
         </p>
       )}
     </div>

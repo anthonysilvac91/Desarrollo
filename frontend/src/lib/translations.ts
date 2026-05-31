@@ -44,6 +44,10 @@ export const translations = {
       sorted_desc: "Sorted: Z → A",
       clear_filters: "Clear filters",
       all: "All",
+      image_process_error: "Could not process the selected image.",
+      image_read_error: "Could not read the selected image.",
+      not_available: "N/A",
+      per_page: "page",
     },
     date_filters: {
       today: "Today",
@@ -51,6 +55,7 @@ export const translations = {
       month: "Month",
       year: "Year",
       custom: "Custom",
+      date: "Date",
       from: "From",
       to: "To",
       apply: "Apply Range",
@@ -101,7 +106,12 @@ export const translations = {
         see_entire_history: "See full history",
         see_more_services: "See more",
         view_full_history: "View full history",
-        photo: "Photo"
+        photo: "Photo",
+        change_photo: "Change photo",
+        photo_updated: "Photo updated.",
+        photo_update_error: "Could not update the photo.",
+        total_label: "Total",
+        view_details: "View details",
       },
       detail: {
         owner: "Owner",
@@ -110,8 +120,8 @@ export const translations = {
         activity_history: "Service History",
         clear_filters: "Clear Filters",
         filter_title: "Filter History",
-        responsible: "Operator",
-        all_workers: "All Operators",
+        responsible: "User",
+        all_workers: "All Users",
         temporality: "Time Range",
         since: "From",
         until: "Until",
@@ -126,6 +136,8 @@ export const translations = {
         see_less: "See less",
         days_ago: "days ago",
         no_history: "No service history yet",
+        search_worker: "Search operator...",
+        filter_me: "Filter by me",
       },
       modal: {
         title_edit: "Edit Asset",
@@ -145,6 +157,8 @@ export const translations = {
         empty_title: "No assets yet",
         empty_subtitle: "Start by registering your first asset.",
         connecting: "Connecting...",
+        activated: "Asset activated",
+        deactivated: "Asset deactivated",
       }
     },
     services: {
@@ -194,7 +208,7 @@ export const translations = {
       }
     },
     users: {
-      search_placeholder: "Search by name, role or email...",
+      search_placeholder: "Search by name...",
       add_new: "Add new",
       table: {
         name: "Name",
@@ -477,6 +491,7 @@ export const translations = {
         description_placeholder: "Describe the service in detail...",
         evidence_label: "Visual Evidence",
         evidence_add: "Add",
+        evidence_empty_hint: "Attach photos as work evidence",
         save: "Save Service",
         saving: "Saving...",
         success: "Service saved successfully!",
@@ -485,13 +500,14 @@ export const translations = {
         loading_asset: "Loading...",
       },
       service_detail: {
-        title: "Service",
+        title: "Back to Services",
         worker_label: "Operator",
         date_label: "Completed on",
         evidence_label: "Attached Evidence",
         not_found: "Service not found",
         go_back: "Go Back",
         loading: "Loading service...",
+        no_description: "No description",
         lightbox: {
           title: "Visual Evidence",
           detail_label: "Detail",
@@ -635,6 +651,10 @@ export const translations = {
       sorted_desc: "Ordenado: Z → A",
       clear_filters: "Limpiar filtros",
       all: "Todos",
+      image_process_error: "No se pudo procesar la imagen seleccionada.",
+      image_read_error: "No se pudo leer la imagen seleccionada.",
+      not_available: "N/D",
+      per_page: "pág",
     },
     date_filters: {
       today: "Hoy",
@@ -642,6 +662,7 @@ export const translations = {
       month: "Mes",
       year: "Año",
       custom: "Personalizado",
+      date: "Fecha",
       from: "Desde",
       to: "Hasta",
       apply: "Aplicar Rango",
@@ -692,7 +713,12 @@ export const translations = {
         see_entire_history: "Ver historial completo",
         see_more_services: "Ver más",
         view_full_history: "Ver historial completo",
-        photo: "Foto"
+        photo: "Foto",
+        change_photo: "Cambiar foto",
+        photo_updated: "Foto actualizada.",
+        photo_update_error: "No se pudo actualizar la foto.",
+        total_label: "Total",
+        view_details: "Ver detalles",
       },
       detail: {
         owner: "Propietario",
@@ -701,8 +727,8 @@ export const translations = {
         activity_history: "Historial de Servicios",
         clear_filters: "Limpiar Filtros",
         filter_title: "Filtrar Historial",
-        responsible: "Operador",
-        all_workers: "Todos los Operadores",
+        responsible: "Usuario",
+        all_workers: "Todos los Usuarios",
         temporality: "Período",
         since: "Desde",
         until: "Hasta",
@@ -717,6 +743,8 @@ export const translations = {
         see_less: "Ver menos",
         days_ago: "días",
         no_history: "Aún no hay historial de servicios",
+        search_worker: "Buscar operador...",
+        filter_me: "Filtrar por mí",
       },
       modal: {
         title_edit: "Editar Activo",
@@ -736,6 +764,8 @@ export const translations = {
         empty_title: "Sin activos todavía",
         empty_subtitle: "Comienza registrando tu primer activo.",
         connecting: "Conectando...",
+        activated: "Activo activado",
+        deactivated: "Activo desactivado",
       }
     },
     services: {
@@ -785,7 +815,7 @@ export const translations = {
       }
     },
     users: {
-      search_placeholder: "Buscar por nombre, rol o email...",
+      search_placeholder: "Buscar por nombre...",
       add_new: "Agregar nuevo",
       table: {
         name: "Nombre",
@@ -1070,6 +1100,7 @@ export const translations = {
         description_placeholder: "Describe el servicio en detalle...",
         evidence_label: "Evidencia Visual",
         evidence_add: "Añadir",
+        evidence_empty_hint: "Adjunta fotos como evidencia del trabajo",
         save: "Guardar Servicio",
         saving: "Guardando...",
         success: "¡Servicio guardado con éxito!",
@@ -1078,13 +1109,14 @@ export const translations = {
         loading_asset: "Cargando...",
       },
       service_detail: {
-        title: "Servicio",
+        title: "Volver a Servicios",
         worker_label: "Operador",
         date_label: "Completado el",
         evidence_label: "Evidencia Adjunta",
         not_found: "Servicio no encontrado",
         go_back: "Volver",
         loading: "Cargando servicio...",
+        no_description: "Sin descripción",
         lightbox: {
           title: "Evidencia visual",
           detail_label: "Detalle",

@@ -41,7 +41,7 @@ export interface Asset {
   last_service?: {
     date: string;
     type?: string;
-  };
+  } | null;
   _count?: {
     services: number;
   };

@@ -13,6 +13,7 @@ const DESCRIPTION_CLAMP_THRESHOLD = 160;
 interface ServiceDetailViewProps {
   service: Service;
   onClose: () => void;
+  hideWorker?: boolean;
 }
 
 const getInitials = (name: string) =>
@@ -58,7 +59,7 @@ function AttachmentThumb({
   );
 }
 
-export default function ServiceDetailView({ service, onClose }: ServiceDetailViewProps) {
+export default function ServiceDetailView({ service, onClose, hideWorker = false }: ServiceDetailViewProps) {
   const { t } = useLanguage();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -115,11 +116,11 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
         <div className="flex items-center gap-4">
           <button
             onClick={onClose}
-            className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
+            className="active:scale-90 transition-all shrink-0"
           >
-            <ChevronLeft className="w-5 h-5 text-brand" />
+            <ChevronLeft className="w-6 h-6 text-brand stroke-[2.5px]" />
           </button>
-          <span className="text-2xl font-black text-title tracking-tight leading-none">
+          <span className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
             {t.mobile.service_detail.title}
           </span>
         </div>
@@ -134,7 +135,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
           </span>
         </div>
 
-        {current.worker && (
+        {!hideWorker && current.worker && (
           <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-2.5 py-1">
             <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
               <span className="text-[9px] font-black text-white">
@@ -164,12 +165,12 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
           {t.mobile.new_service.description_label}
         </span>
         <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4 space-y-3">
-          <p className={`text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap ${
+          <p className={`min-h-22 text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap ${
             !descriptionExpanded && descriptionIsLong
               ? "overflow-hidden [display:-webkit-box] [-webkit-line-clamp:4] [-webkit-box-orient:vertical]"
               : ""
           }`}>
-            {current.description || <span className="italic text-subtitle/30">Sin descripción</span>}
+            {current.description || <span className="italic text-subtitle/30">{t.mobile.service_detail.no_description}</span>}
           </p>
           {descriptionIsLong && (
             <button
@@ -227,7 +228,7 @@ export default function ServiceDetailView({ service, onClose }: ServiceDetailVie
 
       {/* Lightbox */}
       {selectedImageIndex !== null && imageAttachments.length > 0 && (
-        <div className="absolute inset-0 z-[100] overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="absolute inset-0 z-100 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
             className="fixed inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
             onClick={() => setSelectedImageIndex(null)}

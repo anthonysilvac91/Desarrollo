@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, RotateCcw } from "lucide-react";
+import { Search } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 interface FiltersBarProps {
@@ -12,6 +12,7 @@ interface FiltersBarProps {
   // Visibility Controls
   showQuickFilters?: boolean;
   showSearch?: boolean;
+  showClearAll?: boolean;
   // Clear all
   hasExternalFilter?: boolean;
   onClearAll?: () => void;
@@ -26,6 +27,7 @@ export default function FiltersBar({
   onDateChange,
   showQuickFilters = false,
   showSearch = true,
+  showClearAll = true,
   hasExternalFilter = false,
   onClearAll,
   defaultDatePreset = null,
@@ -113,13 +115,13 @@ export default function FiltersBar({
       <div className="flex items-center space-x-3 w-full lg:w-auto justify-end relative min-w-0">
 
         {/* Global reset button — shown when any filter is active */}
-        {hasAnyFilter && (
+        {showClearAll && hasAnyFilter && (
           <button
             onClick={handleClearAll}
-            className="p-2 text-subtitle/30 hover:text-brand hover:bg-brand/5 rounded-full transition-all animate-in fade-in zoom-in duration-200"
+            className="px-3 py-2 text-xs font-bold text-subtitle/60 hover:text-brand hover:bg-brand/5 rounded-full transition-all animate-in fade-in zoom-in duration-200 border border-border-theme/30"
             title={t.common.clear_filters}
           >
-            <RotateCcw className="w-4 h-4" />
+            {t.common.clear_filters}
           </button>
         )}
 

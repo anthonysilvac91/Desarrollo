@@ -100,10 +100,10 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
       });
       const reader = new FileReader();
       reader.onloadend = () => setCropSrc(reader.result as string);
-      reader.onerror = () => showToast("No se pudo leer la imagen seleccionada.", "error");
+      reader.onerror = () => showToast(t.common.image_read_error, "error");
       reader.readAsDataURL(compressedFile);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "No se pudo procesar la imagen seleccionada.", "error");
+      showToast(error instanceof Error ? error.message : t.common.image_process_error, "error");
     } finally {
       setLoading(false);
     }
