@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 
 interface FiltersBarProps {
@@ -118,10 +118,10 @@ export default function FiltersBar({
         {showClearAll && hasAnyFilter && (
           <button
             onClick={handleClearAll}
-            className="px-3 py-2 text-xs font-bold text-subtitle/60 hover:text-brand hover:bg-brand/5 rounded-full transition-all animate-in fade-in zoom-in duration-200 border border-border-theme/30"
+            className="w-9 h-9 flex items-center justify-center text-subtitle/50 hover:text-brand hover:bg-brand/5 rounded-full transition-all animate-in fade-in zoom-in duration-200 border border-border-theme/30"
             title={t.common.clear_filters}
           >
-            {t.common.clear_filters}
+            <RotateCcw className="w-4 h-4" />
           </button>
         )}
 

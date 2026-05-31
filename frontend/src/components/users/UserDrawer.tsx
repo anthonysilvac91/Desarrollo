@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import Drawer from "@/components/ui/Drawer";
-import { Wrench, Calendar, Inbox, Loader2, Mail, Pencil, X } from "lucide-react";
+import { Wrench, Calendar, Inbox, Loader2, Mail, Pencil, X, Trash2, KeyRound, MoreVertical } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
@@ -59,6 +59,8 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
   const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
   const [view, setView] = useState<"history" | "service-detail">("history");
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setView("history");
@@ -74,6 +76,16 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isDatePickerOpen]);
+
+  React.useEffect(() => {
+    if (!isActionsMenuOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node))
+        setIsActionsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [isActionsMenuOpen]);
 
   const { data: servicesData, isLoading } = useQuery({
     queryKey: ["services", "by-worker", user?.id],
@@ -156,6 +168,46 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
         onClose={onClose}
         panelClassName="bg-app-bg"
         closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
+        leftAction={
+          <div ref={actionsMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsActionsMenuOpen(v => !v)}
+              className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {isActionsMenuOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                <button
+                  type="button"
+                  onClick={() => setIsActionsMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                >
+                  <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
+                  <span className="text-sm font-semibold text-title">Editar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsActionsMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                >
+                  <KeyRound className="w-4 h-4 text-subtitle/50 shrink-0" />
+                  <span className="text-sm font-semibold text-title">Restablecer contraseña</span>
+                </button>
+                <div className="mx-3 my-1 border-t border-border-theme/20" />
+                <button
+                  type="button"
+                  onClick={() => setIsActionsMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                >
+                  <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                  <span className="text-sm font-semibold text-error/80">Eliminar</span>
+                </button>
+              </div>
+            )}
+          </div>
+        }
       >
         <div className="flex flex-col min-h-full">
 
