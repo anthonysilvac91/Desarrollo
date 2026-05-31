@@ -218,8 +218,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
     >
       <div className="flex flex-col min-h-full">
         
-        {/* Header Section */}
-        <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5 pt-16 lg:pt-24">
+        {/* Header Section — mobile only */}
+        <div className="lg:hidden p-10 pb-6 flex flex-col items-center text-center space-y-5 pt-16">
           <div className="relative">
             <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center ring-1 ring-border-theme/20">
               {currentAsset.thumbnail_url ? (
@@ -271,19 +271,79 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           </div>
         </div>
 
-        {/* Action Info Summary — desktop only */}
-        <div className="hidden lg:grid px-10 py-6 grid-cols-2 gap-4 border-y border-border-theme/30">
-          <div className="bg-surface rounded-2xl p-4 border border-border-theme/40">
-            <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">
-              {t.assets.drawer.location}
-            </span>
-            <span className="text-sm font-bold text-title">{currentAsset.location}</span>
+        {/* Header Section — desktop only */}
+        <div className="hidden lg:block px-8 pt-20 pb-5 space-y-4">
+          <div className="flex flex-col items-center text-center space-y-5">
+            <div className="relative">
+              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center ring-1 ring-border-theme/20">
+                {currentAsset.thumbnail_url ? (
+                  <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
+                disabled={isPhotoUpdating}
+                className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center active:scale-95 transition-all disabled:opacity-60"
+                aria-label={t.assets.drawer.change_photo}
+              >
+                {isPhotoUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="flex flex-col items-center space-y-1">
+              <h2 className="text-3xl font-black text-title tracking-tight">{currentAsset.name}</h2>
+              <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
+                {currentAsset.owner?.name || t.common.unassigned}
+              </span>
+              <div className="flex items-center gap-3 pt-2">
+                {currentAsset.location && (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-subtitle/40 shrink-0" />
+                      <span className="text-sm text-subtitle/60 font-medium">{currentAsset.location}</span>
+                    </div>
+                    <div className="w-px h-4 bg-subtitle/20" />
+                  </>
+                )}
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                  currentAsset.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentAsset.is_active ? "bg-green-500" : "bg-red-500"}`} />
+                  {currentAsset.is_active ? t.common.active : t.common.inactive}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="bg-surface rounded-2xl p-4 border border-border-theme/40">
-            <span className="text-[10px] font-black text-subtitle opacity-40 uppercase tracking-widest mb-1 block">
-              {t.assets.drawer.services}
-            </span>
-            <span className="text-sm font-bold text-title">{currentAsset.services?.length || 0} {t.assets.drawer.total}</span>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface rounded-2xl p-4 border border-border-theme/40 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4 text-brand" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] font-black text-subtitle/40 uppercase tracking-widest block">
+                  {t.assets.table.last_service}
+                </span>
+                <span className="text-[13px] font-bold text-title truncate block">
+                  {currentAsset.last_service?.date ? formatCompactDate(currentAsset.last_service.date) : "---"}
+                </span>
+              </div>
+            </div>
+            <div className="bg-surface rounded-2xl p-4 border border-border-theme/40 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                <Wrench className="w-4 h-4 text-brand" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] font-black text-subtitle/40 uppercase tracking-widest block">
+                  {t.assets.drawer.total_label}
+                </span>
+                <span className="text-sm font-bold text-title block">
+                  {currentAsset.services?.length || 0} {t.assets.table.services}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -460,8 +520,11 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                       mode="range"
                       selected={customRange}
                       onSelect={(range) => {
+                        const alreadyHadFrom = !!customRange?.from;
                         setCustomRange(range);
-                        if (range?.from && range?.to) setIsCustomPickerOpen(false);
+                        if (alreadyHadFrom && range?.from && range?.to) {
+                          setIsCustomPickerOpen(false);
+                        }
                       }}
                       classNames={{
                         root: "text-sm",
