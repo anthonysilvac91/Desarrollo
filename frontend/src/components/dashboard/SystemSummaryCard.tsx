@@ -22,22 +22,32 @@ export default function SystemSummaryCard({ totalAssets, totalOwners, totalWorke
   ];
 
   return (
-    <div className="bg-white rounded-[24px] lg:rounded-[28px] border border-border-theme/40 shadow-sm flex flex-col h-full">
-      <div className="px-5 pt-5 pb-3 border-b border-border-theme/20">
-        <h3 className="text-[11px] font-black text-subtitle/40 uppercase tracking-[0.2em]">{m.title}</h3>
-      </div>
-
-      <div className="flex flex-col flex-1 divide-y divide-border-theme/10 px-4 py-2">
+    <>
+      {/* Mobile: 4 mini cards in a row */}
+      <div className="grid grid-cols-4 gap-2 sm:hidden">
         {items.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="flex items-center gap-3 py-2.5">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-              <Icon className="w-3.5 h-3.5" />
+          <div key={label} className="bg-white rounded-[18px] p-2.5 border border-border-theme/40 shadow-sm flex flex-col items-center gap-1.5">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+              <Icon className="w-4 h-4" />
             </div>
-            <span className="text-xs font-semibold text-subtitle/60 flex-1">{label}</span>
-            <span className="text-sm font-black text-title">{value}</span>
+            <span className="text-base font-black text-title leading-none">{value}</span>
+            <span className="text-[7px] font-black text-subtitle/40 uppercase tracking-[0.1em] text-center leading-tight">{label}</span>
           </div>
         ))}
       </div>
-    </div>
+
+      {/* Desktop: 4 mini cards stacked vertically */}
+      <div className="hidden sm:flex flex-col gap-2 h-full">
+        {items.map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="flex-1 bg-white rounded-[18px] lg:rounded-[20px] border border-border-theme/40 shadow-sm flex flex-col items-center justify-center gap-1.5 p-3">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+              <Icon className="w-4 h-4" />
+            </div>
+            <span className="text-lg font-black text-title leading-none">{value}</span>
+            <span className="text-[8px] font-black text-subtitle/40 uppercase tracking-[0.12em] text-center leading-tight">{label}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

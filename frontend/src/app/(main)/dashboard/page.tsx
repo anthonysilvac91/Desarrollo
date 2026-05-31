@@ -125,7 +125,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI Section */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2 sm:gap-4">
         <KPICard
           title={t.dashboard.kpis.jobs_performed}
           value={stats?.total_services ?? 0}
@@ -212,7 +212,7 @@ export default function DashboardPage() {
       )}
 
       {/* Lower Dashboard Modules */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[5fr_2fr_3fr_2fr] gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[6.5fr_2.5fr_2.5fr_1.5fr] gap-4 sm:gap-5">
         <div className="sm:col-span-2 xl:col-span-1">
           <RecentServicesCard
             services={stats?.recent_services ?? []}
