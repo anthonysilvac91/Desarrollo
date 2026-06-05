@@ -80,6 +80,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const customPickerRef = useRef<HTMLDivElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
+  const [isAssetPhotoOpen, setIsAssetPhotoOpen] = useState(false);
   const { user } = useAuth();
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -246,13 +247,24 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
         {/* Header Section — mobile only */}
         <div className="lg:hidden p-10 pb-6 flex flex-col items-center text-center space-y-5 pt-16">
           <div className="relative">
-            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center ring-1 ring-border-theme/20">
+            <button
+              type="button"
+              onClick={() => currentAsset.thumbnail_url && setIsAssetPhotoOpen(true)}
+              disabled={!currentAsset.thumbnail_url}
+              className="group relative w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center ring-1 ring-border-theme/20 active:scale-95 transition-all disabled:cursor-default"
+              aria-label={`Ver foto de ${currentAsset.name}`}
+            >
               {currentAsset.thumbnail_url ? (
-                <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
+                <>
+                  <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
+                  <span className="absolute inset-0 bg-black/20 opacity-0 transition-opacity group-hover:opacity-100 flex items-center justify-center">
+                    <Maximize2 className="w-6 h-6 text-white drop-shadow" />
+                  </span>
+                </>
               ) : (
                 <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
               )}
-            </div>
+            </button>
             <button
               type="button"
               onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
@@ -685,6 +697,64 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
           onCancel={() => setCropSrc(null)}
           onError={(msg) => showToast(msg, "error")}
         />
+      )}
+
+      {isAssetPhotoOpen && currentAsset.thumbnail_url && (
+        <div className="fixed inset-0 z-100 flex min-h-dvh flex-col overflow-y-auto bg-app-bg/80 px-5 py-8 backdrop-blur-2xl animate-in fade-in duration-200 lg:hidden">
+          <button
+            type="button"
+            className="fixed inset-0 cursor-default"
+            aria-label="Cerrar foto"
+            onClick={() => setIsAssetPhotoOpen(false)}
+          />
+          <button
+            type="button"
+            onClick={() => setIsAssetPhotoOpen(false)}
+            className="fixed top-8 right-8 z-20 p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
+            aria-label="Cerrar foto"
+          >
+            <X className="h-5 w-5 text-brand" />
+          </button>
+
+          <div className="relative z-10 mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-4">
+            <div className="pr-20">
+              <div className="min-w-0">
+                <h2 className="truncate text-xl font-black leading-tight text-title">
+                  {currentAsset.name}
+                </h2>
+                <span className="mt-1 block truncate text-[10px] font-black uppercase tracking-[0.22em] text-brand">
+                  {currentAsset.owner?.name || t.common.unassigned}
+                </span>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-2xl animate-in zoom-in-95 duration-200">
+              <img
+                src={currentAsset.thumbnail_url}
+                alt={currentAsset.name}
+                className="max-h-[68vh] w-full object-contain bg-black/5"
+              />
+            </div>
+
+            <div className="flex items-center justify-center gap-3 px-2 py-1">
+              {currentAsset.location && (
+                <>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-subtitle/40 shrink-0" />
+                    <span className="truncate text-sm text-subtitle/60 font-medium">{currentAsset.location}</span>
+                  </div>
+                  <div className="w-px h-4 bg-subtitle/20 shrink-0" />
+                </>
+              )}
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${
+                currentAsset.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${currentAsset.is_active ? "bg-green-500" : "bg-red-500"}`} />
+                {currentAsset.is_active ? t.common.active : t.common.inactive}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </Drawer>
   );
