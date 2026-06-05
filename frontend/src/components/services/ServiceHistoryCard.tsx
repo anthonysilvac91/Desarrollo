@@ -81,9 +81,13 @@ export default function ServiceHistoryCard({
         </div>
 
         {/* Título */}
-        <h4 className="text-base font-bold text-title mb-2 group-hover:text-brand transition-colors truncate">
+        <button
+          type="button"
+          onClick={onViewDetails}
+          className="mb-2 block w-full truncate text-left text-base font-bold text-title transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:text-brand cursor-pointer"
+        >
           {service.title}
-        </h4>
+        </button>
 
         {/* Descripción (2 líneas) */}
         <p className="text-sm text-subtitle/70 leading-relaxed mb-4 font-medium whitespace-pre-wrap overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
@@ -94,12 +98,15 @@ export default function ServiceHistoryCard({
         {service.attachments && service.attachments.length > 0 && (
           <div className="flex items-center gap-2.5 mt-auto">
             {service.attachments.slice(0, 4).map((att, idx) => (
-              <div
+              <button
                 key={idx}
+                type="button"
+                onClick={onViewDetails}
                 className="w-12 h-12 rounded-lg border border-border-theme/20 overflow-hidden shadow-sm hover:scale-110 transition-transform bg-white"
+                aria-label={`${viewDetailsLabel}: ${service.title}`}
               >
                 <Thumbnail src={att.file_url} />
-              </div>
+              </button>
             ))}
             {service.attachments.length > 4 && (
               <div className="text-[10px] font-black text-subtitle opacity-30">
