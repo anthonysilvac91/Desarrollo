@@ -26,7 +26,7 @@ export default function SystemSummaryCard({ totalAssets, totalOwners, totalWorke
       {/* Mobile: 4 mini cards in a row */}
       <div className="grid grid-cols-4 gap-2 sm:hidden">
         {items.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-[18px] p-2.5 border border-border-theme/40 shadow-sm flex flex-col items-center gap-1.5">
+          <div key={label} className="bg-white rounded-2xl p-2.5 border border-border-theme/40 shadow-sm flex flex-col items-center gap-1.5">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
               <Icon className="w-4 h-4" />
             </div>
@@ -39,7 +39,7 @@ export default function SystemSummaryCard({ totalAssets, totalOwners, totalWorke
       {/* Desktop: 4 mini cards stacked vertically */}
       <div className="hidden sm:flex flex-col gap-2 h-full">
         {items.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="flex-1 bg-white rounded-[18px] lg:rounded-[20px] border border-border-theme/40 shadow-sm flex flex-col items-center justify-center gap-1.5 p-3">
+          <div key={label} className="flex-1 bg-white rounded-2xl border border-border-theme/40 shadow-sm flex flex-col items-center justify-center gap-1.5 p-3">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
               <Icon className="w-4 h-4" />
             </div>

@@ -131,30 +131,34 @@ export default function DashboardPage() {
           value={stats?.total_services ?? 0}
           subtitle={t.dashboard.kpis.subtitle_services_performed}
           icon={Wrench}
+          roundedClass="rounded-2xl"
         />
         <KPICard
           title={t.dashboard.kpis.assets_serviced}
           value={stats?.assets_serviced ?? 0}
           subtitle={t.dashboard.kpis.subtitle_assets_serviced}
           icon={Ship}
+          roundedClass="rounded-2xl"
         />
         <KPICard
           title={t.dashboard.kpis.last_service}
           value={stats?.last_service ? formatRelativeTime(stats.last_service, language as "en" | "es") : "---"}
           subtitle={stats?.last_service ? t.dashboard.kpis.subtitle_last_service : t.dashboard.kpis.subtitle_no_service}
           icon={Clock}
+          roundedClass="rounded-2xl"
         />
         <KPICard
           title={t.dashboard.kpis.active_operators}
           value={stats?.active_operators ?? 0}
           subtitle={t.dashboard.kpis.subtitle_active_operators}
           icon={Users}
+          roundedClass="rounded-2xl"
         />
       </div>
 
       {/* Evolution Chart Section */}
       {!isExternal && hasData && (
-        <ModuleContainer>
+        <ModuleContainer roundedClass="rounded-2xl">
           <div className="p-4 sm:p-6 lg:p-7 space-y-5 sm:space-y-8">
             <div className="flex flex-row items-start justify-between gap-3">
               <div className="space-y-0.5">

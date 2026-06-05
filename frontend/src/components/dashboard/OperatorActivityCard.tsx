@@ -24,9 +24,9 @@ export default function OperatorActivityCard({ operators, t }: Props) {
   const max = operators[0]?.metric ?? 1;
 
   return (
-    <div className="bg-white rounded-[24px] lg:rounded-[28px] border border-border-theme/40 shadow-sm flex flex-col h-full">
+    <div className="bg-white rounded-2xl border border-border-theme/40 shadow-sm flex flex-col h-full">
       <div className="px-5 pt-5 pb-3 border-b border-border-theme/20">
-        <h3 className="text-[11px] font-black text-subtitle/40 uppercase tracking-[0.2em]">{m.title}</h3>
+        <h3 className="text-[11px] font-black text-title/70 uppercase tracking-[0.2em]">{m.title}</h3>
       </div>
 
       {operators.length === 0 ? (
