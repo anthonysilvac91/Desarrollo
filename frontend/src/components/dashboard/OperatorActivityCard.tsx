@@ -26,7 +26,7 @@ export default function OperatorActivityCard({ operators, t }: Props) {
   return (
     <div className="bg-white rounded-2xl border border-border-theme/40 shadow-sm flex flex-col h-full">
       <div className="px-5 pt-5 pb-3 border-b border-border-theme/20">
-        <h3 className="text-[11px] font-black text-title/70 uppercase tracking-[0.2em]">{m.title}</h3>
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-title tracking-tight">{m.title}</h3>
       </div>
 
       {operators.length === 0 ? (
@@ -50,7 +50,7 @@ export default function OperatorActivityCard({ operators, t }: Props) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-title truncate">{op.name}</span>
+                  <span className="text-xs font-bold text-subtitle/80 truncate">{op.name}</span>
                   <span className="text-[10px] font-black text-subtitle/50 shrink-0 ml-2">
                     {op.metric} {m.services_label}
                   </span>

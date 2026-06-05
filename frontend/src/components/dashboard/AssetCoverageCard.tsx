@@ -47,7 +47,7 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
     return (
       <div className="bg-white rounded-2xl border border-border-theme/40 shadow-sm flex flex-col h-full">
         <div className="px-5 pt-5 pb-3 border-b border-border-theme/20">
-          <h3 className="text-[11px] font-black text-title/70 uppercase tracking-[0.2em]">{m.title}</h3>
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-title tracking-tight">{m.title}</h3>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 py-8 px-5 text-center gap-2">
           <Package className="w-9 h-9 text-subtitle/20 mb-1" />
@@ -63,7 +63,7 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
     <div className="bg-white rounded-2xl border border-border-theme/40 shadow-sm flex flex-col h-full">
       {/* Header */}
       <div className="px-5 pt-5 pb-3 border-b border-border-theme/20">
-        <h3 className="text-[11px] font-black text-title/70 uppercase tracking-[0.2em]">{m.title}</h3>
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-title tracking-tight">{m.title}</h3>
       </div>
 
       {/* Donut */}

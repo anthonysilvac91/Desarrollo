@@ -27,7 +27,7 @@ export default function RecentServicesCard({ services, t }: Props) {
   return (
     <div className="bg-white rounded-2xl border border-border-theme/40 shadow-sm flex flex-col h-full">
       <div className="px-5 pt-5 pb-3 border-b border-border-theme/20">
-        <h3 className="text-[11px] font-black text-title/70 uppercase tracking-[0.2em]">{m.title}</h3>
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-title tracking-tight">{m.title}</h3>
       </div>
 
       {services.length === 0 ? (
@@ -55,7 +55,7 @@ export default function RecentServicesCard({ services, t }: Props) {
                 {services.map((s, idx) => (
                   <tr key={s.id} className={`group transition-colors hover:bg-app-bg/60 ${idx < services.length - 1 ? "border-b border-border-theme/10" : ""}`}>
                     <td className="px-5 py-2.5">
-                      <span className="text-xs font-semibold text-title truncate block">{s.title}</span>
+                      <span className="text-xs font-semibold text-subtitle/80 truncate block">{s.title}</span>
                     </td>
                     <td className="px-2 py-2.5">
                       <span className="text-xs font-semibold text-subtitle/60 truncate block">{s.asset_name}</span>
@@ -87,7 +87,7 @@ export default function RecentServicesCard({ services, t }: Props) {
                   <span className="text-[10px] font-black text-brand">{getInitials(s.worker_name)}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-title line-clamp-1">{s.title}</p>
+                  <p className="text-sm font-bold text-subtitle/80 line-clamp-1">{s.title}</p>
                   <p className="text-xs text-subtitle/50 font-medium">{s.asset_name} · {s.worker_name}</p>
                 </div>
                 <span className="text-[10px] font-semibold text-subtitle/40 shrink-0 mt-0.5">
