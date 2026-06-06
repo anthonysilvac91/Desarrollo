@@ -204,7 +204,10 @@ export default function AssetsPage() {
   const mobileAssets = useMemo(() => {
     const pages = mobileData?.pages ?? [];
     const all: Asset[] = pages.flatMap((p: any) => (Array.isArray(p) ? p : p.data ?? []));
+    const seen = new Set<string>();
     return all.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
       const matchesOwner = !mobileOwnerFilter || item.owner?.id === mobileOwnerFilter;
       const matchesStatus = mobileStatusFilter === "all" || (mobileStatusFilter === "active" ? item.is_active : !item.is_active);
       const matchesCategory = selectedCategories.length === 0 || (item.category && selectedCategories.includes(item.category));
