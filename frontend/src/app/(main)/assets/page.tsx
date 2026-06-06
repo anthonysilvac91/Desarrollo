@@ -7,7 +7,7 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, Ship, CheckCircle2, MinusCircle } from "lucide-react";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, Ship, CheckCircle2, MinusCircle, Building2 } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import { formatDate } from "@/lib/formatDate";
@@ -291,7 +291,12 @@ export default function AssetsPage() {
       header: t.assets.table.owner,
       sortable: true,
       sortValue: (item) => item.owner?.name || "",
-      cell: (item) => <span className="font-bold text-subtitle/80 text-xs">{item.owner?.name || "---"}</span>,
+      cell: (item) => (
+        <div className="flex items-center gap-1.5 text-subtitle/80">
+          <Building2 className="w-3.5 h-3.5 text-brand shrink-0" />
+          <span className="font-bold text-xs">{item.owner?.name || "---"}</span>
+        </div>
+      ),
     },
     {
       key: "location",
@@ -327,7 +332,7 @@ export default function AssetsPage() {
       sortValue: (item) => item.last_service?.date || "",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
-          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+          <Calendar className="w-3.5 h-3.5 mr-1.5 text-brand" />
           <span className="font-semibold text-xs">
             {item.last_service?.date ? formatDate(item.last_service.date) : "---"}
           </span>

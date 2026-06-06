@@ -294,6 +294,7 @@ export default function UsersPage() {
     {
       key: "role",
       header: t.users.table.role,
+      align: "center",
       sortable: true,
       sortValue: (item) => item.role,
       cell: (item) => {
@@ -322,7 +323,7 @@ export default function UsersPage() {
       sortValue: (item) => item.last_login_at || "",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
-          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+          <Calendar className="w-3.5 h-3.5 mr-1.5 text-brand" />
           <span className="font-semibold text-xs">
             {item.last_login_at ? formatDate(item.last_login_at) : "---"}
           </span>
