@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import ModuleContainer from "@/components/ui/ModuleContainer";
-import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare, LayoutList } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare, LayoutList, Search, ChevronRight as ChevronRightIcon, X } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import DateFilterDropdown from "@/components/ui/DateFilterDropdown";
@@ -21,6 +20,48 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
+const getInitials = (name: string) =>
+  name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+
+interface ServiceCardProps {
+  item: Service;
+  onClick: () => void;
+}
+
+const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
+  <div
+    onClick={onClick}
+    className="bg-white rounded-2xl border border-border-theme/30 shadow-sm p-4 cursor-pointer active:scale-[0.99] transition-all"
+  >
+    <div className="flex items-center gap-3">
+      <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+        <Wrench className="w-5 h-5 text-brand" strokeWidth={1.5} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-title text-sm leading-tight">{item.title}</p>
+        <p className="text-xs font-bold text-brand truncate mt-0.5">{item.asset?.name || "---"}</p>
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+              <span className="text-[8px] font-black text-brand leading-none">
+                {item.worker?.name ? getInitials(item.worker.name) : "?"}
+              </span>
+            </div>
+            <span className="text-[11px] text-subtitle/70 font-semibold">{item.worker?.name || "---"}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3 text-brand shrink-0" />
+            <span className="text-[11px] text-subtitle/70 font-semibold">{formatDate(item.created_at)}</span>
+          </div>
+        </div>
+      </div>
+
+      <ChevronRightIcon className="w-4 h-4 text-brand shrink-0" />
+    </div>
+  </div>
+);
+
 export default function ServicesPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
@@ -28,16 +69,25 @@ export default function ServicesPage() {
   const canCreate = user?.role === "ADMIN" || user?.role === "WORKER";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [mobileSearch, setMobileSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
+  const debouncedMobileSearch = useDebounce(mobileSearch, 300);
   const [dateFilter, setDateFilter] = useState<{preset: string, start?: string, end?: string}>({ preset: "Todo" });
+  const [mobileDateFilter, setMobileDateFilter] = useState<{preset: string, start?: string, end?: string}>({ preset: "Todo" });
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [mobileItems, setMobileItems] = useState<Service[]>([]);
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
   const [desktopWorkerFilter, setDesktopWorkerFilter] = useState("");
+  const [mobileWorkerFilter, setMobileWorkerFilter] = useState("");
+  const [isMobileWorkerOpen, setIsMobileWorkerOpen] = useState(false);
+  const [mobileWorkerSearch, setMobileWorkerSearch] = useState("");
+  const mobileWorkerDropdownRef = useRef<HTMLDivElement>(null);
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -52,6 +102,20 @@ export default function ServicesPage() {
     return params;
   };
 
+  const getMobileQueryParams = () => {
+    const params: any = { page: mobilePage, limit: 10 };
+    if (debouncedMobileSearch) params.search = debouncedMobileSearch;
+    if (mobileDateFilter.preset !== "Todo") {
+      params.preset = mobileDateFilter.preset;
+      if (mobileDateFilter.preset === "Personalizado" && mobileDateFilter.start && mobileDateFilter.end) {
+        params.startDate = mobileDateFilter.start;
+        params.endDate = mobileDateFilter.end;
+      }
+    }
+    if (mobileWorkerFilter) params.worker_id = mobileWorkerFilter;
+    return params;
+  };
+
   const queryParams = {
     ...getQueryParams(),
     ...(desktopWorkerFilter ? { worker_id: desktopWorkerFilter } : {}),
@@ -60,6 +124,14 @@ export default function ServicesPage() {
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["services", queryParams],
     queryFn: () => servicesService.findAll(queryParams),
+    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    ...AUTO_REFETCH_OPTIONS,
+  });
+
+  const mobileQueryParams = getMobileQueryParams();
+  const { data: mobileResponseData, isLoading: mobileLoading } = useQuery({
+    queryKey: ["services-mobile", mobileQueryParams],
+    queryFn: () => servicesService.findAll(mobileQueryParams),
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
   });
@@ -96,9 +168,35 @@ export default function ServicesPage() {
   const servicesList = Array.isArray(responseData) ? responseData : responseData?.data || [];
   const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: servicesList.length, page: 1, limit: 10, totalPages: 1 };
 
-  React.useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, dateFilter, limit, desktopWorkerFilter]);
+  const mobileList = Array.isArray(mobileResponseData) ? mobileResponseData : mobileResponseData?.data || [];
+  const mobileMeta = !Array.isArray(mobileResponseData) && mobileResponseData?.meta
+    ? mobileResponseData.meta
+    : { total: mobileList.length, page: 1, limit: 10, totalPages: 1 };
+
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, dateFilter, limit, desktopWorkerFilter]);
+  React.useEffect(() => { setMobilePage(1); setMobileItems([]); }, [debouncedMobileSearch, mobileDateFilter, mobileWorkerFilter]);
+
+  useEffect(() => {
+    if (!mobileResponseData) return;
+    const newList: Service[] = Array.isArray(mobileResponseData) ? mobileResponseData : (mobileResponseData as any)?.data ?? [];
+    if (mobilePage === 1) {
+      setMobileItems(newList);
+    } else {
+      setMobileItems(prev => [...prev, ...newList]);
+    }
+  }, [mobileResponseData]);
+
+  useEffect(() => {
+    if (!isMobileWorkerOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (mobileWorkerDropdownRef.current && !mobileWorkerDropdownRef.current.contains(e.target as Node)) {
+        setIsMobileWorkerOpen(false);
+        setMobileWorkerSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [isMobileWorkerOpen]);
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setDateFilter({ preset, start, end });
@@ -158,7 +256,7 @@ export default function ServicesPage() {
         <div className="flex items-center text-subtitle/80">
           <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center mr-2 shrink-0">
             <span className="text-[10px] font-black text-brand">
-              {item.worker?.name ? item.worker.name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("") : "?"}
+              {item.worker?.name ? getInitials(item.worker.name) : "?"}
             </span>
           </div>
           <span className="font-bold text-subtitle/80 text-xs">{item.worker?.name || "---"}</span>
@@ -173,12 +271,13 @@ export default function ServicesPage() {
       sortValue: (item) => item.attachments?.length || 0,
       cell: (item) => (
         <div className="flex items-center justify-center">
-          <span className="min-w-[40px] h-7 flex items-center justify-center text-xs font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
+          <span className="min-w-10 h-7 flex items-center justify-center text-xs font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
             {item.attachments?.length || 0}
           </span>
         </div>
       )
     },
+
     {
       key: "date",
       header: t.services.table.date,
@@ -187,7 +286,7 @@ export default function ServicesPage() {
       sortValue: (item) => item.created_at,
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
-          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+          <Calendar className="w-3.5 h-3.5 mr-1.5 text-brand" />
           <span className="font-semibold text-xs">{formatDate(item.created_at)}</span>
         </div>
       )
@@ -223,7 +322,7 @@ export default function ServicesPage() {
         <FilterDropdown
           value={String(limit)}
           onChange={(v) => { setLimit(Number(v)); setPage(1); }}
-          options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / pág` }))}
+          options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / ${t.common.per_page}` }))}
           placeholder=""
           showReset={false}
           compact
@@ -253,135 +352,325 @@ export default function ServicesPage() {
 
   return (
     <div>
-      <MobileDevBanner />
-      <div className="hidden lg:flex flex-col space-y-8">
+      {/* ── Mobile ── */}
+      <div className="lg:hidden flex flex-col gap-4 pb-8">
+        <h1 className="text-2xl font-black text-title tracking-tight text-center">
+          {t.topbar.titles.services}
+        </h1>
 
-      {/* KPI Cards */}
-      <div className="hidden sm:grid sm:grid-cols-4 gap-4">
-        <KPICard
-          title={t.services.kpis.total}
-          value={stats?.total_services ?? 0}
-          icon={LayoutList}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-500"
-          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
-        />
-        <KPICard
-          title={t.services.kpis.period}
-          value={stats?.period_services ?? 0}
-          icon={CheckSquare}
-          iconBg="bg-green-50"
-          iconColor="text-green-600"
-          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
-        />
-        <KPICard
-          title={t.services.kpis.assets}
-          value={stats?.assets_serviced ?? 0}
-          icon={Ship}
-          iconBg="bg-orange-50"
-          iconColor="text-orange-500"
-          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
-        />
-        <KPICard
-          title={t.services.kpis.operators}
-          value={stats?.active_operators ?? 0}
-          icon={User}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-500"
-          roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
-        />
-      </div>
+        {/* Mobile search */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-subtitle/40" />
+          <input
+            type="text"
+            value={mobileSearch}
+            onChange={e => setMobileSearch(e.target.value)}
+            placeholder={t.services.search_placeholder}
+            className="w-full pl-10 pr-4 py-3 bg-white border border-border-theme/30 rounded-2xl text-sm font-medium placeholder:text-subtitle/40 outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand shadow-sm"
+          />
+          {mobileSearch && (
+            <button onClick={() => setMobileSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-subtitle/40 hover:text-subtitle">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
-      <FiltersBar
-        searchPlaceholder={t.services.search_placeholder}
-        onSearchChange={setSearch}
-        showQuickFilters={false}
-        hasExternalFilter={!!activeSortKey || !!desktopWorkerFilter || dateFilter.preset !== "Todo"}
-        onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); setDesktopWorkerFilter(""); handleDateChange("Todo"); }}
-        actions={
-          <div className="flex items-center gap-3">
-            <FilterDropdown
-              value={desktopWorkerFilter}
-              onChange={setDesktopWorkerFilter}
-              options={workerOptions.map(w => ({ value: w.id, label: w.name }))}
-              placeholder={t.services.table.operator}
-            />
+        {/* Mobile filters row */}
+        <div className="flex items-center gap-2 flex-wrap">
+
+          {/* Date quick pills: All · Today · Week */}
+          <div className="flex items-center bg-app-bg rounded-full px-1 border border-border-theme/30 shrink-0">
+            {(["Todo", "Hoy", "Semana"] as const).map((preset) => (
+              <button
+                key={preset}
+                onClick={() => { setMobileDateFilter({ preset }); setMobilePage(1); }}
+                className={`px-3 py-2 rounded-full border text-xs font-bold transition-all ${
+                  mobileDateFilter.preset === preset
+                    ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
+                    : "border-transparent text-subtitle/50"
+                }`}
+              >
+                {preset === "Todo" ? t.services.filter_all : preset === "Hoy" ? t.date_filters.today : t.date_filters.week}
+              </button>
+            ))}
+          </div>
+
+          {/* Date filter */}
+          <div className="shrink-0">
             <DateFilterDropdown
-              value={dateFilter.preset === "Todo" ? "" : dateFilter.preset}
-              customStart={dateFilter.start}
-              customEnd={dateFilter.end}
-              onChange={(preset, start, end) => handleDateChange(preset || "Todo", start, end)}
+              value={mobileDateFilter.preset === "Todo" || mobileDateFilter.preset === "Hoy" || mobileDateFilter.preset === "Semana" ? "" : mobileDateFilter.preset}
+              customStart={mobileDateFilter.start}
+              customEnd={mobileDateFilter.end}
+              onChange={(preset, start, end) => { setMobileDateFilter({ preset: preset || "Todo", start, end }); setMobilePage(1); }}
               options={[
-                { value: "Hoy", label: t.date_filters.today },
                 { value: "Mes", label: t.date_filters.month },
                 { value: "Año", label: t.date_filters.year },
               ]}
               placeholder={t.date_filters.date}
+              compact
+              iconOnlyCustom
             />
-            {canCreate && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
-              >
-                <Plus className="w-4 h-4 stroke-[3px]" />
-                {t.services.add_new}
-              </button>
+          </div>
+
+          {/* User filter — date style */}
+          <div ref={mobileWorkerDropdownRef} className="relative shrink-0">
+            <button
+              onClick={() => setIsMobileWorkerOpen(v => !v)}
+              className={`flex items-center gap-1.5 h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all max-w-[140px] ${
+                mobileWorkerFilter
+                  ? "border-brand/40 bg-brand/5 text-brand"
+                  : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
+              }`}
+            >
+              {mobileWorkerFilter ? (
+                <>
+                  <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
+                    <span className="text-[9px] font-black text-white leading-none">
+                      {getInitials(workerOptions.find(w => w.id === mobileWorkerFilter)?.name ?? "")}
+                    </span>
+                  </div>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setMobileWorkerFilter(""); setMobilePage(1); }}
+                    className="ml-auto text-brand/50 hover:text-brand transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>{t.services.table.operator}</span>
+                  <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                </>
+              )}
+            </button>
+
+            {isMobileWorkerOpen && (
+              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 w-56 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <div className="p-2.5 border-b border-border-theme/20">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtitle/40" />
+                    <input
+                      autoFocus
+                      type="text"
+                      value={mobileWorkerSearch}
+                      onChange={e => setMobileWorkerSearch(e.target.value)}
+                      placeholder={t.services.search_placeholder}
+                      className="w-full pl-7 pr-3 py-1.5 text-sm bg-app-bg rounded-xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
+                    />
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {workerOptions
+                    .filter(w => !mobileWorkerSearch.trim() || w.name.toLowerCase().includes(mobileWorkerSearch.toLowerCase()))
+                    .map(worker => (
+                      <button
+                        key={worker.id}
+                        onClick={() => { setMobileWorkerFilter(worker.id); setMobilePage(1); setIsMobileWorkerOpen(false); setMobileWorkerSearch(""); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-app-bg transition-colors text-left"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-black text-brand">{getInitials(worker.name)}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-title">{worker.name}</span>
+                      </button>
+                    ))}
+                  {workerOptions.filter(w => !mobileWorkerSearch.trim() || w.name.toLowerCase().includes(mobileWorkerSearch.toLowerCase())).length === 0 && (
+                    <p className="px-4 py-3 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
-        }
-      />
 
-      <div className="flex-1 min-h-[400px]">
-        {isLoading ? (
-          <div className="w-full flex flex-col items-center justify-center py-24">
-            <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
-            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.services.states.loading}</p>
+        </div>
+
+        {/* Custom date range chip */}
+        {mobileDateFilter.preset === "Personalizado" && mobileDateFilter.start && mobileDateFilter.end && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20 self-start">
+            <Calendar className="w-3.5 h-3.5 text-brand shrink-0" />
+            <span className="text-xs font-semibold text-brand">
+              {new Date(mobileDateFilter.start + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short" })}
+              {" – "}
+              {new Date(mobileDateFilter.end + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short" })}
+            </span>
+            <button
+              onClick={() => { setMobileDateFilter({ preset: "Todo" }); setMobilePage(1); }}
+              className="text-brand/40 hover:text-brand transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
-        ) : isError ? (
-          <ModuleContainer roundedClass="rounded-2xl">
-            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
-              <div className="p-4 bg-error/10 rounded-full">
-                <AlertCircle className="w-8 h-8 text-error" />
-              </div>
-              <div className="text-center">
-                <p className="font-black text-title text-xl">{t.services.states.error_title}</p>
-                <p className="text-subtitle font-medium">{t.services.states.error_subtitle}</p>
-              </div>
-              <button 
-                onClick={() => refetch()}
-                className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/5"
-              >
-                {t.common.retry}
-              </button>
-            </div>
-          </ModuleContainer>
-        ) : servicesList.length === 0 ? (
-          <ModuleContainer roundedClass="rounded-2xl">
-            <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
-              <div className="p-6 bg-app-bg/50 rounded-full">
-                <Inbox className="w-12 h-12 text-subtitle/20" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-2xl font-black text-title tracking-tight">{t.services.states.empty_title}</h3>
-                <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
-                  {t.services.states.empty_subtitle}
-                </p>
-              </div>
-            </div>
-          </ModuleContainer>
-        ) : (
-          <ModuleContainer roundedClass="rounded-2xl">
-            <DataTable
-              data={servicesList}
-              columns={columns}
-              keyExtractor={(item) => item.id}
-              footer={pagination}
-              onRowClick={(item: any) => setSelectedService(item)}
-              onSortChange={setActiveSortKey}
-              resetSortTrigger={resetKey}
-            />
-          </ModuleContainer>
         )}
+
+        {/* Mobile card list */}
+        {mobileLoading && mobileItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Loader2 className="w-8 h-8 text-brand animate-spin" />
+            <p className="text-xs font-bold text-subtitle/40 uppercase tracking-wider animate-pulse">{t.services.states.loading}</p>
+          </div>
+        ) : mobileItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <div className="p-5 bg-white border-2 border-brand/5 shadow-xl shadow-brand/5 rounded-4xl">
+              <Inbox className="w-10 h-10 text-brand/20" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-black text-title text-lg tracking-tight">{t.services.states.empty_title}</p>
+              <p className="text-subtitle/60 text-sm font-medium">{t.services.states.empty_subtitle}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {mobileItems.map((item: Service) => (
+              <ServiceCard key={item.id} item={item} onClick={() => setSelectedService(item)} />
+            ))}
+          </div>
+        )}
+
+        {/* View more */}
+        {mobileItems.length > 0 && mobilePage < mobileMeta.totalPages && (
+          <button
+            onClick={() => setMobilePage(p => p + 1)}
+            disabled={mobileLoading}
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border-theme/30 bg-white text-sm font-bold text-subtitle/60 hover:text-brand hover:border-brand/30 hover:bg-brand/5 active:scale-[0.99] transition-all shadow-sm disabled:opacity-50"
+          >
+            {mobileLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-brand" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+            {mobileLoading ? t.services.states.loading : t.common.view_more}
+          </button>
+        )}
+      </div>
+
+      {/* ── Desktop ── */}
+      <div className="hidden lg:flex flex-col space-y-8">
+        <div className="hidden sm:grid sm:grid-cols-4 gap-4">
+          <KPICard
+            title={t.services.kpis.total}
+            value={stats?.total_services ?? 0}
+            icon={LayoutList}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-500"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+          <KPICard
+            title={t.services.kpis.period}
+            value={stats?.period_services ?? 0}
+            icon={CheckSquare}
+            iconBg="bg-green-50"
+            iconColor="text-green-600"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+          <KPICard
+            title={t.services.kpis.assets}
+            value={stats?.assets_serviced ?? 0}
+            icon={Ship}
+            iconBg="bg-orange-50"
+            iconColor="text-orange-500"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+          <KPICard
+            title={t.services.kpis.operators}
+            value={stats?.active_operators ?? 0}
+            icon={User}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-500"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+        </div>
+
+        <FiltersBar
+          searchPlaceholder={t.services.search_placeholder}
+          onSearchChange={setSearch}
+          showQuickFilters={false}
+          hasExternalFilter={!!activeSortKey || !!desktopWorkerFilter || dateFilter.preset !== "Todo"}
+          onClearAll={() => { setResetKey(k => k + 1); setActiveSortKey(null); setDesktopWorkerFilter(""); handleDateChange("Todo"); }}
+          actions={
+            <div className="flex items-center gap-3">
+              <FilterDropdown
+                value={desktopWorkerFilter}
+                onChange={setDesktopWorkerFilter}
+                options={workerOptions.map(w => ({ value: w.id, label: w.name }))}
+                placeholder={t.services.table.operator}
+              />
+              <DateFilterDropdown
+                value={dateFilter.preset === "Todo" ? "" : dateFilter.preset}
+                customStart={dateFilter.start}
+                customEnd={dateFilter.end}
+                onChange={(preset, start, end) => handleDateChange(preset || "Todo", start, end)}
+                options={[
+                  { value: "Hoy", label: t.date_filters.today },
+                  { value: "Mes", label: t.date_filters.month },
+                  { value: "Año", label: t.date_filters.year },
+                ]}
+                placeholder={t.date_filters.date}
+              />
+              {canCreate && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
+                >
+                  <Plus className="w-4 h-4 stroke-[3px]" />
+                  {t.services.add_new}
+                </button>
+              )}
+            </div>
+          }
+        />
+
+        <div className="flex-1 min-h-100">
+          {isLoading ? (
+            <div className="w-full flex flex-col items-center justify-center py-24">
+              <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+              <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.services.states.loading}</p>
+            </div>
+          ) : isError ? (
+            <ModuleContainer roundedClass="rounded-2xl">
+              <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+                <div className="p-4 bg-error/10 rounded-full">
+                  <AlertCircle className="w-8 h-8 text-error" />
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-title text-xl">{t.services.states.error_title}</p>
+                  <p className="text-subtitle font-medium">{t.services.states.error_subtitle}</p>
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/5"
+                >
+                  {t.common.retry}
+                </button>
+              </div>
+            </ModuleContainer>
+          ) : servicesList.length === 0 ? (
+            <ModuleContainer roundedClass="rounded-2xl">
+              <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
+                <div className="p-6 bg-app-bg/50 rounded-full">
+                  <Inbox className="w-12 h-12 text-subtitle/20" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-black text-title tracking-tight">{t.services.states.empty_title}</h3>
+                  <p className="text-subtitle font-medium max-w-xs mx-auto text-sm leading-relaxed">
+                    {t.services.states.empty_subtitle}
+                  </p>
+                </div>
+              </div>
+            </ModuleContainer>
+          ) : (
+            <ModuleContainer roundedClass="rounded-2xl">
+              <DataTable
+                data={servicesList}
+                columns={columns}
+                keyExtractor={(item) => item.id}
+                footer={pagination}
+                onRowClick={(item: any) => setSelectedService(item)}
+                onSortChange={setActiveSortKey}
+                resetSortTrigger={resetKey}
+              />
+            </ModuleContainer>
+          )}
+        </div>
       </div>
 
       <ServiceDrawer
@@ -395,7 +684,7 @@ export default function ServicesPage() {
         onSuccess={refetch}
       />
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={!!serviceToDelete}
         onClose={() => setServiceToDelete(null)}
         onConfirm={handleConfirmDelete}
@@ -405,7 +694,6 @@ export default function ServicesPage() {
         cancelText={t.confirm_modal.cancel_delete}
         variant="danger"
       />
-      </div>
     </div>
   );
 }

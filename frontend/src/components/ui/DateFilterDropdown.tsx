@@ -15,6 +15,7 @@ interface DateFilterDropdownProps {
   onChange: (preset: string, start?: string, end?: string) => void;
   options: PresetOption[];
   placeholder: string;
+  iconOnlyCustom?: boolean;
 }
 
 function CalendarCaption({ calendarMonth }: MonthCaptionProps) {
@@ -49,6 +50,7 @@ export default function DateFilterDropdown({
   onChange,
   options,
   placeholder,
+  iconOnlyCustom = false,
 }: DateFilterDropdownProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -100,7 +102,7 @@ export default function DateFilterDropdown({
         }`}
       >
         {isCustomActive && <Calendar className="w-3.5 h-3.5 shrink-0" />}
-        <span>{triggerLabel}</span>
+        {!(iconOnlyCustom && isCustomActive) && <span>{triggerLabel}</span>}
         <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
 
