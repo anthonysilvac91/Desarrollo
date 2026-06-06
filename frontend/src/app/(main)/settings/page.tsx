@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
+import ReactDOM from "react-dom";
 import { 
-  Building2, 
-  Camera, 
-  Ship, 
-  Car, 
-  Home, 
-  Square, 
-  Palette, 
-  Upload,
+  Building2,
+  Camera,
+  Ship,
+  Car,
+  Home,
+  Square,
+  Pencil,
   Save,
   ImageIcon,
   Plane,
@@ -24,8 +24,24 @@ import {
   Trophy,
   Loader2,
   User as UserIcon,
-  AtSign,
-  LockKeyhole
+  ChevronDown,
+  CreditCard,
+  ShieldCheck,
+  Bell,
+  Smartphone,
+  MessageSquare,
+  Mail,
+  Eye,
+  EyeOff,
+  Info,
+  Laptop,
+  Monitor,
+  LogOut,
+  MapPin,
+  X,
+  Database,
+  Megaphone,
+  AlignLeft,
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -36,6 +52,7 @@ import { usersService } from "@/services/users.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
+import LogoCropModal from "@/components/ui/LogoCropModal";
 
 const BRAND_PALETTES = [
   { id: "recall", name: "Recall Blue", base: "bg-blue-600", shades: ["bg-blue-400", "bg-blue-700", "bg-blue-900"] },
@@ -70,7 +87,7 @@ const ASSET_ICONS = [
 ];
 
 export default function SettingsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
@@ -81,12 +98,17 @@ export default function SettingsPage() {
   // States for changes
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoCropSrc, setLogoCropSrc] = useState<string | null>(null);
   const [selectedPalette, setSelectedPalette] = useState<string | null>(null);
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [orgName, setOrgName] = useState("");
   const [showOrgName, setShowOrgName] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileTimezone, setProfileTimezone] = useState(() =>
+    typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC"
+  );
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -161,6 +183,7 @@ export default function SettingsPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfileName(user.name || "");
       setProfileEmail(user.email || "");
+      setProfilePhone((user as any).phone || "");
       setAvatarPreview(user.avatar_url || null);
     }
   }, [user]);
@@ -206,6 +229,7 @@ export default function SettingsPage() {
     const fd = new FormData();
     fd.append("name", profileName.trim());
     fd.append("email", profileEmail.trim());
+    fd.append("phone", profilePhone.trim());
     if (avatarFile) fd.append("avatar", avatarFile);
     if (newPassword) {
       fd.append("current_password", currentPassword);
@@ -214,13 +238,14 @@ export default function SettingsPage() {
     profileMutation.mutate(fd);
   };
 
-  const tabs = canManageOrgSettings
-    ? [
-        { id: "profile", label: t.settings.tabs.profile, icon: Building2 },
-        { id: "my_profile", label: t.settings.tabs.my_profile, icon: UserIcon },
-        { id: "branding_assets", label: t.settings.tabs.branding_assets, icon: Palette },
-      ]
-    : [{ id: "my_profile", label: t.settings.tabs.my_profile, icon: UserIcon }];
+  const allTabs = [
+    ...(canManageOrgSettings ? [{ id: "profile", label: t.settings.tabs.profile, icon: Building2 }] : []),
+    { id: "my_profile",      label: t.settings.tabs.my_profile,    icon: UserIcon    },
+    { id: "plans",           label: t.settings.tabs.plans,          icon: CreditCard  },
+    { id: "security",        label: t.settings.tabs.security,       icon: ShieldCheck },
+    { id: "notifications",   label: t.settings.tabs.notifications,  icon: Bell        },
+  ];
+  const tabs = allTabs;
 
   const requestedTab = searchParams.get("tab");
   const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab : tabs[0].id;
@@ -233,10 +258,24 @@ export default function SettingsPage() {
 
   return (
     <div>
+      {logoCropSrc && (
+        <LogoCropModal
+          src={logoCropSrc}
+          onConfirm={(file) => {
+            setLogoFile(file);
+            const r = new FileReader();
+            r.onloadend = () => setLogoPreview(r.result as string);
+            r.readAsDataURL(file);
+            setLogoCropSrc(null);
+          }}
+          onCancel={() => setLogoCropSrc(null)}
+          onError={(msg) => { showToast(msg, "error"); setLogoCropSrc(null); }}
+        />
+      )}
       <MobileDevBanner />
       <div className="hidden lg:flex flex-col space-y-6">
       {/* Horizontal Tabs Navigation */}
-      <div className="flex items-center space-x-2 border-b border-border-theme/40 pb-px mb-2">
+      <div className="flex items-center border-b border-border-theme/30">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -244,12 +283,17 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
-              className={`flex items-center space-x-3 px-8 py-3.5 text-sm font-black transition-all rounded-2xl ${
-                isActive ? "bg-brand/10 text-brand shadow-sm shadow-brand/5" : "text-subtitle/40 hover:text-subtitle hover:bg-app-bg/50"
+              className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all whitespace-nowrap ${
+                isActive
+                  ? "text-brand"
+                  : "text-subtitle/50 hover:text-subtitle"
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? "text-brand" : "opacity-40"}`} />
-              <span className="tracking-tight uppercase tracking-[0.05em]">{tab.label}</span>
+              <Icon className="w-4 h-4 shrink-0" strokeWidth={isActive ? 2 : 1.5} />
+              <span>{tab.label}</span>
+              {isActive && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-full" />
+              )}
             </button>
           );
         })}
@@ -260,86 +304,194 @@ export default function SettingsPage() {
         {activeTab === "profile" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <ModuleContainer>
-              <div className="p-10 lg:p-14 space-y-12">
-                 {/* Logo Upload Section */}
-                 <div className="flex items-center space-x-12">
-                    <div className="relative group shrink-0">
-                      <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-[40px] bg-app-bg border-[3px] border-white shadow-2xl flex items-center justify-center overflow-hidden transition-all group-hover:scale-105">
+              <div className="divide-y divide-border-theme/20">
+
+                {/* Organization profile */}
+                <div className="px-8 py-7 space-y-5">
+                  <div>
+                    <p className="text-sm font-semibold text-title">{t.settings.owner_section.title}</p>
+                  </div>
+                  <div className="flex items-stretch gap-0">
+                    {/* Logo upload box */}
+                    <div className="pr-8 shrink-0">
+                      <div className="relative inline-block">
                         {logoPreview ? (
-                          <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-4" />
+                          <>
+                            <div className="w-52 h-44 rounded-2xl border-2 border-border-theme/20 bg-app-bg/40 overflow-hidden">
+                              <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-4" />
+                            </div>
+                            <label className="absolute -bottom-2 -right-2 bg-brand text-white p-3 rounded-2xl shadow-lg cursor-pointer hover:scale-105 active:scale-95 transition-all">
+                              <Pencil className="w-4 h-4" />
+                              <input type="file" className="hidden" accept="image/*" onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const r = new FileReader();
+                                r.onloadend = () => setLogoCropSrc(r.result as string);
+                                r.readAsDataURL(file);
+                                e.target.value = "";
+                              }} />
+                            </label>
+                          </>
                         ) : (
-                          <div className="flex flex-col items-center space-y-3 opacity-30">
-                            <ImageIcon className="w-12 h-12 text-subtitle" strokeWidth={1.5} />
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-subtitle">{t.settings.owner_section.upload_logo}</span>
-                          </div>
+                          <label className="cursor-pointer group block">
+                            <div className="w-52 h-44 rounded-2xl border-2 border-dashed border-border-theme/40 bg-app-bg/40 flex flex-col items-center justify-center gap-2 transition-all group-hover:border-brand/40 group-hover:bg-brand/5 overflow-hidden">
+                              <ImageIcon className="w-8 h-8 text-subtitle/30 group-hover:text-brand/40 transition-colors" strokeWidth={1.5} />
+                              <span className="text-[11px] font-semibold text-subtitle/40 group-hover:text-brand/50 text-center leading-tight px-3 transition-colors">
+                                {t.settings.owner_section.upload_logo}
+                                <br />
+                                <span className="font-normal text-[10px]">JPG, PNG or SVG. Max 1MB.</span>
+                              </span>
+                            </div>
+                            <input type="file" className="hidden" accept="image/*" onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const r = new FileReader();
+                              r.onloadend = () => setLogoCropSrc(r.result as string);
+                              r.readAsDataURL(file);
+                              e.target.value = "";
+                            }} />
+                          </label>
                         )}
                       </div>
-                      <label className="absolute -bottom-2 -right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center cursor-pointer hover:bg-brand hover:text-white hover:scale-110 active:scale-95 transition-all text-subtitle">
-                        <Upload className="w-5 h-5" />
-                        <input type="file" className="hidden" accept="image/*" onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setLogoFile(file);
-                            const r = new FileReader();
-                            r.onloadend = () => setLogoPreview(r.result as string);
-                            r.readAsDataURL(file);
-                          }
-                        }} />
-                      </label>
                     </div>
-                    <div className="space-y-2">
-                       <p className="text-xs font-black text-brand uppercase tracking-[0.2em] mb-2">{t.settings.owner_section.title}</p>
-                      <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.owner_section.logo}</h3>
-                      <p className="text-[15px] text-subtitle/50 font-medium max-w-sm leading-relaxed">{t.settings.owner_section.logo_help}</p>
-                    </div>
-                 </div>
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-                        {t.settings.owner_section.name}
-                      </label>
-                      <input
-                        type="text"
-                        value={orgName}
-                        onChange={e => setOrgName(e.target.value)}
-                        readOnly={!canManageOrgSettings}
-                        className={`w-full px-8 py-5 border rounded-3xl text-title font-bold outline-none transition-all ${
-                          canManageOrgSettings
-                            ? "bg-white border-border-theme/60 focus:ring-2 focus:ring-brand/10 focus:border-brand"
-                            : "bg-app-bg/50 border-border-theme/40 opacity-70 cursor-default"
-                        }`}
-                      />
-                      <label className="flex items-center space-x-3 cursor-pointer group mt-2 pl-1">
-                        <div
+                    {/* Divider */}
+                    <div className="w-px bg-border-theme/20 shrink-0" />
+
+                    {/* Organization details */}
+                    <div className="pl-8 space-y-5">
+                      <p className="text-sm font-semibold text-title">{t.settings.owner_section.name}</p>
+
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
+                          value={orgName}
+                          onChange={e => setOrgName(e.target.value)}
+                          readOnly={!canManageOrgSettings}
+                          className={`w-96 px-4 py-3 border-2 rounded-2xl text-sm text-title font-semibold outline-none transition-all shadow-sm ${
+                            canManageOrgSettings
+                              ? "bg-white border-border-theme/50 focus:ring-2 focus:ring-brand/15 focus:border-brand"
+                              : "bg-app-bg/50 border-border-theme/40 opacity-70 cursor-default"
+                          }`}
+                        />
+                      </div>
+
+                      {/* Toggle: show org name */}
+                      <div className="flex items-start gap-3">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={showOrgName}
                           onClick={() => setShowOrgName(v => !v)}
-                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                            showOrgName ? "bg-brand border-brand" : "border-border-theme/40 bg-white"
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                            showOrgName ? "bg-brand" : "bg-border-theme/40"
                           }`}
                         >
-                          {showOrgName && (
-                            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${
+                              showOrgName ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                        <div>
+                          <p className="text-sm font-semibold text-title leading-tight">{t.settings.owner_section.show_org_name}</p>
+                          <p className="text-xs text-subtitle/50 mt-1 max-w-xs leading-snug">
+                            When enabled, the organization name will be displayed alongside your logo in the top bar and public views.
+                          </p>
                         </div>
-                        <span className="text-sm font-semibold text-subtitle/60 group-hover:text-title transition-colors">
-                          {t.settings.owner_section.show_org_name}
-                        </span>
-                      </label>
+                      </div>
                     </div>
-                 </div>
+                  </div>
+                </div>
 
-                 <div className="pt-6 flex justify-end">
-                    <button 
-                      onClick={handleSave}
-                      disabled={mutation.isPending}
-                      className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25 disabled:opacity-50"
-                    >
-                      {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 stroke-[3px]" />}
-                      <span>{t.common.save}</span>
-                    </button>
-                 </div>
+                {/* Brand identity */}
+                <div className="px-8 py-7 space-y-5">
+                  <div>
+                    <p className="text-sm font-semibold text-title">{t.settings.branding_section.palette}</p>
+                    <p className="text-xs text-subtitle/50 mt-1">{t.settings.branding_section.subtitle}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {BRAND_PALETTES.map((palette) => {
+                      const isSelected = selectedPalette === palette.id;
+                      const paletteName = (t.settings.branding_section.palettes as Record<string, string>)[palette.id] || palette.name;
+                      return (
+                        <button
+                          key={palette.id}
+                          onClick={() => setSelectedPalette(palette.id)}
+                          title={paletteName}
+                          className={`relative w-12 h-12 rounded-2xl transition-all hover:scale-105 active:scale-95 ${palette.base} ${
+                            isSelected ? "ring-2 ring-offset-2 ring-brand shadow-lg" : "opacity-80 hover:opacity-100"
+                          }`}
+                        >
+                          {isSelected && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Check className="w-4 h-4 text-white drop-shadow" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Asset defaults */}
+                <div className="px-8 py-7 space-y-5">
+                  <div>
+                    <p className="text-sm font-semibold text-title">{t.settings.asset_section.title}</p>
+                    <p className="text-xs text-subtitle/50 mt-1">{t.settings.asset_section.subtitle}</p>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                    {ASSET_ICONS.map((item) => {
+                      const Icon = item.icon;
+                      const isSelected = selectedIcon === item.id;
+                      const iconLabel = (t.settings.asset_section.icons as Record<string, string>)[item.id] || item.label;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setSelectedIcon(item.id)}
+                          className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all gap-1.5 ${
+                            isSelected
+                              ? "bg-brand/5 border-brand shadow-sm"
+                              : "bg-white border-border-theme/30 hover:border-border-theme/60 hover:bg-app-bg/50"
+                          }`}
+                        >
+                          <Icon className={`w-5 h-5 ${isSelected ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+                          <span className={`text-[10px] font-semibold text-center leading-tight ${isSelected ? "text-brand" : "text-subtitle/50"}`}>{iconLabel}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Footer actions */}
+                <div className="px-8 py-5 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (org) {
+                        setOrgName(org.name || "");
+                        setShowOrgName(org.show_org_name ?? false);
+                        setLogoPreview(org.logo_url || null);
+                        setLogoFile(null);
+                        const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
+                        setSelectedPalette(found?.id || "recall");
+                        if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
+                      }
+                    }}
+                    className="px-5 py-2.5 rounded-2xl text-sm font-semibold text-subtitle/60 hover:text-title hover:bg-app-bg/80 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={mutation.isPending}
+                    className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white px-5 py-2.5 rounded-2xl text-sm font-semibold transition-all shadow-sm shadow-brand/20 disabled:opacity-50"
+                  >
+                    {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Save changes</span>
+                  </button>
+                </div>
+
               </div>
             </ModuleContainer>
           </div>
@@ -347,19 +499,24 @@ export default function SettingsPage() {
 
         {activeTab === "my_profile" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <ModuleContainer>
-              <div className="p-10 lg:p-14 space-y-12">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-10">
-                  <div className="relative group shrink-0 w-fit">
-                    <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-full bg-app-bg border-[3px] border-white shadow-2xl flex items-center justify-center overflow-hidden transition-all group-hover:scale-105">
+            <div className="grid grid-cols-[280px_1fr] gap-5 items-start">
+
+              {/* Left card */}
+              <ModuleContainer>
+                <div className="p-8 flex flex-col items-center text-center">
+                  {/* Avatar */}
+                  <div className="relative mb-5">
+                    <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-brand/5 flex items-center justify-center ring-1 ring-border-theme/20">
                       {avatarPreview ? (
                         <img src={avatarPreview} alt={profileName} className="w-full h-full object-cover" />
                       ) : (
-                        <UserIcon className="w-14 h-14 text-subtitle/25" strokeWidth={1.5} />
+                        <span className="text-3xl font-black text-brand tracking-tighter select-none">
+                          {profileName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?"}
+                        </span>
                       )}
                     </div>
-                    <label className="absolute -bottom-2 -right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-gray-100 flex items-center justify-center cursor-pointer hover:bg-brand hover:text-white hover:scale-110 active:scale-95 transition-all text-subtitle">
-                      <Camera className="w-5 h-5" />
+                    <label className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center cursor-pointer active:scale-95 hover:scale-105 transition-all">
+                      <Camera className="w-4 h-4" />
                       <input
                         type="file"
                         className="hidden"
@@ -377,196 +534,703 @@ export default function SettingsPage() {
                     </label>
                   </div>
 
-                  <div className="space-y-2">
-                    <p className="text-xs font-black text-brand uppercase tracking-[0.2em] mb-2">{t.settings.user_profile_section.title}</p>
-                    <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{profileName || user?.email}</h3>
-                    <p className="text-[15px] text-subtitle/50 font-medium max-w-lg leading-relaxed">{t.settings.user_profile_section.subtitle}</p>
+                  <p className="text-base font-black text-title">{profileName || user?.email}</p>
+
+                  <span className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                    user?.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${user?.is_active ? "bg-green-500" : "bg-red-500"}`} />
+                    {user?.is_active ? t.common.active : t.common.inactive}
+                  </span>
+
+                  <div className="mt-6 w-full border-t border-border-theme/20 pt-5 space-y-5 text-left">
+                    {user?.organization?.name && (
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-subtitle/40">{t.settings.user_profile_section.organization}</p>
+                        <p className="text-sm font-semibold text-title mt-1">{user.organization.name}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-subtitle/40">{t.settings.user_profile_section.role}</p>
+                      <span className={`mt-1.5 inline-flex items-center px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${
+                        user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
+                          ? "bg-indigo-50 text-indigo-600 border-indigo-100"
+                          : user?.role === "WORKER"
+                          ? "bg-amber-50 text-amber-600 border-amber-100"
+                          : "bg-slate-100 text-slate-600 border-slate-200"
+                      }`}>
+                        {user?.role === "SUPER_ADMIN" ? "Super Admin"
+                          : user?.role === "ADMIN" ? t.users.modal.roles.admin
+                          : user?.role === "WORKER" ? t.users.modal.roles.worker
+                          : t.users.modal.roles.external}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </ModuleContainer>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-                      {t.settings.user_profile_section.name}
-                    </label>
-                    <div className="relative">
-                      <UserIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-subtitle/25" />
+              {/* Right form */}
+              <ModuleContainer>
+                <div className="p-8 space-y-6">
+                  <div>
+                    <p className="text-base font-black text-title">{t.settings.user_profile_section.title}</p>
+                    <p className="text-sm text-subtitle/50 mt-1">{t.settings.user_profile_section.subtitle}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-subtitle/50">
+                        {t.settings.user_profile_section.name}
+                      </label>
                       <input
                         type="text"
                         value={profileName}
                         onChange={(event) => setProfileName(event.target.value)}
-                        className="w-full pl-14 pr-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                        className="w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand"
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-                      {t.settings.user_profile_section.email}
-                    </label>
-                    <div className="relative">
-                      <AtSign className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-subtitle/25" />
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-subtitle/50">
+                        {t.settings.user_profile_section.email}
+                      </label>
                       <input
                         type="email"
                         value={profileEmail}
                         onChange={(event) => setProfileEmail(event.target.value)}
-                        className="w-full pl-14 pr-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                        className="w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand"
                       />
                     </div>
-                  </div>
-                </div>
 
-                <div className="border-t border-gray-50 pt-10 space-y-8">
-                  <div className="space-y-2">
-                    <h3 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.user_profile_section.password_title}</h3>
-                    <p className="text-sm text-subtitle/60 font-medium tracking-tight">{t.settings.user_profile_section.password_subtitle}</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-                        {t.settings.user_profile_section.current_password}
-                      </label>
-                      <div className="relative">
-                        <LockKeyhole className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-subtitle/25" />
-                        <input
-                          type="password"
-                          value={currentPassword}
-                          onChange={(event) => setCurrentPassword(event.target.value)}
-                          className="w-full pl-14 pr-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-                        {t.settings.user_profile_section.new_password}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-subtitle/50">
+                        {t.settings.user_profile_section.phone}
                       </label>
                       <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        className="w-full px-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                        type="tel"
+                        value={profilePhone}
+                        onChange={(event) => setProfilePhone(event.target.value)}
+                        placeholder="+56 9 0000 0000"
+                        className="w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-lg text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand placeholder:text-subtitle/30 placeholder:font-normal"
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">
-                        {t.settings.user_profile_section.confirm_password}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-subtitle/50">
+                        {t.settings.user_profile_section.timezone}
                       </label>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                        className="w-full px-8 py-5 bg-white border border-border-theme/60 rounded-3xl text-title font-bold outline-none transition-all focus:ring-2 focus:ring-brand/10 focus:border-brand"
+                      <TimezoneSelect
+                        value={profileTimezone}
+                        onChange={setProfileTimezone}
+                        searchPlaceholder={language === "es" ? "Buscar zona horaria..." : "Search timezone..."}
+                        noResults={language === "es" ? "Sin resultados" : "No results"}
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="pt-6 flex justify-end">
-                  <button
-                    onClick={handleProfileSave}
-                    disabled={profileMutation.isPending}
-                    className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25 disabled:opacity-50"
-                  >
-                    {profileMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 stroke-[3px]" />}
-                    <span>{t.common.save}</span>
-                  </button>
+                  <div className="flex justify-end pt-2">
+                    <button
+                      onClick={handleProfileSave}
+                      disabled={profileMutation.isPending}
+                      className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-md shadow-brand/20 disabled:opacity-50"
+                    >
+                      {profileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      <span>{t.settings.user_profile_section.save}</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </ModuleContainer>
+              </ModuleContainer>
+
+            </div>
           </div>
         )}
-
-        {/* Identity & Assets Combined Section */}
-        {activeTab === "branding_assets" && (
+        {/* Plans placeholder */}
+        {activeTab === "plans" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <ModuleContainer>
-              <div className="p-10 lg:p-14 space-y-10">
-                
-                {/* Color Selector */}
-                <div className="space-y-8">
-                  <div className="space-y-2">
-                    <h1 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.branding_section.palette}</h1>
-                    <p className="text-sm text-subtitle/60 font-medium tracking-tight">{t.settings.branding_section.subtitle}</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-4">
-                    {BRAND_PALETTES.map((palette) => {
-                      const isSelected = selectedPalette === palette.id;
-                      const paletteName = (t.settings.branding_section.palettes as Record<string, string>)[palette.id] || palette.name;
-                      return (
-                        <button
-                          key={palette.id}
-                          onClick={() => setSelectedPalette(palette.id)}
-                          title={paletteName}
-                          className={`relative p-1 rounded-[18px] transition-all bg-white border-2 hover:scale-105 active:scale-95 ${
-                            isSelected ? "border-brand shadow-2xl shadow-brand/10" : "border-transparent"
-                          }`}
-                        >
-                          <div className={`w-24 h-12 rounded-[14px] flex items-center justify-center space-x-1.5 ${palette.base}`}>
-                            {palette.shades.map((shade, idx) => (
-                              <div key={idx} className={`w-2 h-2 rounded-sm opacity-40 ${shade}`} />
-                            ))}
-                          </div>
-                            {isSelected && (
-                              <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-brand rounded-full border-2 border-white flex items-center justify-center">
-                                <Check className="w-3 h-3 text-white" />
-                              </div>
-                            )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Default Icons Section */}
-                <div className="space-y-8 border-t border-gray-50 pt-10">
-                  <div className="space-y-2">
-                    <h1 className="text-2xl lg:text-3xl font-black text-title tracking-tight">{t.settings.asset_section.title}</h1>
-                    <p className="text-sm text-subtitle/60 font-medium tracking-tight">{t.settings.asset_section.subtitle}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-8 gap-4">
-                    {ASSET_ICONS.map((item) => {
-                      const Icon = item.icon;
-                      const isSelected = selectedIcon === item.id;
-                      const iconLabel = (t.settings.asset_section.icons as Record<string, string>)[item.id] || item.label;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => setSelectedIcon(item.id)}
-                          className={`flex flex-col items-center justify-center p-5 rounded-[28px] border-2 transition-all ${
-                            isSelected ? "bg-brand/5 border-brand shadow-xl shadow-brand/5" : "bg-app-bg/30 border-transparent hover:bg-app-bg"
-                          }`}
-                        >
-                          <Icon className={`w-6 h-6 mb-2 ${isSelected ? "text-brand" : "text-subtitle/30"}`} />
-                          <span className={`text-[9px] font-black uppercase tracking-widest text-center ${isSelected ? "text-brand" : "text-subtitle/40"}`}>{iconLabel}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="pt-6 flex justify-end">
-                    <button 
-                      onClick={handleSave}
-                      disabled={mutation.isPending}
-                      className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25 disabled:opacity-50"
-                    >
-                      {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5 stroke-[3px]" />}
-                      <span>{t.common.save}</span>
-                    </button>
-                 </div>
-
+              <div className="px-8 py-16 flex flex-col items-center justify-center gap-3 text-center">
+                <CreditCard className="w-10 h-10 text-subtitle/20" strokeWidth={1.5} />
+                <p className="text-sm font-semibold text-subtitle/40">{t.settings.tabs.plans}</p>
+                <p className="text-xs text-subtitle/30">Próximamente</p>
               </div>
             </ModuleContainer>
           </div>
         )}
+
+        {/* Security */}
+        {activeTab === "security" && (
+          <SecurityTab t={t} />
+        )}
+
+        {/* Notifications */}
+        {activeTab === "notifications" && (
+          <NotificationsTab t={t} />
+        )}
+
       </div>
       </div>
     </div>
+  );
+}
+
+function NotificationsTab({ t }: { t: any }) {
+  const n = t.settings.notifications_section;
+
+  const [enabled, setEnabled] = useState({
+    email_alerts: true,
+    system_logs: true,
+    weekly_summary: true,
+    newsletter: false,
+  });
+
+  const toggle = (key: keyof typeof enabled) =>
+    setEnabled(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const items = [
+    { key: "email_alerts" as const,    icon: Mail,       name: n.email_alerts_name,    desc: n.email_alerts_desc    },
+    { key: "system_logs" as const,     icon: Database,   name: n.system_logs_name,     desc: n.system_logs_desc     },
+    { key: "weekly_summary" as const,  icon: AlignLeft,  name: n.weekly_summary_name,  desc: n.weekly_summary_desc  },
+    { key: "newsletter" as const,      icon: Megaphone,  name: n.newsletter_name,      desc: n.newsletter_desc      },
+  ];
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <ModuleContainer>
+        <div className="p-8 space-y-6">
+
+          <div>
+            <p className="text-base font-black text-title">{n.title}</p>
+            <p className="text-sm text-subtitle/50 mt-1">{n.subtitle}</p>
+          </div>
+
+          <div className="space-y-3">
+            {items.map(({ key, icon: Icon, name, desc }) => {
+              const on = enabled[key];
+              return (
+                <div
+                  key={key}
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-brand" strokeWidth={1.5} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-title">{name}</p>
+                    <p className="text-xs text-subtitle/50 mt-0.5">{desc}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggle(key)}
+                    className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200 ${
+                      on ? "bg-brand" : "bg-border-theme/40"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        on ? "translate-x-6" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+        </div>
+      </ModuleContainer>
+    </div>
+  );
+}
+
+function SecurityTab({ t }: { t: any }) {
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [twoFaMethod, setTwoFaMethod] = useState<"app" | "sms" | "email" | null>(null);
+
+  const s = t.settings.security_section;
+
+  const twoFaMethods = [
+    {
+      id: "app" as const,
+      icon: Smartphone,
+      name: s.twofa_app_name,
+      desc: s.twofa_app_desc,
+    },
+    {
+      id: "sms" as const,
+      icon: MessageSquare,
+      name: s.twofa_sms_name,
+      desc: s.twofa_sms_desc,
+    },
+    {
+      id: "email" as const,
+      icon: Mail,
+      name: s.twofa_email_name,
+      desc: s.twofa_email_desc,
+    },
+  ];
+
+  const inputClass = "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand";
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-2 gap-5 items-start">
+
+        {/* Left — Password */}
+        <ModuleContainer>
+          <div className="p-8 space-y-6">
+            <div>
+              <p className="text-base font-black text-title">{s.password_title}</p>
+              <p className="text-sm text-subtitle/50 mt-1">{s.password_subtitle}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-subtitle/40">{s.current_password}</label>
+                <div className="relative">
+                  <input
+                    type={showCurrent ? "text" : "password"}
+                    value={currentPwd}
+                    onChange={e => setCurrentPwd(e.target.value)}
+                    className={inputClass}
+                  />
+                  <button type="button" onClick={() => setShowCurrent(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-subtitle/30 hover:text-subtitle/60 transition-colors">
+                    {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-subtitle/40">{s.new_password}</label>
+                <div className="relative">
+                  <input
+                    type={showNew ? "text" : "password"}
+                    value={newPwd}
+                    onChange={e => setNewPwd(e.target.value)}
+                    className={inputClass}
+                  />
+                  <button type="button" onClick={() => setShowNew(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-subtitle/30 hover:text-subtitle/60 transition-colors">
+                    {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-subtitle/40">{s.confirm_password}</label>
+                <div className="relative">
+                  <input
+                    type={showConfirm ? "text" : "password"}
+                    value={confirmPwd}
+                    onChange={e => setConfirmPwd(e.target.value)}
+                    className={inputClass}
+                  />
+                  <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-subtitle/30 hover:text-subtitle/60 transition-colors">
+                    {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="w-full py-3 rounded-2xl bg-title text-white text-sm font-black tracking-tight transition-all hover:bg-title/90 active:scale-95 shadow-md"
+            >
+              {s.update_password}
+            </button>
+          </div>
+        </ModuleContainer>
+
+        {/* Right — 2FA */}
+        <ModuleContainer>
+          <div className="p-8 space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-base font-black text-title">{s.twofa_title}</p>
+                <p className="text-sm text-subtitle/50 mt-1">{s.twofa_subtitle}</p>
+              </div>
+              <span className={`shrink-0 mt-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                twoFaMethod
+                  ? "bg-green-50 text-green-600 border-green-100"
+                  : "bg-amber-50 text-amber-500 border-amber-100"
+              }`}>
+                {twoFaMethod ? s.twofa_status_active : s.twofa_status_inactive}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {twoFaMethods.map(method => {
+                const Icon = method.icon;
+                const isActive = twoFaMethod === method.id;
+                return (
+                  <div
+                    key={method.id}
+                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                      isActive
+                        ? "border-brand/30 bg-brand/5"
+                        : "border-border-theme/30 bg-app-bg/40"
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      isActive ? "bg-brand/10" : "bg-white border border-border-theme/30"
+                    }`}>
+                      <Icon className={`w-5 h-5 ${isActive ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold ${isActive ? "text-brand" : "text-title"}`}>{method.name}</p>
+                      <p className="text-xs text-subtitle/50 mt-0.5">{method.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTwoFaMethod(isActive ? null : method.id)}
+                      className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                        isActive
+                          ? "bg-red-50 text-red-500 border border-red-100 hover:bg-red-100"
+                          : "bg-brand text-white shadow-sm shadow-brand/20 hover:bg-brand/90"
+                      }`}
+                    >
+                      {isActive ? s.deactivate : s.activate}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-start gap-2 pt-1">
+              <Info className="w-4 h-4 text-subtitle/30 shrink-0 mt-0.5" />
+              <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
+            </div>
+          </div>
+        </ModuleContainer>
+
+      </div>
+
+      {/* Devices section */}
+      <div className="mt-5">
+        <DevicesSection s={s} />
+      </div>
+    </div>
+  );
+}
+
+type DeviceType = {
+  id: string;
+  name: string;
+  os: string;
+  browser: string;
+  location: string;
+  ip: string;
+  firstAccess: string;
+  lastSeen: string | null;
+  isCurrent: boolean;
+  kind: "laptop" | "mobile" | "desktop";
+};
+
+const MOCK_DEVICES: DeviceType[] = [
+  {
+    id: "1",
+    name: 'MacBook Pro 16"',
+    os: "macOS Sonoma",
+    browser: "Chrome v126.0",
+    location: "Santiago, Región Metro.",
+    ip: "186.105.21.9",
+    firstAccess: "May 10, 2026 · 09:14 AM",
+    lastSeen: null,
+    isCurrent: true,
+    kind: "laptop",
+  },
+  {
+    id: "2",
+    name: "iPhone 15 Pro Max",
+    os: "iOS 17.5.1",
+    browser: "Yates App v2.4",
+    location: "Valparaíso, Provincia",
+    ip: "201.214.155.8",
+    firstAccess: "May 18, 2026 · 03:42 PM",
+    lastSeen: "2h ago",
+    isCurrent: false,
+    kind: "mobile",
+  },
+  {
+    id: "3",
+    name: "Windows Desktop PC",
+    os: "Windows 11 Enterprise",
+    browser: "Microsoft Edge v125",
+    location: "Miami, Florida (US)",
+    ip: "104.148.22.41",
+    firstAccess: "Feb 20, 2026 · 06:15 PM",
+    lastSeen: "1 week ago",
+    isCurrent: false,
+    kind: "desktop",
+  },
+  {
+    id: "4",
+    name: "iPad Pro M2",
+    os: "iPadOS 17.4",
+    browser: "Safari v17.4",
+    location: "Buenos Aires, AR",
+    ip: "190.220.31.7",
+    firstAccess: "Apr 02, 2026 · 11:30 AM",
+    lastSeen: "3 days ago",
+    isCurrent: false,
+    kind: "mobile",
+  },
+];
+
+function DeviceIcon({ kind, active }: { kind: DeviceType["kind"]; active: boolean }) {
+  const cls = `w-5 h-5 ${active ? "text-brand" : "text-subtitle/40"}`;
+  if (kind === "laptop") return <Laptop className={cls} strokeWidth={1.5} />;
+  if (kind === "mobile") return <Smartphone className={cls} strokeWidth={1.5} />;
+  return <Monitor className={cls} strokeWidth={1.5} />;
+}
+
+function DevicesSection({ s }: { s: any }) {
+  const [devices, setDevices] = useState<DeviceType[]>(MOCK_DEVICES);
+
+  const removeDevice = (id: string) => setDevices(prev => prev.filter(d => d.id !== id));
+
+  return (
+    <ModuleContainer>
+      <div className="p-6 space-y-5">
+
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <p className="text-base font-black text-title">{s.devices_title}</p>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
+                  {devices.length} Active
+                </span>
+              </div>
+              <p className="text-sm text-subtitle/50 mt-0.5">{s.devices_subtitle}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 transition-all active:scale-95"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            {s.devices_signout_all}
+          </button>
+        </div>
+
+        <div className="h-px bg-border-theme/20" />
+
+        {/* Guardian banner */}
+        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100">
+          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+            <ShieldCheck className="w-4 h-4 text-amber-500" strokeWidth={2} />
+          </div>
+          <div>
+            <p className="text-xs font-black text-amber-600 tracking-wider">{s.devices_guardian_title}</p>
+            <p className="text-xs text-amber-600/80 mt-0.5">{s.devices_guardian_desc}</p>
+          </div>
+        </div>
+
+        {/* Device cards — 4-col grid */}
+        <div className="grid grid-cols-4 gap-3">
+          {devices.map(device => (
+            <div
+              key={device.id}
+              className={`relative flex flex-col gap-3 p-4 rounded-2xl border-2 transition-all ${
+                device.isCurrent
+                  ? "border-brand/25 bg-brand/[0.03]"
+                  : "border-border-theme/30 bg-app-bg/30"
+              }`}
+            >
+              {/* Remove button */}
+              {!device.isCurrent && (
+                <button
+                  type="button"
+                  onClick={() => removeDevice(device.id)}
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white border border-border-theme/30 flex items-center justify-center text-subtitle/30 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+
+              {/* Icon + name */}
+              <div className="flex items-start gap-2.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  device.isCurrent ? "bg-brand/10" : "bg-white border border-border-theme/25"
+                }`}>
+                  <DeviceIcon kind={device.kind} active={device.isCurrent} />
+                </div>
+                <div className="min-w-0 flex-1 pr-5">
+                  <p className={`text-xs font-black leading-tight truncate ${device.isCurrent ? "text-brand" : "text-title"}`}>
+                    {device.name}
+                  </p>
+                  <p className="text-[10px] text-subtitle/50 mt-0.5 leading-tight truncate">
+                    {device.os} · {device.browser}
+                  </p>
+                </div>
+              </div>
+
+              {device.isCurrent && (
+                <span className="self-start text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand text-white">
+                  {s.devices_this_device}
+                </span>
+              )}
+
+              {/* Location + IP */}
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-subtitle/30">{s.devices_location}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-2.5 h-2.5 text-brand/60 shrink-0" />
+                    <p className="text-[10px] text-title/70 font-semibold truncate">{device.location}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-subtitle/30">{s.devices_ip}</p>
+                  <p className="text-[10px] text-title/70 font-semibold mt-0.5 truncate">{device.ip}</p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-1 border-t border-border-theme/15">
+                <p className="text-[9px] text-subtitle/40">
+                  <span className="font-semibold">{s.devices_first_access}</span>{" "}
+                  {device.firstAccess}
+                </p>
+                {device.isCurrent ? (
+                  <span className="text-[9px] font-black text-green-500 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+                    {s.devices_active_now}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-subtitle/40 font-semibold">{device.lastSeen}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </ModuleContainer>
+  );
+}
+
+function getTzOffset(tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en", { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date());
+    return parts.find(p => p.type === "timeZoneName")?.value ?? "";
+  } catch {
+    return "";
+  }
+}
+
+const ALL_TIMEZONES: { value: string; label: string }[] = (() => {
+  try {
+    return (Intl as any).supportedValuesOf("timeZone").map((tz: string) => ({
+      value: tz,
+      label: `${tz} (${getTzOffset(tz)})`,
+    }));
+  } catch {
+    return [{ value: "UTC", label: "UTC (GMT+0)" }];
+  }
+})();
+
+function TimezoneSelect({ value, onChange, searchPlaceholder = "Search timezone...", noResults = "No results" }: { value: string; onChange: (v: string) => void; searchPlaceholder?: string; noResults?: string }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const filtered = React.useMemo(() =>
+    query.trim()
+      ? ALL_TIMEZONES.filter(tz => tz.label.toLowerCase().includes(query.toLowerCase()))
+      : ALL_TIMEZONES,
+    [query]
+  );
+
+  const selected = ALL_TIMEZONES.find(tz => tz.value === value);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current && !triggerRef.current.contains(target)) {
+        const portal = document.getElementById("tz-portal");
+        if (portal && !portal.contains(target)) {
+          setOpen(false);
+          setQuery("");
+        }
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleOpen = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: "fixed",
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+    });
+    setOpen(true);
+    setQuery("");
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const dropdown = open ? (
+    <div
+      id="tz-portal"
+      style={dropdownStyle}
+      className="z-[9999] bg-white border border-border-theme/50 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+    >
+      <div className="p-2 border-b border-border-theme/20">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="w-full px-3 py-2 text-sm bg-app-bg/60 border border-border-theme/30 rounded-2xl outline-none focus:border-brand transition-all placeholder:text-subtitle/40"
+        />
+      </div>
+      <div className="max-h-52 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-subtitle/40 italic">{noResults}</p>
+        ) : filtered.map(tz => (
+          <button
+            key={tz.value}
+            type="button"
+            onClick={() => { onChange(tz.value); setOpen(false); setQuery(""); }}
+            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+              tz.value === value
+                ? "bg-brand/10 text-brand font-semibold"
+                : "text-title font-medium hover:bg-app-bg/80"
+            }`}
+          >
+            {tz.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={open ? () => { setOpen(false); setQuery(""); } : handleOpen}
+        className="w-full flex items-center justify-between px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all hover:border-border-theme/70 focus:ring-2 focus:ring-brand/15 focus:border-brand"
+      >
+        <span className="truncate text-left">{selected?.label ?? value}</span>
+        <ChevronDown className={`w-4 h-4 shrink-0 ml-2 text-subtitle/40 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {typeof document !== "undefined" && dropdown
+        ? ReactDOM.createPortal(dropdown, document.body)
+        : null}
+    </>
   );
 }
 
