@@ -5,6 +5,8 @@ import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import KPICard from "@/components/dashboard/KPICard";
+import FilterDropdown from "@/components/ui/FilterDropdown";
 import UserModal from "@/components/users/UserModal";
 import UserDrawer from "@/components/users/UserDrawer";
 import InvitationModal from "@/components/users/InvitationModal";
@@ -14,7 +16,7 @@ import { usersService, User } from "@/services/users.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send, ChevronDown, X } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send, ChevronDown, X, ShieldCheck, UserCheck } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 const getInitials = (name: string) =>
@@ -116,8 +118,9 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [roleFilter, setRoleFilter] = useState<User["role"] | null>(null);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const mobileRoleDropdownRef = useRef<HTMLDivElement>(null);
-  const desktopRoleDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopAddMenuRef = useRef<HTMLDivElement>(null);
 
   const queryParams = {
     page,
@@ -131,6 +134,12 @@ export default function UsersPage() {
     queryKey: ["users", user?.id, user?.role, user?.organization_id, queryParams],
     queryFn: () => usersService.findAll(queryParams),
     enabled: !!user,
+  });
+
+  const { data: userStats, refetch: refetchUserStats } = useQuery({
+    queryKey: ["users-stats", user?.id, user?.role, user?.organization_id],
+    queryFn: () => usersService.getStats(),
+    enabled: !!user && (user.role === "SUPER_ADMIN" || user.role === "ADMIN"),
   });
 
   const usersList = useMemo(() => {
@@ -164,10 +173,14 @@ export default function UsersPage() {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       const clickedInsideMobile = mobileRoleDropdownRef.current?.contains(target);
-      const clickedInsideDesktop = desktopRoleDropdownRef.current?.contains(target);
+      const clickedInsideAddMenu = desktopAddMenuRef.current?.contains(target);
 
-      if (!clickedInsideMobile && !clickedInsideDesktop) {
+      if (!clickedInsideMobile) {
         setIsRoleDropdownOpen(false);
+      }
+
+      if (!clickedInsideAddMenu) {
+        setIsAddMenuOpen(false);
       }
     };
 
@@ -219,6 +232,7 @@ export default function UsersPage() {
         showToast("El usuario ya se encuentra desactivado", "info");
       }
       refetch();
+      refetchUserStats();
     } catch (err) {
       showToast(getServerErrorMessage(err, t.users.states.error_delete), "error");
     } finally {
@@ -236,6 +250,7 @@ export default function UsersPage() {
       await usersService.toggleStatus(targetUser.id);
       showToast(targetUser.is_active ? "Usuario desactivado" : "Usuario activado", "success");
       refetch();
+      refetchUserStats();
     } catch (err) {
       showToast(getServerErrorMessage(err, "Error al cambiar estado"), "error");
     }
@@ -250,8 +265,8 @@ export default function UsersPage() {
       sortable: true,
       sortValue: (item) => item.name,
       cell: (item) => (
-        <div className="flex items-center space-x-4">
-          <div className={`w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0 font-black text-xs border border-brand/5 overflow-hidden ${!item.is_active ? 'grayscale opacity-40' : ''}`}>
+        <div className="flex items-center space-x-3">
+          <div className={`rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0 font-black text-xs border-2 border-surface shadow-sm overflow-hidden ${!item.is_active ? 'grayscale opacity-40' : ''}`} style={{ width: 52, height: 52 }}>
             {item.avatar_url ? (
               <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
             ) : (
@@ -259,12 +274,20 @@ export default function UsersPage() {
             )}
           </div>
           <div className="flex flex-col">
-            <span className={`font-bold text-title text-sm tracking-tight ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
-            <div className={`flex items-center space-x-1 text-subtitle/40 ${!item.is_active ? 'opacity-40' : ''}`}>
-              <Mail className="w-3 h-3" />
-              <span className="text-xs font-semibold tracking-tight">{item.email}</span>
-            </div>
+            <span className={`font-bold text-title text-xs ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
           </div>
+        </div>
+      )
+    },
+    {
+      key: "email",
+      header: t.users.table.email,
+      sortable: true,
+      sortValue: (item) => item.email,
+      cell: (item) => (
+        <div className={`flex items-center text-subtitle/70 ${!item.is_active ? 'opacity-40' : ''}`}>
+          <Mail className="w-3.5 h-3.5 mr-1.5 text-brand shrink-0" />
+          <span className="text-xs font-semibold truncate max-w-56">{item.email}</span>
         </div>
       )
     },
@@ -275,23 +298,11 @@ export default function UsersPage() {
       sortValue: (item) => item.role,
       cell: (item) => {
         return (
-          <div className={`inline-flex justify-center w-28 py-1.5 rounded-xl border text-[13px] font-black uppercase tracking-wider ${getRoleStyle(item.role)}`}>
+          <div className={`inline-flex justify-center w-24 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${getRoleStyle(item.role)}`}>
             {getRoleLabel(item.role, t)}
           </div>
         );
       }
-    },
-    {
-      key: "owner",
-      header: t.users.table.owner,
-      sortable: true,
-      sortValue: (item) => item.organization?.name || item.owner?.name || "",
-      cell: (item) => (
-        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border-theme/40 bg-app-bg text-[11px] font-black text-subtitle/70 uppercase tracking-wider ${!item.is_active ? 'opacity-40' : ''}`}>
-          <Building2 className="w-3 h-3 shrink-0" />
-          <span className="truncate max-w-25">{getUserOwnerName(item)}</span>
-        </div>
-      )
     },
     {
       key: "status",
@@ -311,8 +322,8 @@ export default function UsersPage() {
       sortValue: (item) => item.last_login_at || "",
       cell: (item) => (
         <div className="flex items-center justify-center text-subtitle/70">
-          <Calendar className="w-4 h-4 mr-2 text-brand" />
-          <span className="font-semibold text-sm">
+          <Calendar className="w-3.5 h-3.5 mr-1.5" />
+          <span className="font-semibold text-xs">
             {item.last_login_at ? formatDate(item.last_login_at) : "---"}
           </span>
         </div>
@@ -323,19 +334,19 @@ export default function UsersPage() {
       header: t.users.table.actions,
       align: "center",
       cell: (item) => (
-        <div className="flex items-center justify-center space-x-3">
+        <div className="flex items-center justify-center space-x-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
-            className={`p-2.5 transition-all rounded-full ${item.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50'}`}
+            className={`p-1.5 transition-all rounded-full ${item.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50'}`}
             title={item.is_active ? "Desactivar" : "Activar"}
           >
-            {item.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            {item.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEditingUser(item); setIsModalOpen(true); }}
-            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
+            className="p-1.5 text-subtitle/40 hover:text-brand transition-colors"
           >
-            <Pencil className="w-5 h-5" />
+            <Pencil className="w-4 h-4" />
           </button>
           <button 
             type="button"
@@ -344,10 +355,10 @@ export default function UsersPage() {
               e.stopPropagation();
               setUserToDelete(item);
             }}
-            className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
+            className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
             title="Eliminar usuario"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       )
@@ -444,30 +455,37 @@ export default function UsersPage() {
   const pagination = (
     <>
       <div className="flex items-center space-x-3">
-        <div className="text-[15px] text-subtitle font-medium">
-          {t.users.pagination.showing} <span className="text-title font-bold">{displayData.length}</span> {t.users.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.users.pagination.users}
+        <div className="text-xs text-subtitle/40 font-medium tracking-tight">
+          {t.users.pagination.showing}{" "}
+          <span className="text-subtitle/70 font-bold">{displayData.length}</span>{" "}
+          {t.users.pagination.of}{" "}
+          <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
+          {t.users.pagination.users}
         </div>
-        <select
-          value={limit}
-          onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-          className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
-        >
-          {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
-        </select>
+        <FilterDropdown
+          value={String(limit)}
+          onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+          options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / ${t.common.per_page}` }))}
+          placeholder=""
+          showReset={false}
+          compact
+          neutral
+          up
+        />
       </div>
       <div className="flex items-center space-x-2">
         <button 
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
-          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20"
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-lg shadow-brand/20">{page}</button>
+        <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">{page}</button>
         <button 
           onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
           disabled={page >= meta.totalPages}
-          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 translate-x-1"
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -543,6 +561,51 @@ export default function UsersPage() {
       </div>
 
       <div className="hidden lg:flex flex-col space-y-8">
+        <div className={`grid gap-4 ${user?.role === "SUPER_ADMIN" ? "grid-cols-5" : "grid-cols-4"}`}>
+          <KPICard
+            title={t.users.kpis.total}
+            value={userStats?.total_users ?? 0}
+            icon={UsersIcon}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-500"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+          {user?.role === "SUPER_ADMIN" && (
+            <KPICard
+              title={t.users.kpis.super_admins}
+              value={userStats?.super_admins ?? 0}
+              icon={ShieldCheck}
+              iconBg="bg-indigo-50"
+              iconColor="text-indigo-600"
+              roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+            />
+          )}
+          <KPICard
+            title={t.users.kpis.admins}
+            value={userStats?.admins ?? 0}
+            icon={ShieldCheck}
+            iconBg="bg-green-50"
+            iconColor="text-green-600"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+          <KPICard
+            title={t.users.kpis.workers}
+            value={userStats?.workers ?? 0}
+            icon={UserCheck}
+            iconBg="bg-orange-50"
+            iconColor="text-orange-500"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+          <KPICard
+            title={t.users.kpis.external}
+            value={userStats?.external_users ?? 0}
+            icon={Building2}
+            iconBg="bg-brand/10"
+            iconColor="text-brand"
+            roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
+          />
+        </div>
+
       <FiltersBar
         searchPlaceholder={t.users.search_placeholder}
         onSearchChange={(value) => {
@@ -553,35 +616,78 @@ export default function UsersPage() {
         hasExternalFilter={hasUserFilters}
         onClearAll={clearUserFilters}
         actions={
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setIsInviteModalOpen(true)}
-              className="flex items-center space-x-2 border-2 border-brand text-brand px-6 py-3.5 rounded-full text-base font-black transition-all hover:bg-brand/5 active:scale-95"
-            >
-              <Send className="w-4 h-4" />
-              <span>{t.invitations.modal.invite_button}</span>
-            </button>
-            <button
-              onClick={() => { setEditingUser(null); setIsModalOpen(true); }}
-              className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
-            >
-              <Plus className="w-5 h-5 stroke-[4px]" />
-              <span>{t.users.add_new}</span>
-            </button>
+          <div className="flex items-center gap-3">
+            <FilterDropdown
+              value={roleFilter ?? ""}
+              onChange={(value) => {
+                setRoleFilter(value ? value as User["role"] : null);
+                setPage(1);
+              }}
+              options={visibleRoleOptions.map(role => ({
+                value: role,
+                label: getRoleLabel(role, t),
+              }))}
+              placeholder={t.users.table.role}
+              className="w-44"
+            />
+            <div ref={desktopAddMenuRef} className="relative">
+              <button
+                onClick={() => setIsAddMenuOpen(v => !v)}
+                className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
+              >
+                <Plus className="w-4 h-4 stroke-[3px]" />
+                <span>{t.users.add_new}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isAddMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {isAddMenuOpen && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-2xl border border-border-theme/40 bg-white shadow-xl shadow-title/10">
+                  <button
+                    onClick={() => {
+                      setIsAddMenuOpen(false);
+                      setEditingUser(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-app-bg"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                      <Plus className="w-4 h-4 stroke-[3px]" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black text-title">{t.users.add_new}</span>
+                      <span className="block truncate text-xs font-semibold text-subtitle/45">{t.users.modal.title}</span>
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsAddMenuOpen(false);
+                      setIsInviteModalOpen(true);
+                    }}
+                    className="flex w-full items-center gap-3 border-t border-border-theme/30 px-4 py-3 text-left transition-colors hover:bg-app-bg"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
+                      <Send className="w-4 h-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-black text-title">{t.invitations.modal.invite_button}</span>
+                      <span className="block truncate text-xs font-semibold text-subtitle/45">{t.invitations.modal.subtitle}</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         }
       />
 
-      {renderUserFilters(desktopRoleDropdownRef)}
-
-      <div className="flex-1 min-h-100">
+      <div className="flex-1 min-h-[400px]">
         {isLoading ? (
           <div className="w-full flex flex-col items-center justify-center py-24">
             <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
             <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.users.states.loading}</p>
           </div>
         ) : isError ? (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
               <div className="p-4 bg-error/10 rounded-full">
                 <AlertCircle className="w-8 h-8 text-error" />
@@ -599,7 +705,7 @@ export default function UsersPage() {
             </div>
           </ModuleContainer>
         ) : usersList.length === 0 ? (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <div className="w-full flex flex-col items-center justify-center py-24 space-y-6 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
                 <UsersIcon className="w-8 h-8" />
@@ -613,7 +719,7 @@ export default function UsersPage() {
             </div>
           </ModuleContainer>
         ) : (
-          <ModuleContainer>
+          <ModuleContainer roundedClass="rounded-2xl">
             <DataTable
               data={displayData}
               columns={columns}
@@ -641,6 +747,7 @@ export default function UsersPage() {
           setIsModalOpen(false);
           setEditingUser(null);
           refetch();
+          refetchUserStats();
         }}
         existingOwners={existingOwners}
         userToEdit={editingUser}
@@ -661,7 +768,7 @@ export default function UsersPage() {
       <InvitationModal
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
-        onSuccess={() => refetch()}
+        onSuccess={() => { refetch(); refetchUserStats(); }}
       />
 
       <button

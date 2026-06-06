@@ -169,7 +169,7 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
         panelClassName="bg-app-bg"
         closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
         leftAction={
-          <div ref={actionsMenuRef} className="relative">
+          <div ref={actionsMenuRef} className="relative lg:hidden">
             <button
               type="button"
               onClick={() => setIsActionsMenuOpen(v => !v)}

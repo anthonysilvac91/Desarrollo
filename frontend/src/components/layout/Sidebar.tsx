@@ -9,7 +9,7 @@ import {
   LayoutGrid,
   Wrench,
   Users,
-  Users2,
+  Handshake,
   Settings,
   LayoutDashboard,
   Building2
@@ -31,7 +31,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { href: "/assets", label: t.sidebar.assets, icon: Ship },
     { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
-    { href: "/owners", label: t.sidebar.owners || "Propietarios", icon: Users2 },
+    { href: "/owners", label: t.sidebar.owners || "Propietarios", icon: Handshake },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },
   ];
 

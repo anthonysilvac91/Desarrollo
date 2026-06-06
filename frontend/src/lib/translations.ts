@@ -226,8 +226,16 @@ export const translations = {
     users: {
       search_placeholder: "Search by name...",
       add_new: "Add new",
+      kpis: {
+        total: "Total users",
+        super_admins: "Super admins",
+        admins: "Admins",
+        workers: "Workers",
+        external: "External",
+      },
       table: {
         name: "Name",
+        email: "Email",
         role: "Role",
         owner: "Owner",
         status: "Status",
@@ -892,8 +900,16 @@ export const translations = {
     users: {
       search_placeholder: "Buscar por nombre...",
       add_new: "Agregar nuevo",
+      kpis: {
+        total: "Total usuarios",
+        super_admins: "Super admins",
+        admins: "Administradores",
+        workers: "Operadores",
+        external: "Externos",
+      },
       table: {
         name: "Nombre",
+        email: "Email",
         role: "Rol",
         owner: "Owner",
         status: "Estatus",

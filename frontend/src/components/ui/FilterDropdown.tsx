@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 
 interface FilterOption { value: string; label: string; }
 
-export default function FilterDropdown({ value, onChange, options, placeholder, showReset = true, compact = false, up = false, neutral = false }: {
+export default function FilterDropdown({ value, onChange, options, placeholder, showReset = true, compact = false, up = false, neutral = false, className = "" }: {
   value: string;
   onChange: (v: string) => void;
   options: FilterOption[];
@@ -14,6 +14,7 @@ export default function FilterDropdown({ value, onChange, options, placeholder, 
   compact?: boolean;
   up?: boolean;
   neutral?: boolean;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -37,10 +38,10 @@ export default function FilterDropdown({ value, onChange, options, placeholder, 
   const neutralStyle = "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80";
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={`relative ${className}`}>
       <button
         onClick={() => setOpen(v => !v)}
-        className={`flex items-center gap-1.5 border font-semibold transition-all shadow-sm whitespace-nowrap ${triggerBase} ${
+        className={`flex w-full items-center justify-between gap-1.5 border font-semibold transition-all shadow-sm whitespace-nowrap ${triggerBase} ${
           !neutral && value ? activeStyle : neutralStyle
         }`}
       >

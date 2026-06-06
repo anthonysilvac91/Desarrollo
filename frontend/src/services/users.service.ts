@@ -16,6 +16,14 @@ export interface User {
   created_at: string;
 }
 
+export interface UserStats {
+  total_users: number;
+  super_admins: number;
+  admins: number;
+  workers: number;
+  external_users: number;
+}
+
 type UserUpdatePayload = FormData | Partial<Pick<User, "name" | "email" | "phone">>;
 type OwnProfileUpdatePayload = FormData | {
   name?: string;
@@ -27,6 +35,11 @@ type OwnProfileUpdatePayload = FormData | {
 export const usersService = {
   findAll: async (params?: { role?: string, isActive?: string, page?: number, limit?: number, search?: string }): Promise<any> => {
     const res = await api.get("/users", { params });
+    return res.data;
+  },
+
+  getStats: async (): Promise<UserStats> => {
+    const res = await api.get("/users/stats");
     return res.data;
   },
 

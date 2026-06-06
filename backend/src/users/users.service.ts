@@ -59,6 +59,55 @@ export class UsersService {
     }
   }
 
+  private buildStatsWhere(currentUser: { role: Role; orgId?: string }) {
+    const where: any = {};
+
+    if (currentUser.role !== Role.SUPER_ADMIN) {
+      if (!currentUser.orgId) {
+        throw new ForbiddenException('El usuario no pertenece a ninguna organizacion');
+      }
+
+      where.organization_id = currentUser.orgId;
+      where.AND = [{ role: { not: Role.SUPER_ADMIN } }];
+    }
+
+    return where;
+  }
+
+  async getStats(currentUser: { id: string; role: Role; orgId?: string }) {
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
+      throw new ForbiddenException('No tienes permiso para ver estadisticas de usuarios');
+    }
+
+    const where = this.buildStatsWhere(currentUser);
+    const [total, groupedRoles] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.groupBy({
+        by: ['role'],
+        where,
+        _count: { role: true },
+      }),
+    ]);
+
+    const countsByRole = groupedRoles.reduce<Record<Role, number>>((acc, item) => {
+      acc[item.role] = item._count.role;
+      return acc;
+    }, {
+      [Role.SUPER_ADMIN]: 0,
+      [Role.ADMIN]: 0,
+      [Role.WORKER]: 0,
+      [Role.EXTERNAL]: 0,
+    });
+
+    return {
+      total_users: total,
+      super_admins: countsByRole[Role.SUPER_ADMIN],
+      admins: countsByRole[Role.ADMIN],
+      workers: countsByRole[Role.WORKER],
+      external_users: countsByRole[Role.EXTERNAL],
+    };
+  }
+
   async findAll(query: { role?: Role | 'EXTERNAL'; organizationId?: string; search?: string; isActive?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
     // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
     // WORKER puede listar pero solo si es para buscar owners externos.

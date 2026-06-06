@@ -18,6 +18,20 @@ import { imageUploadOptions } from '../common/files/multer-image-options';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Estadisticas de usuarios por rol' })
+  getStats(@Request() req: any) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para ver estadisticas de usuarios');
+    }
+
+    return this.usersService.getStats({
+      id: req.user.id,
+      role: req.user.role,
+      orgId: req.user.orgId,
+    });
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar usuarios (Solo ADMIN/SUPER_ADMIN)', description: 'El filtro role usa EXTERNAL como valor canonico.' })
   @ApiQuery({ name: 'role', enum: [...Object.values(Role), 'EXTERNAL'], required: false })
