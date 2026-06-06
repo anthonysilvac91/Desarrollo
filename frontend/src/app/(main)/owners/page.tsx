@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Building2, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Package, ClipboardList } from "lucide-react";
+import { Plus, Building2, ToggleLeft, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import FiltersBar from "@/components/ui/FiltersBar";
+import FilterDropdown from "@/components/ui/FilterDropdown";
+import ModuleContainer from "@/components/ui/ModuleContainer";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { ownersService, Owner } from "@/services/owners.service";
@@ -19,6 +21,7 @@ export default function OwnersPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
 
@@ -28,8 +31,9 @@ export default function OwnersPage() {
   const [ownerToDeactivate, setOwnerToDeactivate] = useState<Owner | null>(null);
 
   const getQueryParams = () => {
-    const params: { page: number; limit: number; search?: string } = { page, limit };
+    const params: { page: number; limit: number; search?: string; is_active?: string } = { page, limit };
     if (debouncedSearch) params.search = debouncedSearch;
+    if (statusFilter) params.is_active = statusFilter;
     return params;
   };
 
@@ -73,14 +77,17 @@ export default function OwnersPage() {
       key: "name",
       cell: (item: Owner) => (
         <div className="flex items-center space-x-3">
-          <div className={`w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center shrink-0 overflow-hidden ${!item.is_active ? 'grayscale opacity-40' : ''}`}>
+          <div
+            className={`rounded-full overflow-hidden border-2 border-surface shadow-sm bg-brand/10 flex items-center justify-center shrink-0 ${!item.is_active ? "grayscale opacity-40" : ""}`}
+            style={{ width: 52, height: 52 }}
+          >
             {item.logo_url ? (
               <img src={item.logo_url} alt={item.name} className="w-full h-full object-contain p-2" />
             ) : (
               <Building2 className="w-5 h-5 text-brand" />
             )}
           </div>
-          <span className={`font-bold text-sm text-title ${!item.is_active ? 'opacity-40' : ''}`}>{item.name}</span>
+          <span className={`font-bold text-xs text-title ${!item.is_active ? "opacity-40" : ""}`}>{item.name}</span>
         </div>
       )
     },
@@ -90,7 +97,7 @@ export default function OwnersPage() {
       align: "center",
       cell: (item: Owner) => (
         <div className="flex items-center justify-center">
-          <span className="min-w-12.5 h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
+          <span className="min-w-[40px] h-7 flex items-center justify-center text-xs font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
             {item.assets_count ?? 0}
           </span>
         </div>
@@ -102,7 +109,7 @@ export default function OwnersPage() {
       align: "center",
       cell: (item: Owner) => (
         <div className="flex items-center justify-center">
-          <span className="min-w-12.5 h-9 flex items-center justify-center text-sm font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2 transition-all">
+          <span className="min-w-[40px] h-7 flex items-center justify-center text-xs font-bold text-title bg-app-bg rounded-lg border border-border-theme/40 px-2">
             {item.services_count ?? 0}
           </span>
         </div>
@@ -111,6 +118,7 @@ export default function OwnersPage() {
     {
       header: t.owners.table.status.toUpperCase(),
       key: "is_active",
+      align: "center",
       cell: (item: Owner) => item.is_active
         ? <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-green-100 text-green-700 border-green-200">{t.common.active}</span>
         : <span className="inline-flex justify-center w-20 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border bg-red-100 text-red-700 border-red-200">{t.common.inactive}</span>
@@ -120,69 +128,92 @@ export default function OwnersPage() {
       key: "actions",
       align: "center",
       cell: (item: Owner) => (
-        <div className="flex items-center justify-center space-x-3">
+        <div className="flex items-center justify-center space-x-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); setOwnerToDeactivate(item); }}
-            className="p-2.5 transition-all rounded-full text-emerald-500 hover:bg-emerald-50"
+            className={`p-1.5 transition-all rounded-full ${item.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50"}`}
             title={t.owners.actions.deactivate}
           >
-            <ToggleRight className="w-5 h-5" />
+            {item.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEditingOwner(item); setIsModalOpen(true); }}
-            className="p-2.5 text-subtitle/40 hover:text-brand transition-colors"
+            className="p-1.5 text-subtitle/40 hover:text-brand transition-colors"
           >
-            <Pencil className="w-5 h-5" />
+            <Pencil className="w-4 h-4" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setOwnerToDelete(item); }}
-            className="p-2.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
+            className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
             title={t.owners.actions.delete}
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       )
     }
   ];
 
+  const emptyState = (
+    <div className="w-full flex flex-col items-center justify-center py-20 space-y-6">
+      <div className="relative">
+        <div className="absolute inset-0 bg-brand/5 blur-3xl rounded-full" />
+        <div className="relative p-6 bg-white border-2 border-brand/5 shadow-2xl shadow-brand/5 rounded-[40px]">
+          <Inbox className="w-12 h-12 text-brand/20" />
+        </div>
+      </div>
+      <div className="text-center space-y-2 max-w-xs">
+        <p className="font-black text-title text-2xl tracking-tight">{t.owners.states.empty_title}</p>
+        <p className="text-subtitle font-medium leading-relaxed">{t.owners.states.empty_subtitle}</p>
+      </div>
+      <button
+        onClick={() => { setEditingOwner(null); setIsModalOpen(true); }}
+        className="flex items-center space-x-3 bg-brand text-white px-8 py-4 rounded-full text-base font-black transition-all shadow-xl shadow-brand/20 hover:scale-105 active:scale-95"
+      >
+        <Plus className="w-5 h-5 stroke-[3px]" />
+        <span>{t.owners.add_new}</span>
+      </button>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col space-y-8">
+    <div className="flex flex-col space-y-4 lg:space-y-8">
       <FiltersBar
         searchPlaceholder={t.owners.search_placeholder}
-        onSearchChange={(value) => {
-          setSearchTerm(value);
-          setPage(1);
-        }}
+        onSearchChange={(value) => { setSearchTerm(value); setPage(1); }}
+        hasExternalFilter={!!statusFilter}
+        onClearAll={() => setStatusFilter("")}
         showQuickFilters={false}
         actions={
-          <button
-            onClick={() => {
-              setEditingOwner(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center space-x-3 bg-brand hover:bg-brand/90 active:scale-95 text-white px-8 py-3.5 rounded-full text-base font-black transition-all shadow-lg shadow-brand/25"
-          >
-            <Plus className="w-5 h-5 stroke-[4px]" />
-            <span>{t.owners.add_new}</span>
-          </button>
+          <div className="hidden lg:flex items-center gap-3">
+            <FilterDropdown
+              value={statusFilter}
+              onChange={(v) => { setStatusFilter(v); setPage(1); }}
+              options={[
+                { value: "true",  label: t.common.active },
+                { value: "false", label: t.common.inactive },
+              ]}
+              placeholder={t.assets.filters.all_statuses}
+            />
+            <button
+              onClick={() => { setEditingOwner(null); setIsModalOpen(true); }}
+              className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
+            >
+              <Plus className="w-4 h-4 stroke-[3px]" />
+              {t.owners.add_new}
+            </button>
+          </div>
         }
       />
 
-      <div className="bg-white rounded-[32px] border border-border-theme/40 shadow-sm overflow-hidden">
+      <ModuleContainer>
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-brand mb-4" />
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-brand" />
             <p className="text-subtitle font-medium animate-pulse">{t.owners.states.loading}</p>
           </div>
         ) : ownersList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-              <Building2 className="w-10 h-10 text-subtitle/30" />
-            </div>
-            <h3 className="text-lg font-black text-title mb-1">{t.owners.states.empty_title}</h3>
-            <p className="text-subtitle font-medium max-w-sm">{t.owners.states.empty_subtitle}</p>
-          </div>
+          emptyState
         ) : (
           <DataTable
             columns={columns}
@@ -190,16 +221,23 @@ export default function OwnersPage() {
             footer={
               <>
                 <div className="flex items-center space-x-3">
-                  <div className="text-[15px] text-subtitle font-medium tracking-tight">
-                    {t.owners.pagination.showing} <span className="text-title font-bold">{ownersList.length}</span> {t.owners.pagination.of} <span className="text-title font-bold">{meta.total}</span> {t.owners.pagination.owners}
+                  <div className="text-xs text-subtitle/40 font-medium tracking-tight">
+                    {t.owners.pagination.showing}{" "}
+                    <span className="text-subtitle/70 font-bold">{ownersList.length}</span>{" "}
+                    {t.owners.pagination.of}{" "}
+                    <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
+                    {t.owners.pagination.owners}
                   </div>
-                  <select
-                    value={limit}
-                    onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                    className="text-xs font-bold text-subtitle border border-border-theme/40 rounded-lg px-2 py-1 bg-app-bg focus:outline-none focus:ring-2 focus:ring-brand/20"
-                  >
-                    {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n} / pág</option>)}
-                  </select>
+                  <FilterDropdown
+                    value={String(limit)}
+                    onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+                    options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / ${t.common.per_page}` }))}
+                    placeholder=""
+                    showReset={false}
+                    compact
+                    neutral
+                    up
+                  />
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -224,7 +262,7 @@ export default function OwnersPage() {
             }
           />
         )}
-      </div>
+      </ModuleContainer>
 
       <OwnerModal
         isOpen={isModalOpen}
