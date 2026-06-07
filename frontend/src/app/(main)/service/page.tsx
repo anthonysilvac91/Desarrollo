@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import ReactDOM from "react-dom";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
@@ -87,7 +88,9 @@ export default function ServicesPage() {
   const [mobileWorkerFilter, setMobileWorkerFilter] = useState("");
   const [isMobileWorkerOpen, setIsMobileWorkerOpen] = useState(false);
   const [mobileWorkerSearch, setMobileWorkerSearch] = useState("");
-  const mobileWorkerDropdownRef = useRef<HTMLDivElement>(null);
+  const [mobileAssetFilter, setMobileAssetFilter] = useState("");
+  const [isMobileAssetOpen, setIsMobileAssetOpen] = useState(false);
+  const [mobileAssetSearch, setMobileAssetSearch] = useState("");
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -113,6 +116,7 @@ export default function ServicesPage() {
       }
     }
     if (mobileWorkerFilter) params.worker_id = mobileWorkerFilter;
+    if (mobileAssetFilter) params.asset_id = mobileAssetFilter;
     return params;
   };
 
@@ -165,6 +169,15 @@ export default function ServicesPage() {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [allServicesData]);
 
+  const assetOptions = useMemo(() => {
+    const all: Service[] = Array.isArray(allServicesData) ? allServicesData : (allServicesData as any)?.data ?? [];
+    const map = new Map<string, { id: string; name: string }>();
+    all.forEach((s: Service) => {
+      if (s.asset?.id) map.set(s.asset.id, { id: s.asset.id, name: s.asset.name ?? "" });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allServicesData]);
+
   const servicesList = Array.isArray(responseData) ? responseData : responseData?.data || [];
   const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: servicesList.length, page: 1, limit: 10, totalPages: 1 };
 
@@ -174,7 +187,7 @@ export default function ServicesPage() {
     : { total: mobileList.length, page: 1, limit: 10, totalPages: 1 };
 
   React.useEffect(() => { setPage(1); }, [debouncedSearch, dateFilter, limit, desktopWorkerFilter]);
-  React.useEffect(() => { setMobilePage(1); setMobileItems([]); }, [debouncedMobileSearch, mobileDateFilter, mobileWorkerFilter]);
+  React.useEffect(() => { setMobilePage(1); setMobileItems([]); }, [debouncedMobileSearch, mobileDateFilter, mobileWorkerFilter, mobileAssetFilter]);
 
   useEffect(() => {
     if (!mobileResponseData) return;
@@ -186,17 +199,6 @@ export default function ServicesPage() {
     }
   }, [mobileResponseData]);
 
-  useEffect(() => {
-    if (!isMobileWorkerOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (mobileWorkerDropdownRef.current && !mobileWorkerDropdownRef.current.contains(e.target as Node)) {
-        setIsMobileWorkerOpen(false);
-        setMobileWorkerSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [isMobileWorkerOpen]);
 
   const handleDateChange = (preset: string, start?: string, end?: string) => {
     setDateFilter({ preset, start, end });
@@ -378,129 +380,212 @@ export default function ServicesPage() {
         {/* Mobile filters row */}
         <div className="flex items-center gap-2 flex-wrap">
 
-          {/* Date quick pills: All · Today · Week */}
-          <div className="flex items-center bg-app-bg rounded-full px-1 border border-border-theme/30 shrink-0">
-            {(["Todo", "Hoy", "Semana"] as const).map((preset) => (
-              <button
-                key={preset}
-                onClick={() => { setMobileDateFilter({ preset }); setMobilePage(1); }}
-                className={`px-3 py-2 rounded-full border text-xs font-bold transition-all ${
-                  mobileDateFilter.preset === preset
-                    ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
-                    : "border-transparent text-subtitle/50"
-                }`}
-              >
-                {preset === "Todo" ? t.services.filter_all : preset === "Hoy" ? t.date_filters.today : t.date_filters.week}
-              </button>
-            ))}
-          </div>
-
           {/* Date filter */}
           <div className="shrink-0">
             <DateFilterDropdown
-              value={mobileDateFilter.preset === "Todo" || mobileDateFilter.preset === "Hoy" || mobileDateFilter.preset === "Semana" ? "" : mobileDateFilter.preset}
+              value={mobileDateFilter.preset === "Todo" ? "" : mobileDateFilter.preset}
               customStart={mobileDateFilter.start}
               customEnd={mobileDateFilter.end}
               onChange={(preset, start, end) => { setMobileDateFilter({ preset: preset || "Todo", start, end }); setMobilePage(1); }}
               options={[
+                { value: "Hoy", label: t.date_filters.today },
+                { value: "Semana", label: t.date_filters.week },
                 { value: "Mes", label: t.date_filters.month },
                 { value: "Año", label: t.date_filters.year },
               ]}
               placeholder={t.date_filters.date}
               compact
               iconOnlyCustom
+              bottomSheet
             />
           </div>
 
-          {/* User filter — date style */}
-          <div ref={mobileWorkerDropdownRef} className="relative shrink-0">
-            <button
-              onClick={() => setIsMobileWorkerOpen(v => !v)}
-              className={`flex items-center gap-1.5 h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all max-w-[140px] ${
-                mobileWorkerFilter
-                  ? "border-brand/40 bg-brand/5 text-brand"
-                  : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
-              }`}
-            >
-              {mobileWorkerFilter ? (
-                <>
-                  <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
-                    <span className="text-[9px] font-black text-white leading-none">
-                      {getInitials(workerOptions.find(w => w.id === mobileWorkerFilter)?.name ?? "")}
-                    </span>
-                  </div>
-                  <span
-                    onClick={(e) => { e.stopPropagation(); setMobileWorkerFilter(""); setMobilePage(1); }}
-                    className="ml-auto text-brand/50 hover:text-brand transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>{t.services.table.operator}</span>
-                  <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                </>
-              )}
-            </button>
-
-            {isMobileWorkerOpen && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-30 w-56 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                <div className="p-2.5 border-b border-border-theme/20">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtitle/40" />
-                    <input
-                      autoFocus
-                      type="text"
-                      value={mobileWorkerSearch}
-                      onChange={e => setMobileWorkerSearch(e.target.value)}
-                      placeholder={t.services.search_placeholder}
-                      className="w-full pl-7 pr-3 py-1.5 text-sm bg-app-bg rounded-xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
-                    />
-                  </div>
-                </div>
-                <div className="max-h-48 overflow-y-auto">
-                  {workerOptions
-                    .filter(w => !mobileWorkerSearch.trim() || w.name.toLowerCase().includes(mobileWorkerSearch.toLowerCase()))
-                    .map(worker => (
-                      <button
-                        key={worker.id}
-                        onClick={() => { setMobileWorkerFilter(worker.id); setMobilePage(1); setIsMobileWorkerOpen(false); setMobileWorkerSearch(""); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-app-bg transition-colors text-left"
-                      >
-                        <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-black text-brand">{getInitials(worker.name)}</span>
-                        </div>
-                        <span className="text-sm font-semibold text-title">{worker.name}</span>
-                      </button>
-                    ))}
-                  {workerOptions.filter(w => !mobileWorkerSearch.trim() || w.name.toLowerCase().includes(mobileWorkerSearch.toLowerCase())).length === 0 && (
-                    <p className="px-4 py-3 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
-                  )}
-                </div>
+          {/* Asset filter */}
+          <button
+            onClick={() => { setIsMobileAssetOpen(v => !v); setIsMobileWorkerOpen(false); }}
+            className={`flex items-center gap-1.5 h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all shrink-0 ${
+              mobileAssetFilter
+                ? "border-brand/40 bg-brand/5 text-brand"
+                : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
+            }`}
+          >
+            {mobileAssetFilter ? (
+              <div className="w-6 h-6 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                <Ship className="w-3 h-3 text-brand" />
               </div>
+            ) : (
+              <>
+                <span>{t.services.table.asset}</span>
+                <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              </>
             )}
-          </div>
+          </button>
+
+          {/* User filter */}
+          <button
+            onClick={() => { setIsMobileWorkerOpen(v => !v); setIsMobileAssetOpen(false); }}
+            className={`flex items-center gap-1.5 h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all shrink-0 ${
+              mobileWorkerFilter
+                ? "border-brand/40 bg-brand/5 text-brand"
+                : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
+            }`}
+          >
+            {mobileWorkerFilter ? (
+              <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
+                <span className="text-[9px] font-black text-white leading-none">
+                  {getInitials(workerOptions.find(w => w.id === mobileWorkerFilter)?.name ?? "")}
+                </span>
+              </div>
+            ) : (
+              <>
+                <span>{t.services.table.operator}</span>
+                <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              </>
+            )}
+          </button>
 
         </div>
 
-        {/* Custom date range chip */}
-        {mobileDateFilter.preset === "Personalizado" && mobileDateFilter.start && mobileDateFilter.end && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20 self-start">
-            <Calendar className="w-3.5 h-3.5 text-brand shrink-0" />
-            <span className="text-xs font-semibold text-brand">
-              {new Date(mobileDateFilter.start + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short" })}
-              {" – "}
-              {new Date(mobileDateFilter.end + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short" })}
-            </span>
-            <button
-              onClick={() => { setMobileDateFilter({ preset: "Todo" }); setMobilePage(1); }}
-              className="text-brand/40 hover:text-brand transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
+        {/* Asset bottom sheet */}
+        {isMobileAssetOpen && typeof document !== "undefined" && ReactDOM.createPortal(
+          <div className="fixed inset-0 z-[200] flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/30" onClick={() => { setIsMobileAssetOpen(false); setMobileAssetSearch(""); }} />
+            <div className="relative bg-white rounded-t-3xl pb-safe animate-in slide-in-from-bottom duration-200">
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <span className="text-base font-black text-title">{t.services.table.asset}</span>
+                <button onClick={() => { setIsMobileAssetOpen(false); setMobileAssetSearch(""); }} className="p-1.5 rounded-full hover:bg-app-bg text-subtitle/40">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-4 pb-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtitle/40" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={mobileAssetSearch}
+                    onChange={e => setMobileAssetSearch(e.target.value)}
+                    placeholder={t.common.search}
+                    className="w-full pl-9 pr-4 py-2.5 text-sm bg-app-bg rounded-2xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
+                  />
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto pb-6">
+                {assetOptions
+                  .filter(a => !mobileAssetSearch.trim() || a.name.toLowerCase().includes(mobileAssetSearch.toLowerCase()))
+                  .map(asset => (
+                    <button
+                      key={asset.id}
+                      onClick={() => { setMobileAssetFilter(asset.id); setMobilePage(1); setIsMobileAssetOpen(false); setMobileAssetSearch(""); }}
+                      className={`w-full flex items-center gap-3 px-5 py-3 transition-colors text-left ${mobileAssetFilter === asset.id ? "bg-brand/5" : "hover:bg-app-bg"}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                        <Ship className="w-3.5 h-3.5 text-brand" />
+                      </div>
+                      <span className={`text-sm font-semibold truncate ${mobileAssetFilter === asset.id ? "text-brand" : "text-title"}`}>{asset.name}</span>
+                    </button>
+                  ))}
+                {assetOptions.filter(a => !mobileAssetSearch.trim() || a.name.toLowerCase().includes(mobileAssetSearch.toLowerCase())).length === 0 && (
+                  <p className="px-5 py-4 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
+
+        {/* Worker bottom sheet */}
+        {isMobileWorkerOpen && typeof document !== "undefined" && ReactDOM.createPortal(
+          <div className="fixed inset-0 z-[200] flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/30" onClick={() => { setIsMobileWorkerOpen(false); setMobileWorkerSearch(""); }} />
+            <div className="relative bg-white rounded-t-3xl pb-safe animate-in slide-in-from-bottom duration-200">
+              <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                <span className="text-base font-black text-title">{t.services.table.operator}</span>
+                <button onClick={() => { setIsMobileWorkerOpen(false); setMobileWorkerSearch(""); }} className="p-1.5 rounded-full hover:bg-app-bg text-subtitle/40">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-4 pb-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtitle/40" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={mobileWorkerSearch}
+                    onChange={e => setMobileWorkerSearch(e.target.value)}
+                    placeholder={t.common.search}
+                    className="w-full pl-9 pr-4 py-2.5 text-sm bg-app-bg rounded-2xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
+                  />
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto pb-6">
+                {workerOptions
+                  .filter(w => !mobileWorkerSearch.trim() || w.name.toLowerCase().includes(mobileWorkerSearch.toLowerCase()))
+                  .map(worker => (
+                    <button
+                      key={worker.id}
+                      onClick={() => { setMobileWorkerFilter(worker.id); setMobilePage(1); setIsMobileWorkerOpen(false); setMobileWorkerSearch(""); }}
+                      className={`w-full flex items-center gap-3 px-5 py-3 transition-colors text-left ${mobileWorkerFilter === worker.id ? "bg-brand/5" : "hover:bg-app-bg"}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                        <span className="text-[11px] font-black text-brand">{getInitials(worker.name)}</span>
+                      </div>
+                      <span className={`text-sm font-semibold ${mobileWorkerFilter === worker.id ? "text-brand" : "text-title"}`}>{worker.name}</span>
+                    </button>
+                  ))}
+                {workerOptions.filter(w => !mobileWorkerSearch.trim() || w.name.toLowerCase().includes(mobileWorkerSearch.toLowerCase())).length === 0 && (
+                  <p className="px-5 py-4 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Active filter chips */}
+        {(mobileDateFilter.preset === "Personalizado" && mobileDateFilter.start && mobileDateFilter.end) || mobileWorkerFilter || mobileAssetFilter ? (
+          <div className="flex flex-wrap gap-2">
+            {mobileDateFilter.preset === "Personalizado" && mobileDateFilter.start && mobileDateFilter.end && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20">
+                <Calendar className="w-3.5 h-3.5 text-brand shrink-0" />
+                <span className="text-xs font-semibold text-brand">
+                  {new Date(mobileDateFilter.start + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short" })}
+                  {" – "}
+                  {new Date(mobileDateFilter.end + "T00:00:00").toLocaleDateString("es", { day: "2-digit", month: "short" })}
+                </span>
+                <button onClick={() => { setMobileDateFilter({ preset: "Todo" }); setMobilePage(1); }} className="text-brand/40 hover:text-brand transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {mobileWorkerFilter && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20">
+                <div className="w-4 h-4 rounded-full bg-brand flex items-center justify-center shrink-0">
+                  <span className="text-[8px] font-black text-white leading-none">
+                    {getInitials(workerOptions.find(w => w.id === mobileWorkerFilter)?.name ?? "")}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-brand">
+                  {workerOptions.find(w => w.id === mobileWorkerFilter)?.name ?? ""}
+                </span>
+                <button onClick={() => { setMobileWorkerFilter(""); setMobilePage(1); }} className="text-brand/40 hover:text-brand transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {mobileAssetFilter && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20">
+                <Ship className="w-3.5 h-3.5 text-brand shrink-0" />
+                <span className="text-xs font-semibold text-brand">
+                  {assetOptions.find(a => a.id === mobileAssetFilter)?.name ?? ""}
+                </span>
+                <button onClick={() => { setMobileAssetFilter(""); setMobilePage(1); }} className="text-brand/40 hover:text-brand transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {/* Mobile card list */}
         {mobileLoading && mobileItems.length === 0 ? (
