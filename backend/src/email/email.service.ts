@@ -5,15 +5,32 @@ import { Resend } from 'resend';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private resend: Resend;
+  private resend: Resend | null;
   private from: string;
 
   constructor(private config: ConfigService) {
-    this.resend = new Resend(config.get<string>('RESEND_API_KEY'));
-    this.from = config.get<string>('EMAIL_FROM') || 'Recall <noreply@recall.app>';
+    const apiKey = config.get<string>('RESEND_API_KEY');
+    if (!apiKey) {
+      this.logger.warn('RESEND_API_KEY not set — EmailService disabled, emails will be skipped');
+      this.resend = null;
+    } else {
+      this.resend = new Resend(apiKey);
+    }
+
+    const fromEmail = config.get<string>('EMAIL_FROM') || 'noreply@localhost.dev';
+    const fromName = config.get<string>('EMAIL_FROM_NAME') || 'Recall';
+    this.from = `${fromName} <${fromEmail}>`;
+  }
+
+  isEnabled(): boolean {
+    return this.resend !== null;
   }
 
   async sendPasswordReset(to: string, name: string, resetUrl: string): Promise<void> {
+    if (!this.resend) {
+      this.logger.warn(`Email skipped (RESEND_API_KEY not set): password reset for ${to}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: this.from,
@@ -28,6 +45,10 @@ export class EmailService {
   }
 
   async sendEmailVerification(to: string, name: string, verifyUrl: string): Promise<void> {
+    if (!this.resend) {
+      this.logger.warn(`Email skipped (RESEND_API_KEY not set): email verification for ${to}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: this.from,
@@ -42,6 +63,10 @@ export class EmailService {
   }
 
   async sendInvitation(to: string, inviterName: string, orgName: string, inviteUrl: string): Promise<void> {
+    if (!this.resend) {
+      this.logger.warn(`Email skipped (RESEND_API_KEY not set): invitation for ${to}`);
+      return;
+    }
     try {
       await this.resend.emails.send({
         from: this.from,

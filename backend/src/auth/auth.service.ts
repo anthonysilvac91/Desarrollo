@@ -562,11 +562,24 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
+    const genericResponse = { message: 'Si el correo existe recibirás un enlace de recuperación.' };
+
+    if (!this.emailService.isEnabled()) {
+      this.logger.error('forgotPassword called but EmailService is disabled (RESEND_API_KEY missing)');
+      return genericResponse;
+    }
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    if (!frontendUrl) {
+      this.logger.error('FRONTEND_URL is not set — cannot build password reset link');
+      return genericResponse;
+    }
+
     const user = await this.prisma.user.findFirst({ where: { email, is_active: true } });
 
     // Respuesta genérica para no exponer si el email existe
     if (!user) {
-      return { message: 'Si el correo existe recibirás un enlace de recuperación.' };
+      return genericResponse;
     }
 
     await this.prisma.emailToken.updateMany({
@@ -584,13 +597,11 @@ export class AuthService {
       },
     });
 
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
-
     await this.emailService.sendPasswordReset(user.email, user.name, resetUrl);
-    this.logger.log(`Password reset email sent to ${user.email}`);
+    this.logger.log('Password reset email sent');
 
-    return { message: 'Si el correo existe recibirás un enlace de recuperación.' };
+    return genericResponse;
   }
 
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {

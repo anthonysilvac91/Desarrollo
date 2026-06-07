@@ -27,6 +27,17 @@ export class InvitationsService {
       throw new BadRequestException('owner_id es requerido para invitaciones con rol EXTERNAL');
     }
 
+    if (!this.emailService.isEnabled()) {
+      this.logger.error('Cannot create invitation: EmailService is disabled (RESEND_API_KEY missing)');
+      throw new BadRequestException('El servicio de email no está configurado. Contacta al administrador.');
+    }
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    if (!frontendUrl) {
+      this.logger.error('Cannot create invitation: FRONTEND_URL is not set');
+      throw new BadRequestException('El servicio de email no está configurado. Contacta al administrador.');
+    }
+
     const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
     if (!org || !org.is_active) {
       throw new BadRequestException('Organización no encontrada o inactiva');
@@ -72,7 +83,6 @@ export class InvitationsService {
     });
 
     const inviter = await this.prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } });
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
     const inviteUrl = `${frontendUrl}/register?token=${token}`;
 
     await this.emailService.sendInvitation(dto.email, inviter?.name ?? 'Un administrador', org.name, inviteUrl);
