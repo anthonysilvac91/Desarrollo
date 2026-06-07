@@ -1812,6 +1812,7 @@ function DevicesSection({ s }: { s: any }) {
 
   const devices = sessions.map(mapSessionToDevice);
   const hasCurrentDevice = devices.some(device => device.isCurrent);
+  const hasOnlyCurrentDevice = hasCurrentDevice && devices.length === 1;
 
   const revokeMutation = useMutation({
     mutationFn: authService.revokeSession,
@@ -1879,6 +1880,11 @@ function DevicesSection({ s }: { s: any }) {
           {isLoading && (
             <div className="col-span-4 p-6 rounded-2xl border border-border-theme/30 bg-app-bg/30 text-sm font-bold text-subtitle/50">
               Cargando sesiones...
+            </div>
+          )}
+          {!isLoading && hasOnlyCurrentDevice && (
+            <div className="col-span-4 p-4 rounded-2xl border border-brand/15 bg-brand/[0.03] text-xs font-bold text-brand">
+              Solo tienes activa esta sesion. No hay otros dispositivos conectados.
             </div>
           )}
           {devices.map(device => (
@@ -2169,6 +2175,7 @@ function MobileSecurityTab({ t }: { t: any }) {
 
   const devices = sessions.map(mapSessionToDevice);
   const hasCurrentDevice = devices.some(device => device.isCurrent);
+  const hasOnlyCurrentDevice = hasCurrentDevice && devices.length === 1;
 
   const revokeMutation = useMutation({
     mutationFn: authService.revokeSession,
@@ -2345,6 +2352,11 @@ function MobileSecurityTab({ t }: { t: any }) {
           {isLoadingSessions && (
             <div className="p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 text-xs font-bold text-subtitle/50">
               Cargando sesiones...
+            </div>
+          )}
+          {!isLoadingSessions && hasOnlyCurrentDevice && (
+            <div className="p-3.5 rounded-2xl border border-brand/15 bg-brand/[0.03] text-xs font-bold text-brand">
+              Solo tienes activa esta sesion. No hay otros dispositivos conectados.
             </div>
           )}
           {devices.map(device => (
