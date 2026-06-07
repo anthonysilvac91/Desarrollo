@@ -1,6 +1,6 @@
 # Technical Debt — Recall
 
-**Última actualización:** 2026-06-07
+**Última actualización:** 2026-06-07 (backups Supabase agregado)
 
 ---
 
@@ -27,6 +27,7 @@
 | 7 | Producto | Auth | Email por tenant (vs email global actual) | Bajo — decisión consciente para MVP | Si aparecen usuarios multi-org o SSO/SAML |
 | 8 | Docs | API | `API_CONTRACTS.md` puede desalinearse | Documentación contradictoria con backend | Con cada cambio de endpoints, DTOs o auth flows |
 | 9 | Docs / QA | Tests | Guía QA aspiracional sin pipeline real | Documentación que no refleja el estado real | Cuando exista pipeline de pruebas estable |
+| 10 | **Alta** (temporal) | Infraestructura / DB | Backups Supabase — sin backup automático en plan Free | Pérdida total de datos ante corrupción, migración fallida o fallo de base | Antes de cliente pago, segundo cliente o uso operacional real |
 
 ---
 
@@ -146,6 +147,40 @@
 ### 9 — Guía QA / E2E
 
 La guía QA anterior fue eliminada por estar desactualizada (SQLite, header injection sin JWT, endpoints inexistentes). No se reemplaza hasta que exista un pipeline de pruebas E2E estable y ejecutable.
+
+---
+
+### 10 — Backups Supabase / recuperación de datos
+
+**Prioridad:** Alta mientras se mantenga Supabase Free.
+
+**Estado actual:** El proyecto corre sobre Supabase Free, que **no incluye backups automáticos**. No existe Point-in-Time Recovery (PITR) ni exportación programada de datos.
+
+**Decisión temporal:** Se acepta este riesgo durante el mes actual porque el cliente existente usa el sistema como demo. En ese contexto, una pérdida de datos sería recuperable manualmente y no tendría impacto operacional crítico.
+
+**Riesgo:** Pérdida total o parcial de datos ante:
+- Corrupción accidental de la base de datos.
+- Borrado accidental de registros o tablas.
+- Migración Prisma fallida que deje la DB en estado inconsistente.
+- Fallo o incidente en la infraestructura de Supabase.
+
+**Mitigación temporal:**
+- Evitar operaciones destructivas en producción (migraciones con DROP, seeds, borrados masivos).
+- Si la demo avanza hacia uso operacional real, exportar manualmente los datos críticos desde el SQL Editor de Supabase antes de cada migración relevante (`pg_dump` o exportación CSV desde el dashboard).
+
+**Criterio de cierre:** Este ítem se cierra cuando se cumpla una de estas condiciones antes de cualquiera de los eventos listados abajo:
+- Subir a Supabase Pro (incluye PITR y backups diarios automáticos), o
+- Implementar backup externo automatizado (ej. exportación programada a S3/R2).
+
+**Eventos que fuerzan el cierre antes de que ocurran:**
+- Primer cliente pago.
+- Segundo cliente (sea demo o pago).
+- Uso operacional real de datos (no demo).
+- Carga de datos críticos de producción.
+
+**Áreas afectadas:** Supabase DB, historial de migraciones Prisma, plan de recuperación ante incidentes, operación.
+
+> Esta deuda no bloquea la demo actual, pero sí bloquea escalar a clientes reales o múltiples clientes sin una estrategia de backup.
 
 ---
 
