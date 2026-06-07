@@ -1813,6 +1813,8 @@ function DevicesSection({ s }: { s: any }) {
   const devices = sessions.map(mapSessionToDevice);
   const hasCurrentDevice = devices.some(device => device.isCurrent);
   const hasOnlyCurrentDevice = hasCurrentDevice && devices.length === 1;
+  const hasOtherDevices = hasCurrentDevice && devices.some(device => !device.isCurrent);
+  const [showOnlyCurrentMessage, setShowOnlyCurrentMessage] = useState(false);
 
   const revokeMutation = useMutation({
     mutationFn: authService.revokeSession,
@@ -1833,6 +1835,14 @@ function DevicesSection({ s }: { s: any }) {
   });
 
   const removeDevice = (id: string) => revokeMutation.mutate(id);
+  const handleRevokeOthers = () => {
+    if (!hasOtherDevices) {
+      setShowOnlyCurrentMessage(true);
+      return;
+    }
+    setShowOnlyCurrentMessage(false);
+    revokeOthersMutation.mutate();
+  };
 
   return (
     <ModuleContainer>
@@ -1853,9 +1863,11 @@ function DevicesSection({ s }: { s: any }) {
           </div>
           <button
             type="button"
-            onClick={() => revokeOthersMutation.mutate()}
-            disabled={revokeOthersMutation.isPending || !hasCurrentDevice || devices.filter(device => !device.isCurrent).length === 0}
-            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 transition-all active:scale-95"
+            onClick={handleRevokeOthers}
+            disabled={revokeOthersMutation.isPending || !hasCurrentDevice}
+            className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 transition-all active:scale-95 ${
+              !hasOtherDevices ? "opacity-55 hover:bg-red-50" : ""
+            }`}
           >
             {revokeOthersMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
             {s.devices_signout_all}
@@ -1882,7 +1894,7 @@ function DevicesSection({ s }: { s: any }) {
               Cargando sesiones...
             </div>
           )}
-          {!isLoading && hasOnlyCurrentDevice && (
+          {!isLoading && hasOnlyCurrentDevice && showOnlyCurrentMessage && (
             <div className="col-span-4 p-4 rounded-2xl border border-brand/15 bg-brand/[0.03] text-xs font-bold text-brand">
               Solo tienes activa esta sesion. No hay otros dispositivos conectados.
             </div>
@@ -2176,6 +2188,8 @@ function MobileSecurityTab({ t }: { t: any }) {
   const devices = sessions.map(mapSessionToDevice);
   const hasCurrentDevice = devices.some(device => device.isCurrent);
   const hasOnlyCurrentDevice = hasCurrentDevice && devices.length === 1;
+  const hasOtherDevices = hasCurrentDevice && devices.some(device => !device.isCurrent);
+  const [showOnlyCurrentMessage, setShowOnlyCurrentMessage] = useState(false);
 
   const revokeMutation = useMutation({
     mutationFn: authService.revokeSession,
@@ -2196,6 +2210,14 @@ function MobileSecurityTab({ t }: { t: any }) {
   });
 
   const removeDevice = (id: string) => revokeMutation.mutate(id);
+  const handleRevokeOthers = () => {
+    if (!hasOtherDevices) {
+      setShowOnlyCurrentMessage(true);
+      return;
+    }
+    setShowOnlyCurrentMessage(false);
+    revokeOthersMutation.mutate();
+  };
 
   const twoFaMethods = [
     { id: "app" as const,   icon: Smartphone,    name: s.twofa_app_name, desc: s.twofa_app_desc },
@@ -2327,9 +2349,11 @@ function MobileSecurityTab({ t }: { t: any }) {
           <p className="text-xs text-subtitle/50">{s.devices_subtitle}</p>
           <button
             type="button"
-            onClick={() => revokeOthersMutation.mutate()}
-            disabled={revokeOthersMutation.isPending || !hasCurrentDevice || devices.filter(device => !device.isCurrent).length === 0}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 active:scale-95 transition-all"
+            onClick={handleRevokeOthers}
+            disabled={revokeOthersMutation.isPending || !hasCurrentDevice}
+            className={`w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 active:scale-95 transition-all ${
+              !hasOtherDevices ? "opacity-55" : ""
+            }`}
           >
             {revokeOthersMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
             {s.devices_signout_all}
@@ -2354,7 +2378,7 @@ function MobileSecurityTab({ t }: { t: any }) {
               Cargando sesiones...
             </div>
           )}
-          {!isLoadingSessions && hasOnlyCurrentDevice && (
+          {!isLoadingSessions && hasOnlyCurrentDevice && showOnlyCurrentMessage && (
             <div className="p-3.5 rounded-2xl border border-brand/15 bg-brand/[0.03] text-xs font-bold text-brand">
               Solo tienes activa esta sesion. No hay otros dispositivos conectados.
             </div>
