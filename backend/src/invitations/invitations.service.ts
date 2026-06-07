@@ -49,11 +49,11 @@ export class InvitationsService {
       throw new BadRequestException('Ya existe una invitación vigente para este correo');
     }
 
-    const existingUser = await this.prisma.user.findFirst({
-      where: { email: dto.email, organization_id: organizationId },
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
     });
     if (existingUser) {
-      throw new BadRequestException('Ya existe un usuario con este correo en la organización');
+      throw new BadRequestException('Ya existe una cuenta con este correo en Recall');
     }
 
     const token = randomBytes(32).toString('hex');

@@ -284,16 +284,13 @@ export class UsersService {
       throw new BadRequestException('Un usuario externo debe asociarse a un owner');
     }
 
-    // 2. Verificar email duplicado en el mismo tenant (u org_id null para SuperAdmin)
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        email: dto.email,
-        organization_id: dto.organization_id || null
-      }
+    // 2. Verificar email duplicado globalmente (User.email es @unique en toda la plataforma)
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('El correo ya está registrado en esta organización');
+      throw new ConflictException('El correo ya está registrado en Recall');
     }
 
     // 3. Hashear password
