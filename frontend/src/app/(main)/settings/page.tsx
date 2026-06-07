@@ -296,7 +296,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab content */}
-        <div className="pb-32">
+        <div className="pb-56">
           {activeTab === "profile" ? (
             <div className="p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
@@ -444,6 +444,145 @@ export default function SettingsPage() {
               </div>
 
             </div>
+          ) : activeTab === "my_profile" ? (
+
+            /* ── My Profile ── */
+            <div className="p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+              {/* User info card */}
+              <div className="bg-white rounded-3xl border border-border-theme/30 p-5">
+                <div className="flex items-center gap-4">
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-brand/5 flex items-center justify-center ring-1 ring-border-theme/20">
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt={profileName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xl font-black text-brand select-none">
+                          {profileName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase() || "?"}
+                        </span>
+                      )}
+                    </div>
+                    <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-brand text-white shadow flex items-center justify-center cursor-pointer active:scale-95 transition-all">
+                      <Pencil className="w-3 h-3" />
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setAvatarFile(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => setAvatarPreview(reader.result as string);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Name + status */}
+                  <div className="min-w-0">
+                    <p className="text-base font-black text-title leading-tight truncate">{profileName || user?.email}</p>
+                    <span className={`mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold ${
+                      user?.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${user?.is_active ? "bg-green-500" : "bg-red-500"}`} />
+                      {user?.is_active ? t.common.active : t.common.inactive}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Org + Role row */}
+                <div className="mt-4 pt-4 border-t border-border-theme/15 grid grid-cols-2 gap-3">
+                  {user?.organization?.name && (
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-subtitle/40">{t.settings.user_profile_section.organization}</p>
+                      <p className="text-sm font-semibold text-title mt-0.5 truncate">{user.organization.name}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-subtitle/40">{t.settings.user_profile_section.role}</p>
+                    <span className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${
+                      user?.role === "SUPER_ADMIN" || user?.role === "ADMIN"
+                        ? "bg-indigo-50 text-indigo-600 border-indigo-100"
+                        : user?.role === "WORKER"
+                        ? "bg-amber-50 text-amber-600 border-amber-100"
+                        : "bg-slate-100 text-slate-600 border-slate-200"
+                    }`}>
+                      {user?.role === "SUPER_ADMIN" ? "Super Admin"
+                        : user?.role === "ADMIN" ? t.users.modal.roles.admin
+                        : user?.role === "WORKER" ? t.users.modal.roles.worker
+                        : t.users.modal.roles.external}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Details card */}
+              <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+                <div>
+                  <p className="text-sm font-black text-title">{t.settings.user_profile_section.title}</p>
+                  <p className="text-xs text-subtitle/50 mt-0.5">{t.settings.user_profile_section.subtitle}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-subtitle/50">{t.settings.user_profile_section.name}</label>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={e => setProfileName(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-subtitle/50">{t.settings.user_profile_section.email}</label>
+                    <input
+                      type="email"
+                      value={profileEmail}
+                      onChange={e => setProfileEmail(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-subtitle/50">{t.settings.user_profile_section.phone}</label>
+                    <input
+                      type="tel"
+                      value={profilePhone}
+                      onChange={e => setProfilePhone(e.target.value)}
+                      placeholder="+56 9 0000 0000"
+                      className="w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand placeholder:text-subtitle/30 placeholder:font-normal"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-subtitle/50">{t.settings.user_profile_section.timezone}</label>
+                    <TimezoneSelect
+                      value={profileTimezone}
+                      onChange={setProfileTimezone}
+                      searchPlaceholder={language === "es" ? "Buscar zona horaria..." : "Search timezone..."}
+                      noResults={language === "es" ? "Sin resultados" : "No results"}
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          ) : activeTab === "security" ? (
+
+            /* ── Security ── */
+            <MobileSecurityTab t={t} />
+
+          ) : activeTab === "notifications" ? (
+
+            /* ── Notifications ── */
+            <MobileNotificationsTab t={t} />
+
           ) : (
             /* Coming soon for other tabs */
             <div className="flex flex-col items-center justify-center gap-3 py-32 text-center animate-in fade-in duration-300">
@@ -466,13 +605,13 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Sticky bottom actions — only on profile tab */}
-        {activeTab === "profile" && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-border-theme/20 px-4 py-4 flex items-center gap-3 z-20">
+        {/* Sticky bottom actions — profile & my_profile tabs */}
+        {(activeTab === "profile" || activeTab === "my_profile") && (
+          <div className="fixed bottom-[4.5rem] left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-border-theme/20 px-4 py-4 flex items-center gap-3 z-30">
             <button
               type="button"
               onClick={() => {
-                if (org) {
+                if (activeTab === "profile" && org) {
                   setOrgName(org.name || "");
                   setShowOrgName(org.show_org_name ?? false);
                   setLogoPreview(org.logo_url || null);
@@ -480,6 +619,12 @@ export default function SettingsPage() {
                   const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
                   setSelectedPalette(found?.id || "recall");
                   if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
+                } else if (activeTab === "my_profile" && user) {
+                  setProfileName(user.name || "");
+                  setProfileEmail(user.email || "");
+                  setProfilePhone((user as any).phone || "");
+                  setAvatarFile(null);
+                  setAvatarPreview(user.avatar_url || null);
                 }
               }}
               className="flex-1 py-3 rounded-2xl text-sm font-semibold text-subtitle/60 border border-border-theme/40 hover:bg-app-bg/80 transition-all"
@@ -487,12 +632,14 @@ export default function SettingsPage() {
               Cancel
             </button>
             <button
-              onClick={handleSave}
-              disabled={mutation.isPending}
+              onClick={activeTab === "profile" ? handleSave : handleProfileSave}
+              disabled={activeTab === "profile" ? mutation.isPending : profileMutation.isPending}
               className="flex-1 flex items-center justify-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white py-3 rounded-2xl text-sm font-semibold transition-all shadow-sm shadow-brand/20 disabled:opacity-50"
             >
-              {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>Save changes</span>
+              {(activeTab === "profile" ? mutation.isPending : profileMutation.isPending)
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Save className="w-4 h-4" />}
+              <span>Save Changes</span>
             </button>
           </div>
         )}
@@ -1457,6 +1604,301 @@ function TimezoneSelect({ value, onChange, searchPlaceholder = "Search timezone.
         ? ReactDOM.createPortal(dropdown, document.body)
         : null}
     </>
+  );
+}
+
+function MobileNotificationsTab({ t }: { t: any }) {
+  const n = t.settings.notifications_section;
+
+  const [enabled, setEnabled] = useState({
+    email_alerts: true,
+    system_logs: true,
+    weekly_summary: true,
+    newsletter: false,
+  });
+
+  const toggle = (key: keyof typeof enabled) =>
+    setEnabled(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const items = [
+    { key: "email_alerts" as const,   icon: Mail,      name: n.email_alerts_name,   desc: n.email_alerts_desc   },
+    { key: "system_logs" as const,    icon: Database,  name: n.system_logs_name,    desc: n.system_logs_desc    },
+    { key: "weekly_summary" as const, icon: AlignLeft, name: n.weekly_summary_name, desc: n.weekly_summary_desc },
+    { key: "newsletter" as const,     icon: Megaphone, name: n.newsletter_name,     desc: n.newsletter_desc     },
+  ];
+
+  return (
+    <div className="p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+        <div>
+          <p className="text-sm font-black text-title">{n.title}</p>
+          <p className="text-xs text-subtitle/50 mt-0.5">{n.subtitle}</p>
+        </div>
+
+        <div className="space-y-2">
+          {items.map(({ key, icon: Icon, name, desc }) => {
+            const on = enabled[key];
+            return (
+              <div
+                key={key}
+                className={`flex items-center gap-3.5 p-4 rounded-2xl border-2 transition-all ${
+                  on ? "border-brand/20 bg-brand/[0.03]" : "border-border-theme/30 bg-app-bg/30"
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                  on ? "bg-brand/10" : "bg-white border border-border-theme/20"
+                }`}>
+                  <Icon className={`w-4 h-4 transition-colors ${on ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-bold transition-colors ${on ? "text-title" : "text-subtitle/60"}`}>{name}</p>
+                  <p className="text-xs text-subtitle/50 mt-0.5 leading-snug">{desc}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggle(key)}
+                  className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+                    on ? "bg-brand" : "bg-border-theme/40"
+                  }`}
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    on ? "translate-x-5" : "translate-x-0"
+                  }`} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileSecurityTab({ t }: { t: any }) {
+  const s = t.settings.security_section;
+
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [twoFaMethod, setTwoFaMethod] = useState<"app" | "sms" | "email" | null>(null);
+  const [devices, setDevices] = useState<DeviceType[]>(MOCK_DEVICES);
+
+  const removeDevice = (id: string) => setDevices(prev => prev.filter(d => d.id !== id));
+
+  const twoFaMethods = [
+    { id: "app" as const,   icon: Smartphone,    name: s.twofa_app_name, desc: s.twofa_app_desc },
+    { id: "sms" as const,   icon: MessageSquare, name: s.twofa_sms_name, desc: s.twofa_sms_desc },
+    { id: "email" as const, icon: Mail,          name: s.twofa_email_name, desc: s.twofa_email_desc },
+  ];
+
+  const inputClass = "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand";
+
+  return (
+    <div className="p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+      {/* Change Password */}
+      <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+        <div>
+          <p className="text-sm font-black text-title">{s.password_title}</p>
+          <p className="text-xs text-subtitle/50 mt-0.5">{s.password_subtitle}</p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-subtitle/50">{s.current_password}</label>
+            <div className="relative">
+              <input type={showCurrent ? "text" : "password"} value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} className={inputClass} />
+              <button type="button" onClick={() => setShowCurrent(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-subtitle/30 hover:text-subtitle/60 transition-colors">
+                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-subtitle/50">{s.new_password}</label>
+            <div className="relative">
+              <input type={showNew ? "text" : "password"} value={newPwd} onChange={e => setNewPwd(e.target.value)} className={inputClass} />
+              <button type="button" onClick={() => setShowNew(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-subtitle/30 hover:text-subtitle/60 transition-colors">
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-subtitle/50">{s.confirm_password}</label>
+            <div className="relative">
+              <input type={showConfirm ? "text" : "password"} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} className={inputClass} />
+              <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-subtitle/30 hover:text-subtitle/60 transition-colors">
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="w-full py-3 rounded-2xl bg-title text-white text-sm font-black tracking-tight transition-all hover:bg-title/90 active:scale-95 shadow-md"
+        >
+          {s.update_password}
+        </button>
+      </div>
+
+      {/* Two-Factor Authentication */}
+      <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-title">{s.twofa_title}</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">{s.twofa_subtitle}</p>
+          </div>
+          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+            twoFaMethod ? "bg-green-50 text-green-600 border-green-100" : "bg-amber-50 text-amber-500 border-amber-100"
+          }`}>
+            {twoFaMethod ? s.twofa_status_active : s.twofa_status_inactive}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {twoFaMethods.map(method => {
+            const Icon = method.icon;
+            const isActive = twoFaMethod === method.id;
+            return (
+              <div
+                key={method.id}
+                className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all ${
+                  isActive ? "border-brand/30 bg-brand/5" : "border-border-theme/30 bg-app-bg/40"
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  isActive ? "bg-brand/10" : "bg-white border border-border-theme/30"
+                }`}>
+                  <Icon className={`w-4.5 h-4.5 ${isActive ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-bold ${isActive ? "text-brand" : "text-title"}`}>{method.name}</p>
+                  <p className="text-[11px] text-subtitle/50 mt-0.5 leading-tight">{method.desc}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTwoFaMethod(isActive ? null : method.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                    isActive
+                      ? "bg-red-50 text-red-500 border border-red-100"
+                      : "bg-brand text-white shadow-sm shadow-brand/20"
+                  }`}
+                >
+                  {isActive ? s.deactivate : s.activate}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-start gap-2">
+          <Info className="w-3.5 h-3.5 text-subtitle/30 shrink-0 mt-0.5" />
+          <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
+        </div>
+      </div>
+
+      {/* Active Devices */}
+      <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+        {/* Header */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-black text-title">{s.devices_title}</p>
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
+              {devices.length} Active
+            </span>
+          </div>
+          <p className="text-xs text-subtitle/50">{s.devices_subtitle}</p>
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 active:scale-95 transition-all"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            {s.devices_signout_all}
+          </button>
+        </div>
+
+        {/* Guardian banner */}
+        <div className="flex items-start gap-3 px-3.5 py-3 rounded-2xl bg-amber-50 border border-amber-100">
+          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+            <ShieldCheck className="w-4 h-4 text-amber-500" strokeWidth={2} />
+          </div>
+          <div>
+            <p className="text-xs font-black text-amber-600 tracking-wider">{s.devices_guardian_title}</p>
+            <p className="text-xs text-amber-600/80 mt-0.5">{s.devices_guardian_desc}</p>
+          </div>
+        </div>
+
+        {/* Device list */}
+        <div className="space-y-2">
+          {devices.map(device => (
+            <div
+              key={device.id}
+              className={`relative flex items-start gap-3 p-4 rounded-2xl border-2 transition-all ${
+                device.isCurrent ? "border-brand/25 bg-brand/[0.03]" : "border-border-theme/30 bg-app-bg/30"
+              }`}
+            >
+              {/* Icon */}
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                device.isCurrent ? "bg-brand/10" : "bg-white border border-border-theme/25"
+              }`}>
+                <DeviceIcon kind={device.kind} active={device.isCurrent} />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className={`text-xs font-black leading-tight truncate ${device.isCurrent ? "text-brand" : "text-title"}`}>
+                    {device.name}
+                  </p>
+                  {device.isCurrent && (
+                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand text-white shrink-0">
+                      {s.devices_this_device}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-subtitle/50">{device.os} · {device.browser}</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-2.5 h-2.5 text-brand/60 shrink-0" />
+                    <p className="text-[11px] text-title/70 font-semibold">{device.location}</p>
+                  </div>
+                  <p className="text-[11px] text-subtitle/40">{device.ip}</p>
+                </div>
+                <div className="flex items-center justify-between pt-0.5">
+                  <p className="text-[10px] text-subtitle/40">
+                    <span className="font-semibold">{s.devices_first_access}</span> {device.firstAccess}
+                  </p>
+                  {device.isCurrent ? (
+                    <span className="text-[10px] font-black text-green-500 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+                      {s.devices_active_now}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-subtitle/40 font-semibold">{device.lastSeen}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Remove button */}
+              {!device.isCurrent && (
+                <button
+                  type="button"
+                  onClick={() => removeDevice(device.id)}
+                  className="shrink-0 w-7 h-7 rounded-full bg-white border border-border-theme/30 flex items-center justify-center text-subtitle/30 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
   );
 }
 
