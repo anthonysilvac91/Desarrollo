@@ -15,7 +15,7 @@ describe('AuthService', () => {
 
   const prismaMock = {
     user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
-    userSession: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+    userSession: { create: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     invitation: { findUnique: jest.fn(), update: jest.fn() },
     emailToken: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
@@ -27,6 +27,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     jwtMock.sign.mockReturnValue('mocked-token');
+    prismaMock.userSession.findFirst.mockResolvedValue(null);
     prismaMock.userSession.create.mockResolvedValue({ id: 'session-1', token_jti: 'jti-1' });
 
     const module: TestingModule = await Test.createTestingModule({

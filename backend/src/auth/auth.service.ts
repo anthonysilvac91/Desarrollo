@@ -119,6 +119,12 @@ export class AuthService {
     if (!first) return null;
     if (first === '::1') return '127.0.0.1';
     if (first.startsWith('::ffff:')) return first.replace('::ffff:', '');
+    if (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(first)) {
+      return first.split(':')[0];
+    }
+    if (first.startsWith('[') && first.includes(']')) {
+      return first.slice(1, first.indexOf(']'));
+    }
     return first;
   }
 
@@ -138,9 +144,9 @@ export class AuthService {
 
   private parseGeoIpResponse(data: any): Omit<ResolvedIpLocation, 'ipAddress'> {
     return {
-      country: data.country_name || data.country || data.countryCode || null,
-      region: data.region || data.regionName || null,
-      city: data.city || null,
+      country: data.country_name || data.countryName || data.country || data.countryCode || null,
+      region: data.region || data.regionName || data.region_name || null,
+      city: data.city || data.cityName || null,
     };
   }
 
@@ -150,6 +156,8 @@ export class AuthService {
       customTemplate,
       'https://ipapi.co/{ip}/json/',
       'https://ipwho.is/{ip}',
+      'https://ipinfo.io/{ip}/json',
+      'https://freeipapi.com/api/json/{ip}',
       'http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,message',
     ].filter(Boolean) as string[];
 
@@ -205,6 +213,33 @@ export class AuthService {
     const tokenJti = randomBytes(24).toString('hex');
     const device = this.parseDevice(context?.userAgent);
     const location = await this.resolveIpLocation(context);
+    const existingSession = await this.prisma.userSession.findFirst({
+      where: {
+        user_id: user.id,
+        revoked_at: null,
+        expires_at: { gt: now },
+        user_agent: context?.userAgent || null,
+        ip_address: location.ipAddress,
+      },
+      orderBy: { last_seen_at: 'desc' },
+    });
+
+    if (existingSession) {
+      return this.prisma.userSession.update({
+        where: { id: existingSession.id },
+        data: {
+          token_jti: tokenJti,
+          organization_id: user.organization_id,
+          ...device,
+          country: location.country ?? existingSession.country,
+          region: location.region ?? existingSession.region,
+          city: location.city ?? existingSession.city,
+          last_seen_at: now,
+          revoked_at: null,
+          expires_at: new Date(now.getTime() + this.accessTokenTtlMs),
+        },
+      });
+    }
 
     return this.prisma.userSession.create({
       data: {
@@ -402,6 +437,42 @@ export class AuthService {
       },
       orderBy: { last_seen_at: 'desc' },
     });
+
+    const seenFingerprints = new Set<string>();
+    const duplicateSessionIds: string[] = [];
+    const dedupedSessions: typeof sessions = [];
+
+    for (const session of sessions) {
+      const fingerprint = `${session.user_agent || 'unknown'}|${session.ip_address || 'unknown'}`;
+      if (session.id === currentSessionId) {
+        const existingIndex = dedupedSessions.findIndex(
+          (dedupedSession) => `${dedupedSession.user_agent || 'unknown'}|${dedupedSession.ip_address || 'unknown'}` === fingerprint,
+        );
+        if (existingIndex >= 0) {
+          duplicateSessionIds.push(dedupedSessions[existingIndex].id);
+          dedupedSessions.splice(existingIndex, 1);
+        }
+        seenFingerprints.add(fingerprint);
+        dedupedSessions.push(session);
+        continue;
+      }
+
+      if (!seenFingerprints.has(fingerprint) || session.id === currentSessionId) {
+        seenFingerprints.add(fingerprint);
+        dedupedSessions.push(session);
+        continue;
+      }
+
+      duplicateSessionIds.push(session.id);
+    }
+
+    if (duplicateSessionIds.length > 0) {
+      await this.prisma.userSession.updateMany({
+        where: { id: { in: duplicateSessionIds }, user_id: userId },
+        data: { revoked_at: new Date() },
+      });
+      sessions = dedupedSessions;
+    }
 
     const sessionsToBackfill = sessions.filter((session) =>
       session.ip_address &&
