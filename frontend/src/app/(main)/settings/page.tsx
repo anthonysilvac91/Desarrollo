@@ -1051,16 +1051,6 @@ export default function SettingsPage() {
 function NotificationsTab({ t }: { t: any }) {
   const n = t.settings.notifications_section;
 
-  const [enabled, setEnabled] = useState({
-    email_alerts: true,
-    system_logs: true,
-    weekly_summary: true,
-    newsletter: false,
-  });
-
-  const toggle = (key: keyof typeof enabled) =>
-    setEnabled(prev => ({ ...prev, [key]: !prev[key] }));
-
   const items = [
     { key: "email_alerts" as const,    icon: Mail,       name: n.email_alerts_name,    desc: n.email_alerts_desc    },
     { key: "system_logs" as const,     icon: Database,   name: n.system_logs_name,     desc: n.system_logs_desc     },
@@ -1080,30 +1070,30 @@ function NotificationsTab({ t }: { t: any }) {
 
           <div className="space-y-3">
             {items.map(({ key, icon: Icon, name, desc }) => {
-              const on = enabled[key];
               return (
                 <div
                   key={key}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 transition-all"
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 opacity-70 transition-all"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-brand" strokeWidth={1.5} />
+                  <div className="w-10 h-10 rounded-xl bg-white border border-border-theme/25 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-subtitle/40" strokeWidth={1.5} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-title">{name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-bold text-title">{name}</p>
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-border-theme/60 text-subtitle/50 border border-border-theme">
+                        Proximamente
+                      </span>
+                    </div>
                     <p className="text-xs text-subtitle/50 mt-0.5">{desc}</p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => toggle(key)}
-                    className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200 ${
-                      on ? "bg-brand" : "bg-border-theme/40"
-                    }`}
+                    disabled
+                    className="relative shrink-0 w-12 h-6 rounded-full bg-border-theme/40 transition-colors duration-200 cursor-not-allowed"
                   >
                     <span
-                      className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                        on ? "translate-x-6" : "translate-x-0"
-                      }`}
+                      className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-0"
                     />
                   </button>
                 </div>
@@ -2104,16 +2094,6 @@ function TimezoneSelect({ value, onChange, searchPlaceholder = "Search timezone.
 function MobileNotificationsTab({ t }: { t: any }) {
   const n = t.settings.notifications_section;
 
-  const [enabled, setEnabled] = useState({
-    email_alerts: true,
-    system_logs: true,
-    weekly_summary: true,
-    newsletter: false,
-  });
-
-  const toggle = (key: keyof typeof enabled) =>
-    setEnabled(prev => ({ ...prev, [key]: !prev[key] }));
-
   const items = [
     { key: "email_alerts" as const,   icon: Mail,      name: n.email_alerts_name,   desc: n.email_alerts_desc   },
     { key: "system_logs" as const,    icon: Database,  name: n.system_logs_name,    desc: n.system_logs_desc    },
@@ -2131,33 +2111,29 @@ function MobileNotificationsTab({ t }: { t: any }) {
 
         <div className="space-y-2">
           {items.map(({ key, icon: Icon, name, desc }) => {
-            const on = enabled[key];
             return (
               <div
                 key={key}
-                className={`flex items-center gap-3.5 p-4 rounded-2xl border-2 transition-all ${
-                  on ? "border-brand/20 bg-brand/[0.03]" : "border-border-theme/30 bg-app-bg/30"
-                }`}
+                className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-border-theme/30 bg-app-bg/30 opacity-70 transition-all"
               >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  on ? "bg-brand/10" : "bg-white border border-border-theme/20"
-                }`}>
-                  <Icon className={`w-4 h-4 transition-colors ${on ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white border border-border-theme/20 transition-colors">
+                  <Icon className="w-4 h-4 text-subtitle/40 transition-colors" strokeWidth={1.5} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-bold transition-colors ${on ? "text-title" : "text-subtitle/60"}`}>{name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-title transition-colors">{name}</p>
+                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-border-theme/60 text-subtitle/50 border border-border-theme">
+                      Proximamente
+                    </span>
+                  </div>
                   <p className="text-xs text-subtitle/50 mt-0.5 leading-snug">{desc}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => toggle(key)}
-                  className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
-                    on ? "bg-brand" : "bg-border-theme/40"
-                  }`}
+                  disabled
+                  className="relative shrink-0 w-11 h-6 rounded-full bg-border-theme/40 transition-colors duration-200 cursor-not-allowed"
                 >
-                  <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                    on ? "translate-x-5" : "translate-x-0"
-                  }`} />
+                  <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-0" />
                 </button>
               </div>
             );
