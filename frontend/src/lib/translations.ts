@@ -171,7 +171,7 @@ export const translations = {
       }
     },
     services: {
-      search_placeholder: "Search services by description, asset, owner...",
+      search_placeholder: "Search by service...",
       filter: "Filter",
       add_new: "Add new",
       filter_all: "All",
@@ -902,7 +902,7 @@ export const translations = {
       }
     },
     services: {
-      search_placeholder: "Buscar servicios por descripción, activo, empresa...",
+      search_placeholder: "Búsqueda por servicio...",
       filter: "Filtrar",
       add_new: "Agregar nuevo",
       filter_all: "Todos",
