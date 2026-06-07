@@ -46,7 +46,6 @@ import {
 import { useLanguage } from "@/lib/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import ModuleContainer from "@/components/ui/ModuleContainer";
-import MobileDevBanner from "@/components/ui/MobileDevBanner";
 import { organizationsService } from "@/services/organizations.service";
 import { usersService } from "@/services/users.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -272,7 +271,235 @@ export default function SettingsPage() {
           onError={(msg) => { showToast(msg, "error"); setLogoCropSrc(null); }}
         />
       )}
-      <MobileDevBanner />
+      {/* ── Mobile Settings ── */}
+      <div className="lg:hidden flex flex-col">
+        {/* Tab bar */}
+        <div className="flex overflow-x-auto border-b border-border-theme/30 scrollbar-none bg-white">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={`relative flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
+                  isActive ? "text-brand" : "text-subtitle/50"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" strokeWidth={isActive ? 2 : 1.5} />
+                <span>{tab.label}</span>
+                {isActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab content */}
+        <div className="pb-32">
+          {activeTab === "profile" ? (
+            <div className="p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+              {/* Organization Profile card */}
+              <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-5">
+                <div>
+                  <p className="text-sm font-black text-title">{t.settings.owner_section.title}</p>
+                  <p className="text-xs text-subtitle/50 mt-0.5">Manage your organization&apos;s main information and visibility.</p>
+                </div>
+
+                {/* Centered logo */}
+                <div className="flex justify-center">
+                  <div className="relative inline-block">
+                    {logoPreview ? (
+                      <>
+                        <div className="w-24 h-24 rounded-2xl border-2 border-border-theme/20 bg-app-bg/40 overflow-hidden">
+                          <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
+                        </div>
+                        <label className="absolute -bottom-2 -right-2 bg-brand text-white p-2 rounded-xl shadow-md cursor-pointer hover:scale-105 active:scale-95 transition-all">
+                          <Pencil className="w-3.5 h-3.5" />
+                          <input type="file" className="hidden" accept="image/*" onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const r = new FileReader();
+                            r.onloadend = () => setLogoCropSrc(r.result as string);
+                            r.readAsDataURL(file);
+                            e.target.value = "";
+                          }} />
+                        </label>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer group block">
+                        <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-border-theme/40 bg-app-bg/40 flex flex-col items-center justify-center gap-1.5 group-hover:border-brand/40 group-hover:bg-brand/5 transition-all overflow-hidden">
+                          <ImageIcon className="w-6 h-6 text-subtitle/30 group-hover:text-brand/40 transition-colors" strokeWidth={1.5} />
+                          <span className="text-[10px] font-semibold text-subtitle/40 text-center leading-tight px-2">
+                            {t.settings.owner_section.upload_logo}
+                          </span>
+                        </div>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const r = new FileReader();
+                          r.onloadend = () => setLogoCropSrc(r.result as string);
+                          r.readAsDataURL(file);
+                          e.target.value = "";
+                        }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Org name */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-subtitle/50">{t.settings.owner_section.name}</label>
+                  <input
+                    type="text"
+                    value={orgName}
+                    onChange={e => setOrgName(e.target.value)}
+                    readOnly={!canManageOrgSettings}
+                    className={`w-full px-4 py-3 border-2 rounded-2xl text-sm text-title font-semibold outline-none transition-all shadow-sm ${
+                      canManageOrgSettings
+                        ? "bg-white border-border-theme/50 focus:ring-2 focus:ring-brand/15 focus:border-brand"
+                        : "bg-app-bg/50 border-border-theme/40 opacity-70 cursor-default"
+                    }`}
+                  />
+                </div>
+
+                {/* Show org name toggle */}
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={showOrgName}
+                    onClick={() => setShowOrgName(v => !v)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none mt-0.5 ${
+                      showOrgName ? "bg-brand" : "bg-border-theme/40"
+                    }`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${showOrgName ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                  <div>
+                    <p className="text-sm font-semibold text-title leading-tight">{t.settings.owner_section.show_org_name}</p>
+                    <p className="text-xs text-subtitle/50 mt-0.5 leading-snug">
+                      When enabled, the organization name will be displayed alongside your logo in the top bar and public views.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Brand Identity card */}
+              <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+                <div>
+                  <p className="text-sm font-black text-title">{t.settings.branding_section.palette}</p>
+                  <p className="text-xs text-subtitle/50 mt-0.5">{t.settings.branding_section.subtitle}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {BRAND_PALETTES.map((palette) => {
+                    const isSelected = selectedPalette === palette.id;
+                    return (
+                      <button
+                        key={palette.id}
+                        onClick={() => setSelectedPalette(palette.id)}
+                        className={`relative w-10 h-10 rounded-2xl transition-all active:scale-95 ${palette.base} ${
+                          isSelected ? "ring-2 ring-offset-2 ring-brand shadow-md" : "opacity-80"
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5 text-white drop-shadow" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Asset Defaults card */}
+              <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+                <div>
+                  <p className="text-sm font-black text-title">{t.settings.asset_section.title}</p>
+                  <p className="text-xs text-subtitle/50 mt-0.5">{t.settings.asset_section.subtitle}</p>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {ASSET_ICONS.map((item) => {
+                    const Icon = item.icon;
+                    const isSelected = selectedIcon === item.id;
+                    const iconLabel = (t.settings.asset_section.icons as Record<string, string>)[item.id] || item.label;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedIcon(item.id)}
+                        className={`flex flex-col items-center justify-center py-3 px-1 rounded-2xl border-2 transition-all gap-1.5 ${
+                          isSelected
+                            ? "bg-brand/5 border-brand shadow-sm"
+                            : "bg-white border-border-theme/30"
+                        }`}
+                      >
+                        <Icon className={`w-5 h-5 ${isSelected ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+                        <span className={`text-[10px] font-semibold text-center leading-tight ${isSelected ? "text-brand" : "text-subtitle/50"}`}>{iconLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            /* Coming soon for other tabs */
+            <div className="flex flex-col items-center justify-center gap-3 py-32 text-center animate-in fade-in duration-300">
+              {(() => {
+                const activeTabData = tabs.find(tb => tb.id === activeTab);
+                const Icon = activeTabData?.icon;
+                return (
+                  <>
+                    <div className="w-14 h-14 rounded-2xl bg-app-bg/80 border border-border-theme/30 flex items-center justify-center">
+                      {Icon && <Icon className="w-6 h-6 text-subtitle/30" strokeWidth={1.5} />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-title/60">{activeTabData?.label}</p>
+                      <p className="text-xs text-subtitle/40 mt-0.5">Próximamente</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Sticky bottom actions — only on profile tab */}
+        {activeTab === "profile" && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-border-theme/20 px-4 py-4 flex items-center gap-3 z-20">
+            <button
+              type="button"
+              onClick={() => {
+                if (org) {
+                  setOrgName(org.name || "");
+                  setShowOrgName(org.show_org_name ?? false);
+                  setLogoPreview(org.logo_url || null);
+                  setLogoFile(null);
+                  const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
+                  setSelectedPalette(found?.id || "recall");
+                  if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
+                }
+              }}
+              className="flex-1 py-3 rounded-2xl text-sm font-semibold text-subtitle/60 border border-border-theme/40 hover:bg-app-bg/80 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={mutation.isPending}
+              className="flex-1 flex items-center justify-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white py-3 rounded-2xl text-sm font-semibold transition-all shadow-sm shadow-brand/20 disabled:opacity-50"
+            >
+              {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Save changes</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Desktop Settings ── */}
       <div className="hidden lg:flex flex-col space-y-6">
       {/* Horizontal Tabs Navigation */}
       <div className="flex items-center border-b border-border-theme/30">
