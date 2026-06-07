@@ -16,6 +16,7 @@ interface DateFilterDropdownProps {
   onChange: (preset: string, start?: string, end?: string) => void;
   options: PresetOption[];
   placeholder: string;
+  compact?: boolean;
   iconOnlyCustom?: boolean;
   bottomSheet?: boolean;
 }
@@ -173,6 +174,7 @@ export default function DateFilterDropdown({
   onChange,
   options,
   placeholder,
+  compact: _compact = false,
   iconOnlyCustom = false,
   bottomSheet = false,
 }: DateFilterDropdownProps) {
