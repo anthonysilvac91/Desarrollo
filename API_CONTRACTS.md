@@ -1,103 +1,141 @@
 # Contratos API: Recall MVP
 
-Este documento detalla los endpoints principales consumidos por el frontend y las reglas de comunicacion con el backend.
+Este documento detalla los endpoints del backend consumidos por el frontend.
 
 ## Informacion Base
-- **URL Base**: `http://localhost:3001` (dev)
-- **Content-Type**: `application/json` (excepto subidas de archivos)
-- **Autenticacion**: Bearer Token (JWT) en el header `Authorization`
+
+- **URL Base dev**: `http://localhost:3001`
+- **Content-Type**: `application/json` (excepto subidas de archivos: `multipart/form-data`)
+- **Autenticacion**: `Authorization: Bearer <JWT>` en todos los endpoints protegidos
+- **Rate limiting**: 60 req/min por defecto. Limites estrictos en auth (login: 5/min, forgot-password: 3/min)
 
 ---
 
-## 1. Modulo: Auth
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/auth/login` | Publico | Login. Req: `{email, password, organizationId?}`. |
-| `POST` | `/auth/register` | Publico | Registro via invitacion. Req: `{token, password, name}`. |
-| `GET` | `/auth/me` | Todos | Retorna perfil del usuario y branding de su organization. |
+## 1. Auth — `/auth`
 
-## 2. Modulo: Organizations
-| Metodo | Ruta | Rol | Descripcion |
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/auth/login` | Publico | Login. Body: `{ email, password }`. Devuelve JWT. |
+| `POST` | `/auth/register` | Publico | Registro via invitacion. Body: `{ token, password, name }`. |
+| `POST` | `/auth/forgot-password` | Publico | Envia email de reset. Body: `{ email }`. |
+| `POST` | `/auth/reset-password` | Publico | Aplica nueva contrasena. Body: `{ token, password }`. |
+| `POST` | `/auth/2fa/login` | Publico | Login con codigo TOTP. Body: `{ tempToken, code }`. |
+| `GET` | `/auth/me` | Autenticado | Perfil del usuario + branding de su organization. |
+| `GET` | `/auth/sessions` | Autenticado | Lista sesiones activas del usuario (por dispositivo). |
+| `Delete` | `/auth/sessions/:id` | Autenticado | Revoca una sesion especifica. |
+| `POST` | `/auth/sessions/revoke-others` | Autenticado | Revoca todas las sesiones excepto la actual. |
+| `POST` | `/auth/logout` | Autenticado | Cierra la sesion actual. |
+| `GET` | `/auth/2fa/status` | Autenticado | Estado de 2FA del usuario. |
+| `POST` | `/auth/2fa/setup` | Autenticado | Inicia configuracion de 2FA. Devuelve QR y secret. |
+| `POST` | `/auth/2fa/verify-setup` | Autenticado | Confirma configuracion con codigo TOTP. |
+| `POST` | `/auth/2fa/disable` | Autenticado | Desactiva 2FA. Body: `{ code }`. |
+
+---
+
+## 2. Organizations — `/organizations`
+
+| Metodo | Ruta | Acceso | Descripcion |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/organizations` | SUPER_ADMIN | Listado global de tenants. |
-| `POST` | `/organizations` | SUPER_ADMIN | Crea una organization e invita al primer admin. |
+| `POST` | `/organizations` | SUPER_ADMIN | Crea una organization. |
+| `GET` | `/organizations/me` | Autenticado | Datos de la organization del usuario actual. |
+| `GET` | `/organizations/me/storage` | ADMIN | Uso de almacenamiento del tenant. |
+| `POST` | `/organizations/me/storage/reconcile` | ADMIN | Reconcilia archivos huerfanos en storage. |
 | `PATCH` | `/organizations/:id/status` | SUPER_ADMIN | Activa o desactiva una organization. |
-| `PATCH` | `/organizations/settings` | ADMIN | Modifica branding y politicas de la organization. |
+| `PATCH` | `/organizations/settings` | ADMIN | Modifica branding y politicas. `multipart/form-data` (incluye logo). |
 
-## 3. Modulo: Invitations
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/invitations` | ADMIN / SUPER_ADMIN | Crea una invitacion para un nuevo usuario. |
-| `POST` | `/invitations/validate` | Publico | Valida si un token es valido antes de registrar. |
-
-## 4. Modulo: Companies
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/companies` | ADMIN | Listado oficial de companies del tenant. |
-| `POST` | `/companies` | ADMIN | Crea una company dentro de la organization. |
-| `GET` | `/companies/:id` | ADMIN | Detalle de una company con usuarios y activos asociados. |
-| `PATCH` | `/companies/:id` | ADMIN | Actualiza una company. |
-| `DELETE` | `/companies/:id` | ADMIN | Baja logica de una company. |
-
-## 4.1. Modulo: Customers (Legacy)
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/customers` | ADMIN | Alias legacy de `/companies`. |
-| `POST` | `/customers` | ADMIN | Alias legacy de `/companies`. |
-| `GET` | `/customers/:id` | ADMIN | Alias legacy de `/companies/:id`. |
-| `PATCH` | `/customers/:id` | ADMIN | Alias legacy de `/companies/:id`. |
-| `DELETE` | `/customers/:id` | ADMIN | Alias legacy de `/companies/:id`. |
-
-## 5. Modulo: Assets
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/assets` | Todos | Lista activos segun rol (Admin/Worker: todos; Client: vinculados a su company). |
-| `POST` | `/assets` | ADMIN / WORKER | Crea un activo. |
-| `GET` | `/assets/:id` | Todos | Detalle del activo + historial de servicios. |
-| `POST` | `/assets/:id/clients/:clientId` | ADMIN | Alias legacy para vincular una `Company` al activo. |
-
-## 6. Modulo: Services
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/services` | WORKER / ADMIN | Registro de servicio. **Content-Type: multipart/form-data**. |
-| `GET` | `/services` | Todos | Lista servicios. Filtra privados si el rol es CLIENT (usuario asociado a una company). |
-| `PATCH` | `/services/:id` | ADMIN | Edita datos, estatus o visibilidad publica del servicio. |
-
-## 7. Modulo: Dashboard & Users
-| Metodo | Ruta | Rol | Descripcion |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/dashboard` | ADMIN / SUPER_ADMIN | Estadisticas (KPIs) de la organization o globales. |
-| `GET` | `/users` | ADMIN / SUPER_ADMIN | Listado de equipo y usuarios segun tenant. |
-| `POST` | `/users` | ADMIN / SUPER_ADMIN | Creacion manual de usuarios. SUPER_ADMIN puede indicar `organization_id`; ADMIN queda forzado a su propia organization. `company_id` solo aplica a CLIENT. |
-
-### Alta manual del ADMIN inicial
-
-Para produccion, por ahora no se usa `/auth/register` ni el `initial_invitation_token` para crear el ADMIN inicial. El procedimiento operativo esta documentado en [INITIAL_ADMIN_MANUAL_PROCEDURE.md](INITIAL_ADMIN_MANUAL_PROCEDURE.md).
-
-Payload minimo para `SUPER_ADMIN`:
-
-```json
-{
-  "email": "admin@acme.example",
-  "password": "<temporary-strong-password>",
-  "name": "Admin Acme",
-  "role": "ADMIN",
-  "organization_id": "<organization_id>"
-}
-```
-
-Validaciones principales:
-- `email` valido y no duplicado dentro de la misma organization.
-- `password` minimo 8 caracteres.
-- `role` valido: `SUPER_ADMIN`, `ADMIN`, `WORKER`, `CLIENT`.
-- `ADMIN` y `WORKER` no aceptan `company_id`.
-- `CLIENT` puede usar `company_id` si pertenece a la misma organization.
-- `ADMIN` normal no puede crear usuarios fuera de su `organization_id`.
+Campos editables en `PATCH /organizations/settings`: `name`, `brand_color`, `default_asset_icon`, `show_org_name`, `auto_publish_services`, `worker_edit_policy`, `worker_edit_window_hours`, `worker_restricted_access`.
 
 ---
 
-## Manejo de Errores Unificado
+## 3. Invitations — `/invitations`
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/invitations` | ADMIN / SUPER_ADMIN | Crea y envia invitacion por email. Body: `{ email, role, owner_id? }`. `owner_id` obligatorio para rol `EXTERNAL`. |
+| `POST` | `/invitations/validate` | Publico | Valida un token de invitacion. Body: `{ token }`. |
+
+---
+
+## 4. Owners — `/owners`
+
+Entidad que representa la empresa cliente dentro de un tenant. Cada `Asset` pertenece a un `Owner`.
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/owners` | ADMIN / EXTERNAL | Lista owners del tenant. EXTERNAL solo ve el suyo. |
+| `POST` | `/owners` | ADMIN | Crea un owner. |
+| `GET` | `/owners/:id` | ADMIN | Detalle del owner con assets y usuarios asociados. |
+| `PATCH` | `/owners/:id` | ADMIN | Actualiza datos del owner. `multipart/form-data` (incluye logo). |
+| `PATCH` | `/owners/:id/status` | ADMIN | Activa o desactiva un owner. |
+| `DELETE` | `/owners/:id` | ADMIN | Baja logica del owner. |
+
+---
+
+## 5. Assets — `/assets`
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/assets` | ADMIN / WORKER / EXTERNAL | Lista activos. EXTERNAL: solo los de su owner. WORKER: todos los activos activos del tenant. |
+| `POST` | `/assets` | ADMIN / WORKER | Crea un activo. `multipart/form-data` (incluye thumbnail). |
+| `GET` | `/assets/stats` | ADMIN / WORKER / EXTERNAL | Conteos de activos segun rol. |
+| `GET` | `/assets/:id` | ADMIN / WORKER / EXTERNAL | Detalle del activo + historial de services. |
+| `PATCH` | `/assets/:id` | ADMIN / WORKER | Actualiza activo. WORKER solo puede actualizar el thumbnail. `multipart/form-data`. |
+| `PATCH` | `/assets/:id/status` | ADMIN | Activa o desactiva el activo (soft). |
+| `DELETE` | `/assets/:id` | ADMIN | Baja logica del activo. |
+| `POST` | `/assets/:id/owners/:ownerId` | ADMIN | Vincula un owner al activo. |
+| `DELETE` | `/assets/:id/owners/:ownerId` | ADMIN | Desvincula un owner del activo. |
+
+---
+
+## 6. Services — `/services`
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/services` | ADMIN / WORKER | Registra un service. `multipart/form-data` (incluye adjuntos de imagen). |
+| `GET` | `/services` | Todos | Lista services. EXTERNAL: solo publicos y completados de su owner. |
+| `GET` | `/services/stats` | ADMIN / WORKER | Estadisticas de services del tenant o del worker. |
+| `GET` | `/services/:id` | Todos | Detalle del service con adjuntos. |
+| `PATCH` | `/services/:id` | ADMIN / WORKER | Edita `title`, `description`, `status`, `is_public`. WORKER sujeto a `worker_edit_policy`. |
+| `DELETE` | `/services/:id` | ADMIN | Elimina el service (fisico). |
+
+---
+
+## 7. Users — `/users`
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/users/stats` | ADMIN / SUPER_ADMIN | Conteos de usuarios por rol en el tenant. |
+| `GET` | `/users` | ADMIN / SUPER_ADMIN | Lista usuarios del tenant. |
+| `POST` | `/users` | ADMIN / SUPER_ADMIN | Crea usuario manualmente. SUPER_ADMIN puede indicar `organization_id`. |
+| `PATCH` | `/users/me` | Autenticado | Actualiza perfil propio (nombre, email, telefono, avatar). `multipart/form-data`. |
+| `PATCH` | `/users/:id` | ADMIN / SUPER_ADMIN | Actualiza datos de otro usuario. |
+| `PATCH` | `/users/:id/status` | ADMIN / SUPER_ADMIN | Activa o desactiva un usuario. |
+| `GET` | `/users/:id` | ADMIN / SUPER_ADMIN | Detalle de un usuario. |
+
+Validaciones en `POST /users`:
+- `email` globalmente unico en toda la plataforma.
+- `password` minimo 8 caracteres.
+- `role` valido: `SUPER_ADMIN`, `ADMIN`, `WORKER`, `EXTERNAL`.
+- `EXTERNAL` requiere `owner_id` valido y activo dentro de la misma organization.
+- `ADMIN` y `WORKER` no aceptan `owner_id`.
+
+---
+
+## 8. Dashboard — `/dashboard`
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/dashboard` | ADMIN / WORKER / EXTERNAL / SUPER_ADMIN | KPIs, evolucion 7 dias, top assets, top workers. WORKER: filtrado a sus propios services. EXTERNAL: filtrado a assets de su owner. |
+
+Query params opcionales: `startDate`, `endDate`, `organizationId` (solo SUPER_ADMIN).
+
+---
+
+## Manejo de Errores
+
 Todas las respuestas de error (4xx, 5xx) siguen este esquema:
+
 ```json
 {
   "statusCode": 401,
@@ -108,4 +146,5 @@ Todas las respuestas de error (4xx, 5xx) siguen este esquema:
 ```
 
 ---
-[Ir a Arquitectura (ARCHITECTURE.md)](ARCHITECTURE.md) | [Volver al README](README.md)
+
+[Ir a Arquitectura](ARCHITECTURE.md) | [Volver al README](README.md)

@@ -84,8 +84,7 @@ Todas las cuentas creadas por `seed` usan la contrasena `password123`.
 - `Organization` es el tenant raiz.
 - `Company` representa la empresa cliente de una organization.
 - `User` representa una persona.
-- El rol `CLIENT` se mantiene por compatibilidad tecnica, pero representa a un usuario asociado a una `Company`.
-- La API oficial para empresas cliente es `/companies`. La ruta `/customers` queda como alias legacy temporal.
+- El rol `EXTERNAL` representa a un usuario asociado a un `Owner` (empresa cliente). Solo ve assets y services marcados como publicos dentro de su owner.
 
 ## Nota Legacy
 
