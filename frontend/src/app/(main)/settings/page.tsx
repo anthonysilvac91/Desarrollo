@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import ReactDOM from "react-dom";
+import QRCode from "qrcode";
 import { 
   Building2,
   Camera,
@@ -48,6 +49,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import { organizationsService } from "@/services/organizations.service";
 import { usersService } from "@/services/users.service";
+import { authService, AuthSession, TwoFactorSetup } from "@/services/auth.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -1115,6 +1117,407 @@ function NotificationsTab({ t }: { t: any }) {
   );
 }
 
+function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }) {
+  const { showToast } = useToast();
+  const { refreshUser } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isWorking, setIsWorking] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [backupCount, setBackupCount] = useState(0);
+  const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
+  const [code, setCode] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isBackupCodesOpen, setIsBackupCodesOpen] = useState(false);
+  const [isDisableOpen, setIsDisableOpen] = useState(false);
+
+  const loadStatus = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const status = await authService.getTwoFactorStatus();
+      setIsEnabled(status.enabled);
+      setBackupCount(status.backup_codes_remaining);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "No se pudo cargar el estado 2FA";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showToast]);
+
+  React.useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    if (!setup?.otpauth_url) {
+      setQrDataUrl("");
+      return;
+    }
+
+    QRCode.toDataURL(setup.otpauth_url, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: compact ? 180 : 220,
+      color: {
+        dark: "#111827",
+        light: "#FFFFFF",
+      },
+    })
+      .then(dataUrl => {
+        if (!cancelled) {
+          setQrDataUrl(dataUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl("");
+          showToast("No se pudo generar el QR 2FA", "error");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [compact, setup?.otpauth_url, showToast]);
+
+  const inputClass = compact
+    ? "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand"
+    : "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand";
+
+  const startSetup = async () => {
+    setIsWorking(true);
+    setBackupCodes([]);
+    try {
+      const data = await authService.setupTwoFactor();
+      setSetup(data);
+      setQrDataUrl("");
+      setIsQrOpen(true);
+      setCode("");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "No se pudo iniciar 2FA";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const verifySetup = async () => {
+    if (!setup || !code.trim()) return;
+    setIsWorking(true);
+    try {
+      const result = await authService.verifyTwoFactorSetup(setup.setup_token, code);
+      setIsEnabled(result.enabled);
+      setBackupCount(result.backup_codes.length);
+      setBackupCodes(result.backup_codes);
+      setSetup(null);
+      setIsQrOpen(false);
+      setIsBackupCodesOpen(true);
+      setCode("");
+      await refreshUser();
+      showToast("2FA activado correctamente", "success");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Codigo 2FA invalido";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const cancelSetup = () => {
+    setSetup(null);
+    setIsQrOpen(false);
+    setQrDataUrl("");
+    setCode("");
+  };
+
+  const disable = async () => {
+    if (!disableCode.trim()) return;
+    setIsWorking(true);
+    try {
+      await authService.disableTwoFactor(disableCode);
+      setIsEnabled(false);
+      setBackupCount(0);
+      setDisableCode("");
+      setBackupCodes([]);
+      setIsDisableOpen(false);
+      await refreshUser();
+      showToast("2FA desactivado", "success");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "No se pudo desactivar 2FA";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const qrModal = setup && isQrOpen ? (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm"
+      onClick={cancelSetup}
+    >
+      <div
+        className="w-full max-w-sm rounded-[28px] bg-white shadow-2xl border border-border-theme/20 overflow-hidden"
+        onClick={event => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-border-theme/20 px-5 py-4">
+          <div>
+            <p className="text-base font-black text-title">Escanear QR 2FA</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Google Authenticator o Microsoft Authenticator</p>
+          </div>
+          <button
+            type="button"
+            onClick={cancelSetup}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-border-theme/30 text-subtitle hover:bg-app-bg"
+            aria-label="Cerrar QR 2FA"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-5">
+          <div className="flex justify-center">
+            <div className="rounded-3xl border border-border-theme/30 bg-white p-3 shadow-sm">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="QR para configurar autenticacion de dos factores"
+                  className="h-[220px] w-[220px]"
+                />
+              ) : (
+                <div className="grid h-[220px] w-[220px] place-items-center rounded-2xl bg-app-bg text-xs font-bold text-subtitle/50">
+                  Generando QR...
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-app-bg/60 border border-border-theme/20 p-3 space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-subtitle/40">Clave manual</p>
+            <p className="break-all font-mono text-sm font-black tracking-wider text-title">{setup.secret}</p>
+          </div>
+
+          <details className="text-xs text-subtitle/50">
+            <summary className="cursor-pointer font-bold text-brand">URI otpauth avanzado</summary>
+            <p className="mt-2 break-all font-mono">{setup.otpauth_url}</p>
+          </details>
+
+          <input
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="Codigo de 6 digitos"
+            className={inputClass}
+            disabled={isWorking}
+          />
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={verifySetup}
+              disabled={isWorking || !code.trim()}
+              className="flex-1 rounded-2xl bg-brand px-4 py-3 text-sm font-black text-white shadow-sm shadow-brand/20 disabled:opacity-50"
+            >
+              Verificar y activar
+            </button>
+            <button
+              type="button"
+              onClick={cancelSetup}
+              className="rounded-2xl border border-border-theme/50 px-4 py-3 text-sm font-bold text-subtitle"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const backupCodesModal = backupCodes.length > 0 && isBackupCodesOpen ? (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-[28px] bg-white shadow-2xl border border-border-theme/20 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-border-theme/20 px-5 py-4">
+          <div>
+            <p className="text-base font-black text-title">Codigos de recuperacion</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Guardalos antes de cerrar esta ventana</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsBackupCodesOpen(false)}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-border-theme/30 text-subtitle hover:bg-app-bg"
+            aria-label="Cerrar codigos de recuperacion"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-5">
+          <div className="grid grid-cols-2 gap-2">
+            {backupCodes.map(item => (
+              <code key={item} className="rounded-xl bg-app-bg px-3 py-2 text-xs font-black text-title text-center">{item}</code>
+            ))}
+          </div>
+          <p className="text-xs font-semibold text-amber-700">
+            Estos codigos se muestran una sola vez. Cada codigo sirve una vez para recuperar el acceso si pierdes la app autenticadora.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsBackupCodesOpen(false)}
+            className="w-full rounded-2xl bg-brand px-4 py-3 text-sm font-black text-white shadow-sm shadow-brand/20"
+          >
+            Ya los guarde
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const disableModal = isEnabled && isDisableOpen ? (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm"
+      onClick={() => { setIsDisableOpen(false); setDisableCode(""); }}
+    >
+      <div
+        className="w-full max-w-sm rounded-[28px] bg-white shadow-2xl border border-border-theme/20 overflow-hidden"
+        onClick={event => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-border-theme/20 px-5 py-4">
+          <div>
+            <p className="text-base font-black text-title">Desactivar 2FA</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Confirma tu identidad para cambiar esta proteccion</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setIsDisableOpen(false); setDisableCode(""); }}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-border-theme/30 text-subtitle hover:bg-app-bg"
+            aria-label="Cerrar desactivacion 2FA"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-5">
+          <p className="text-sm text-subtitle/60">
+            Ingresa el codigo actual de tu app autenticadora para desactivar el doble factor.
+          </p>
+          <input
+            value={disableCode}
+            onChange={e => setDisableCode(e.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="Codigo de autenticacion"
+            className={inputClass}
+            disabled={isWorking}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={disable}
+              disabled={isWorking || !disableCode.trim()}
+              className="flex-1 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-500 border border-red-100 disabled:opacity-50"
+            >
+              Desactivar
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsDisableOpen(false); setDisableCode(""); }}
+              className="rounded-2xl border border-border-theme/50 px-4 py-3 text-sm font-bold text-subtitle"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-4">
+      {typeof document !== "undefined" && qrModal
+        ? ReactDOM.createPortal(qrModal, document.body)
+        : null}
+      {typeof document !== "undefined" && backupCodesModal
+        ? ReactDOM.createPortal(backupCodesModal, document.body)
+        : null}
+      {typeof document !== "undefined" && disableModal
+        ? ReactDOM.createPortal(disableModal, document.body)
+        : null}
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={compact ? "text-sm font-black text-title" : "text-base font-black text-title"}>{s.twofa_title}</p>
+          <p className={compact ? "text-xs text-subtitle/50 mt-0.5" : "text-sm text-subtitle/50 mt-1"}>{s.twofa_subtitle}</p>
+        </div>
+        <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+          isEnabled ? "bg-green-50 text-green-600 border-green-100" : "bg-amber-50 text-amber-500 border-amber-100"
+        }`}>
+          {isLoading ? "..." : isEnabled ? s.twofa_status_active : s.twofa_status_inactive}
+        </span>
+      </div>
+
+      <div className={`rounded-2xl border-2 p-4 ${isEnabled ? "border-brand/30 bg-brand/5" : "border-border-theme/30 bg-app-bg/40"}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isEnabled ? "bg-brand/10" : "bg-white border border-border-theme/30"}`}>
+            <Smartphone className={`w-5 h-5 ${isEnabled ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-bold ${isEnabled ? "text-brand" : "text-title"}`}>{s.twofa_app_name}</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">{s.twofa_app_desc}</p>
+          </div>
+          {!isEnabled && !setup && (
+            <button
+              type="button"
+              onClick={startSetup}
+              disabled={isWorking || isLoading}
+              className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white shadow-sm shadow-brand/20 hover:bg-brand/90 disabled:opacity-50"
+            >
+              {isWorking ? "..." : s.activate}
+            </button>
+          )}
+          {isEnabled && (
+            <button
+              type="button"
+              onClick={() => setIsDisableOpen(true)}
+              disabled={isWorking || isLoading}
+              className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 disabled:opacity-50"
+            >
+              {s.deactivate}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        {[
+          { icon: MessageSquare, name: s.twofa_sms_name, desc: s.twofa_sms_desc },
+          { icon: Mail, name: s.twofa_email_name, desc: s.twofa_email_desc },
+        ].map(method => {
+          const Icon = method.icon;
+          return (
+            <div key={method.name} className="flex items-center gap-3 p-3 rounded-2xl border border-border-theme/25 bg-app-bg/30 opacity-60">
+              <Icon className="w-4 h-4 text-subtitle/40" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-title">{method.name}</p>
+                <p className="text-[11px] text-subtitle/50">{method.desc} · Proximamente</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-start gap-2 pt-1">
+        <Info className="w-4 h-4 text-subtitle/30 shrink-0 mt-0.5" />
+        <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
+      </div>
+    </div>
+  );
+}
+
 function SecurityTab({ t }: { t: any }) {
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -1210,7 +1613,7 @@ function SecurityTab({ t }: { t: any }) {
 
             <button
               type="button"
-              className="w-full py-3 rounded-2xl bg-title text-white text-sm font-black tracking-tight transition-all hover:bg-title/90 active:scale-95 shadow-md"
+              className="w-full py-3 rounded-2xl bg-brand text-white text-sm font-black tracking-tight transition-all hover:bg-brand/90 active:scale-95 shadow-md shadow-brand/20"
             >
               {s.update_password}
             </button>
@@ -1220,6 +1623,8 @@ function SecurityTab({ t }: { t: any }) {
         {/* Right — 2FA */}
         <ModuleContainer>
           <div className="p-8 space-y-6">
+            <TwoFactorAppPanel s={s} />
+            <div className="hidden">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-base font-black text-title">{s.twofa_title}</p>
@@ -1275,6 +1680,7 @@ function SecurityTab({ t }: { t: any }) {
             <div className="flex items-start gap-2 pt-1">
               <Info className="w-4 h-4 text-subtitle/30 shrink-0 mt-0.5" />
               <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
+            </div>
             </div>
           </div>
         </ModuleContainer>
@@ -1353,6 +1759,42 @@ const MOCK_DEVICES: DeviceType[] = [
   },
 ];
 
+function formatSessionDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatLastSeen(value: string): string {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(1, Math.floor(diffMs / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function mapSessionToDevice(session: AuthSession): DeviceType {
+  const type = session.device_type || "desktop";
+  return {
+    id: session.id,
+    name: session.device_name || "Unknown Device",
+    os: session.os || "Unknown OS",
+    browser: session.browser || "Unknown browser",
+    location: session.location || "Unknown location",
+    ip: session.ip_address || "Unknown IP",
+    firstAccess: formatSessionDate(session.first_seen_at),
+    lastSeen: session.is_current ? null : formatLastSeen(session.last_seen_at),
+    isCurrent: session.is_current,
+    kind: type === "mobile" || type === "tablet" ? "mobile" : type === "desktop" ? "desktop" : "laptop",
+  };
+}
+
 function DeviceIcon({ kind, active }: { kind: DeviceType["kind"]; active: boolean }) {
   const cls = `w-5 h-5 ${active ? "text-brand" : "text-subtitle/40"}`;
   if (kind === "laptop") return <Laptop className={cls} strokeWidth={1.5} />;
@@ -1361,9 +1803,34 @@ function DeviceIcon({ kind, active }: { kind: DeviceType["kind"]; active: boolea
 }
 
 function DevicesSection({ s }: { s: any }) {
-  const [devices, setDevices] = useState<DeviceType[]>(MOCK_DEVICES);
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { data: sessions = [], isLoading } = useQuery({
+    queryKey: ["auth-sessions"],
+    queryFn: authService.getSessions,
+  });
 
-  const removeDevice = (id: string) => setDevices(prev => prev.filter(d => d.id !== id));
+  const devices = sessions.map(mapSessionToDevice);
+
+  const revokeMutation = useMutation({
+    mutationFn: authService.revokeSession,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["auth-sessions"] });
+      showToast("Sesión cerrada correctamente", "success");
+    },
+    onError: () => showToast("No se pudo cerrar la sesión", "error"),
+  });
+
+  const revokeOthersMutation = useMutation({
+    mutationFn: authService.revokeOtherSessions,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["auth-sessions"] });
+      showToast("Se cerraron las demás sesiones", "success");
+    },
+    onError: () => showToast("No se pudieron cerrar las sesiones", "error"),
+  });
+
+  const removeDevice = (id: string) => revokeMutation.mutate(id);
 
   return (
     <ModuleContainer>
@@ -1384,9 +1851,11 @@ function DevicesSection({ s }: { s: any }) {
           </div>
           <button
             type="button"
+            onClick={() => revokeOthersMutation.mutate()}
+            disabled={revokeOthersMutation.isPending || devices.filter(device => !device.isCurrent).length === 0}
             className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 transition-all active:scale-95"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            {revokeOthersMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
             {s.devices_signout_all}
           </button>
         </div>
@@ -1406,6 +1875,11 @@ function DevicesSection({ s }: { s: any }) {
 
         {/* Device cards — 4-col grid */}
         <div className="grid grid-cols-4 gap-3">
+          {isLoading && (
+            <div className="col-span-4 p-6 rounded-2xl border border-border-theme/30 bg-app-bg/30 text-sm font-bold text-subtitle/50">
+              Cargando sesiones...
+            </div>
+          )}
           {devices.map(device => (
             <div
               key={device.id}
@@ -1420,9 +1894,10 @@ function DevicesSection({ s }: { s: any }) {
                 <button
                   type="button"
                   onClick={() => removeDevice(device.id)}
+                  disabled={revokeMutation.isPending}
                   className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white border border-border-theme/30 flex items-center justify-center text-subtitle/30 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
                 >
-                  <X className="w-3 h-3" />
+                  {revokeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
                 </button>
               )}
 
@@ -1684,9 +2159,34 @@ function MobileSecurityTab({ t }: { t: any }) {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [twoFaMethod, setTwoFaMethod] = useState<"app" | "sms" | "email" | null>(null);
-  const [devices, setDevices] = useState<DeviceType[]>(MOCK_DEVICES);
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { data: sessions = [], isLoading: isLoadingSessions } = useQuery({
+    queryKey: ["auth-sessions"],
+    queryFn: authService.getSessions,
+  });
 
-  const removeDevice = (id: string) => setDevices(prev => prev.filter(d => d.id !== id));
+  const devices = sessions.map(mapSessionToDevice);
+
+  const revokeMutation = useMutation({
+    mutationFn: authService.revokeSession,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["auth-sessions"] });
+      showToast("Sesión cerrada correctamente", "success");
+    },
+    onError: () => showToast("No se pudo cerrar la sesión", "error"),
+  });
+
+  const revokeOthersMutation = useMutation({
+    mutationFn: authService.revokeOtherSessions,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["auth-sessions"] });
+      showToast("Se cerraron las demás sesiones", "success");
+    },
+    onError: () => showToast("No se pudieron cerrar las sesiones", "error"),
+  });
+
+  const removeDevice = (id: string) => revokeMutation.mutate(id);
 
   const twoFaMethods = [
     { id: "app" as const,   icon: Smartphone,    name: s.twofa_app_name, desc: s.twofa_app_desc },
@@ -1740,7 +2240,7 @@ function MobileSecurityTab({ t }: { t: any }) {
 
         <button
           type="button"
-          className="w-full py-3 rounded-2xl bg-title text-white text-sm font-black tracking-tight transition-all hover:bg-title/90 active:scale-95 shadow-md"
+          className="w-full py-3 rounded-2xl bg-brand text-white text-sm font-black tracking-tight transition-all hover:bg-brand/90 active:scale-95 shadow-md shadow-brand/20"
         >
           {s.update_password}
         </button>
@@ -1748,6 +2248,8 @@ function MobileSecurityTab({ t }: { t: any }) {
 
       {/* Two-Factor Authentication */}
       <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
+        <TwoFactorAppPanel s={s} compact />
+        <div className="hidden">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-black text-title">{s.twofa_title}</p>
@@ -1800,6 +2302,7 @@ function MobileSecurityTab({ t }: { t: any }) {
           <Info className="w-3.5 h-3.5 text-subtitle/30 shrink-0 mt-0.5" />
           <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
         </div>
+        </div>
       </div>
 
       {/* Active Devices */}
@@ -1815,9 +2318,11 @@ function MobileSecurityTab({ t }: { t: any }) {
           <p className="text-xs text-subtitle/50">{s.devices_subtitle}</p>
           <button
             type="button"
+            onClick={() => revokeOthersMutation.mutate()}
+            disabled={revokeOthersMutation.isPending || devices.filter(device => !device.isCurrent).length === 0}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 active:scale-95 transition-all"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            {revokeOthersMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
             {s.devices_signout_all}
           </button>
         </div>
@@ -1835,6 +2340,11 @@ function MobileSecurityTab({ t }: { t: any }) {
 
         {/* Device list */}
         <div className="space-y-2">
+          {isLoadingSessions && (
+            <div className="p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 text-xs font-bold text-subtitle/50">
+              Cargando sesiones...
+            </div>
+          )}
           {devices.map(device => (
             <div
               key={device.id}
@@ -1888,9 +2398,10 @@ function MobileSecurityTab({ t }: { t: any }) {
                 <button
                   type="button"
                   onClick={() => removeDevice(device.id)}
+                  disabled={revokeMutation.isPending}
                   className="shrink-0 w-7 h-7 rounded-full bg-white border border-border-theme/30 flex items-center justify-center text-subtitle/30 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
                 >
-                  <X className="w-3 h-3" />
+                  {revokeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
                 </button>
               )}
             </div>

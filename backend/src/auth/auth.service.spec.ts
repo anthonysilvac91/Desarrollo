@@ -15,6 +15,7 @@ describe('AuthService', () => {
 
   const prismaMock = {
     user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
+    userSession: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
     invitation: { findUnique: jest.fn(), update: jest.fn() },
     emailToken: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
@@ -26,6 +27,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     jwtMock.sign.mockReturnValue('mocked-token');
+    prismaMock.userSession.create.mockResolvedValue({ id: 'session-1', token_jti: 'jti-1' });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -106,7 +108,7 @@ describe('AuthService', () => {
         where: { id: 'u-super' },
         data: { last_login_at: expect.any(Date) },
       });
-      expect(jwt.sign).toHaveBeenCalledWith({ sub: 'u-super', orgId: null, role: 'SUPER_ADMIN', owner_id: null });
+      expect(jwt.sign).toHaveBeenCalledWith({ sub: 'u-super', orgId: null, role: 'SUPER_ADMIN', owner_id: null, sid: 'session-1', jti: 'jti-1' });
     });
 
     it('SUPER_ADMIN con organization_id no null no entra', async () => {
@@ -161,6 +163,8 @@ describe('AuthService', () => {
         orgId: 'org-real',
         role: 'EXTERNAL',
         owner_id: 'owner-db',
+        sid: 'session-1',
+        jti: 'jti-1',
       });
     });
 
@@ -286,6 +290,8 @@ describe('AuthService', () => {
         orgId: 'org-db',
         role: 'EXTERNAL',
         owner_id: 'owner-db',
+        sid: 'session-1',
+        jti: 'jti-1',
       });
     });
   });

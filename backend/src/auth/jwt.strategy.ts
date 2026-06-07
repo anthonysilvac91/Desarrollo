@@ -39,9 +39,29 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) throw new UnauthorizedException();
     if (!user.is_active) throw new UnauthorizedException();
 
+    if (payload.sid) {
+      const session = await this.prisma.userSession.findFirst({
+        where: {
+          id: payload.sid,
+          user_id: user.id,
+          token_jti: payload.jti,
+          revoked_at: null,
+          expires_at: { gt: new Date() },
+        },
+        select: { id: true },
+      });
+
+      if (!session) throw new UnauthorizedException();
+
+      await this.prisma.userSession.update({
+        where: { id: session.id },
+        data: { last_seen_at: new Date() },
+      });
+    }
+
     if (user.role === 'SUPER_ADMIN') {
       if (user.organization_id !== null) throw new UnauthorizedException();
-      return { id: user.id, orgId: null, role: user.role, api_role: user.role, owner_id: null };
+      return { id: user.id, orgId: null, role: user.role, api_role: user.role, owner_id: null, session_id: payload.sid ?? null };
     }
 
     if (!user.organization_id) throw new UnauthorizedException();
@@ -49,9 +69,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (user.role === 'EXTERNAL') {
       if (!user.owner_id) throw new UnauthorizedException();
-      return { id: user.id, orgId: user.organization_id, role: user.role, api_role: user.role, owner_id: user.owner_id };
+      return { id: user.id, orgId: user.organization_id, role: user.role, api_role: user.role, owner_id: user.owner_id, session_id: payload.sid ?? null };
     }
 
-    return { id: user.id, orgId: user.organization_id, role: user.role, api_role: user.role, owner_id: null };
+    return { id: user.id, orgId: user.organization_id, role: user.role, api_role: user.role, owner_id: null, session_id: payload.sid ?? null };
   }
 }

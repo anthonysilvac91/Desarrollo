@@ -5,7 +5,10 @@ import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 
 const mockConfigService = { get: jest.fn().mockReturnValue('test-secret') };
-const mockPrisma = { user: { findUnique: jest.fn() } };
+const mockPrisma = {
+  user: { findUnique: jest.fn() },
+  userSession: { findFirst: jest.fn(), update: jest.fn() },
+};
 
 describe('JwtStrategy.validate()', () => {
   let strategy: JwtStrategy;

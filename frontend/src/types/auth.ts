@@ -16,6 +16,7 @@ export interface User {
   role: Role;
   name: string;
   is_active: boolean;
+  two_factor_enabled?: boolean;
   avatar_url?: string;
   organization_id?: string;
   organization?: Organization;

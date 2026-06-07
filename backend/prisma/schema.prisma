@@ -94,6 +94,9 @@ model User {
   avatar_file_id     String?   @unique
   owner_id           String?
   is_active          Boolean   @default(true)
+  two_factor_enabled Boolean   @default(false)
+  two_factor_secret  String?
+  two_factor_backup_codes Json?
   last_login_at      DateTime?
   email_verified_at  DateTime?
 
@@ -109,6 +112,7 @@ model User {
   invitations_sent      Invitation[]        @relation("InvitedBy")
   stored_files_uploaded StoredFile[]        @relation("StoredFileUploadedBy")
   email_tokens          EmailToken[]
+  sessions              UserSession[]
 
   @@index([organization_id])
   @@index([organization_id, created_at])
@@ -116,6 +120,33 @@ model User {
   @@index([owner_id])
   @@index([role])
   @@index([is_active])
+}
+
+model UserSession {
+  id              String    @id @default(uuid())
+  user_id         String
+  organization_id String?
+  token_jti       String    @unique
+  device_name     String?
+  device_type     String?
+  browser         String?
+  os              String?
+  user_agent      String?
+  ip_address      String?
+  country         String?
+  region          String?
+  city            String?
+  first_seen_at   DateTime  @default(now())
+  last_seen_at    DateTime  @default(now())
+  revoked_at      DateTime?
+  expires_at      DateTime
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, revoked_at])
+  @@index([user_id, last_seen_at])
+  @@index([organization_id])
+  @@index([expires_at])
 }
 
 model Asset {

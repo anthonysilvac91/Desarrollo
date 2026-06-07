@@ -77,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    authService.logout().catch(() => undefined);
     localStorage.removeItem("access_token");
     Cookies.remove("access_token");
     queryClient.clear();

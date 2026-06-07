@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,10 +10,26 @@ import { RegisterDto } from './dto/register.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { EmailService } from '../email/email.service';
 import { toApiRole } from '../common/compat/owner-role-compat';
+import {
+  buildOtpAuthUrl,
+  generateBackupCode,
+  generateTotpSecret,
+  normalizeCode,
+  verifyTotpCode,
+} from './totp.util';
+
+export interface AuthRequestContext {
+  userAgent?: string;
+  ipAddress?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+}
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly accessTokenTtlMs = 12 * 60 * 60 * 1000;
 
   constructor(
     private prisma: PrismaService,
@@ -22,7 +39,177 @@ export class AuthService {
     private emailService: EmailService,
   ) {}
 
-  async login(loginDto: LoginDto) {
+  private buildAccessPayload(user: {
+    id: string;
+    role: string;
+    organization_id: string | null;
+    owner_id: string | null;
+  }, session?: { id: string; token_jti: string }) {
+    const sessionPayload = session ? { sid: session.id, jti: session.token_jti } : {};
+
+    if (user.role === 'SUPER_ADMIN') {
+      return { sub: user.id, orgId: null, role: 'SUPER_ADMIN', owner_id: null, ...sessionPayload };
+    }
+
+    return {
+      sub: user.id,
+      orgId: user.organization_id,
+      role: toApiRole(user.role as any),
+      owner_id: user.owner_id ?? null,
+      ...sessionPayload,
+    };
+  }
+
+  private signAccessToken(user: {
+    id: string;
+    role: string;
+    organization_id: string | null;
+    owner_id: string | null;
+  }, session?: { id: string; token_jti: string }) {
+    return this.jwtService.sign(this.buildAccessPayload(user, session));
+  }
+
+  private parseDevice(userAgent?: string) {
+    const ua = userAgent || '';
+    const isMobile = /Mobile|Android|iPhone|iPod/i.test(ua);
+    const isTablet = /iPad|Tablet/i.test(ua);
+    const device_type = isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop';
+
+    const browser =
+      /Edg\/([\d.]+)/.exec(ua)?.[1] ? `Microsoft Edge ${/Edg\/([\d.]+)/.exec(ua)?.[1]}` :
+      /Chrome\/([\d.]+)/.exec(ua)?.[1] ? `Chrome ${/Chrome\/([\d.]+)/.exec(ua)?.[1]}` :
+      /Firefox\/([\d.]+)/.exec(ua)?.[1] ? `Firefox ${/Firefox\/([\d.]+)/.exec(ua)?.[1]}` :
+      /Version\/([\d.]+).*Safari/.exec(ua)?.[1] ? `Safari ${/Version\/([\d.]+).*Safari/.exec(ua)?.[1]}` :
+      /Safari\/([\d.]+)/.exec(ua)?.[1] ? 'Safari' :
+      'Unknown browser';
+
+    const os =
+      /Windows NT 10/.test(ua) ? 'Windows 10/11' :
+      /Windows NT 6\.3/.test(ua) ? 'Windows 8.1' :
+      /Windows NT 6\.1/.test(ua) ? 'Windows 7' :
+      /Mac OS X ([\d_]+)/.exec(ua)?.[1] ? `macOS ${/Mac OS X ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}` :
+      /Android ([\d.]+)/.exec(ua)?.[1] ? `Android ${/Android ([\d.]+)/.exec(ua)?.[1]}` :
+      /iPhone OS ([\d_]+)/.exec(ua)?.[1] ? `iOS ${/iPhone OS ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}` :
+      /CPU OS ([\d_]+)/.exec(ua)?.[1] ? `iPadOS ${/CPU OS ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}` :
+      /Linux/.test(ua) ? 'Linux' :
+      'Unknown OS';
+
+    const device_name =
+      /iPhone/.test(ua) ? 'iPhone' :
+      /iPad/.test(ua) ? 'iPad' :
+      /Android/.test(ua) ? 'Android Device' :
+      /Macintosh/.test(ua) ? 'Mac' :
+      /Windows/.test(ua) ? 'Windows PC' :
+      /Linux/.test(ua) ? 'Linux Device' :
+      'Unknown Device';
+
+    return { device_name, device_type, browser, os };
+  }
+
+  private normalizeIp(ip?: string) {
+    if (!ip) return null;
+    const first = ip.split(',')[0]?.trim();
+    if (!first) return null;
+    if (first === '::1') return '127.0.0.1';
+    if (first.startsWith('::ffff:')) return first.replace('::ffff:', '');
+    return first;
+  }
+
+  private isPrivateIp(ip: string) {
+    return (
+      ip === '127.0.0.1' ||
+      ip === 'localhost' ||
+      ip.startsWith('10.') ||
+      ip.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip) ||
+      ip.startsWith('169.254.') ||
+      ip === '::1' ||
+      ip.startsWith('fc') ||
+      ip.startsWith('fd')
+    );
+  }
+
+  private async resolveIpLocation(context?: AuthRequestContext) {
+    const ip = this.normalizeIp(context?.ipAddress);
+    const headerLocation = {
+      country: context?.country || null,
+      region: context?.region || null,
+      city: context?.city || null,
+    };
+
+    if (!ip) return { ipAddress: null, ...headerLocation };
+
+    if (headerLocation.country || headerLocation.region || headerLocation.city) {
+      return { ipAddress: ip, ...headerLocation };
+    }
+
+    if (this.isPrivateIp(ip)) {
+      return { ipAddress: ip, country: null, region: null, city: 'Local network' };
+    }
+
+    try {
+      const template = this.config.get<string>('GEOIP_LOOKUP_URL_TEMPLATE') || 'https://ipapi.co/{ip}/json/';
+      const response = await fetch(template.replace('{ip}', encodeURIComponent(ip)), {
+        signal: AbortSignal.timeout(1500),
+      });
+
+      if (!response.ok) return { ipAddress: ip, ...headerLocation };
+
+      const data: any = await response.json();
+      return {
+        ipAddress: ip,
+        country: data.country_name || data.country || null,
+        region: data.region || data.regionName || null,
+        city: data.city || null,
+      };
+    } catch {
+      return { ipAddress: ip, ...headerLocation };
+    }
+  }
+
+  private async createSession(user: {
+    id: string;
+    role: string;
+    organization_id: string | null;
+  }, context?: AuthRequestContext) {
+    const now = new Date();
+    const tokenJti = randomBytes(24).toString('hex');
+    const device = this.parseDevice(context?.userAgent);
+    const location = await this.resolveIpLocation(context);
+
+    return this.prisma.userSession.create({
+      data: {
+        user_id: user.id,
+        organization_id: user.organization_id,
+        token_jti: tokenJti,
+        ...device,
+        user_agent: context?.userAgent || null,
+        ip_address: location.ipAddress,
+        country: location.country,
+        region: location.region,
+        city: location.city,
+        first_seen_at: now,
+        last_seen_at: now,
+        expires_at: new Date(now.getTime() + this.accessTokenTtlMs),
+      },
+    });
+  }
+
+  private signTwoFactorLoginToken(userId: string) {
+    return this.jwtService.sign(
+      { sub: userId, purpose: '2fa_login' },
+      { expiresIn: '5m' },
+    );
+  }
+
+  private signTwoFactorSetupToken(userId: string, secret: string) {
+    return this.jwtService.sign(
+      { sub: userId, purpose: '2fa_setup', secret },
+      { expiresIn: '10m' },
+    );
+  }
+
+  async login(loginDto: LoginDto, context?: AuthRequestContext) {
     const user = await this.prisma.user.findFirst({
       where: { email: loginDto.email },
       include: { organization: { select: { id: true, is_active: true } } },
@@ -44,13 +231,16 @@ export class AuthService {
         this.logger.warn(`SUPER_ADMIN ${user.id} has organization_id, rejecting`);
         throw new UnauthorizedException('Invalid credentials');
       }
+      if (user.two_factor_enabled) {
+        return { requires_2fa: true, temporary_token: this.signTwoFactorLoginToken(user.id) };
+      }
       await this.prisma.user.update({
         where: { id: user.id },
         data: { last_login_at: new Date() },
       });
-      const payload = { sub: user.id, orgId: null, role: 'SUPER_ADMIN', owner_id: null };
+      const session = await this.createSession(user, context);
       this.logger.log(`User ${user.id} logged in successfully`);
-      return { access_token: this.jwtService.sign(payload) };
+      return { access_token: this.signAccessToken(user, session) };
     }
 
     if (!user.organization_id || !user.organization || !user.organization.is_active) {
@@ -63,23 +253,73 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = {
-      sub: user.id,
-      orgId: user.organization_id,
-      role: toApiRole(user.role),
-      owner_id: user.owner_id ?? null,
-    };
+    if (user.two_factor_enabled) {
+      return { requires_2fa: true, temporary_token: this.signTwoFactorLoginToken(user.id) };
+    }
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: { last_login_at: new Date() },
     });
 
+    const session = await this.createSession(user, context);
     this.logger.log(`User ${user.id} logged in successfully`);
-    return { access_token: this.jwtService.sign(payload) };
+    return { access_token: this.signAccessToken(user, session) };
   }
 
-  async register(registerDto: RegisterDto) {
+  async loginWithTwoFactor(temporaryToken: string, code: string, context?: AuthRequestContext) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(temporaryToken);
+    } catch {
+      throw new UnauthorizedException('Token 2FA invalido o expirado');
+    }
+
+    if (payload?.purpose !== '2fa_login' || !payload.sub) {
+      throw new UnauthorizedException('Token 2FA invalido');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { organization: { select: { id: true, is_active: true } } },
+    });
+
+    if (!user || !user.is_active || !user.two_factor_enabled || !user.two_factor_secret) {
+      throw new UnauthorizedException('2FA no disponible');
+    }
+
+    if (user.role !== 'SUPER_ADMIN') {
+      if (!user.organization_id || !user.organization?.is_active) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      if (user.role === 'EXTERNAL' && !user.owner_id) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    }
+
+    const backupCodes = Array.isArray(user.two_factor_backup_codes)
+      ? user.two_factor_backup_codes as string[]
+      : [];
+    const backupResult = await this.verifyBackupCode(code, backupCodes);
+    const validTotp = verifyTotpCode(user.two_factor_secret, code);
+
+    if (!validTotp && !backupResult.valid) {
+      throw new UnauthorizedException('Codigo 2FA invalido');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        last_login_at: new Date(),
+        ...(backupResult.valid ? { two_factor_backup_codes: backupResult.remainingHashes } : {}),
+      },
+    });
+
+    const session = await this.createSession(user, context);
+    return { access_token: this.signAccessToken(user, session) };
+  }
+
+  async register(registerDto: RegisterDto, context?: AuthRequestContext) {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token: registerDto.token },
       include: { organization: { select: { id: true, name: true, is_active: true } } },
@@ -118,15 +358,72 @@ export class AuthService {
       }),
     ]);
 
-    const jwtPayload = {
-      sub: user.id,
-      orgId: user.organization_id,
-      role: toApiRole(user.role),
-      owner_id: user.owner_id ?? null,
-    };
+    const session = await this.createSession(user, context);
 
     this.logger.log(`User ${user.id} registered via invitation`);
-    return { access_token: this.jwtService.sign(jwtPayload) };
+    return { access_token: this.signAccessToken(user, session) };
+  }
+
+  async getSessions(userId: string, currentSessionId?: string) {
+    const sessions = await this.prisma.userSession.findMany({
+      where: {
+        user_id: userId,
+        revoked_at: null,
+        expires_at: { gt: new Date() },
+      },
+      orderBy: { last_seen_at: 'desc' },
+    });
+
+    return sessions.map((session) => ({
+      id: session.id,
+      device_name: session.device_name,
+      device_type: session.device_type,
+      browser: session.browser,
+      os: session.os,
+      ip_address: session.ip_address,
+      location: [session.city, session.region, session.country].filter(Boolean).join(', ') || null,
+      first_seen_at: session.first_seen_at,
+      last_seen_at: session.last_seen_at,
+      is_current: session.id === currentSessionId,
+      user_agent: session.user_agent,
+    }));
+  }
+
+  async revokeSession(userId: string, sessionId: string, currentSessionId?: string) {
+    if (sessionId === currentSessionId) {
+      throw new BadRequestException('No puedes cerrar la sesion actual desde esta accion');
+    }
+
+    await this.prisma.userSession.updateMany({
+      where: { id: sessionId, user_id: userId, revoked_at: null },
+      data: { revoked_at: new Date() },
+    });
+
+    return { revoked: true };
+  }
+
+  async revokeOtherSessions(userId: string, currentSessionId?: string) {
+    await this.prisma.userSession.updateMany({
+      where: {
+        user_id: userId,
+        revoked_at: null,
+        ...(currentSessionId ? { id: { not: currentSessionId } } : {}),
+      },
+      data: { revoked_at: new Date() },
+    });
+
+    return { revoked: true };
+  }
+
+  async logout(userId: string, currentSessionId?: string) {
+    if (!currentSessionId) return { revoked: false };
+
+    await this.prisma.userSession.updateMany({
+      where: { id: currentSessionId, user_id: userId, revoked_at: null },
+      data: { revoked_at: new Date() },
+    });
+
+    return { revoked: true };
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
@@ -186,10 +483,144 @@ export class AuthService {
         where: { id: emailToken.id },
         data: { used_at: new Date() },
       }),
+      this.prisma.userSession.updateMany({
+        where: { user_id: emailToken.user_id, revoked_at: null },
+        data: { revoked_at: new Date() },
+      }),
     ]);
 
     this.logger.log(`Password reset completed for user ${emailToken.user_id}`);
     return { message: 'Contraseña actualizada correctamente' };
+  }
+
+  async getTwoFactorStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { two_factor_enabled: true, two_factor_backup_codes: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    return {
+      enabled: user.two_factor_enabled,
+      backup_codes_remaining: Array.isArray(user.two_factor_backup_codes)
+        ? user.two_factor_backup_codes.length
+        : 0,
+    };
+  }
+
+  async setupTwoFactor(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, two_factor_enabled: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    if (user.two_factor_enabled) {
+      throw new BadRequestException('2FA ya esta activo');
+    }
+
+    const secret = generateTotpSecret();
+    return {
+      secret,
+      otpauth_url: buildOtpAuthUrl({ issuer: 'Recall', accountName: user.email, secret }),
+      setup_token: this.signTwoFactorSetupToken(user.id, secret),
+    };
+  }
+
+  async verifyTwoFactorSetup(userId: string, setupToken: string, code: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(setupToken);
+    } catch {
+      throw new BadRequestException('Setup 2FA invalido o expirado');
+    }
+
+    if (payload?.purpose !== '2fa_setup' || payload.sub !== userId || !payload.secret) {
+      throw new BadRequestException('Setup 2FA invalido');
+    }
+
+    if (!verifyTotpCode(payload.secret, code)) {
+      throw new BadRequestException('Codigo 2FA invalido');
+    }
+
+    const backupCodes = Array.from({ length: 8 }, () => generateBackupCode());
+    const backupHashes = await Promise.all(backupCodes.map((backupCode) => bcrypt.hash(backupCode, 10)));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        two_factor_enabled: true,
+        two_factor_secret: payload.secret,
+        two_factor_backup_codes: backupHashes,
+      },
+    });
+
+    return {
+      enabled: true,
+      backup_codes: backupCodes,
+    };
+  }
+
+  async disableTwoFactor(userId: string, code?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        two_factor_enabled: true,
+        two_factor_secret: true,
+        two_factor_backup_codes: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    if (user.two_factor_enabled) {
+      if (!code) {
+        throw new BadRequestException('Debes ingresar un codigo 2FA');
+      }
+
+      const backupCodes = Array.isArray(user.two_factor_backup_codes)
+        ? user.two_factor_backup_codes as string[]
+        : [];
+      const backupResult = await this.verifyBackupCode(code, backupCodes);
+      const validTotp = !!user.two_factor_secret && verifyTotpCode(user.two_factor_secret, code);
+
+      if (!validTotp && !backupResult.valid) {
+        throw new BadRequestException('Codigo 2FA invalido');
+      }
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        two_factor_enabled: false,
+        two_factor_secret: null,
+        two_factor_backup_codes: Prisma.JsonNull,
+      },
+    });
+
+    return { enabled: false };
+  }
+
+  private async verifyBackupCode(code: string, hashes: string[]) {
+    const normalized = normalizeCode(code);
+    for (let i = 0; i < hashes.length; i += 1) {
+      if (await bcrypt.compare(normalized, hashes[i])) {
+        return {
+          valid: true,
+          remainingHashes: hashes.filter((_, index) => index !== i),
+        };
+      }
+    }
+
+    return { valid: false, remainingHashes: hashes };
   }
 
   async getMe(userId: string) {
@@ -221,7 +652,7 @@ export class AuthService {
       );
     }
 
-    const { password_hash, ...result } = user;
+    const { password_hash, two_factor_secret, two_factor_backup_codes, ...result } = user;
     return {
       ...result,
       role: toApiRole(result.role),
