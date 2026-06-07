@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (token: string) => {
     queryClient.clear();
     localStorage.setItem("access_token", token);
-    Cookies.set("access_token", token, { expires: 7 }); // Sincronizado para middleware
+    Cookies.set("access_token", token, { expires: 7, secure: process.env.NODE_ENV === "production", sameSite: "Lax" }); // Sincronizado para middleware
     refreshUser();
   };
 

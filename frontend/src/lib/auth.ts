@@ -1,8 +1,7 @@
 import Cookies from "js-cookie";
 
 export const setAuthToken = (token: string) => {
-  // Ajusta según la duración de tu token si lo necesitas (ej. expires: 1)
-  Cookies.set("access_token", token, { secure: process.env.NODE_ENV === "production" });
+  Cookies.set("access_token", token, { expires: 7, secure: process.env.NODE_ENV === "production", sameSite: "Lax" });
 };
 
 export const removeAuthToken = () => {
