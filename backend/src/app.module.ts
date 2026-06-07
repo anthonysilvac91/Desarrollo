@@ -19,6 +19,7 @@ import { StorageModule } from './storage/storage.module';
 import { ConfigModule } from '@nestjs/config';
 import { CompaniesModule } from './companies/companies.module';
 import { EmailModule } from './email/email.module';
+import { HealthModule } from './health/health.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
@@ -46,6 +47,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
         })]
       : []),
     CompaniesModule,
+    HealthModule,
   ],
   controllers: [AppController, AssetsController, ServicesController, OrganizationsController],
   providers: [

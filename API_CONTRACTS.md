@@ -11,6 +11,24 @@ Este documento detalla los endpoints del backend consumidos por el frontend.
 
 ---
 
+## 0. Health — `/health`
+
+| Metodo | Ruta | Acceso | Descripcion |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Publico | Healthcheck. Verifica que el backend y la DB respondan. |
+
+**Respuesta 200 — todo OK:**
+```json
+{ "status": "ok", "database": "ok", "timestamp": "2026-06-07T00:00:00.000Z" }
+```
+
+**Respuesta 503 — DB no disponible:**
+```json
+{ "status": "error", "database": "error", "timestamp": "2026-06-07T00:00:00.000Z" }
+```
+
+---
+
 ## 1. Auth — `/auth`
 
 | Metodo | Ruta | Acceso | Descripcion |
