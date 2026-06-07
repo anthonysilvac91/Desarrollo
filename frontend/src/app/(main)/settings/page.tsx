@@ -1811,6 +1811,7 @@ function DevicesSection({ s }: { s: any }) {
   });
 
   const devices = sessions.map(mapSessionToDevice);
+  const hasCurrentDevice = devices.some(device => device.isCurrent);
 
   const revokeMutation = useMutation({
     mutationFn: authService.revokeSession,
@@ -1852,7 +1853,7 @@ function DevicesSection({ s }: { s: any }) {
           <button
             type="button"
             onClick={() => revokeOthersMutation.mutate()}
-            disabled={revokeOthersMutation.isPending || devices.filter(device => !device.isCurrent).length === 0}
+            disabled={revokeOthersMutation.isPending || !hasCurrentDevice || devices.filter(device => !device.isCurrent).length === 0}
             className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 transition-all active:scale-95"
           >
             {revokeOthersMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
@@ -1890,7 +1891,7 @@ function DevicesSection({ s }: { s: any }) {
               }`}
             >
               {/* Remove button */}
-              {!device.isCurrent && (
+              {hasCurrentDevice && !device.isCurrent && (
                 <button
                   type="button"
                   onClick={() => removeDevice(device.id)}
@@ -2167,6 +2168,7 @@ function MobileSecurityTab({ t }: { t: any }) {
   });
 
   const devices = sessions.map(mapSessionToDevice);
+  const hasCurrentDevice = devices.some(device => device.isCurrent);
 
   const revokeMutation = useMutation({
     mutationFn: authService.revokeSession,
@@ -2319,7 +2321,7 @@ function MobileSecurityTab({ t }: { t: any }) {
           <button
             type="button"
             onClick={() => revokeOthersMutation.mutate()}
-            disabled={revokeOthersMutation.isPending || devices.filter(device => !device.isCurrent).length === 0}
+            disabled={revokeOthersMutation.isPending || !hasCurrentDevice || devices.filter(device => !device.isCurrent).length === 0}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-red-500 border border-red-200 bg-red-50 active:scale-95 transition-all"
           >
             {revokeOthersMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
@@ -2394,7 +2396,7 @@ function MobileSecurityTab({ t }: { t: any }) {
               </div>
 
               {/* Remove button */}
-              {!device.isCurrent && (
+              {hasCurrentDevice && !device.isCurrent && (
                 <button
                   type="button"
                   onClick={() => removeDevice(device.id)}
