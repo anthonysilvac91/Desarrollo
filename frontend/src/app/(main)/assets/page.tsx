@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import ReactDOM from "react-dom";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
@@ -109,7 +110,6 @@ export default function AssetsPage() {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [isOwnerDropdownOpen, setIsOwnerDropdownOpen] = useState(false);
   const [ownerSearch, setOwnerSearch] = useState("");
-  const ownerDropdownRef = useRef<HTMLDivElement>(null);
 
   const queryParams = {
     page, limit, search: debouncedSearch,
@@ -215,17 +215,6 @@ export default function AssetsPage() {
     });
   }, [mobileData, mobileOwnerFilter, mobileStatusFilter, selectedCategories]);
 
-  useEffect(() => {
-    if (!isOwnerDropdownOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (ownerDropdownRef.current && !ownerDropdownRef.current.contains(e.target as Node)) {
-        setIsOwnerDropdownOpen(false);
-        setOwnerSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [isOwnerDropdownOpen]);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -596,94 +585,116 @@ export default function AssetsPage() {
             </div>
 
             {/* Mobile: infinite scroll */}
-            <div className="block lg:hidden">
+            <div className="block lg:hidden flex flex-col gap-4 pb-8">
               {/* Filtros mobile */}
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
                 {/* Status pills */}
-                <div className="flex items-center bg-app-bg rounded-full px-1 border border-border-theme/30 shrink-0">
-                  {(["all", "active", "inactive"] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setMobileStatusFilter(s)}
-                      className={`px-3 py-2 rounded-full border text-xs font-bold transition-all ${
-                        mobileStatusFilter === s
-                          ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
-                          : "border-transparent text-subtitle/50"
-                      }`}
-                    >
-                      {s === "all" ? t.common.all : s === "active" ? t.common.active : t.common.inactive}
-                    </button>
-                  ))}
-                </div>
+                {(["all", "active", "inactive"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setMobileStatusFilter(s)}
+                    className={`h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all shrink-0 ${
+                      mobileStatusFilter === s
+                        ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
+                        : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
+                    }`}
+                  >
+                    {s === "all" ? t.common.all : s === "active" ? t.common.active : t.common.inactive}
+                  </button>
+                ))}
 
-                {/* Owner dropdown */}
-                <div ref={ownerDropdownRef} className="relative flex-1 min-w-0">
+                {/* Owner filter button */}
+                <button
+                  onClick={() => setIsOwnerDropdownOpen(v => !v)}
+                  className={`flex items-center gap-1.5 h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all shrink-0 ${
+                    mobileOwnerFilter
+                      ? "border-brand/40 bg-brand/5 text-brand"
+                      : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
+                  }`}
+                >
                   {mobileOwnerFilter ? (
-                    <div className="inline-flex items-center gap-2 bg-brand/10 border border-brand/20 rounded-full pl-1 pr-3 py-1 max-w-full">
-                      <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-black text-white">
-                          {getInitials(uniqueOwners.find(o => o.id === mobileOwnerFilter)?.name ?? "")}
-                        </span>
-                      </div>
-                      <span className="text-sm font-bold text-brand truncate min-w-0">
-                        {uniqueOwners.find(o => o.id === mobileOwnerFilter)?.name}
+                    <div className="w-6 h-6 rounded-full bg-brand flex items-center justify-center shrink-0">
+                      <span className="text-[9px] font-black text-white leading-none">
+                        {getInitials(uniqueOwners.find(o => o.id === mobileOwnerFilter)?.name ?? "")}
                       </span>
-                      <button onClick={() => setMobileOwnerFilter(null)} className="text-brand/50 hover:text-brand transition-colors shrink-0">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setIsOwnerDropdownOpen(v => !v)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-full border border-border-theme/50 bg-surface text-subtitle/60 text-sm font-semibold transition-colors hover:border-brand/30 w-full justify-between"
-                    >
+                    <>
                       <span>{t.assets.detail.owner}</span>
                       <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                    </button>
+                    </>
                   )}
+                </button>
 
-                  {isOwnerDropdownOpen && (
-                    <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-20 w-64 overflow-hidden">
-                      {/* Search input */}
-                      <div className="p-3 border-b border-border-theme/20">
+                {/* Owner bottom sheet */}
+                {isOwnerDropdownOpen && typeof document !== "undefined" && ReactDOM.createPortal(
+                  <div className="fixed inset-0 z-200 flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-black/30" onClick={() => { setIsOwnerDropdownOpen(false); setOwnerSearch(""); }} />
+                    <div className="relative bg-white rounded-t-3xl animate-in slide-in-from-bottom duration-200">
+                      <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                        <span className="text-base font-black text-title">{t.assets.detail.owner}</span>
+                        <button onClick={() => { setIsOwnerDropdownOpen(false); setOwnerSearch(""); }} className="p-1.5 rounded-full hover:bg-app-bg text-subtitle/40">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="px-4 pb-3">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtitle/40" />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtitle/40" />
                           <input
                             autoFocus
                             type="text"
                             value={ownerSearch}
                             onChange={e => setOwnerSearch(e.target.value)}
                             placeholder={t.assets.filters.search_owner}
-                            className="w-full pl-8 pr-3 py-2 text-sm bg-app-bg rounded-xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
+                            className="w-full pl-9 pr-4 py-2.5 text-sm bg-app-bg rounded-2xl border border-border-theme/30 focus:outline-none focus:border-brand/40 font-medium text-title placeholder:text-subtitle/30"
                           />
                         </div>
                       </div>
-                      {/* Owner list */}
-                      <div className="max-h-52 overflow-y-auto">
+                      <div className="max-h-64 overflow-y-auto pb-8">
                         {uniqueOwners
                           .filter(o => !ownerSearch.trim() || o.name.toLowerCase().includes(ownerSearch.toLowerCase()))
                           .map(owner => (
                             <button
                               key={owner.id}
                               onClick={() => { setMobileOwnerFilter(owner.id); setIsOwnerDropdownOpen(false); setOwnerSearch(""); }}
-                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                              className={`w-full flex items-center gap-3 px-5 py-3 transition-colors text-left ${mobileOwnerFilter === owner.id ? "bg-brand/5" : "hover:bg-app-bg"}`}
                             >
                               <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
                                 <span className="text-[11px] font-black text-brand">{getInitials(owner.name)}</span>
                               </div>
-                              <span className="text-sm font-semibold text-title">{owner.name}</span>
+                              <span className={`text-sm font-semibold ${mobileOwnerFilter === owner.id ? "text-brand" : "text-title"}`}>{owner.name}</span>
                             </button>
                           ))}
                         {uniqueOwners.filter(o => !ownerSearch.trim() || o.name.toLowerCase().includes(ownerSearch.toLowerCase())).length === 0 && (
-                          <p className="px-4 py-4 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
+                          <p className="px-5 py-4 text-sm text-subtitle/50 text-center font-medium">{t.common.no_results}</p>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>,
+                  document.body
+                )}
               </div>
 
-              <div className="space-y-3">
+              {/* Owner chip */}
+              {mobileOwnerFilter && (
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20">
+                    <div className="w-4 h-4 rounded-full bg-brand flex items-center justify-center shrink-0">
+                      <span className="text-[8px] font-black text-white leading-none">
+                        {getInitials(uniqueOwners.find(o => o.id === mobileOwnerFilter)?.name ?? "")}
+                      </span>
+                    </div>
+                    <span className="text-xs font-semibold text-brand">
+                      {uniqueOwners.find(o => o.id === mobileOwnerFilter)?.name ?? ""}
+                    </span>
+                    <button onClick={() => setMobileOwnerFilter(null)} className="text-brand/40 hover:text-brand transition-colors">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
               {mobileAssets.map((item: Asset) => (
                 <AssetCard
                   key={item.id}
