@@ -443,6 +443,7 @@ export const translations = {
         devices_ip: "IP ADDRESS",
         devices_first_access: "First access:",
         devices_active_now: "Active Now",
+        devices_only_current: "Only this session is active. There are no other connected devices.",
       },
       notifications_section: {
         title: "Notifications",
@@ -1214,6 +1215,7 @@ export const translations = {
         devices_ip: "IP ADDRESS",
         devices_first_access: "Primer acceso:",
         devices_active_now: "Activo Ahora",
+        devices_only_current: "Solo tienes activa esta sesiÃ³n. No hay otros dispositivos conectados.",
       },
       notifications_section: {
         title: "Notificaciones",

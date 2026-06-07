@@ -1886,7 +1886,7 @@ function DevicesSection({ s }: { s: any }) {
           )}
           {!isLoading && hasOnlyCurrentDevice && showOnlyCurrentMessage && (
             <div className="col-span-4 p-4 rounded-2xl border border-brand/15 bg-brand/[0.03] text-xs font-bold text-brand">
-              Solo tienes activa esta sesion. No hay otros dispositivos conectados.
+              {s.devices_only_current}
             </div>
           )}
           {devices.map(device => (
@@ -2356,7 +2356,7 @@ function MobileSecurityTab({ t }: { t: any }) {
           )}
           {!isLoadingSessions && hasOnlyCurrentDevice && showOnlyCurrentMessage && (
             <div className="p-3.5 rounded-2xl border border-brand/15 bg-brand/[0.03] text-xs font-bold text-brand">
-              Solo tienes activa esta sesion. No hay otros dispositivos conectados.
+              {s.devices_only_current}
             </div>
           )}
           {devices.map(device => (
