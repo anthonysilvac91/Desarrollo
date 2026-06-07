@@ -26,6 +26,13 @@ export interface AuthRequestContext {
   city?: string;
 }
 
+interface ResolvedIpLocation {
+  ipAddress: string | null;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -129,7 +136,45 @@ export class AuthService {
     );
   }
 
-  private async resolveIpLocation(context?: AuthRequestContext) {
+  private parseGeoIpResponse(data: any): Omit<ResolvedIpLocation, 'ipAddress'> {
+    return {
+      country: data.country_name || data.country || data.countryCode || null,
+      region: data.region || data.regionName || null,
+      city: data.city || null,
+    };
+  }
+
+  private async fetchGeoIpLocation(ip: string): Promise<Omit<ResolvedIpLocation, 'ipAddress'> | null> {
+    const customTemplate = this.config.get<string>('GEOIP_LOOKUP_URL_TEMPLATE');
+    const templates = [
+      customTemplate,
+      'https://ipapi.co/{ip}/json/',
+      'https://ipwho.is/{ip}',
+      'http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,message',
+    ].filter(Boolean) as string[];
+
+    for (const template of templates) {
+      try {
+        const response = await fetch(template.replace('{ip}', encodeURIComponent(ip)), {
+          signal: AbortSignal.timeout(1800),
+        });
+
+        if (!response.ok) continue;
+
+        const data: any = await response.json();
+        if (data.success === false || data.status === 'fail') continue;
+
+        const location = this.parseGeoIpResponse(data);
+        if (location.country || location.region || location.city) return location;
+      } catch {
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  private async resolveIpLocation(context?: AuthRequestContext): Promise<ResolvedIpLocation> {
     const ip = this.normalizeIp(context?.ipAddress);
     const headerLocation = {
       country: context?.country || null,
@@ -147,24 +192,8 @@ export class AuthService {
       return { ipAddress: ip, country: null, region: null, city: 'Local network' };
     }
 
-    try {
-      const template = this.config.get<string>('GEOIP_LOOKUP_URL_TEMPLATE') || 'https://ipapi.co/{ip}/json/';
-      const response = await fetch(template.replace('{ip}', encodeURIComponent(ip)), {
-        signal: AbortSignal.timeout(1500),
-      });
-
-      if (!response.ok) return { ipAddress: ip, ...headerLocation };
-
-      const data: any = await response.json();
-      return {
-        ipAddress: ip,
-        country: data.country_name || data.country || null,
-        region: data.region || data.regionName || null,
-        city: data.city || null,
-      };
-    } catch {
-      return { ipAddress: ip, ...headerLocation };
-    }
+    const lookupLocation = await this.fetchGeoIpLocation(ip);
+    return { ipAddress: ip, ...(lookupLocation || headerLocation) };
   }
 
   private async createSession(user: {
@@ -365,7 +394,7 @@ export class AuthService {
   }
 
   async getSessions(userId: string, currentSessionId?: string) {
-    const sessions = await this.prisma.userSession.findMany({
+    let sessions = await this.prisma.userSession.findMany({
       where: {
         user_id: userId,
         revoked_at: null,
@@ -373,6 +402,41 @@ export class AuthService {
       },
       orderBy: { last_seen_at: 'desc' },
     });
+
+    const sessionsToBackfill = sessions.filter((session) =>
+      session.ip_address &&
+      !this.isPrivateIp(session.ip_address) &&
+      !session.country &&
+      !session.region &&
+      !session.city
+    );
+
+    if (sessionsToBackfill.length > 0) {
+      const updates = await Promise.all(
+        sessionsToBackfill.map(async (session) => {
+          const location = await this.resolveIpLocation({ ipAddress: session.ip_address ?? undefined });
+          if (!location.country && !location.region && !location.city) return null;
+
+          await this.prisma.userSession.updateMany({
+            where: { id: session.id, user_id: userId, revoked_at: null },
+            data: {
+              country: location.country,
+              region: location.region,
+              city: location.city,
+            },
+          });
+
+          return { id: session.id, ...location };
+        }),
+      );
+
+      sessions = sessions.map((session) => {
+        const update = updates.find((item) => item?.id === session.id);
+        return update
+          ? { ...session, country: update.country, region: update.region, city: update.city }
+          : session;
+      });
+    }
 
     return sessions.map((session) => ({
       id: session.id,
