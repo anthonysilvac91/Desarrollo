@@ -274,7 +274,7 @@ export default function SettingsPage() {
       {/* ── Mobile Settings ── */}
       <div className="lg:hidden flex flex-col">
         {/* Tab bar */}
-        <div className="flex overflow-x-auto border-b border-border-theme/30 scrollbar-none bg-white">
+        <div className="flex overflow-x-auto border-b border-border-theme/30 scrollbar-none">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -282,12 +282,11 @@ export default function SettingsPage() {
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
-                className={`relative flex items-center gap-1.5 px-4 py-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-                  isActive ? "text-brand" : "text-subtitle/50"
+                className={`relative flex items-center justify-center px-5 py-3 shrink-0 transition-all ${
+                  isActive ? "text-brand" : "text-subtitle/40"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" strokeWidth={isActive ? 2 : 1.5} />
-                <span>{tab.label}</span>
+                <Icon className="w-4.5 h-4.5" strokeWidth={isActive ? 2 : 1.5} />
                 {isActive && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand rounded-full" />
                 )}
