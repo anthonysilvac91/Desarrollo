@@ -96,13 +96,13 @@ export default function FiltersBar({
       {/* Search Input */}
       {showSearch && (
         <div className="relative w-full lg:w-[480px]">
-          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-subtitle opacity-30" aria-hidden="true" />
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-subtitle opacity-40" aria-hidden="true" />
           </div>
           <input
             type="text"
             value={searchValue}
-            className="block w-full pl-14 pr-4 py-3.5 border border-border-theme/60 rounded-2xl leading-5 bg-white text-title placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand sm:text-sm transition-all shadow-sm font-medium"
+            className="block w-full pl-10 pr-4 py-3 border border-border-theme/30 rounded-2xl bg-white text-sm text-title placeholder:text-subtitle/40 focus:outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand transition-all shadow-sm font-medium"
             placeholder={searchPlaceholder || t.assets.search_placeholder}
             onChange={(e) => { setSearchValue(e.target.value); onSearchChange?.(e.target.value); }}
           />
@@ -112,7 +112,7 @@ export default function FiltersBar({
       <div className="hidden lg:block flex-1" />
 
       {/* Quick Filters + Actions */}
-      <div className="flex items-center space-x-3 w-full lg:w-auto justify-end relative min-w-0">
+      <div className="hidden lg:flex items-center space-x-3 w-full lg:w-auto justify-end relative min-w-0">
 
         {/* Global reset button — shown when any filter is active */}
         {showClearAll && hasAnyFilter && (
