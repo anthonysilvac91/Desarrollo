@@ -138,8 +138,8 @@ export class DashboardService {
 
     // Procesar Rankings (Cargar nombres de IDs)
     const [topAssets, topWorkers] = await Promise.all([
-      this.getRankingDetails(assetRanking, 'asset', 'asset_id'),
-      this.getRankingDetails(workerRanking, 'user', 'worker_id'),
+      this.getRankingDetails(assetRanking, 'asset', 'asset_id', baseWhere.organization_id),
+      this.getRankingDetails(workerRanking, 'user', 'worker_id', baseWhere.organization_id),
     ]);
 
     return {
@@ -212,13 +212,19 @@ export class DashboardService {
     });
   }
 
-  private async getRankingDetails(rankingData: any[], type: 'asset' | 'user', idKey: string): Promise<RankingItemDto[]> {
+  private async getRankingDetails(rankingData: any[], type: 'asset' | 'user', idKey: string, organizationId?: string): Promise<RankingItemDto[]> {
     if (!rankingData.length) return [];
-    
+
     const ids = rankingData.map(r => r[idKey]);
-    const items = type === 'asset' 
+    const items = type === 'asset'
       ? await this.prisma.asset.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
-      : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, avatar_file_id: true } });
+      : await this.prisma.user.findMany({
+          where: {
+            id: { in: ids },
+            ...(organizationId ? { organization_id: organizationId } : {}),
+          },
+          select: { id: true, name: true, avatar_file_id: true },
+        });
 
     return Promise.all(
       rankingData.map(async (r) => {
