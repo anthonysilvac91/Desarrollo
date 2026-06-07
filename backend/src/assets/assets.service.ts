@@ -4,6 +4,7 @@ import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { UpdateAssetDto } from './dto/update-asset.dto';
 import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildAssetThumbnailPath } from '../common/files/storage-paths';
@@ -385,7 +386,7 @@ export class AssetsService {
     return updatedAsset;
   }
 
-  async update(id: string, updateDto: any, orgId: string, role: string, photo?: Express.Multer.File) {
+  async update(id: string, updateDto: UpdateAssetDto, orgId: string, role: string, photo?: Express.Multer.File) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) {
       throw new NotFoundException('Activo no encontrado');

@@ -39,10 +39,12 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     InvitationsModule,
     DashboardModule,
     StorageModule,
-    ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), 'uploads'),
-      serveRoot: '/uploads',
-    }),
+    ...(process.env.NODE_ENV !== 'production'
+      ? [ServeStaticModule.forRoot({
+          rootPath: join(process.cwd(), 'uploads'),
+          serveRoot: '/uploads',
+        })]
+      : []),
     CompaniesModule,
   ],
   controllers: [AppController, AssetsController, ServicesController, OrganizationsController],

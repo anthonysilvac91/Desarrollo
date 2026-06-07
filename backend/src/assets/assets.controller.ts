@@ -5,6 +5,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { AssetQueryDto } from './dto/asset-query.dto';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
+import { UpdateAssetDto } from './dto/update-asset.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
 import { ASSET_IMAGE_MAX_BYTES } from './asset-upload-limits';
 
@@ -83,7 +84,7 @@ export class AssetsController {
   @UseInterceptors(FileInterceptor('photo', imageUploadOptions(ASSET_IMAGE_MAX_BYTES)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar un activo existente' })
-  update(@Param('id') id: string, @Body() updateAssetDto: any, @Request() req, @UploadedFile() photo?: Express.Multer.File) {
+  update(@Param('id') id: string, @Body() updateAssetDto: UpdateAssetDto, @Request() req, @UploadedFile() photo?: Express.Multer.File) {
     if (!['SUPER_ADMIN', 'ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para editar activos');
     }

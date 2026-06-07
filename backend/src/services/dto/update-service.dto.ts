@@ -1,10 +1,21 @@
-import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { CreateServiceDto } from './create-service.dto';
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ServiceStatus } from '@prisma/client';
 
-export class UpdateServiceDto extends PartialType(CreateServiceDto) {
-  @ApiPropertyOptional({ description: 'Cambia la visibilidad del servicio hacia el cliente' })
+export class UpdateServiceDto {
+  @ApiPropertyOptional({ description: 'Título del servicio.' })
+  @IsString()
+  @IsOptional()
+  @MaxLength(120, { message: 'El titulo no puede superar los 120 caracteres' })
+  title?: string;
+
+  @ApiPropertyOptional({ description: 'Descripción del servicio.' })
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000, { message: 'La descripcion no puede superar los 2000 caracteres' })
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Visibilidad hacia el cliente.' })
   @IsBoolean()
   @IsOptional()
   is_public?: boolean;
@@ -13,4 +24,8 @@ export class UpdateServiceDto extends PartialType(CreateServiceDto) {
   @IsEnum(ServiceStatus)
   @IsOptional()
   status?: ServiceStatus;
+
+  // asset_id excluido deliberadamente: un servicio no puede reasignarse a otro activo.
+  // organization_id, worker_id, id, created_at, updated_at nunca son editables.
+  // ValidationPipe(whitelist:true) elimina cualquier campo no declarado aquí.
 }

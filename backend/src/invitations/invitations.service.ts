@@ -32,6 +32,16 @@ export class InvitationsService {
       throw new BadRequestException('Organización no encontrada o inactiva');
     }
 
+    if (dto.role === 'EXTERNAL' && dto.owner_id) {
+      const owner = await this.prisma.owner.findFirst({
+        where: { id: dto.owner_id, organization_id: organizationId, is_active: true },
+        select: { id: true },
+      });
+      if (!owner) {
+        throw new BadRequestException('El owner indicado no existe o no pertenece a esta organización');
+      }
+    }
+
     const existing = await this.prisma.invitation.findFirst({
       where: { email: dto.email, organization_id: organizationId, is_used: false },
     });

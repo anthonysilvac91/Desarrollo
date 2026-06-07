@@ -103,15 +103,17 @@ async function bootstrap() {
   }));
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const config = new DocumentBuilder()
-    .setTitle('Recall MVP API')
-    .setDescription('API central del sistema Recall. La ruta oficial para owners es /owners.')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  if (!isProduction) {
+    const config = new DocumentBuilder()
+      .setTitle('Recall MVP API')
+      .setDescription('API central del sistema Recall. La ruta oficial para owners es /owners.')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+  }
 
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
