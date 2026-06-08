@@ -42,7 +42,8 @@ describe('ServicesService', () => {
   beforeEach(async () => {
     const prismaMock = {
       organization: { findUnique: jest.fn() },
-      asset: { findFirst: jest.fn() },
+      asset: { findFirst: jest.fn(), findMany: jest.fn() },
+      user: { findMany: jest.fn() },
       service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
     storageService = {
@@ -286,6 +287,66 @@ describe('ServicesService', () => {
 
       const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
       expect(call.where).not.toHaveProperty('organization_id');
+    });
+  });
+
+  describe('getFilterOptions()', () => {
+    it('retorna workers/assets con shape liviano', async () => {
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([{ id: 'worker-1', name: 'Worker One' }] as any);
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([{ id: 'asset-1', name: 'Asset One' }] as any);
+
+      const result = await service.getFilterOptions({ id: 'admin-1', orgId: 'org-1', role: 'ADMIN' });
+
+      expect(result).toEqual({
+        workers: [{ id: 'worker-1', name: 'Worker One' }],
+        assets: [{ id: 'asset-1', name: 'Asset One' }],
+      });
+      expect(result).not.toHaveProperty('attachments');
+      expect(result).not.toHaveProperty('file_url');
+      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        select: { id: true, name: true },
+      }));
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        select: { id: true, name: true },
+      }));
+    });
+
+    it('no-SUPER_ADMIN: respeta organization_id en servicios visibles', async () => {
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([] as any);
+
+      await service.getFilterOptions({ id: 'worker-1', orgId: 'org-abc', role: 'WORKER' });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          services_created: { some: expect.objectContaining({ organization_id: 'org-abc' }) },
+        }),
+      }));
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          services: { some: expect.objectContaining({ organization_id: 'org-abc' }) },
+        }),
+      }));
+    });
+
+    it('EXTERNAL: aplica visibilidad publica y owner_id', async () => {
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([] as any);
+
+      await service.getFilterOptions({ id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL', owner_id: 'owner-1' });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          services_created: {
+            some: expect.objectContaining({
+              organization_id: 'org-1',
+              is_public: true,
+              status: 'COMPLETED',
+              asset: { owner_id: 'owner-1' },
+            }),
+          },
+        }),
+      }));
     });
   });
 

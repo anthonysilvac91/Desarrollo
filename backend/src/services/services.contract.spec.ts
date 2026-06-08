@@ -37,4 +37,13 @@ describe('ServicesController contract', () => {
     expect(() => controller.create({} as any, req as any, [])).not.toThrow();
     expect(servicesService.create).toHaveBeenCalled();
   });
+
+  it('delega filter-options al servicio con el usuario autenticado', () => {
+    const servicesService = { getFilterOptions: jest.fn().mockReturnValue({ workers: [], assets: [] }) } as any;
+    const controller = new ServicesController(servicesService);
+    const req = { user: { role: 'ADMIN', orgId: 'org-1', id: 'admin-1' } };
+
+    expect(controller.getFilterOptions(req as any)).toEqual({ workers: [], assets: [] });
+    expect(servicesService.getFilterOptions).toHaveBeenCalledWith(req.user);
+  });
 });

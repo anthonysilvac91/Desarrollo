@@ -32,6 +32,11 @@ export interface ServiceStats {
   active_operators: number;
 }
 
+export interface ServiceFilterOptions {
+  workers: Array<{ id: string; name: string }>;
+  assets: Array<{ id: string; name: string }>;
+}
+
 export const servicesService = {
   findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string }): Promise<any> => {
     const res = await api.get("/services", { params });
@@ -40,6 +45,10 @@ export const servicesService = {
 
   getStats: async (params?: { preset?: string; startDate?: string; endDate?: string }): Promise<ServiceStats> => {
     const res = await api.get<ServiceStats>("/services/stats", { params });
+    return res.data;
+  },
+  getFilterOptions: async (): Promise<ServiceFilterOptions> => {
+    const res = await api.get<ServiceFilterOptions>("/services/filter-options");
     return res.data;
   },
   findOne: async (id: string) => {

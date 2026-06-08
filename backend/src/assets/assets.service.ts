@@ -297,6 +297,35 @@ export class AssetsService {
     };
   }
 
+  async getFilterOptions(orgId: string, role: string, ownerId?: string) {
+    const assetWhere: any = {};
+
+    if (role !== 'SUPER_ADMIN') {
+      assetWhere.organization_id = orgId;
+    }
+
+    if (role === 'WORKER' || isExternalRole(role)) {
+      assetWhere.is_active = true;
+    }
+
+    if (isExternalRole(role)) {
+      if (!ownerId) {
+        return { owners: [] };
+      }
+      assetWhere.owner_id = ownerId;
+    }
+
+    const owners = await this.prisma.owner.findMany({
+      where: {
+        assets: { some: assetWhere },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    return { owners };
+  }
+
   async findOne(id: string, user: any) {
     const where: any = { id };
     if (user.role !== 'SUPER_ADMIN') {

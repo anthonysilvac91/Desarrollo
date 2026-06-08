@@ -335,6 +335,44 @@ export class ServicesService {
     };
   }
 
+  async getFilterOptions(user: any) {
+    const serviceWhere: any = {};
+
+    if (user.role !== 'SUPER_ADMIN') {
+      serviceWhere.organization_id = user.orgId;
+    }
+
+    if (isExternalRole(user.role)) {
+      const currentOwnerId = user.owner_id ?? null;
+      if (!currentOwnerId) {
+        return { workers: [], assets: [] };
+      }
+
+      serviceWhere.is_public = true;
+      serviceWhere.status = 'COMPLETED';
+      serviceWhere.asset = { owner_id: currentOwnerId };
+    }
+
+    const [workers, assets] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          services_created: { some: serviceWhere },
+        },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.asset.findMany({
+        where: {
+          services: { some: serviceWhere },
+        },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    return { workers, assets };
+  }
+
   async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
     const service = await this.prisma.service.findUnique({ where: { id } });
     if (!service || service.organization_id !== orgId) {

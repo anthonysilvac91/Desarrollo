@@ -153,30 +153,20 @@ export default function ServicesPage() {
     ...AUTO_REFETCH_OPTIONS,
   });
 
-  const { data: allServicesData } = useQuery({
+  const { data: serviceFilterOptions } = useQuery({
     queryKey: ["services-workers-list"],
-    queryFn: () => servicesService.findAll(),
-    staleTime: 120000,
+    queryFn: () => servicesService.getFilterOptions(),
+    staleTime: 300000,
     ...AUTO_REFETCH_OPTIONS,
   });
 
   const workerOptions = useMemo(() => {
-    const all: Service[] = Array.isArray(allServicesData) ? allServicesData : (allServicesData as any)?.data ?? [];
-    const map = new Map<string, { id: string; name: string }>();
-    all.forEach((s: Service) => {
-      if (s.worker?.id) map.set(s.worker.id, { id: s.worker.id, name: s.worker.name ?? "" });
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allServicesData]);
+    return [...(serviceFilterOptions?.workers ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  }, [serviceFilterOptions]);
 
   const assetOptions = useMemo(() => {
-    const all: Service[] = Array.isArray(allServicesData) ? allServicesData : (allServicesData as any)?.data ?? [];
-    const map = new Map<string, { id: string; name: string }>();
-    all.forEach((s: Service) => {
-      if (s.asset?.id) map.set(s.asset.id, { id: s.asset.id, name: s.asset.name ?? "" });
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allServicesData]);
+    return [...(serviceFilterOptions?.assets ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  }, [serviceFilterOptions]);
 
   const servicesList = Array.isArray(responseData) ? responseData : responseData?.data || [];
   const meta = !Array.isArray(responseData) && responseData?.meta ? responseData.meta : { total: servicesList.length, page: 1, limit: 10, totalPages: 1 };

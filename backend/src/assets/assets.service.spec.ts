@@ -20,6 +20,7 @@ describe('AssetsService', () => {
       },
       owner: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
       },
     };
 
@@ -157,6 +158,58 @@ describe('AssetsService', () => {
 
       const call = (prisma.asset.findMany as jest.Mock).mock.calls[0][0];
       expect(call.where).not.toHaveProperty('organization_id');
+    });
+  });
+
+  describe('getFilterOptions()', () => {
+    it('retorna owners con shape liviano', async () => {
+      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([{ id: 'owner-1', name: 'Owner One' }] as any);
+
+      const result = await service.getFilterOptions('org-1', 'ADMIN');
+
+      expect(result).toEqual({
+        owners: [{ id: 'owner-1', name: 'Owner One' }],
+      });
+      expect(result).not.toHaveProperty('assets');
+      expect(result).not.toHaveProperty('thumbnail_url');
+      expect(prisma.owner.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        select: { id: true, name: true },
+      }));
+    });
+
+    it('no-SUPER_ADMIN: respeta organization_id en activos visibles', async () => {
+      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([] as any);
+
+      await service.getFilterOptions('org-tenant-1', 'WORKER');
+
+      expect(prisma.owner.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          assets: {
+            some: expect.objectContaining({
+              organization_id: 'org-tenant-1',
+              is_active: true,
+            }),
+          },
+        },
+      }));
+    });
+
+    it('EXTERNAL: limita owners al owner_id del usuario', async () => {
+      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([] as any);
+
+      await service.getFilterOptions('org-1', 'EXTERNAL', 'owner-abc');
+
+      expect(prisma.owner.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          assets: {
+            some: expect.objectContaining({
+              organization_id: 'org-1',
+              owner_id: 'owner-abc',
+              is_active: true,
+            }),
+          },
+        },
+      }));
     });
   });
 });

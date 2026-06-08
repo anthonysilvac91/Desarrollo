@@ -117,23 +117,16 @@ export default function AssetsPage() {
     ...(desktopStatusFilter ? { is_active: desktopStatusFilter } : {}),
   };
 
-  const { data: allAssetsForOwners } = useQuery({
+  const { data: assetFilterOptions } = useQuery({
     queryKey: ["assets-owners-list"],
-    queryFn: () => assetsService.findAll(),
-    staleTime: 120000,
+    queryFn: () => assetsService.getFilterOptions(),
+    staleTime: 300000,
     ...AUTO_REFETCH_OPTIONS,
   });
 
   const desktopOwners = useMemo(() => {
-    const all: Asset[] = Array.isArray(allAssetsForOwners)
-      ? allAssetsForOwners
-      : (allAssetsForOwners as any)?.data ?? [];
-    const map = new Map<string, { id: string; name: string }>();
-    all.forEach((item: Asset) => {
-      if (item.owner?.id) map.set(item.owner.id, { id: item.owner.id, name: item.owner.name ?? "" });
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allAssetsForOwners]);
+    return [...(assetFilterOptions?.owners ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  }, [assetFilterOptions]);
 
   const { data: assetStats } = useQuery({
     queryKey: ["assets-stats"],

@@ -44,6 +44,16 @@ export class AssetsController {
     return this.assetsService.getStats(req.user.orgId, req.user.role, req.user.owner_id ?? undefined);
   }
 
+  @Get('filter-options')
+  @ApiOperation({ summary: 'Opciones livianas para filtros de activos' })
+  getFilterOptions(@Request() req) {
+    return this.assetsService.getFilterOptions(
+      req.user.orgId,
+      req.user.role,
+      req.user.owner_id ?? undefined,
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalle de un activo', description: 'Incluye historial de servicios y acceso de companies. Filtra por tenant y permisos.' })
   findOne(@Param('id') id: string, @Request() req) {

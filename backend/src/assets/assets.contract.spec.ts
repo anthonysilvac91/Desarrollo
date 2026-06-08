@@ -42,4 +42,15 @@ describe('AssetsController public route contract', () => {
     expect(assetsService.assignOwner).toHaveBeenCalledWith('asset-1', 'owner-1', 'org-1');
     expect(assetsService.removeOwner).toHaveBeenCalledWith('asset-1', 'owner-1', 'org-1');
   });
+
+  it('delega filter-options al servicio con tenant y rol', () => {
+    const assetsService = {
+      getFilterOptions: jest.fn().mockReturnValue({ owners: [] }),
+    } as any;
+    const controller = new AssetsController(assetsService);
+    const req = { user: { role: 'WORKER', orgId: 'org-1', owner_id: undefined } };
+
+    expect(controller.getFilterOptions(req)).toEqual({ owners: [] });
+    expect(assetsService.getFilterOptions).toHaveBeenCalledWith('org-1', 'WORKER', undefined);
+  });
 });

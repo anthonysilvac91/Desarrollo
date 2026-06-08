@@ -38,6 +38,12 @@ export class ServicesController {
     return this.servicesService.getStats(query, req.user);
   }
 
+  @Get('filter-options')
+  @ApiOperation({ summary: 'Opciones livianas para filtros de servicios' })
+  getFilterOptions(@Request() req) {
+    return this.servicesService.getFilterOptions(req.user);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Editar un Service (solo ADMIN)', description: 'Admite modificación de datos, status y visibilidad.' })
   update(@Param('id') id: string, @Body() updateServiceDto: UpdateServiceDto, @Request() req) {
