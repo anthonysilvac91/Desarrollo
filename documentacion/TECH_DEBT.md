@@ -1,6 +1,6 @@
 # Technical Debt — Recall
 
-**Última actualización:** 2026-06-07 (backups Supabase agregado)
+**Última actualización:** 2026-06-07 (auditoría de imágenes — quick wins aplicados, deuda futura registrada)
 
 ---
 
@@ -10,6 +10,7 @@
 - Las constraints de integridad en producción están aplicadas.
 - La decisión de email global único fue aceptada e implementada para MVP.
 - `worker_restricted_access` queda documentado como feature futura, sin promesa rota al usuario.
+- Auditoría de imágenes completada: validación backend de avatar/logo/org ya era correcta con `validateImageFile()`; mensaje de error HEIC mejorado; `loading="lazy"` aplicado en listados/cards/galerías. Deuda restante de imágenes documentada en sección dedicada.
 - Este documento lista únicamente deuda técnica pendiente y aceptada conscientemente.
 
 ---
@@ -28,6 +29,11 @@
 | 8 | Docs | API | `API_CONTRACTS.md` puede desalinearse | Documentación contradictoria con backend | Con cada cambio de endpoints, DTOs o auth flows |
 | 9 | Docs / QA | Tests | Guía QA aspiracional sin pipeline real | Documentación que no refleja el estado real | Cuando exista pipeline de pruebas estable |
 | 10 | **Alta** (temporal) | Infraestructura / DB | Backups Supabase — sin backup automático en plan Free | Pérdida total de datos ante corrupción, migración fallida o fallo de base | Antes de cliente pago, segundo cliente o uso operacional real |
+| 11 | Media | Storage / Imágenes | Fotos de services sin procesamiento server-side (Sharp) | Storage creciente y archivos pesados si se salta el frontend | Antes de escalar a más clientes o uso intensivo de evidencias |
+| 12 | Baja/Media | Storage / Imágenes | TTL/refetch de signed URLs sin garantía ante sesiones largas | Imágenes rotas si una pestaña queda abierta más tiempo que el TTL | Si usuarios reportan imágenes rotas |
+| 13 | Media futura | Storage / Backend | `resolveFileUrl()` sin cache de signed URLs | Mayor latencia en listados con muchas imágenes | Cuando haya listados densos o más tenants activos |
+| 14 | Baja/Media | Frontend / Imágenes | `<img>` nativo en listados (sin `next/image`) | Sin optimización automática por viewport ni formato | Si Lighthouse/Network muestra imágenes pesadas |
+| 15 | Baja (demo) | Storage / Imágenes | Sin límite acumulado de storage por servicio | Crecimiento rápido si se suben muchas fotos grandes | Antes de uso intensivo de evidencias o más clientes |
 
 ---
 
@@ -184,6 +190,72 @@ La guía QA anterior fue eliminada por estar desactualizada (SQLite, header inje
 
 ---
 
+## Imágenes / Storage
+
+*Sección agregada tras auditoría de performance de imágenes (2026-06-07). Los quick wins ya fueron aplicados. Los siguientes ítems son deuda futura aceptada conscientemente.*
+
+---
+
+### 11 — Fotos de services sin procesamiento server-side (Sharp)
+
+**Estado actual:** Las fotos/adjuntos de services se validan en el backend (MIME + firma) y se almacenan tal como llegan después de la compresión frontend. No hay resize ni conversión server-side.
+
+**Riesgo:** Si alguien salta el frontend (API directa, Postman, cliente mobile que no comprime), una foto de 10 MB se almacena sin reducción. Con 8 fotos por servicio y múltiples servicios, el storage crece rápidamente.
+
+**Cuándo abordar:** Antes de escalar a más clientes o si el uso de evidencias/fotos crece en el tenant actual.
+
+**Acción sugerida:** Aplicar Sharp a adjuntos de services: resize a max 2000 px, formato WebP, Q82. Mantener validación de imagen existente. El flujo de assets ya tiene este patrón implementado como referencia.
+
+---
+
+### 12 — TTL/refetch de signed URLs sin garantía ante sesiones largas
+
+**Estado actual:** Las signed URLs de Supabase tienen TTL configurable vía `SIGNED_URL_TTL_SECONDS`. React Query hace refetch automático según su `staleTime` y `refetchInterval`, pero no hay garantía explícita de que el refetch ocurra antes de que expire la URL.
+
+**Riesgo:** Si un usuario deja una pestaña abierta más tiempo que el TTL sin interacción (scroll, navegación), las imágenes en listados pueden aparecer rotas al volver.
+
+**Cuándo abordar:** Si usuarios reportan imágenes rotas tras sesiones largas o pestañas inactivas.
+
+**Acción sugerida:** Aumentar `SIGNED_URL_TTL_SECONDS` a 4–8 horas en Railway, o asegurar que el `refetchInterval` de las queries con imágenes sea menor que el TTL vigente.
+
+---
+
+### 13 — `resolveFileUrl()` sin cache de signed URLs en backend
+
+**Estado actual:** Cada llamada a `resolveFileUrl()` puede hacer una petición a la API de Supabase para generar una nueva signed URL. En un listado de 20 assets con foto, son hasta 20 llamadas en paralelo al cargar la página.
+
+**Riesgo:** Latencia visible en listados densos a medida que crezca el número de imágenes por página o el número de tenants activos.
+
+**Cuándo abordar:** Cuando haya listados densos (>30 imágenes por carga) o más de 3–4 tenants activos con uso intensivo.
+
+**Acción sugerida:** Cache in-memory (Map con TTL) en `StoredFilesService.resolveFileUrl()`. TTL del cache = `SIGNED_URL_TTL_SECONDS` − 5 min. No requiere Redis para el volumen actual.
+
+---
+
+### 14 — `<img>` nativo en listados críticos (sin `next/image`)
+
+**Estado actual:** Se usa `<img>` nativo con `loading="lazy"` en listados, cards, drawers y galerías. `next/image` está disponible pero no se usa en estos componentes.
+
+**Riesgo:** Sin optimización automática de formato (WebP forzado en todos los navegadores) ni resize por viewport. En conexiones lentas o dispositivos móviles, se descarga el tamaño completo de la imagen aunque el componente sea pequeño.
+
+**Cuándo abordar:** Si un análisis de Lighthouse o la pestaña Network muestra que las imágenes contribuyen significativamente al LCP o al peso total de página.
+
+**Acción sugerida:** Migrar progresivamente los componentes de lista a `next/image` (con `width`, `height` y `sizes` explícitos). Empezar por el listado de assets y el dashboard. Las imágenes de detalle/lightbox pueden mantenerse con `<img>`.
+
+---
+
+### 15 — Sin límite acumulado de storage por servicio
+
+**Estado actual:** Existe límite de cantidad de archivos (máximo 8 por servicio, validado en frontend). No existe un límite de MB total por servicio ni por tenant en relación a las evidencias de servicios específicamente.
+
+**Riesgo:** Crecimiento rápido del storage de Supabase si se suben 8 fotos grandes por servicio con muchos servicios. El plan Free de Supabase tiene 1 GB de storage total.
+
+**Cuándo abordar:** Antes de uso intensivo de evidencias, cuando el tenant actual tenga >100 servicios con fotos, o antes de sumar nuevos tenants con alta frecuencia de servicios.
+
+**Acción sugerida:** Definir un límite total por servicio (ej. 40 MB) validado en backend vía `StorageGovernanceService`. Complementa el ítem 11 (Sharp en services): si se procesa con Sharp, el tamaño almacenado baja significativamente.
+
+---
+
 ## Fuera de alcance — hallazgos ya cerrados
 
 Los siguientes ítems estuvieron en auditorías anteriores y **ya fueron resueltos**. No se listan como deuda:
@@ -199,6 +271,9 @@ Los siguientes ítems estuvieron en auditorías anteriores y **ya fueron resuelt
 | Dashboard ranking de workers sin filtro de tenant | ✅ Cerrado — `organization_id` añadido al `findMany` |
 | Verificación de email duplicado por-tenant en `createUser` | ✅ Cerrado — ahora usa `findUnique` global |
 | Invitación a email existente en otra org | ✅ Cerrado — validación global antes de enviar email |
+| IMG-01: validación de avatar/logo/org | ✅ Confirmado correcto — `validateImageFile()` (firma + MIME + dimensiones) ya estaba en los tres endpoints |
+| IMG-03: mensaje de error HEIC poco claro | ✅ Cerrado — mensaje mejorado con instrucción de `Ajustes > Cámara > Formatos` |
+| IMG-05: falta `loading="lazy"` en imágenes | ✅ Cerrado — aplicado en 13 `<img>` en listados, cards, drawers y galerías |
 
 ---
 
