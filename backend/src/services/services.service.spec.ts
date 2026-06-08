@@ -5,10 +5,38 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { processUploadedImage } from '../common/files/image-processing';
+import { validateImageFile } from '../common/files/image-validation';
+
+jest.mock('../common/files/image-validation', () => ({
+  validateImageFile: jest.fn(() => ({
+    mime: 'image/png',
+    extension: '.png',
+    width: 4000,
+    height: 3000,
+    pixels: 12_000_000,
+  })),
+}));
+
+jest.mock('../common/files/image-processing', () => ({
+  processUploadedImage: jest.fn(async (file: Express.Multer.File) => {
+    file.buffer = Buffer.from('processed-webp');
+    file.size = file.buffer.length;
+    file.mimetype = 'image/webp';
+    return file;
+  }),
+}));
 
 describe('ServicesService', () => {
   let service: ServicesService;
   let prisma: PrismaService;
+  let storageService: { uploadFile: jest.Mock; deleteFile: jest.Mock };
+  let storageGovernance: { assertCanStore: jest.Mock };
+  let storedFilesService: {
+    resolveFileUrl: jest.Mock;
+    registerUploadedFile: jest.Mock;
+    deleteStoredFileAndBlob: jest.Mock;
+  };
 
   beforeEach(async () => {
     const prismaMock = {
@@ -16,26 +44,32 @@ describe('ServicesService', () => {
       asset: { findFirst: jest.fn() },
       service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
+    storageService = {
+      uploadFile: jest.fn(),
+      deleteFile: jest.fn(),
+    };
+    storageGovernance = {
+      assertCanStore: jest.fn(),
+    };
+    storedFilesService = {
+      resolveFileUrl: jest.fn(),
+      registerUploadedFile: jest.fn(),
+      deleteStoredFileAndBlob: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServicesService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: StorageService, useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() } },
-        { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
-        {
-          provide: StoredFilesService,
-          useValue: {
-            resolveFileUrl: jest.fn(),
-            registerUploadedFile: jest.fn(),
-            deleteStoredFileAndBlob: jest.fn(),
-          },
-        },
+        { provide: StorageService, useValue: storageService },
+        { provide: StorageGovernanceService, useValue: storageGovernance },
+        { provide: StoredFilesService, useValue: storedFilesService },
       ],
     }).compile();
 
     service = module.get<ServicesService>(ServicesService);
     prisma = module.get<PrismaService>(PrismaService);
+    jest.clearAllMocks();
   });
 
   describe('create()', () => {
@@ -109,6 +143,90 @@ describe('ServicesService', () => {
           { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('procesa adjuntos de servicio a WebP antes de subir y registra metadata final', async () => {
+      const originalFile = {
+        originalname: 'evidencia-original.jpg',
+        mimetype: 'image/jpeg',
+        buffer: Buffer.alloc(5 * 1024 * 1024),
+        size: 5 * 1024 * 1024,
+      } as Express.Multer.File;
+
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: true } as any);
+      storageService.uploadFile.mockResolvedValue('private://bucket/org/org-1/services/service-1/attachments/file.webp');
+      storedFilesService.registerUploadedFile.mockResolvedValue({ id: 'stored-file-1' });
+      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) =>
+        Promise.resolve({
+          ...args.data,
+          attachments: args.data.attachments.create,
+        }),
+      );
+
+      await service.create(
+        { asset_id: 'asset-1', title: 'Service con evidencia' },
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+        [originalFile],
+      );
+
+      expect(validateImageFile).toHaveBeenCalledWith(originalFile, expect.objectContaining({
+        maxBytes: 10 * 1024 * 1024,
+        maxWidth: 6000,
+        maxHeight: 6000,
+        maxPixels: 24 * 1024 * 1024,
+      }));
+      expect(processUploadedImage).toHaveBeenCalledWith(originalFile, {
+        maxWidth: 2000,
+        maxHeight: 2000,
+        format: 'webp',
+        quality: 82,
+      });
+      expect(storageGovernance.assertCanStore).toHaveBeenCalledWith('org-1', Buffer.from('processed-webp').length);
+      expect(storageService.uploadFile).toHaveBeenCalledWith(expect.objectContaining({
+        mimetype: 'image/webp',
+        size: Buffer.from('processed-webp').length,
+      }), expect.objectContaining({ visibility: 'private' }));
+      expect(storedFilesService.registerUploadedFile).toHaveBeenCalledWith(expect.objectContaining({
+        originalName: 'evidencia-original.jpg',
+        mimeType: 'image/webp',
+        sizeBytes: Buffer.from('processed-webp').length,
+      }));
+      expect(prisma.service.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          attachments: {
+            create: [expect.objectContaining({
+              file_type: 'image/webp',
+              file_name: 'evidencia-original.jpg',
+              file_size_bytes: Buffer.from('processed-webp').length,
+            })],
+          },
+        }),
+      }));
+    });
+
+    it('rechaza adjuntos si el total original excede el limite por servicio', async () => {
+      const files = Array.from({ length: 5 }, (_, index) => ({
+        originalname: `evidencia-${index}.jpg`,
+        mimetype: 'image/jpeg',
+        buffer: Buffer.alloc(9 * 1024 * 1024),
+        size: 9 * 1024 * 1024,
+      })) as Express.Multer.File[];
+
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: true } as any);
+
+      await expect(
+        service.create(
+          { asset_id: 'asset-1', title: 'Service con demasiada evidencia' },
+          { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+          files,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(validateImageFile).not.toHaveBeenCalled();
+      expect(processUploadedImage).not.toHaveBeenCalled();
+      expect(storageService.uploadFile).not.toHaveBeenCalled();
     });
   });
 

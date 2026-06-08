@@ -14,6 +14,15 @@ import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
 
+const SERVICE_ATTACHMENT_MAX_FILES = 10;
+const SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES = 10 * 1024 * 1024;
+const SERVICE_ATTACHMENT_MAX_TOTAL_ORIGINAL_BYTES = 40 * 1024 * 1024;
+const SERVICE_ATTACHMENT_MAX_DIMENSION = 6000;
+const SERVICE_ATTACHMENT_MAX_PIXELS = 24 * 1024 * 1024;
+const SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION = 2000;
+const SERVICE_ATTACHMENT_OUTPUT_QUALITY = 82;
+const SERVICE_ATTACHMENT_OUTPUT_FORMAT = 'webp';
+
 function resolveDateRange(preset?: string, startDate?: string, endDate?: string): { gte: Date; lte: Date } | undefined {
   const now = new Date();
   if (preset === 'Hoy') {
@@ -113,12 +122,14 @@ export class ServicesService {
     });
     if (!org) throw new NotFoundException('Organization not found');
 
-    if (files && files.length > 10) {
+    if (files && files.length > SERVICE_ATTACHMENT_MAX_FILES) {
       throw new BadRequestException('Solo puedes adjuntar hasta 10 imagenes por servicio');
     }
 
-    const totalIncomingBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
-    await this.storageGovernance.assertCanStore(serviceOrgId, totalIncomingBytes);
+    const totalOriginalBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
+    if (totalOriginalBytes > SERVICE_ATTACHMENT_MAX_TOTAL_ORIGINAL_BYTES) {
+      throw new BadRequestException('Los adjuntos del servicio exceden el maximo total permitido');
+    }
 
     const serviceId = randomUUID();
     const attachments: Array<{
@@ -128,28 +139,35 @@ export class ServicesService {
       file_size_bytes: number;
     }> = [];
     const storedFileIds: string[] = [];
+    const uploadedStorageRefs: string[] = [];
 
     try {
       for (const file of files ?? []) {
         const imageInfo = validateImageFile(file, {
-          maxBytes: 10 * 1024 * 1024,
+          maxBytes: SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES,
           label: 'Adjunto de servicio',
-          maxWidth: 6000,
-          maxHeight: 6000,
-          maxPixels: 24 * 1024 * 1024,
+          maxWidth: SERVICE_ATTACHMENT_MAX_DIMENSION,
+          maxHeight: SERVICE_ATTACHMENT_MAX_DIMENSION,
+          maxPixels: SERVICE_ATTACHMENT_MAX_PIXELS,
         });
         file.mimetype = imageInfo.mime;
         await processUploadedImage(file, {
-          maxWidth: 2400,
-          maxHeight: 2400,
-          format: 'webp',
-          quality: 82,
+          maxWidth: SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION,
+          maxHeight: SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION,
+          format: SERVICE_ATTACHMENT_OUTPUT_FORMAT,
+          quality: SERVICE_ATTACHMENT_OUTPUT_QUALITY,
         });
+      }
 
+      const totalProcessedBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
+      await this.storageGovernance.assertCanStore(serviceOrgId, totalProcessedBytes);
+
+      for (const file of files ?? []) {
         const file_url = await this.storageService.uploadFile(file, {
           folder: buildServiceAttachmentsPath(serviceOrgId, serviceId),
           visibility: 'private',
         });
+        uploadedStorageRefs.push(file_url);
         const storedFile = await this.storedFilesService.registerUploadedFile({
           organizationId: serviceOrgId,
           storageRef: file_url,
@@ -163,6 +181,10 @@ export class ServicesService {
           uploadedByUserId: user.id,
         });
         storedFileIds.push(storedFile.id);
+        const uploadedRefIndex = uploadedStorageRefs.indexOf(file_url);
+        if (uploadedRefIndex !== -1) {
+          uploadedStorageRefs.splice(uploadedRefIndex, 1);
+        }
         attachments.push({
           file_id: storedFile.id,
           file_type: file.mimetype,
@@ -189,7 +211,10 @@ export class ServicesService {
       this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
       return this.resolveServiceFileUrls(newService);
     } catch (error) {
-      await Promise.all(storedFileIds.map((id) => this.storedFilesService.deleteStoredFileAndBlob(id)));
+      await Promise.all([
+        ...storedFileIds.map((id) => this.storedFilesService.deleteStoredFileAndBlob(id)),
+        ...uploadedStorageRefs.map((ref) => this.storageService.deleteFile(ref)),
+      ]);
       throw error;
     }
   }
