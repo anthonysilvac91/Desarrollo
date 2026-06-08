@@ -41,7 +41,7 @@ export default function PerformanceList({
               <div className="flex min-w-0 items-center space-x-3 sm:space-x-4">
                 <div className="w-11 h-11 rounded-full bg-app-bg flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ring-1 ring-border-theme/10 group-hover:scale-105 transition-transform shrink-0">
                   {item.image || item.avatar ? (
-                    <img src={item.image || item.avatar || ""} alt={item.name} className="w-full h-full object-cover" />
+                    <img src={item.image || item.avatar || ""} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
                   ) : Icon ? (
                     <Icon className="w-5 h-5 text-brand opacity-30 group-hover:opacity-100 transition-opacity" />
                   ) : (

@@ -216,7 +216,7 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
             <div className="relative">
               <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-brand/5 flex items-center justify-center ring-1 ring-border-theme/20">
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span className="text-3xl font-black text-brand tracking-tighter">{initials}</span>
                 )}

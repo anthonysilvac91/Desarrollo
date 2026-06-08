@@ -256,7 +256,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             >
               {currentAsset.thumbnail_url ? (
                 <>
-                  <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
+                  <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" loading="lazy" />
                   <span className="absolute inset-0 bg-black/20 opacity-0 transition-opacity group-hover:opacity-100 flex items-center justify-center">
                     <Maximize2 className="w-6 h-6 text-white drop-shadow" />
                   </span>
@@ -314,7 +314,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             <div className="relative">
               <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center ring-1 ring-border-theme/20">
                 {currentAsset.thumbnail_url ? (
-                  <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" />
+                  <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
                 )}

@@ -64,7 +64,7 @@ export default function OrganizationsPage() {
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center shrink-0 overflow-hidden">
             {org.logo_url ? (
-              <img src={org.logo_url} alt={org.name} className="w-full h-full object-contain p-2" />
+              <img src={org.logo_url} alt={org.name} className="w-full h-full object-contain p-2" loading="lazy" />
             ) : (
               <Building2 className="w-5 h-5 text-brand" />
             )}

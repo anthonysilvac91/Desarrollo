@@ -103,7 +103,7 @@ async function normalizeHeicFile(file: File): Promise<File> {
     return new File([blob], replaceExtension(file.name, "jpg"), { type: FALLBACK_OUTPUT_TYPE });
   } catch (error) {
     console.error("HEIC conversion failed:", error);
-    throw new Error("No se pudo convertir la imagen HEIC/HEIF. Prueba seleccionarla como JPEG desde el iPhone.");
+    throw new Error("No pudimos convertir esta foto HEIC. Intenta seleccionar otra foto o cambia el formato de cámara a 'Más compatible' en Ajustes > Cámara > Formatos.");
   }
 }
 

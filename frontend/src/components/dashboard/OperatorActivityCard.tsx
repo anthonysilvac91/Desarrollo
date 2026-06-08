@@ -43,7 +43,7 @@ export default function OperatorActivityCard({ operators, t }: Props) {
             <div key={op.id} className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-brand/10 overflow-hidden flex items-center justify-center shrink-0 border border-white shadow-sm ring-1 ring-border-theme/10">
                 {op.avatar_url ? (
-                  <img src={op.avatar_url} alt={op.name} className="w-full h-full object-cover" />
+                  <img src={op.avatar_url} alt={op.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span className="text-[10px] font-black text-brand">{getInitials(op.name)}</span>
                 )}

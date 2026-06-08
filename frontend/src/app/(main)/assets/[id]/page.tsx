@@ -321,7 +321,7 @@ export default function AssetDetailPage() {
           <div className="relative shrink-0">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-app-bg shadow-lg bg-app-bg flex items-center justify-center">
               {asset.thumbnail_url ? (
-                <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" />
+                <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
               ) : (
                 <Ship className="w-10 h-10 sm:w-12 sm:h-12 text-brand" strokeWidth={1.5} />
               )}

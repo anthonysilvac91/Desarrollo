@@ -307,7 +307,7 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
                             : "border-white/20 opacity-60"
                         }`}
                       >
-                        <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" />
+                        <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" loading="lazy" />
                       </button>
                     );
                   })}

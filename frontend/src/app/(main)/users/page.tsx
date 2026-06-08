@@ -74,7 +74,7 @@ const UserCard = ({ item, t, onClick }: UserCardProps) => (
     <div className="flex items-center gap-4 p-4">
       <div className={`w-16 h-16 rounded-full overflow-hidden border-2 border-app-bg shadow-sm shrink-0 bg-brand/10 text-brand flex items-center justify-center font-black text-sm ${!item.is_active ? "grayscale opacity-40" : ""}`}>
         {item.avatar_url ? (
-          <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+          <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
         ) : (
           getInitials(item.name)
         )}
@@ -269,7 +269,7 @@ export default function UsersPage() {
         <div className="flex items-center space-x-3">
           <div className={`rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0 font-black text-xs border-2 border-surface shadow-sm overflow-hidden ${!item.is_active ? 'grayscale opacity-40' : ''}`} style={{ width: 52, height: 52 }}>
             {item.avatar_url ? (
-              <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" />
+              <img src={item.avatar_url} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
             ) : (
               item.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
             )}

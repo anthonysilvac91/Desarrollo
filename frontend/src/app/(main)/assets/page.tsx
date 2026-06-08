@@ -30,7 +30,7 @@ const AssetImage = ({ src, alt, iconId, iconSize = "w-9 h-9" }: { src: string; a
   if (!src || error) {
     return <AssetIcon iconId={iconId} className={`${iconSize} text-brand`} strokeWidth={1.5} />;
   }
-  return <img src={src} alt={alt} className="w-full h-full object-cover" onError={() => setError(true)} />;
+  return <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" onError={() => setError(true)} />;
 };
 
 interface AssetCardProps {

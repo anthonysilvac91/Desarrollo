@@ -82,7 +82,7 @@ export default function OwnersPage() {
             style={{ width: 52, height: 52 }}
           >
             {item.logo_url ? (
-              <img src={item.logo_url} alt={item.name} className="w-full h-full object-contain p-2" />
+              <img src={item.logo_url} alt={item.name} className="w-full h-full object-contain p-2" loading="lazy" />
             ) : (
               <Building2 className="w-5 h-5 text-brand" />
             )}

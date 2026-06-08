@@ -113,7 +113,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
           <div className="flex flex-col items-center text-center space-y-5">
             <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center ring-1 ring-border-theme/20">
               {currentService.asset?.thumbnail_url ? (
-                <img src={currentService.asset.thumbnail_url} alt={currentService.asset.name} className="w-full h-full object-cover" />
+                <img src={currentService.asset.thumbnail_url} alt={currentService.asset.name} className="w-full h-full object-cover" loading="lazy" />
               ) : (
                 <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
               )}
@@ -310,7 +310,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                             isSelected ? "border-brand ring-2 ring-brand/30 opacity-100" : "border-white/20 opacity-60"
                           }`}
                         >
-                          <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" />
+                          <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" loading="lazy" />
                         </button>
                       );
                     })}
