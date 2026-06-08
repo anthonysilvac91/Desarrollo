@@ -51,7 +51,7 @@ El sistema está bien estructurado y tiene un buen nivel de hardening para uploa
 
 ### Qué NO se implementó (fuera del alcance del PR)
 
-Los hallazgos P04, P05, P06, P10–P13, P16–P19, y las acciones de tipo M (migración) permanecen pendientes. F1/QW4, F2/P08/P09 y F5 ya fueron implementados; F3–F4 permanecen pendientes. Ver sección [Plan de acción recomendado](#plan-de-acción-recomendado).
+Los hallazgos P04, P05, P06, P10, P13, P16–P19, y las acciones de tipo M (migración) permanecen pendientes. F1/QW4, F2/P08/P09, F3/P12 y F5 ya fueron implementados; F4 permanece pendiente. Ver sección [Plan de acción recomendado](#plan-de-acción-recomendado).
 
 ---
 
@@ -93,7 +93,7 @@ Los hallazgos P04, P05, P06, P10–P13, P16–P19, y las acciones de tipo M (mig
 | P09 | **Alta** | ✅ **Implementado** | Frontend / Queries | `frontend/src/app/(main)/assets/page.tsx` | `["assets-owners-list"]` llamaba a `assetsService.findAll()` sin parámetros. | Ver P05. | Implementado: `GET /assets/filter-options` retorna solo `{ owners: [{ id, name }] }` y el frontend usa `assetsService.getFilterOptions()`. | No | No |
 | P10 | **Alta** | ⏳ Pendiente | Dashboard | `dashboard.service.ts:57` | Dashboard ejecuta 13 queries en paralelo + 2 queries de rankings (total 15 viajes DB por request). Los `groupBy` de `assetsServicedGroups` y `activeOperatorsGroups` cargan todos los IDs en memoria solo para hacer `.length`. | Alto costo por request en dashboard, especialmente con filtros de fecha amplios. | Reemplazar los `groupBy` de conteo por `COUNT DISTINCT` via Prisma. Fusionar los 3 COUNTs de servicios en un solo `groupBy`. | No | No |
 | P11 | **Media** | ✅ **Mitigado** (P01) | Dashboard | `dashboard.service.ts` | `getRankingDetails` resuelve avatar URLs de hasta 5 workers. Cada URL = 1 query DB + 1 llamada Supabase. | 5 × 2 = 10 operaciones externas por dashboard request. | Con caché de signed URLs (P01 implementado), los hits de caché reducen esto a 1 query DB por avatar. La llamada Supabase solo ocurre en el primer request. | No | No |
-| P12 | **Media** | ⏳ Pendiente | Frontend / Queries | `service/page.tsx:128-141` | La página de servicios lanza 2 queries simultáneas al mismo endpoint con params similares. Ambas se ejecutan aunque solo una sea visible. | 2× carga innecesaria en desktop o mobile. | Detectar viewport antes de decidir qué query ejecutar. `enabled` según breakpoint. | No | Sí |
+| P12 | **Media** | ✅ **Implementado** | Frontend / Queries | `service/page.tsx:128-141` | La página de servicios lanzaba 2 queries simultáneas al mismo endpoint con params similares. | Resuelto: solo se habilita la query correspondiente al viewport actual. | Implementado con `useMediaQuery` y `enabled` según breakpoint, sin cambiar contratos de API. | No | Sí |
 | P13 | **Media** | ⏳ Pendiente | Backend / Orgs | `organizations.service.ts:24` | `findAll` sin paginación y con resolución de logo URL para cada org. Solo accesible por SUPER_ADMIN pero sin límite. | Con 100+ orgs, retorna 100+ Supabase calls. | Agregar paginación. Con caché de URLs (P01) el impacto ya bajó. | No | No |
 | P14 | **Media** | ✅ **Implementado** | Backend / Services | `services.service.ts` | `findOne` cargaba el servicio sin filtro de `organization_id` en la query. La validación se hacía post-fetch. | Permite enumerar IDs de servicios de otros tenants por timing. | `findFirst({ where: { id, organization_id: user.orgId } })` para roles no SUPER_ADMIN. | No | No |
 | P15 | **Media** | ✅ **Implementado** | Backend / Assets | `assets.service.ts` | Mismo patrón que P14 en `findOne`. | Ídem. | `findFirst` con `organization_id` en el where. | No | No |
@@ -116,7 +116,7 @@ Los hallazgos P04, P05, P06, P10–P13, P16–P19, y las acciones de tipo M (mig
 | `GET /services/:id` | `services.service.ts:352` | Patrón original: sin filtro tenant en query | Estado actual: P14 implementado con filtro `organization_id` en query | Mantener |
 | `GET /assets/:id` | `assets.service.ts:295` | Patrón original: sin filtro tenant en query | Estado actual: P15 implementado con filtro `organization_id` en query | Mantener |
 | Dashboard page | `dashboard/page.tsx` | Refetch cada 60s con 1 query | Aceptable si la query es rápida | QW4 implementado; queda optimizar backend dashboard |
-| Services page | `service/page.tsx` | 4 queries en mount, 3 con refetch cada 30s | `["services-workers-list"]` usa `/services/filter-options`; ya no carga servicios completos para filtros | Consolidar queries desktop/mobile sigue pendiente |
+| Services page | `service/page.tsx` | 3 queries en mount, 3 con refetch cada 30s | `["services-workers-list"]` usa `/services/filter-options`; la query desktop/mobile se activa según viewport | Mantener monitoreo; Assets sigue pendiente si aparece el mismo patrón |
 | Assets page | `assets/page.tsx` | 3 queries en mount, 2 con refetch cada 30s | `["assets-owners-list"]` usa `/assets/filter-options`; ya no carga activos completos para filtros | Consolidar queries sigue pendiente |
 | Asset detail page | `assets/[id]/page.tsx` | Refetch cada 30s, carga todos los servicios | `enabled: !!assetId` correcto, pero la query es costosa | Paginar servicios; considerar intervalos por detalle si sigue pesado |
 
@@ -738,7 +738,7 @@ LIMIT 10 OFFSET 0;
 |---|--------|---------|---------|
 | F1 | ✅ **Hecho**: reducir intervalos de refetch | `frontend/src/lib/queryAutoRefetch.ts` | — |
 | F2 | ✅ **Hecho**: usar endpoint `/filter-options` para dropdowns | `service/page.tsx`, `assets/page.tsx` | — |
-| F3 | Unificar queries desktop/mobile en services page | `service/page.tsx` | 2-3h |
+| F3 | ✅ **Hecho**: habilitar solo la query desktop/mobile visible en services page | `service/page.tsx` | — |
 | F4 | Paginar historial de servicios en asset detail | `assets/[id]/page.tsx` | 4h |
 | F5 | ✅ **Hecho**: `refetchOnWindowFocus` desactivado en opciones compartidas | `frontend/src/lib/queryAutoRefetch.ts` | — |
 
@@ -839,4 +839,4 @@ El schema define `StoredFileStatus { READY, DELETING, DELETED, FAILED }` pero el
 
 **PR siguiente recomendado (backend):** Consolidar los 3 COUNTs de servicios en `dashboard.service.ts` en un único `groupBy` (QW6) y reemplazar los `groupBy` de conteo de activos/operadores por `COUNT DISTINCT` (QW7). Sin migraciones, bajo riesgo, impacto en el endpoint más frecuente.
 
-**PR siguiente recomendado (frontend):** Abordar P12/F3 para evitar queries desktop/mobile simultáneas en Services. Mantener P06/F4 para un PR posterior por su mayor alcance.
+**PR frontend P12/F3:** Implementado: Services evita queries desktop/mobile simultáneas con detección de viewport y `enabled` por query. Mantener P06/F4 para un PR posterior por su mayor alcance.

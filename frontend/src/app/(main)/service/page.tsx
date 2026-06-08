@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { servicesService, Service } from "@/services/services.service";
 import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
@@ -91,6 +92,7 @@ export default function ServicesPage() {
   const [mobileAssetFilter, setMobileAssetFilter] = useState("");
   const [isMobileAssetOpen, setIsMobileAssetOpen] = useState(false);
   const [mobileAssetSearch, setMobileAssetSearch] = useState("");
+  const isMobile = useMediaQuery("(max-width: 1023px)");
 
   const getQueryParams = () => {
     const params: any = { page, limit };
@@ -128,14 +130,16 @@ export default function ServicesPage() {
   const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["services", queryParams],
     queryFn: () => servicesService.findAll(queryParams),
+    enabled: isMobile === false,
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
   });
 
   const mobileQueryParams = getMobileQueryParams();
-  const { data: mobileResponseData, isLoading: mobileLoading } = useQuery({
+  const { data: mobileResponseData, isLoading: mobileLoading, refetch: refetchMobile } = useQuery({
     queryKey: ["services-mobile", mobileQueryParams],
     queryFn: () => servicesService.findAll(mobileQueryParams),
+    enabled: isMobile === true,
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
   });
@@ -175,6 +179,10 @@ export default function ServicesPage() {
   const mobileMeta = !Array.isArray(mobileResponseData) && mobileResponseData?.meta
     ? mobileResponseData.meta
     : { total: mobileList.length, page: 1, limit: 10, totalPages: 1 };
+  const isMobilePending = isMobile === null;
+  const isMobileListLoading = isMobilePending || mobileLoading;
+  const isDesktopListLoading = isMobilePending || isLoading;
+  const refetchActiveServices = () => isMobile ? refetchMobile() : refetch();
 
   React.useEffect(() => { setPage(1); }, [debouncedSearch, dateFilter, limit, desktopWorkerFilter]);
   React.useEffect(() => { setMobilePage(1); setMobileItems([]); }, [debouncedMobileSearch, mobileDateFilter, mobileWorkerFilter, mobileAssetFilter]);
@@ -200,7 +208,7 @@ export default function ServicesPage() {
         await servicesService.delete(serviceToDelete.id);
         showToast("Servicio eliminado con éxito.", "success");
         setServiceToDelete(null);
-        refetch();
+        refetchActiveServices();
       } catch (err) {
         showToast(t.feedback.generic_error, "error");
       }
@@ -578,7 +586,7 @@ export default function ServicesPage() {
         ) : null}
 
         {/* Mobile card list */}
-        {mobileLoading && mobileItems.length === 0 ? (
+        {isMobileListLoading && mobileItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <Loader2 className="w-8 h-8 text-brand animate-spin" />
             <p className="text-xs font-bold text-subtitle/40 uppercase tracking-wider animate-pulse">{t.services.states.loading}</p>
@@ -605,15 +613,15 @@ export default function ServicesPage() {
         {mobileItems.length > 0 && mobilePage < mobileMeta.totalPages && (
           <button
             onClick={() => setMobilePage(p => p + 1)}
-            disabled={mobileLoading}
+            disabled={isMobileListLoading}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border-theme/30 bg-white text-sm font-bold text-subtitle/60 hover:text-brand hover:border-brand/30 hover:bg-brand/5 active:scale-[0.99] transition-all shadow-sm disabled:opacity-50"
           >
-            {mobileLoading ? (
+            {isMobileListLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-brand" />
             ) : (
               <ChevronDown className="w-4 h-4" />
             )}
-            {mobileLoading ? t.services.states.loading : t.common.view_more}
+            {isMobileListLoading ? t.services.states.loading : t.common.view_more}
           </button>
         )}
       </div>
@@ -695,7 +703,7 @@ export default function ServicesPage() {
         />
 
         <div className="flex-1 min-h-100">
-          {isLoading ? (
+          {isDesktopListLoading ? (
             <div className="w-full flex flex-col items-center justify-center py-24">
               <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
               <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.services.states.loading}</p>
@@ -711,7 +719,7 @@ export default function ServicesPage() {
                   <p className="text-subtitle font-medium">{t.services.states.error_subtitle}</p>
                 </div>
                 <button
-                  onClick={() => refetch()}
+                  onClick={() => refetchActiveServices()}
                   className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/5"
                 >
                   {t.common.retry}
@@ -756,7 +764,7 @@ export default function ServicesPage() {
       <ServiceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={refetch}
+        onSuccess={refetchActiveServices}
       />
 
       <ConfirmModal
