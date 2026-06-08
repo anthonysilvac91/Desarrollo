@@ -29,11 +29,11 @@
 | 8 | Docs | API | `API_CONTRACTS.md` puede desalinearse | Documentación contradictoria con backend | Con cada cambio de endpoints, DTOs o auth flows |
 | 9 | Docs / QA | Tests | Guía QA aspiracional sin pipeline real | Documentación que no refleja el estado real | Cuando exista pipeline de pruebas estable |
 | 10 | **Alta** (temporal) | Infraestructura / DB | Backups Supabase — sin backup automático en plan Free | Pérdida total de datos ante corrupción, migración fallida o fallo de base | Antes de cliente pago, segundo cliente o uso operacional real |
-| 11 | Media | Storage / Imágenes | Fotos de services sin procesamiento server-side (Sharp) | Storage creciente y archivos pesados si se salta el frontend | Antes de escalar a más clientes o uso intensivo de evidencias |
+| 11 | Cerrada | Storage / Imágenes | Fotos de services sin procesamiento server-side (Sharp) | Mitigado: backend procesa a WebP antes de storage | Reabrir solo para metadata avanzada |
 | 12 | Baja/Media | Storage / Imágenes | TTL/refetch de signed URLs sin garantía ante sesiones largas | Imágenes rotas si una pestaña queda abierta más tiempo que el TTL | Si usuarios reportan imágenes rotas |
 | 13 | Media futura | Storage / Backend | `resolveFileUrl()` sin cache de signed URLs | Mayor latencia en listados con muchas imágenes | Cuando haya listados densos o más tenants activos |
 | 14 | Baja/Media | Frontend / Imágenes | `<img>` nativo en listados (sin `next/image`) | Sin optimización automática por viewport ni formato | Si Lighthouse/Network muestra imágenes pesadas |
-| 15 | Baja (demo) | Storage / Imágenes | Sin límite acumulado de storage por servicio | Crecimiento rápido si se suben muchas fotos grandes | Antes de uso intensivo de evidencias o más clientes |
+| 15 | Cerrada parcial | Storage / Imágenes | Sin límite acumulado de storage por servicio | Mitigado: límite backend por service + cuota org | Reabrir si se requiere quota por plan/tenant |
 
 ---
 
@@ -198,13 +198,13 @@ La guía QA anterior fue eliminada por estar desactualizada (SQLite, header inje
 
 ### 11 — Fotos de services sin procesamiento server-side (Sharp)
 
-**Estado actual:** Las fotos/adjuntos de services se validan en el backend (MIME + firma) y se almacenan tal como llegan después de la compresión frontend. No hay resize ni conversión server-side.
+**Estado actual:** Cerrado. Los adjuntos de services se validan en backend (MIME declarado, firma/magic bytes y dimensiones), se procesan con Sharp antes de subirlos y se almacenan como WebP quality 82, máximo 2000 px en el lado más largo, sin agrandar imágenes pequeñas.
 
-**Riesgo:** Si alguien salta el frontend (API directa, Postman, cliente mobile que no comprime), una foto de 10 MB se almacena sin reducción. Con 8 fotos por servicio y múltiples servicios, el storage crece rápidamente.
+**Riesgo residual:** `StoredFile` registra `mime_type` y `size_bytes` finales, pero el modelo actual no tiene columnas para `width`, `height` ni `original_size_bytes`. No se agregó migración en este cambio para mantenerlo seguro en producción.
 
-**Cuándo abordar:** Antes de escalar a más clientes o si el uso de evidencias/fotos crece en el tenant actual.
+**Cuándo reabrir:** Si evidencia visual pasa a ser un módulo de producto más rico: fotos antes/después, portada de servicio, orden manual, comentarios por imagen o reportes con evidencia.
 
-**Acción sugerida:** Aplicar Sharp a adjuntos de services: resize a max 2000 px, formato WebP, Q82. Mantener validación de imagen existente. El flujo de assets ya tiene este patrón implementado como referencia.
+**Acción sugerida futura:** Ampliar `ServiceAttachment` con metadata de producto (`width`, `height`, `original_size_bytes`, `sort_order`, `caption`, `role` e `is_cover`) y mantener `StoredFile` como metadata de storage.
 
 ---
 
@@ -246,13 +246,13 @@ La guía QA anterior fue eliminada por estar desactualizada (SQLite, header inje
 
 ### 15 — Sin límite acumulado de storage por servicio
 
-**Estado actual:** Existe límite de cantidad de archivos (máximo 8 por servicio, validado en frontend). No existe un límite de MB total por servicio ni por tenant en relación a las evidencias de servicios específicamente.
+**Estado actual:** Cerrado parcialmente. El backend mantiene el límite de cantidad de 10 archivos por service, valida máximo 10 MB por archivo original y agrega límite acumulado original de 40 MB por service. La cuota de organización se valida usando el tamaño final procesado antes de subir a storage.
 
-**Riesgo:** Crecimiento rápido del storage de Supabase si se suben 8 fotos grandes por servicio con muchos servicios. El plan Free de Supabase tiene 1 GB de storage total.
+**Riesgo residual:** El límite acumulado es una constante global. Si se agregan planes comerciales o tenants con necesidades distintas, conviene parametrizarlo por organización o plan.
 
-**Cuándo abordar:** Antes de uso intensivo de evidencias, cuando el tenant actual tenga >100 servicios con fotos, o antes de sumar nuevos tenants con alta frecuencia de servicios.
+**Cuándo reabrir:** Si un cliente necesita más evidencia por servicio, si se comercializan planes con cuotas distintas o si el volumen de evidencias supera los supuestos actuales.
 
-**Acción sugerida:** Definir un límite total por servicio (ej. 40 MB) validado en backend vía `StorageGovernanceService`. Complementa el ítem 11 (Sharp en services): si se procesa con Sharp, el tamaño almacenado baja significativamente.
+**Acción sugerida futura:** Parametrizar el límite acumulado por tenant/plan y exponerlo al frontend para mensajes preventivos antes del upload.
 
 ---
 
