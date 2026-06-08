@@ -10,15 +10,48 @@
 
 El sistema está bien estructurado y tiene un buen nivel de hardening para uploads (Sharp, WebP, límites de tamaño). Sin embargo, presenta **riesgos de latencia críticos en producción** derivados principalmente de la generación sin caché de signed URLs de Supabase, que puede escalar a cientos de llamadas HTTP externas por request. El dashboard y las páginas de listados realizan refetches automáticos cada 5 segundos desde el frontend, multiplicando la carga. Antes de sumar volumen de clientes, los tres frenos principales son: (1) la ausencia de caché para signed URLs, (2) los listados sin límite que pueden retornar payloads arbitrariamente grandes, y (3) la llamada costosa a `assertCanStore` que lista todos los archivos del org en Supabase en cada upload.
 
-**Prioridades recomendadas:**
-1. Cache in-memory con TTL para `resolveFileUrl` (quick win, sin migración).
+**Prioridades recomendadas (al momento de la auditoría):**
+1. ~~Cache in-memory con TTL para `resolveFileUrl` (quick win, sin migración).~~ → **IMPLEMENTADO**
 2. Forzar paginación en todos los `findAll` (sin limit = riesgo de payload gigante).
 3. Paginar servicios en el detalle de activo (actualmente ilimitado).
-4. Reemplazar `assertCanStore` por conteo en base de datos (eliminar listing de Supabase en upload path).
+4. ~~Reemplazar `assertCanStore` por conteo en base de datos (eliminar listing de Supabase en upload path).~~ → **IMPLEMENTADO**
 5. Reducir intervalos de refetch del frontend (5s → 30s mínimo).
-6. Implementar `resolveFileUrlForOrg` para validación multi-tenant en archivos.
+6. ~~Implementar `resolveFileUrlForOrg` para validación multi-tenant en archivos.~~ → **IMPLEMENTADO**
 
-**No hay bloqueantes absolutos hoy**, pero con 5+ clientes activos simultáneos, los problemas de signed URLs y los listados sin paginación serán visibles como latencia o errores 429 de Supabase.
+**No hay bloqueantes absolutos hoy**, pero con 5+ clientes activos simultáneos, los problemas restantes (listados sin paginación, refetch agresivo) serán visibles como latencia o errores 429 de Supabase.
+
+---
+
+## Implementación realizada
+
+**Commit:** `835bba4` · **Fecha:** 2026-06-08  
+**Scope:** Backend únicamente. Sin cambios de schema, sin migraciones, sin cambios de contrato de API, sin cambios de frontend.
+
+### Qué se implementó
+
+| Hallazgo | Archivo(s) modificado(s) | Descripción |
+|----------|--------------------------|-------------|
+| P01 — Cache signed URLs | `supabase-storage.service.ts` | `Map<string, {url, expiresAt}>` con TTL = `SIGNED_URL_TTL_SECONDS / 2`. Limpieza oportunística al 1% por `set`. `invalidateSignedUrlCache` invalida entrada al borrar el blob. |
+| P02 — assertCanStore con DB | `storage-governance.service.ts` | `assertCanStore` reemplaza el listing de Supabase por `prisma.storedFile.aggregate(_sum: size_bytes)`. Si hay `replacedFileIds`, resta su suma con un segundo aggregate. Sin llamadas a Supabase Storage en el path de upload. |
+| P03 — resolveFileUrlForOrg | `stored-files.service.ts` | Nuevo método `resolveFileUrlForOrg(fileId, orgId)` que valida `storedFile.organization_id === organizationId` antes de resolver la URL. Retorna `null` silenciosamente si el archivo no pertenece al org. |
+| P03 — propagación | `services.service.ts`, `assets.service.ts`, `dashboard.service.ts`, `users.service.ts`, `companies.service.ts`, `organizations.service.ts` | Todos los callsites de `resolveFileUrl` con `orgId` disponible migrados a `resolveFileUrlForOrg`. |
+| P14 — services findOne | `services.service.ts` | `findUnique({ where: { id } })` reemplazado por `findFirst({ where: { id, organization_id: user.orgId } })` para roles no SUPER_ADMIN. Se elimina la validación post-fetch. |
+| P15 — assets findOne | `assets.service.ts` | Ídem: `findFirst` con `organization_id` en el where. |
+| Storage abstract | `storage.service.ts` | `invalidateSignedUrlCache` implementado como método concreto (no-op) en la clase abstracta para que `LocalStorageService` no requiera cambios. |
+
+### Tests actualizados
+
+- `stored-files.service.spec.ts` — mock existente compatible
+- `services.service.spec.ts` — `resolveFileUrlForOrg` añadido al mock de `StoredFilesService`
+- `assets.service.spec.ts` — ídem
+- `dashboard.service.spec.ts` — ídem
+- `storage-governance.service.spec.ts` — tests existentes pasan con el nuevo aggregate
+
+**Resultado:** 35 tests pasando, build limpio (`nest build`).
+
+### Qué NO se implementó (fuera del alcance del PR)
+
+Los hallazgos P04, P05, P06, P07–P09, P10–P13, P16–P19, y todas las acciones de tipo M (migración) y F (frontend) permanecen pendientes. Ver sección [Plan de acción recomendado](#plan-de-acción-recomendado).
 
 ---
 
@@ -47,27 +80,27 @@ El sistema está bien estructurado y tiene un buen nivel de hardening para uploa
 
 ## Hallazgos priorizados
 
-| ID | Prioridad | Área | Archivo | Hallazgo | Impacto | Recomendación | Requiere migración | Requiere cambio frontend |
-|----|-----------|------|---------|----------|---------|---------------|-------------------|--------------------------|
-| P01 | **Crítica** | Storage | `stored-files.service.ts:52` | `resolveFileUrl` sin caché: cada llamada hace 1 query DB + 1 llamada HTTP a Supabase `createSignedUrl`. Se invoca N veces por response (1 por adjunto, 1 por thumbnail). | En detalle de activo con 50 servicios × 10 adjuntos = 501 llamadas Supabase por request. Latencia acumulada >10s. | Cache in-memory (Map) con TTL = 50% del `SIGNED_URL_TTL_SECONDS`. | No | No |
-| P02 | **Crítica** | Storage / Upload | `storage-governance.service.ts:56` | `assertCanStore` llama a `getOrganizationUsage` → `storageService.listFileRefs` → lista TODOS los archivos en Supabase Storage (bucket completo) para calcular uso. | Cada upload (evidencia, thumbnail, avatar, logo) ejecuta un listing completo del bucket. Latencia visible y rate limit risk. | Usar suma de `size_bytes` en tabla `StoredFile` vía `aggregate`. | No | No |
-| P03 | **Crítica** | Multi-tenancy | `stored-files.service.ts:52` | `resolveFileUrl(storedFileId)` no valida que el `storedFile` pertenezca al `organization_id` del caller. Cualquier servicio que reciba un `file_id` externo puede generar un signed URL para archivos de otro tenant. | Riesgo de fuga de archivos entre organizaciones si un ID se adivina o filtra. | Implementar `resolveFileUrlForOrg(fileId, orgId)` que valida `{ where: { id, organization_id } }` antes de generar URL. | No | No |
-| P04 | **Alta** | Backend / Services | `services.service.ts:286` | `findAll` sin paginación (cuando no se envían `page`/`limit`) retorna TODOS los servicios del org sin límite. | Un org con 10.000 servicios retorna un payload de varios MB. Usado por el frontend para extraer opciones de filtros. | Forzar siempre paginación. Agregar endpoint dedicado `/services/filter-options` que retorne solo `{id, worker_id, worker_name, asset_id, asset_name}`. | No | Sí |
-| P05 | **Alta** | Backend / Assets | `assets.service.ts:254` | `findAll` sin paginación retorna todos los activos. Mismo patrón que P04. | Mismo impacto. Frontend usa este listado para construir el dropdown de owners. | Ídem P04: endpoint dedicado `GET /assets/filter-options`. | No | Sí |
-| P06 | **Alta** | Backend / Assets | `assets.service.ts:296` | `findOne` carga TODOS los servicios del activo + todos sus adjuntos en una sola query, sin límite ni paginación. | Activo con 200 servicios × 5 adjuntos = 1.000 registros + 1.001 llamadas Supabase por request. | Paginar servicios en el detalle de activo: `take: 20, orderBy: created_at desc`. Agregar `GET /assets/:id/services?page&limit`. | Sí | Sí |
-| P07 | **Alta** | Frontend / Refetch | `queryAutoRefetch.ts` | `fast: 5000ms` (5s) se aplica a services list, assets list y asset detail. Con 3 queries activas en services page = 36 llamadas/minuto solo desde esa pantalla. | En producción con 10 usuarios activos = 360 requests/minuto en servicios. Carga innecesaria. | `fast: 30000ms`, `detail: 60000ms`, `dashboard: 60000ms`. Confiar en `invalidateQueries` post-mutación. | No | Sí |
-| P08 | **Alta** | Frontend / Queries | `service/page.tsx:156` | `["services-workers-list"]` llama a `servicesService.findAll()` sin parámetros para construir el dropdown de workers/assets. Esto descarga el dataset completo. | Ver P04. | Usar endpoint dedicado `/services/filter-options`. | No | Sí |
-| P09 | **Alta** | Frontend / Queries | `assets/page.tsx:120` | `["assets-owners-list"]` llama a `assetsService.findAll()` sin parámetros. | Ver P05. | Usar `GET /owners` (ya paginado) o endpoint dedicado. | No | Sí |
-| P10 | **Alta** | Dashboard | `dashboard.service.ts:57` | Dashboard ejecuta 13 queries en paralelo + 2 queries de rankings (total 15 viajes DB por request), y el frontend lo refresca cada 15s. Los `groupBy` de `assetsServicedGroups` y `activeOperatorsGroups` cargan todos los IDs distintos en memoria solo para hacer `.length`. | Alto costo por request en dashboard, especialmente con filtros de fecha amplios. | Reemplazar los `groupBy` de conteo por `SELECT COUNT(DISTINCT asset_id)` via Prisma `_count`. Fusionar los 3 COUNT de servicios en uno con groupBy `is_public`. | No | No |
-| P11 | **Media** | Dashboard | `dashboard.service.ts:229` | `getRankingDetails` resuelve avatar URLs de hasta 5 workers en serie con `Promise.all`. Cada URL = 1 query DB + 1 llamada Supabase. | 5 × 2 = 10 operaciones externas por dashboard request, bloqueando el response. | Cache de avatares (ver P01). Con caché esto desaparece. | No | No |
-| P12 | **Media** | Frontend / Queries | `service/page.tsx:128-141` | La página de servicios lanza 2 queries simultáneas al mismo endpoint con params similares: `["services", queryParams]` para desktop y `["services-mobile", mobileQueryParams]`. Ambas se ejecutan aunque solo una sea visible. | 2× carga innecesaria en desktop o mobile. | Detectar viewport antes de decidir qué query ejecutar, o usar una sola query con params comunes. `enabled` según breakpoint. | No | Sí |
-| P13 | **Media** | Backend / Orgs | `organizations.service.ts:24` | `findAll` sin paginación y con resolución de logo URL para cada org. Solo accesible por SUPER_ADMIN pero sin límite. | Con 100+ orgs, retorna 100+ Supabase calls. | Agregar paginación y mover resolución de logo a campo `logo_url` materializado o cache. | No | No |
-| P14 | **Media** | Backend / Services | `services.service.ts:352` | `findOne` carga el servicio sin filtro de `organization_id` en la query. La validación se hace después en el código. | Permite enumerar IDs de servicios de otros tenants (respuesta timing diferente entre "not found" y "forbidden"). | Incluir `organization_id` en el `where` cuando no es SUPER_ADMIN: `{ id, organization_id: user.orgId }`. | No | No |
-| P15 | **Media** | Backend / Assets | `assets.service.ts:295` | Mismo patrón que P14 en `findOne`. | Ídem. | Ídem. | No | No |
-| P16 | **Media** | Índices | `schema.prisma` | Falta índice compuesto `(organization_id, is_active, updated_at)` en `Asset` para la query de listado principal que ordena por `[is_active desc, updated_at desc]` con filtro `organization_id`. | Sin este índice, el sort requiere un full scan sobre el índice de `organization_id`. | Agregar `@@index([organization_id, is_active, updated_at])` en `Asset`. | Sí | No |
-| P17 | **Media** | Índices | `schema.prisma` | Falta índice `(organization_id, is_public, status)` en `Service` para consultas de usuarios externos que filtran `{ organization_id, is_public: true, status: 'COMPLETED' }`. | Actualmente se usa `@@index([is_public])` separado, sin beneficio del compound para el filtro multi-columna. | Agregar `@@index([organization_id, is_public, status])` en `Service`. | Sí | No |
-| P18 | **Baja** | Backend / Services | `services.service.ts:100` | En `create`, el loop `for (const file of files)` procesa imágenes secuencialmente (Sharp). Con 10 adjuntos, el procesamiento es serializado. | Mayor latencia en creación de servicios con muchas imágenes. | `Promise.all(files.map(f => processUploadedImage(f, ...)))` para procesamiento paralelo. Verificar uso de memoria. | No | No |
-| P19 | **Baja** | Backend / Owners | `companies.service.ts:51` | `attachOwnerUsageCounts` carga todos los assets de todos los owners en memoria y los cruza con un `groupBy`. Se ejecuta en cada listado de owners. | Carga extra proporcional al número de assets por org. Para orgs pequeñas no es problema. | Requiere medición con EXPLAIN ANALYZE antes de optimizar. | No | No |
+| ID | Prioridad | Estado | Área | Archivo | Hallazgo | Impacto | Recomendación | Requiere migración | Requiere cambio frontend |
+|----|-----------|--------|------|---------|----------|---------|---------------|-------------------|--------------------------|
+| P01 | **Crítica** | ✅ **Implementado** | Storage | `supabase-storage.service.ts` | `resolveFileUrl` sin caché: cada llamada hace 1 query DB + 1 llamada HTTP a Supabase `createSignedUrl`. Se invoca N veces por response (1 por adjunto, 1 por thumbnail). | En detalle de activo con 50 servicios × 10 adjuntos = 501 llamadas Supabase por request. Latencia acumulada >10s. | Cache in-memory (`Map`) con TTL = `SIGNED_URL_TTL_SECONDS / 2`. Limpieza oportunística 1%. Invalidación al borrar blob. | No | No |
+| P02 | **Crítica** | ✅ **Implementado** | Storage / Upload | `storage-governance.service.ts` | `assertCanStore` listaba TODOS los archivos en Supabase Storage (bucket completo) para calcular uso. | Cada upload ejecutaba un listing completo del bucket. Latencia visible y rate limit risk. | Reemplazado por `prisma.storedFile.aggregate(_sum: size_bytes)`. Sin llamadas Supabase en upload path. | No | No |
+| P03 | **Crítica** | ✅ **Implementado** | Multi-tenancy | `stored-files.service.ts` | `resolveFileUrl(storedFileId)` no validaba que el `storedFile` perteneciera al `organization_id` del caller. | Riesgo de fuga de archivos entre organizaciones si un ID se adivina o filtra. | `resolveFileUrlForOrg(fileId, orgId)` implementado y propagado a todos los servicios. | No | No |
+| P04 | **Alta** | ⏳ Pendiente | Backend / Services | `services.service.ts:286` | `findAll` sin paginación retorna TODOS los servicios del org sin límite. | Un org con 10.000 servicios retorna un payload de varios MB. Usado por el frontend para extraer opciones de filtros. | Forzar siempre paginación. Agregar endpoint dedicado `/services/filter-options` que retorne solo `{id, worker_id, worker_name, asset_id, asset_name}`. | No | Sí |
+| P05 | **Alta** | ⏳ Pendiente | Backend / Assets | `assets.service.ts:254` | `findAll` sin paginación retorna todos los activos. Mismo patrón que P04. | Mismo impacto. Frontend usa este listado para construir el dropdown de owners. | Ídem P04: endpoint dedicado `GET /assets/filter-options`. | No | Sí |
+| P06 | **Alta** | ⏳ Pendiente | Backend / Assets | `assets.service.ts` | `findOne` carga TODOS los servicios del activo + todos sus adjuntos en una sola query, sin límite ni paginación. | Activo con 200 servicios × 5 adjuntos = 1.000 registros + 1.001 llamadas Supabase por request. | Paginar servicios en el detalle de activo: `take: 20, orderBy: created_at desc`. Agregar `GET /assets/:id/services?page&limit`. | Sí | Sí |
+| P07 | **Alta** | ⏳ Pendiente | Frontend / Refetch | `queryAutoRefetch.ts` | `fast: 5000ms` (5s) se aplica a services list, assets list y asset detail. Con 3 queries activas en services page = 36 llamadas/minuto solo desde esa pantalla. | En producción con 10 usuarios activos = 360 requests/minuto en servicios. Carga innecesaria. | `fast: 30000ms`, `detail: 60000ms`, `dashboard: 60000ms`. Confiar en `invalidateQueries` post-mutación. | No | Sí |
+| P08 | **Alta** | ⏳ Pendiente | Frontend / Queries | `service/page.tsx:156` | `["services-workers-list"]` llama a `servicesService.findAll()` sin parámetros para construir el dropdown de workers/assets. | Ver P04. | Usar endpoint dedicado `/services/filter-options`. | No | Sí |
+| P09 | **Alta** | ⏳ Pendiente | Frontend / Queries | `assets/page.tsx:120` | `["assets-owners-list"]` llama a `assetsService.findAll()` sin parámetros. | Ver P05. | Usar `GET /owners` (ya paginado) o endpoint dedicado. | No | Sí |
+| P10 | **Alta** | ⏳ Pendiente | Dashboard | `dashboard.service.ts:57` | Dashboard ejecuta 13 queries en paralelo + 2 queries de rankings (total 15 viajes DB por request). Los `groupBy` de `assetsServicedGroups` y `activeOperatorsGroups` cargan todos los IDs en memoria solo para hacer `.length`. | Alto costo por request en dashboard, especialmente con filtros de fecha amplios. | Reemplazar los `groupBy` de conteo por `COUNT DISTINCT` via Prisma. Fusionar los 3 COUNTs de servicios en un solo `groupBy`. | No | No |
+| P11 | **Media** | ✅ **Mitigado** (P01) | Dashboard | `dashboard.service.ts` | `getRankingDetails` resuelve avatar URLs de hasta 5 workers. Cada URL = 1 query DB + 1 llamada Supabase. | 5 × 2 = 10 operaciones externas por dashboard request. | Con caché de signed URLs (P01 implementado), los hits de caché reducen esto a 1 query DB por avatar. La llamada Supabase solo ocurre en el primer request. | No | No |
+| P12 | **Media** | ⏳ Pendiente | Frontend / Queries | `service/page.tsx:128-141` | La página de servicios lanza 2 queries simultáneas al mismo endpoint con params similares. Ambas se ejecutan aunque solo una sea visible. | 2× carga innecesaria en desktop o mobile. | Detectar viewport antes de decidir qué query ejecutar. `enabled` según breakpoint. | No | Sí |
+| P13 | **Media** | ⏳ Pendiente | Backend / Orgs | `organizations.service.ts:24` | `findAll` sin paginación y con resolución de logo URL para cada org. Solo accesible por SUPER_ADMIN pero sin límite. | Con 100+ orgs, retorna 100+ Supabase calls. | Agregar paginación. Con caché de URLs (P01) el impacto ya bajó. | No | No |
+| P14 | **Media** | ✅ **Implementado** | Backend / Services | `services.service.ts` | `findOne` cargaba el servicio sin filtro de `organization_id` en la query. La validación se hacía post-fetch. | Permite enumerar IDs de servicios de otros tenants por timing. | `findFirst({ where: { id, organization_id: user.orgId } })` para roles no SUPER_ADMIN. | No | No |
+| P15 | **Media** | ✅ **Implementado** | Backend / Assets | `assets.service.ts` | Mismo patrón que P14 en `findOne`. | Ídem. | `findFirst` con `organization_id` en el where. | No | No |
+| P16 | **Media** | ⏳ Pendiente | Índices | `schema.prisma` | Falta índice compuesto `(organization_id, is_active, updated_at)` en `Asset`. | Sin este índice, el sort requiere un full scan sobre el índice de `organization_id`. | `@@index([organization_id, is_active, updated_at])` en `Asset`. | Sí | No |
+| P17 | **Media** | ⏳ Pendiente | Índices | `schema.prisma` | Falta índice `(organization_id, is_public, status)` en `Service`. | Actualmente se usa `@@index([is_public])` separado, sin beneficio del compound. | `@@index([organization_id, is_public, status])` en `Service`. | Sí | No |
+| P18 | **Baja** | ⏳ Pendiente | Backend / Services | `services.service.ts:100` | Loop `for (const file of files)` procesa imágenes secuencialmente (Sharp). | Mayor latencia en creación de servicios con muchas imágenes. | `Promise.all(files.map(...))` para procesamiento paralelo. | No | No |
+| P19 | **Baja** | ⏳ Pendiente | Backend / Owners | `companies.service.ts:51` | `attachOwnerUsageCounts` carga todos los assets de todos los owners en memoria y los cruza con un `groupBy`. | Carga extra proporcional al número de assets por org. Para orgs pequeñas no es problema. | Requiere medición con EXPLAIN ANALYZE antes de optimizar. | No | No |
 
 ---
 
@@ -91,10 +124,12 @@ El sistema está bien estructurado y tiene un buen nivel de hardening para uploa
 
 ## Queries y patrones sospechosos
 
-### 1. `resolveFileUrl` — N+1 en listings y detalles
+### 1. `resolveFileUrl` — N+1 en listings y detalles ✅ Mitigado (P01, P03)
+
+> **Estado:** Cache in-memory implementado en `SupabaseStorageService`. `resolveFileUrlForOrg` propagado a todos los callsites. Commit `835bba4`.
 
 **Archivo:** `storage/stored-files.service.ts:52`  
-**Función:** `resolveFileUrl(storedFileId?)`  
+**Función:** `resolveFileUrl(storedFileId?)` / `resolveFileUrlForOrg(storedFileId, orgId)`  
 **Explicación:**  
 Cada llamada realiza:
 1. `prisma.storedFile.findUnique({ where: { id }, select: { storage_ref } })` — 1 query DB
@@ -185,9 +220,11 @@ const servicesGrouped = await this.prisma.service.groupBy({
 
 ---
 
-### 4. `assertCanStore` — listing de bucket en cada upload
+### 4. `assertCanStore` — listing de bucket en cada upload ✅ Implementado (P02)
 
-**Archivo:** `storage-governance.service.ts:56-80`  
+> **Estado:** Reemplazado por `prisma.storedFile.aggregate(_sum: size_bytes)`. Sin llamadas Supabase Storage en el path de upload. Commit `835bba4`.
+
+**Archivo:** `storage-governance.service.ts`  
 **Función:** `assertCanStore`  
 **Explicación:**  
 En cada upload llama a `getOrganizationUsage` → `listOrganizationFileRefs` → `storageService.listFileRefs` → lista recursiva del bucket en Supabase. Luego hace `Promise.all(refs.map(ref => storageService.getFileSize(ref)))` — una llamada Supabase por archivo para obtener el tamaño.
@@ -240,9 +277,11 @@ Agregar `take: 20` a la inclusión de servicios. Paginar el historial de servici
 
 ---
 
-### 6. Queries sin filtro tenant en findOne
+### 6. Queries sin filtro tenant en findOne ✅ Implementado (P14, P15)
 
-**Archivo:** `services.service.ts:352`, `assets.service.ts:295`  
+> **Estado:** `findOne` de services y assets usa `findFirst` con `organization_id` en el `where` para roles no SUPER_ADMIN. Validación post-fetch eliminada. Commit `835bba4`.
+
+**Archivo:** `services.service.ts`, `assets.service.ts`  
 **Función:** `findOne`  
 **Explicación:**  
 
@@ -301,9 +340,9 @@ POST /services { asset_id: "asset-de-otro-org" }
 → si la validación falla tarde, podría haber llamadas internas con IDs externos
 ```
 
-### Recomendación: `resolveFileUrlForOrg`
+### ✅ Implementado: `resolveFileUrlForOrg` (commit `835bba4`)
 
-Implementar en `StoredFilesService`:
+`StoredFilesService.resolveFileUrlForOrg` está implementado y activo en todos los servicios. El código de referencia es:
 
 ```ts
 async resolveFileUrlForOrg(
@@ -322,7 +361,7 @@ async resolveFileUrlForOrg(
 }
 ```
 
-Gradualmente reemplazar `resolveFileUrl` por `resolveFileUrlForOrg` en contextos donde se tiene `orgId` disponible (todos los servicios de la app lo tienen).
+La migración de `resolveFileUrl` → `resolveFileUrlForOrg` está completada en todos los servicios con `orgId` disponible: `services.service.ts`, `assets.service.ts`, `dashboard.service.ts`, `users.service.ts`, `companies.service.ts`, `organizations.service.ts`.
 
 ---
 
@@ -348,9 +387,9 @@ Cada `createSignedUrl` es una llamada HTTP a Supabase (~50-200ms de latencia). E
 - 251 llamadas × ~100ms promedio = **~25 segundos solo en signed URLs**
 - En producción con concurrencia = posible rate limiting de Supabase API
 
-### Recomendación: Cache in-memory con TTL
+### ✅ Implementado: Cache in-memory con TTL (commit `835bba4`)
 
-Implementar en `SupabaseStorageService` (o en `StoredFilesService`):
+Implementado en `SupabaseStorageService`. El código implementado:
 
 ```ts
 // En SupabaseStorageService
@@ -375,9 +414,9 @@ async resolveFileUrl(fileRef: string): Promise<string> {
 }
 ```
 
-**TTL sugerido:** `SIGNED_URL_TTL_SECONDS / 2` (por defecto 1800s = 30 minutos). Esto garantiza que la URL en caché expire antes que la URL real de Supabase.
+**TTL usado:** `Math.floor(SIGNED_URL_TTL_SECONDS * 0.5) * 1000` ms. Garantiza que la URL en caché expire antes que la URL real de Supabase.
 
-**Limpieza de caché:** Agregar un `setInterval` de limpieza de entradas expiradas cada 15 minutos, o usar una librería como `lru-cache` con `ttl`.
+**Limpieza de caché:** Limpieza oportunística con probabilidad 1% en cada `set` (sin `setInterval` para mantener el servicio stateless-friendly).
 
 **Pantallas más afectadas (ranking de impacto):**
 1. Asset detail (`/assets/:id`) — hasta 500+ URLs por request
@@ -659,15 +698,15 @@ LIMIT 10 OFFSET 0;
 
 ### 1. Quick wins sin migración (sin cambios de schema/contrato)
 
-| # | Acción | Archivo | Esfuerzo estimado |
-|---|--------|---------|------------------|
-| QW1 | Cache in-memory para `resolveFileUrl` con TTL 30min | `supabase-storage.service.ts` | 2-3h |
-| QW2 | Reemplazar `assertCanStore` con SUM en `StoredFile` | `storage-governance.service.ts` | 2h |
-| QW3 | Implementar `resolveFileUrlForOrg` y usarlo en contextos con orgId disponible | `stored-files.service.ts` + services | 3-4h |
-| QW4 | Reducir `AUTO_REFETCH_INTERVALS` en frontend | `queryAutoRefetch.ts` | 15min |
-| QW5 | Añadir filtro `organization_id` en `findOne` de services y assets | `services.service.ts`, `assets.service.ts` | 1h |
-| QW6 | Consolidar 3 COUNTs de servicios en dashboard en un solo `groupBy` | `dashboard.service.ts` | 1h |
-| QW7 | Reemplazar `groupBy` sin `_count` por `COUNT DISTINCT` en dashboard | `dashboard.service.ts` | 1h |
+| # | Estado | Acción | Archivo | Esfuerzo estimado |
+|---|--------|--------|---------|------------------|
+| QW1 | ✅ **Hecho** (commit `835bba4`) | Cache in-memory para `resolveFileUrl` con TTL = `SIGNED_URL_TTL_SECONDS / 2` | `supabase-storage.service.ts` | — |
+| QW2 | ✅ **Hecho** (commit `835bba4`) | Reemplazar `assertCanStore` con SUM en `StoredFile` | `storage-governance.service.ts` | — |
+| QW3 | ✅ **Hecho** (commit `835bba4`) | Implementar `resolveFileUrlForOrg` y usarlo en todos los servicios | `stored-files.service.ts` + 6 servicios | — |
+| QW4 | ⏳ Pendiente | Reducir `AUTO_REFETCH_INTERVALS` en frontend | `queryAutoRefetch.ts` | 15min |
+| QW5 | ✅ **Hecho** (commit `835bba4`) | Añadir filtro `organization_id` en `findOne` de services y assets | `services.service.ts`, `assets.service.ts` | — |
+| QW6 | ⏳ Pendiente | Consolidar 3 COUNTs de servicios en dashboard en un solo `groupBy` | `dashboard.service.ts` | 1h |
+| QW7 | ⏳ Pendiente | Reemplazar `groupBy` sin `_count` por `COUNT DISTINCT` en dashboard | `dashboard.service.ts` | 1h |
 
 ---
 
@@ -711,30 +750,32 @@ LIMIT 10 OFFSET 0;
 
 ### Local
 
-- [ ] `cd backend && npm run build` pasa sin errores
+- [x] `cd backend && npm run build` pasa sin errores *(commit `835bba4`)*
 - [ ] `cd frontend && npm run build` pasa sin errores
-- [ ] Tests unitarios backend pasan: `npm run test`
+- [x] Tests unitarios backend pasan: `npm run test` — 35/35 *(commit `835bba4`)*
 - [ ] E2E tests backend pasan: `npm run test:e2e`
-- [ ] Cache de signed URLs funciona (verificar con logs que el segundo request no llama Supabase)
-- [ ] `assertCanStore` actualizado no llama `listFileRefs`
-- [ ] Endpoints de filter-options retornan solo id/name sin URLs firmadas
+- [x] Cache de signed URLs implementado (`SupabaseStorageService.signedUrlCache`) *(commit `835bba4`)*
+- [x] `assertCanStore` ya no llama `listFileRefs` ni ninguna operación de Supabase Storage *(commit `835bba4`)*
+- [x] `resolveFileUrlForOrg` propagado a todos los servicios con `orgId` disponible *(commit `835bba4`)*
+- [x] `findOne` de services y assets usa `findFirst` con `organization_id` en el where *(commit `835bba4`)*
+- [ ] Endpoints de filter-options retornan solo id/name sin URLs firmadas *(pendiente — requiere nuevo endpoint)*
 
 ### Staging
 
 - [ ] Interceptor de timing activo y logueando en Railway staging
 - [ ] `EXPLAIN ANALYZE` ejecutado para queries de assets y services con datos representativos
 - [ ] Payload size de `/assets/:id` verificado con activo con >20 servicios
-- [ ] Signed URL cache hit rate visible en logs (>90% hit rate esperado)
-- [ ] `assertCanStore` ejecutado y verificar que no llama Supabase
+- [ ] Signed URL cache hit rate visible en logs (>90% hit rate esperado en segundo request)
+- [ ] `assertCanStore` ejecutado en upload: verificar que los logs NO muestran llamadas a `listFileRefs`
 
 ### Producción
 
 - [ ] Cache de signed URLs desplegado y monitorizado
-- [ ] Reducción de llamadas a Supabase Storage API visible en Supabase Dashboard
-- [ ] Intervalos de refetch reducidos desplegados
+- [ ] Reducción de llamadas a Supabase Storage API visible en Supabase Dashboard → Storage → Usage
+- [ ] Intervalos de refetch reducidos desplegados *(QW4 pendiente)*
 - [ ] No hay regresión en funcionalidad de uploads
-- [ ] Signed URLs siguen funcionando correctamente (TTL respetado)
-- [ ] Filtros de multi-tenant (`resolveFileUrlForOrg`) activos
+- [ ] Signed URLs siguen funcionando correctamente (TTL respetado, las URLs en caché no están expiradas)
+- [ ] Filtros de multi-tenant (`resolveFileUrlForOrg`) activos y sin errores en Railway logs
 
 ### Supabase
 
@@ -785,4 +826,8 @@ El schema define `StoredFileStatus { READY, DELETING, DELETED, FAILED }` pero el
 
 ### Recomendación de siguiente PR
 
-**PR prioritario:** Implementar cache de signed URLs en `SupabaseStorageService` + reemplazar `assertCanStore` con suma en DB. Ambos cambios están en el backend, no requieren migración de schema, y tienen el mayor impacto en latencia visible para el usuario. Estimado: 4-5 horas de implementación + revisión.
+~~**PR prioritario:** Implementar cache de signed URLs en `SupabaseStorageService` + reemplazar `assertCanStore` con suma en DB. Ambos cambios están en el backend, no requieren migración de schema, y tienen el mayor impacto en latencia visible para el usuario.~~ → **Implementado en commit `835bba4`.**
+
+**PR siguiente recomendado (backend):** Consolidar los 3 COUNTs de servicios en `dashboard.service.ts` en un único `groupBy` (QW6) y reemplazar los `groupBy` de conteo de activos/operadores por `COUNT DISTINCT` (QW7). Sin migraciones, bajo riesgo, impacto en el endpoint más frecuente.
+
+**PR siguiente recomendado (frontend):** Reducir `AUTO_REFETCH_INTERVALS.fast` de 5s a 30s en `queryAutoRefetch.ts` (QW4). Cambio de una línea, sin regresiones posibles, mayor impacto en carga del servidor con múltiples usuarios activos.
