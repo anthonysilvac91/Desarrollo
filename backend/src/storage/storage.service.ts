@@ -35,4 +35,12 @@ export abstract class StorageService {
    * Lista referencias persistibles de archivos gestionados por storage.
    */
   abstract listFileRefs(prefix?: string): Promise<string[]>;
+
+  /**
+   * Invalida la entrada de caché de signed URL para la referencia dada.
+   * Las implementaciones que usan caché deben sobrescribir este método.
+   */
+  invalidateSignedUrlCache(_fileRef: string): void {
+    // no-op por defecto
+  }
 }

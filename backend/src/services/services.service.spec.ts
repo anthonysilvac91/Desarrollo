@@ -34,6 +34,7 @@ describe('ServicesService', () => {
   let storageGovernance: { assertCanStore: jest.Mock };
   let storedFilesService: {
     resolveFileUrl: jest.Mock;
+    resolveFileUrlForOrg: jest.Mock;
     registerUploadedFile: jest.Mock;
     deleteStoredFileAndBlob: jest.Mock;
   };
@@ -53,6 +54,7 @@ describe('ServicesService', () => {
     };
     storedFilesService = {
       resolveFileUrl: jest.fn(),
+      resolveFileUrlForOrg: jest.fn().mockResolvedValue(null),
       registerUploadedFile: jest.fn(),
       deleteStoredFileAndBlob: jest.fn(),
     };

@@ -9,6 +9,11 @@ import { getExtensionForMime } from '../common/files/image-validation';
 const PRIVATE_REF_PREFIX = 'private://';
 const PUBLIC_STORAGE_PATH_PREFIX = '/storage/v1/object/public/';
 
+interface SignedUrlCacheEntry {
+  url: string;
+  expiresAt: number;
+}
+
 @Injectable()
 export class SupabaseStorageService extends StorageService {
   private readonly logger = new Logger(SupabaseStorageService.name);
@@ -16,6 +21,8 @@ export class SupabaseStorageService extends StorageService {
   private readonly publicBucket: string;
   private readonly privateBucket: string;
   private readonly signedUrlTtlSeconds: number;
+  private readonly signedUrlCache = new Map<string, SignedUrlCacheEntry>();
+  private readonly cacheTtlMs: number;
 
   constructor(private configService: ConfigService) {
     super();
@@ -34,6 +41,8 @@ export class SupabaseStorageService extends StorageService {
     }
 
     this.supabase = createClient(url, key);
+    // Usar la mitad del TTL real para garantizar que la URL en caché siga siendo válida
+    this.cacheTtlMs = Math.floor(this.signedUrlTtlSeconds * 0.5) * 1000;
   }
 
   private buildPrivateRef(filePath: string): string {
@@ -121,6 +130,11 @@ export class SupabaseStorageService extends StorageService {
       return fileRef;
     }
 
+    const cached = this.signedUrlCache.get(fileRef);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+
     const { data, error } = await this.supabase.storage
       .from(privateRef.bucket)
       .createSignedUrl(privateRef.filePath, this.signedUrlTtlSeconds);
@@ -130,7 +144,30 @@ export class SupabaseStorageService extends StorageService {
       throw new InternalServerErrorException('Could not resolve private file URL');
     }
 
+    this.signedUrlCache.set(fileRef, {
+      url: data.signedUrl,
+      expiresAt: Date.now() + this.cacheTtlMs,
+    });
+
+    // Limpiar entradas expiradas oportunísticamente (1% de probabilidad)
+    if (Math.random() < 0.01) {
+      this.pruneExpiredCacheEntries();
+    }
+
     return data.signedUrl;
+  }
+
+  override invalidateSignedUrlCache(fileRef: string): void {
+    this.signedUrlCache.delete(fileRef);
+  }
+
+  private pruneExpiredCacheEntries(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.signedUrlCache) {
+      if (entry.expiresAt <= now) {
+        this.signedUrlCache.delete(key);
+      }
+    }
   }
 
   async deleteFile(fileRef: string): Promise<void> {

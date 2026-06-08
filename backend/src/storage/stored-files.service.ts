@@ -64,6 +64,24 @@ export class StoredFilesService {
     return null;
   }
 
+  async resolveFileUrlForOrg(
+    storedFileId: string | null | undefined,
+    organizationId: string | null | undefined,
+  ): Promise<string | null> {
+    if (!storedFileId || !organizationId) return null;
+
+    const storedFile = await this.prisma.storedFile.findUnique({
+      where: { id: storedFileId },
+      select: { storage_ref: true, organization_id: true },
+    });
+
+    if (!storedFile || storedFile.organization_id !== organizationId) {
+      return null;
+    }
+
+    return this.storageService.resolveFileUrl(storedFile.storage_ref);
+  }
+
   async resolveFileUrlOrRef(storedFileId?: string | null, legacyStorageRef?: string | null): Promise<string | null> {
     const resolvedStoredFileUrl = await this.resolveFileUrl(storedFileId);
     if (resolvedStoredFileUrl) {
@@ -87,6 +105,7 @@ export class StoredFilesService {
       });
 
       if (storedFile?.storage_ref) {
+        this.storageService.invalidateSignedUrlCache(storedFile.storage_ref);
         await this.storageService.deleteFile(storedFile.storage_ref);
       }
 

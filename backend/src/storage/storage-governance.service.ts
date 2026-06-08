@@ -62,15 +62,25 @@ export class StorageGovernanceService {
       return;
     }
 
-    const replacedFileRefs = await this.listStoredFileRefsByIds(replacedFileIds);
-    const usage = await this.getOrganizationUsage(organizationId);
-    const replacedSizes = await Promise.all(
-      replacedFileRefs
-        .filter((ref) => !!ref)
-        .map((ref) => this.storageService.getFileSize(ref)),
-    );
-    const bytesToReplace = replacedSizes.reduce<number>((total, size) => total + (size ?? 0), 0);
-    const projectedBytes = usage.bytesUsed - bytesToReplace + incomingBytes;
+    const { _sum: usageSum } = await this.prisma.storedFile.aggregate({
+      where: {
+        organization_id: organizationId,
+        status: { not: 'DELETED' as const },
+      },
+      _sum: { size_bytes: true },
+    });
+    const currentUsageBytes = usageSum.size_bytes ?? 0;
+
+    let bytesToReplace = 0;
+    if (replacedFileIds.length > 0) {
+      const { _sum: replacedSum } = await this.prisma.storedFile.aggregate({
+        where: { id: { in: replacedFileIds } },
+        _sum: { size_bytes: true },
+      });
+      bytesToReplace = replacedSum.size_bytes ?? 0;
+    }
+
+    const projectedBytes = currentUsageBytes - bytesToReplace + incomingBytes;
 
     if (projectedBytes > this.quotaBytes) {
       throw new PayloadTooLargeException(

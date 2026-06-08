@@ -76,12 +76,13 @@ export class ServicesService {
     };
   }
 
-  private async resolveServiceFileUrls<T extends Record<string, any>>(service: T): Promise<T> {
+  private async resolveServiceFileUrls<T extends Record<string, any>>(service: T, organizationId: string): Promise<T> {
     const resolvedService = { ...service } as any;
 
     if (resolvedService.asset) {
-      resolvedService.asset.thumbnail_url = await this.storedFilesService.resolveFileUrl(
+      resolvedService.asset.thumbnail_url = await this.storedFilesService.resolveFileUrlForOrg(
         resolvedService.asset.thumbnail_file_id,
+        organizationId,
       );
     }
 
@@ -89,7 +90,7 @@ export class ServicesService {
       resolvedService.attachments = await Promise.all(
         resolvedService.attachments.map(async (attachment: any) => ({
           ...attachment,
-          file_url: await this.storedFilesService.resolveFileUrl(attachment.file_id),
+          file_url: await this.storedFilesService.resolveFileUrlForOrg(attachment.file_id, organizationId),
         }))
       );
     }
@@ -209,7 +210,7 @@ export class ServicesService {
       });
 
       this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
-      return this.resolveServiceFileUrls(newService);
+      return this.resolveServiceFileUrls(newService, serviceOrgId);
     } catch (error) {
       await Promise.all([
         ...storedFileIds.map((id) => this.storedFilesService.deleteStoredFileAndBlob(id)),
@@ -274,7 +275,7 @@ export class ServicesService {
         this.prisma.service.count({ where: whereClause })
       ]);
       const mappedData = await Promise.all(
-        data.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item)))
+        data.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item), item.organization_id))
       );
 
       return {
@@ -293,7 +294,7 @@ export class ServicesService {
       orderBy: { created_at: 'desc' }
     });
     return Promise.all(
-      services.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item)))
+      services.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item), item.organization_id))
     );
   }
 
@@ -350,8 +351,13 @@ export class ServicesService {
   }
 
   async findOne(id: string, user: any) {
-    const service = await this.prisma.service.findUnique({
-      where: { id },
+    const where: any = { id };
+    if (user.role !== 'SUPER_ADMIN') {
+      where.organization_id = user.orgId;
+    }
+
+    const service = await this.prisma.service.findFirst({
+      where,
       include: {
         attachments: true,
         worker: { select: { name: true, id: true } },
@@ -361,10 +367,6 @@ export class ServicesService {
 
     if (!service) {
       throw new NotFoundException('Service no encontrado');
-    }
-
-    if (user.role !== 'SUPER_ADMIN' && service.organization_id !== user.orgId) {
-      throw new NotFoundException('Service no encontrado o acceso denegado');
     }
 
     if (isExternalRole(user.role)) {
@@ -378,7 +380,7 @@ export class ServicesService {
       }
     }
 
-    return this.resolveServiceFileUrls(this.mapServiceRelations(service));
+    return this.resolveServiceFileUrls(this.mapServiceRelations(service), service.organization_id);
   }
 
   async remove(id: string, user: any) {

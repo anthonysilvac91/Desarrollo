@@ -26,7 +26,7 @@ describe('DashboardService tenant scoping', () => {
       providers: [
         DashboardService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn(), resolveFileUrlOrRef: jest.fn() } },
+        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn(), resolveFileUrlOrRef: jest.fn(), resolveFileUrlForOrg: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
 

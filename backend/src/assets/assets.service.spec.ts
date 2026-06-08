@@ -33,6 +33,7 @@ describe('AssetsService', () => {
           provide: StoredFilesService,
           useValue: {
             resolveFileUrl: jest.fn().mockResolvedValue(null),
+            resolveFileUrlForOrg: jest.fn().mockResolvedValue(null),
             registerUploadedFile: jest.fn(),
             deleteStoredFileAndBlob: jest.fn(),
           },

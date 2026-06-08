@@ -31,19 +31,19 @@ export class OwnersService {
     };
   }
 
-  private async resolveOwnerFileUrls<T extends Record<string, any>>(owner: T) {
+  private async resolveOwnerFileUrls<T extends Record<string, any>>(owner: T, organizationId: string) {
     const resolvedOwner = { ...owner } as any;
 
     if (Array.isArray(resolvedOwner.assets)) {
       resolvedOwner.assets = await Promise.all(
         resolvedOwner.assets.map(async (asset: any) => ({
           ...asset,
-          thumbnail_url: await this.storedFilesService.resolveFileUrl(asset.thumbnail_file_id),
+          thumbnail_url: await this.storedFilesService.resolveFileUrlForOrg(asset.thumbnail_file_id, organizationId),
         }))
       );
     }
 
-    resolvedOwner.logo_url = await this.storedFilesService.resolveFileUrl(resolvedOwner.logo_file_id);
+    resolvedOwner.logo_url = await this.storedFilesService.resolveFileUrlForOrg(resolvedOwner.logo_file_id, organizationId);
 
     return resolvedOwner;
   }
@@ -155,7 +155,7 @@ export class OwnersService {
       }
       throw error;
     }
-    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
   async findAll(orgId: string, query?: PaginationQueryDto) {
@@ -188,7 +188,7 @@ export class OwnersService {
       ]);
       const dataWithCounts = await this.attachOwnerUsageCounts(orgId, data);
       return {
-        data: await Promise.all(dataWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item)))),
+        data: await Promise.all(dataWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId))),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
       };
     }
@@ -205,7 +205,7 @@ export class OwnersService {
       orderBy
     });
     const ownersWithCounts = await this.attachOwnerUsageCounts(orgId, owners);
-    return Promise.all(ownersWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item))));
+    return Promise.all(ownersWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId)));
   }
 
   async findOne(id: string, orgId: string) {
@@ -219,7 +219,7 @@ export class OwnersService {
     if (!owner || owner.organization_id !== orgId) {
       throw new NotFoundException('Owner no encontrado');
     }
-    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
   async update(id: string, updateOwnerDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
@@ -300,7 +300,7 @@ export class OwnersService {
       );
     }
 
-    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner));
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
   async deactivate(id: string, orgId: string) {
@@ -331,7 +331,7 @@ export class OwnersService {
     return this.resolveOwnerFileUrls({
       ...this.mapOwnerRelations(owner),
       deactivated_assets_count: assetsResult.count,
-    });
+    }, orgId);
   }
 
   async remove(id: string, orgId: string) {

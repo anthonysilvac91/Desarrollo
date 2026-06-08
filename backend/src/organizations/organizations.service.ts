@@ -28,7 +28,7 @@ export class OrganizationsService {
 
     return Promise.all(
       organizations.map(async (organization: any) => {
-        organization.logo_url = await this.storedFilesService.resolveFileUrl(organization.logo_file_id);
+        organization.logo_url = await this.storedFilesService.resolveFileUrlForOrg(organization.logo_file_id, organization.id);
 
         return organization;
       }),
@@ -44,7 +44,7 @@ export class OrganizationsService {
       return organization;
     }
 
-    (organization as any).logo_url = await this.storedFilesService.resolveFileUrl(organization.logo_file_id);
+    (organization as any).logo_url = await this.storedFilesService.resolveFileUrlForOrg(organization.logo_file_id, organization.id);
 
     return organization;
   }
@@ -160,7 +160,7 @@ export class OrganizationsService {
       );
     }
 
-    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrl(updatedOrg.logo_file_id);
+    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrlForOrg(updatedOrg.logo_file_id, updatedOrg.id);
 
     return updatedOrg;
   }

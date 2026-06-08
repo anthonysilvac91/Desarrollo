@@ -40,10 +40,13 @@ export class AssetsService {
     };
   }
 
-  private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T) {
+  private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T, organizationId: string) {
     const resolvedAsset = { ...asset } as any;
 
-    resolvedAsset.thumbnail_url = await this.storedFilesService.resolveFileUrl(resolvedAsset.thumbnail_file_id);
+    resolvedAsset.thumbnail_url = await this.storedFilesService.resolveFileUrlForOrg(
+      resolvedAsset.thumbnail_file_id,
+      organizationId,
+    );
 
     if (Array.isArray(resolvedAsset.services)) {
       resolvedAsset.services = await Promise.all(
@@ -53,7 +56,7 @@ export class AssetsService {
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
                   ...attachment,
-                  file_url: await this.storedFilesService.resolveFileUrl(attachment.file_id),
+                  file_url: await this.storedFilesService.resolveFileUrlForOrg(attachment.file_id, organizationId),
                 }))
               )
             : service.attachments,
@@ -173,7 +176,7 @@ export class AssetsService {
       return asset;
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(asset));
+    return this.resolveAssetFileUrls(this.mapAssetRelations(asset), asset.organization_id);
   }
 
   async findAll(query: any, orgId: string, role: string, ownerId?: string) {
@@ -240,7 +243,8 @@ export class AssetsService {
       const mappedData = await Promise.all(
         data.map(async (asset: any) =>
           this.resolveAssetFileUrls(
-            this.mapAssetRelations(this.withLastService(asset))
+            this.mapAssetRelations(this.withLastService(asset)),
+            asset.organization_id,
           )
         )
       );
@@ -255,7 +259,8 @@ export class AssetsService {
     return Promise.all(
       assets.map(async (asset: any) =>
         this.resolveAssetFileUrls(
-          this.mapAssetRelations(this.withLastService(asset))
+          this.mapAssetRelations(this.withLastService(asset)),
+          asset.organization_id,
         )
       )
     );
@@ -293,8 +298,13 @@ export class AssetsService {
   }
 
   async findOne(id: string, user: any) {
-    const asset = await this.prisma.asset.findUnique({
-      where: { id },
+    const where: any = { id };
+    if (user.role !== 'SUPER_ADMIN') {
+      where.organization_id = user.orgId;
+    }
+
+    const asset = await this.prisma.asset.findFirst({
+      where,
       include: {
         services: {
           include: {
@@ -311,10 +321,6 @@ export class AssetsService {
       throw new NotFoundException('Activo no encontrado');
     }
 
-    if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
-      throw new NotFoundException('Activo no encontrado o sin acceso');
-    }
-
     if (isExternalRole(user.role)) {
       const currentOwnerId = user.owner_id;
       if (asset.owner_id !== currentOwnerId) {
@@ -323,7 +329,7 @@ export class AssetsService {
       asset.services = asset.services.filter((service) => service.is_public);
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(this.withLastService(asset)));
+    return this.resolveAssetFileUrls(this.mapAssetRelations(this.withLastService(asset)), asset.organization_id);
   }
 
   async assignOwner(assetId: string, ownerId: string, orgId: string) {
@@ -488,6 +494,6 @@ export class AssetsService {
       );
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset));
+    return this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset), asset.organization_id);
   }
 }
