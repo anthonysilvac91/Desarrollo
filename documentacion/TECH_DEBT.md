@@ -175,11 +175,11 @@ La guía QA anterior fue eliminada por estar desactualizada (SQLite, header inje
 - Si la demo avanza hacia uso operacional real, exportar manualmente los datos críticos desde el SQL Editor de Supabase antes de cada migración relevante (`pg_dump` o exportación CSV desde el dashboard).
 
 **Criterio de cierre:** Este ítem se cierra cuando se cumpla una de estas condiciones antes de cualquiera de los eventos listados abajo:
-- Subir a Supabase Pro (incluye PITR y backups diarios automáticos), o
+- Subir a Supabase Pro para contar con backups automáticos, o contratar/configurar PITR si se requiere recuperación punto-en-tiempo, o
 - Implementar backup externo automatizado (ej. exportación programada a S3/R2).
 
 **Eventos que fuerzan el cierre antes de que ocurran:**
-- Primer cliente pago.
+- Primer cliente pago o cliente demo que pase a uso operacional real.
 - Segundo cliente (sea demo o pago).
 - Uso operacional real de datos (no demo).
 - Carga de datos críticos de producción.
@@ -271,6 +271,8 @@ Los siguientes ítems estuvieron en auditorías anteriores y **ya fueron resuelt
 | Dashboard ranking de workers sin filtro de tenant | ✅ Cerrado — `organization_id` añadido al `findMany` |
 | Verificación de email duplicado por-tenant en `createUser` | ✅ Cerrado — ahora usa `findUnique` global |
 | Invitación a email existente en otra org | ✅ Cerrado — validación global antes de enviar email |
+| Emails transaccionales no configurados | ✅ Cerrado — Resend activo con dominio temporal `coremetricsmedia.com` |
+| Falta de healthcheck productivo | ✅ Cerrado — `GET /health` implementado y Railway Healthcheck configurado |
 | IMG-01: validación de avatar/logo/org | ✅ Confirmado correcto — `validateImageFile()` (firma + MIME + dimensiones) ya estaba en los tres endpoints |
 | IMG-03: mensaje de error HEIC poco claro | ✅ Cerrado — mensaje mejorado con instrucción de `Ajustes > Cámara > Formatos` |
 | IMG-05: falta `loading="lazy"` en imágenes | ✅ Cerrado — aplicado en 13 `<img>` en listados, cards, drawers y galerías |
