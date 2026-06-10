@@ -3,7 +3,8 @@
 import React, { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ResetPasswordSchema, ResetPasswordFormData } from "@/types/schemas";
+import { z } from "zod";
+import { ResetPasswordFormData } from "@/types/schemas";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { authService } from "@/services/auth.service";
@@ -21,13 +22,24 @@ function ResetPasswordContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const resetPasswordSchema = z.object({
+    password: z.string().min(6, t.auth.validation.password_min),
+    confirm: z.string().min(6, t.auth.validation.password_min),
+  }).refine((data) => data.password === data.confirm, {
+    message: t.auth.validation.passwords_mismatch,
+    path: ["confirm"],
+  });
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(ResetPasswordSchema),
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirm: "",
+    },
   });
 
   if (!token) {

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoginSchema, LoginFormData } from "@/types/schemas";
+import { z } from "zod";
+import { LoginFormData } from "@/types/schemas";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
@@ -21,13 +22,17 @@ export default function LoginPage() {
   const [temporaryToken, setTemporaryToken] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const { shouldShowInstallButton, shouldShowIOSInstructions, triggerInstall } = usePWA();
+  const loginSchema = z.object({
+    email: z.string().email(t.auth.validation.invalid_email),
+    password: z.string().min(6, t.auth.validation.password_min),
+  });
 
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(LoginSchema),
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -40,7 +45,7 @@ export default function LoginPage() {
       const response = await authService.login(data);
       if ("requires_2fa" in response && response.requires_2fa) {
         setTemporaryToken(response.temporary_token);
-        showToast("Ingresa el codigo de tu app autenticadora.", "info");
+        showToast(t.auth.login.two_factor_required, "info");
         return;
       }
       login(response.access_token);
@@ -83,10 +88,10 @@ export default function LoginPage() {
         "data" in error.response &&
         typeof error.response.data === "object" &&
         error.response.data !== null &&
-        "message" in error.response.data &&
-        typeof error.response.data.message === "string"
+          "message" in error.response.data &&
+          typeof error.response.data.message === "string"
           ? error.response.data.message
-          : "Codigo 2FA invalido";
+          : t.auth.login.two_factor_invalid;
       showToast(message, "error");
     } finally {
       setIsSubmitting(false);
@@ -116,7 +121,7 @@ export default function LoginPage() {
             <form onSubmit={handleTwoFactorSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest ml-1">
-                  Codigo 2FA
+                  {t.auth.login.two_factor_label}
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
@@ -134,7 +139,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <p className="text-xs font-semibold text-subtitle/50 ml-1">
-                  Usa el codigo de 6 digitos de tu app autenticadora o un codigo de recuperacion.
+                  {t.auth.login.two_factor_help}
                 </p>
               </div>
 
@@ -146,10 +151,10 @@ export default function LoginPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Verificando...</span>
+                    <span>{t.auth.login.two_factor_verifying}</span>
                   </>
                 ) : (
-                  <span>Verificar codigo</span>
+                  <span>{t.auth.login.two_factor_submit}</span>
                 )}
               </button>
 
@@ -161,7 +166,7 @@ export default function LoginPage() {
                 }}
                 className="w-full text-xs font-black text-subtitle/40 uppercase tracking-widest hover:text-brand transition-colors"
               >
-                Volver al login
+                {t.auth.login.two_factor_back}
               </button>
             </form>
           ) : (
@@ -176,14 +181,21 @@ export default function LoginPage() {
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-subtitle/30 group-focus-within:text-brand transition-colors" />
                 </div>
-                <input
-                  {...register("email")}
-                  type="email"
-                  className={`block w-full pl-14 pr-4 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
-                    errors.email ? "border-error/40" : "border-border-theme/40"
-                  }`}
-                  placeholder={t.auth.login.email_placeholder}
-                  disabled={isSubmitting}
+                <Controller
+                  name="email"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      value={field.value ?? ""}
+                      type="email"
+                      className={`block w-full pl-14 pr-4 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
+                        errors.email ? "border-error/40" : "border-border-theme/40"
+                      }`}
+                      placeholder={t.auth.login.email_placeholder}
+                      disabled={isSubmitting}
+                    />
+                  )}
                 />
               </div>
               {errors.email && (
@@ -210,14 +222,21 @@ export default function LoginPage() {
                 <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
                   <Lock className="h-5 w-5 text-subtitle/30 group-focus-within:text-brand transition-colors" />
                 </div>
-                <input
-                  {...register("password")}
-                  type={showPassword ? "text" : "password"}
-                  className={`block w-full pl-14 pr-14 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
-                    errors.password ? "border-error/40" : "border-border-theme/40"
-                  }`}
-                  placeholder={t.auth.login.password_placeholder}
-                  disabled={isSubmitting}
+                <Controller
+                  name="password"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      value={field.value ?? ""}
+                      type={showPassword ? "text" : "password"}
+                      className={`block w-full pl-14 pr-14 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
+                        errors.password ? "border-error/40" : "border-border-theme/40"
+                      }`}
+                      placeholder={t.auth.login.password_placeholder}
+                      disabled={isSubmitting}
+                    />
+                  )}
                 />
                 <button
                   type="button"
@@ -253,6 +272,15 @@ export default function LoginPage() {
           )}
         </div>
 
+        <div className="mt-6 text-center">
+          <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest">
+            {t.auth.signup.login_prompt}{" "}
+            <Link href="/signup" className="text-brand hover:opacity-70 transition-opacity">
+              {t.auth.signup.login_link}
+            </Link>
+          </p>
+        </div>
+
         {shouldShowInstallButton && (
           <div className="mt-6">
             <button
@@ -261,7 +289,7 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center space-x-2 py-4 border-2 border-brand/20 bg-brand/5 text-brand rounded-2xl font-black text-sm active:scale-95 transition-all"
             >
               <Download className="w-5 h-5" />
-              <span>Instalar app</span>
+              <span>{t.auth.login.install_app}</span>
             </button>
           </div>
         )}
@@ -271,9 +299,9 @@ export default function LoginPage() {
             <div className="flex items-start gap-3">
               <Share className="mt-0.5 h-5 w-5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-black">Instalar en iPhone</p>
+                <p className="text-sm font-black">{t.auth.login.install_ios_title}</p>
                 <p className="mt-1 text-xs font-bold text-brand/80">
-                  Abre en Safari, toca Compartir y selecciona Añadir a pantalla de inicio.
+                  {t.auth.login.install_ios_message}
                 </p>
               </div>
               <PlusSquare className="mt-0.5 h-5 w-5 flex-shrink-0" />
@@ -284,7 +312,7 @@ export default function LoginPage() {
         {/* Footer info */}
         <div className="mt-12 text-center">
           <p className="text-[11px] font-black text-subtitle opacity-30 uppercase tracking-[0.2em]">
-            &copy; {new Date().getFullYear()} RECALL PLATFORM • MVP STAGE
+            &copy; {new Date().getFullYear()} {t.auth.login.footer}
           </p>
         </div>
       </div>

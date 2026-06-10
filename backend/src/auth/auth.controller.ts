@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, Request, Delete, Param } from '
 import { AuthRequestContext, AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { DisableTwoFactorDto, LoginTwoFactorDto, VerifyTwoFactorSetupDto } from './dto/two-factor.dto';
@@ -45,6 +46,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Registro mediante token de invitación' })
   register(@Body() registerDto: RegisterDto, @Request() req) {
     return this.authService.register(registerDto, this.getRequestContext(req));
+  }
+
+  @Post('register-organization')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: 'Crear una organizacion nueva y su administrador inicial' })
+  registerOrganization(@Body() dto: RegisterOrganizationDto, @Request() req) {
+    return this.authService.registerOrganization(dto, this.getRequestContext(req));
   }
 
   @Post('forgot-password')

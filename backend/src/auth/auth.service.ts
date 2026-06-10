@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { EmailService } from '../email/email.service';
 import { toApiRole } from '../common/compat/owner-role-compat';
@@ -273,6 +274,30 @@ export class AuthService {
     );
   }
 
+  private normalizeSlugBase(name: string): string {
+    return name
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 36) || 'organization';
+  }
+
+  private async buildUniqueOrganizationSlug(name: string) {
+    const base = this.normalizeSlugBase(name);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = randomBytes(3).toString('hex');
+      const slug = `${base}-${suffix}`;
+      const existing = await this.prisma.organization.findUnique({ where: { slug } });
+      if (!existing) return slug;
+    }
+
+    return `${base}-${randomBytes(8).toString('hex')}`;
+  }
+
   async login(loginDto: LoginDto, context?: AuthRequestContext) {
     const user = await this.prisma.user.findFirst({
       where: { email: loginDto.email },
@@ -426,6 +451,65 @@ export class AuthService {
 
     this.logger.log(`User ${user.id} registered via invitation`);
     return { access_token: this.signAccessToken(user, session) };
+  }
+
+  async registerOrganization(dto: RegisterOrganizationDto, context?: AuthRequestContext) {
+    const email = dto.email.trim().toLowerCase();
+    const organizationName = dto.organization_name.trim();
+    const adminName = dto.admin_name.trim();
+
+    if (!organizationName) {
+      throw new BadRequestException('Organization name is required');
+    }
+
+    if (!adminName) {
+      throw new BadRequestException('Admin name is required');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new BadRequestException('An account with this email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const slug = await this.buildUniqueOrganizationSlug(organizationName);
+
+    const { organization, user } = await this.prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: {
+          name: organizationName,
+          slug,
+          is_active: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          is_active: true,
+        },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          email,
+          name: adminName,
+          password_hash: passwordHash,
+          role: 'ADMIN',
+          organization_id: organization.id,
+          owner_id: null,
+        },
+      });
+
+      return { organization, user };
+    });
+
+    const session = await this.createSession(user, context);
+
+    this.logger.log(`Organization ${organization.id} registered with admin ${user.id}`);
+    return {
+      access_token: this.signAccessToken(user, session),
+      organization,
+    };
   }
 
   async getSessions(userId: string, currentSessionId?: string) {

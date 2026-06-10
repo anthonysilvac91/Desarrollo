@@ -30,6 +30,13 @@ export interface AuthSession {
   user_agent: string | null;
 }
 
+export interface RegisterOrganizationData {
+  organization_name: string;
+  admin_name: string;
+  email: string;
+  password: string;
+}
+
 export const authService = {
   login: async (credentials: LoginFormData) => {
     const res = await api.post<LoginResponse>("/auth/login", credentials);
@@ -91,6 +98,13 @@ export const authService = {
   },
   register: async (token: string, name: string, password: string) => {
     const res = await api.post<{ access_token: string }>("/auth/register", { token, name, password });
+    return res.data;
+  },
+  registerOrganization: async (data: RegisterOrganizationData) => {
+    const res = await api.post<{ access_token: string; organization: { id: string; name: string; slug: string; is_active: boolean } }>(
+      "/auth/register-organization",
+      data,
+    );
     return res.data;
   },
   validateInvitation: async (token: string) => {

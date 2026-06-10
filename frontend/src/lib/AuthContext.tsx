@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
 import { useRouter, usePathname } from "next/navigation";
@@ -18,6 +18,16 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const ROUTE_PERMISSIONS: Record<string, string[]> = {
+  "/organizations": ["SUPER_ADMIN"],
+  "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
+  "/users": ["SUPER_ADMIN", "ADMIN"],
+  "/owners": ["SUPER_ADMIN", "ADMIN"],
+  "/settings": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
+  "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
+  "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -88,17 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * Mapa de permisos por rol para el MVP
    */
-  const ROUTE_PERMISSIONS: Record<string, string[]> = {
-    "/organizations": ["SUPER_ADMIN"],
-    "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
-    "/users": ["SUPER_ADMIN", "ADMIN"],
-    "/owners": ["SUPER_ADMIN", "ADMIN"],
-    "/settings": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
-    "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
-    "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"]
-  };
-
-  const canAccess = (path: string): boolean => {
+  const canAccess = useCallback((path: string): boolean => {
     if (!user) return false;
     
     // Si la ruta no está en el mapa, es pública o no restringida por rol (ej. /login)
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!protectedPath) return true;
 
     return ROUTE_PERMISSIONS[protectedPath].includes(user.role);
-  };
+  }, [user]);
 
   // Proteger rutas (Auth + Roles)
   useEffect(() => {
@@ -116,7 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pathname === "/" ||
         pathname === "/forgot-password" ||
         pathname === "/reset-password" ||
-        pathname === "/register";
+        pathname === "/register" ||
+        pathname === "/signup";
 
       if (!user && !isPublicPath) {
         router.push("/login");
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [user, loading, pathname, router]);
+  }, [user, loading, pathname, router, canAccess]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, canAccess }}>

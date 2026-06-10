@@ -15,6 +15,7 @@ describe('AuthService', () => {
 
   const prismaMock = {
     user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
+    organization: { findUnique: jest.fn(), create: jest.fn() },
     userSession: { create: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     invitation: { findUnique: jest.fn(), update: jest.fn() },
     emailToken: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
@@ -27,8 +28,10 @@ describe('AuthService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     jwtMock.sign.mockReturnValue('mocked-token');
+    prismaMock.organization.findUnique.mockResolvedValue(null);
     prismaMock.userSession.findFirst.mockResolvedValue(null);
     prismaMock.userSession.create.mockResolvedValue({ id: 'session-1', token_jti: 'jti-1' });
+    prismaMock.$transaction.mockImplementation(async (callback) => callback(prismaMock));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -309,6 +312,79 @@ describe('AuthService', () => {
   });
 
   // ─── getMe() ────────────────────────────────────────────────────────────────
+
+  describe('registerOrganization()', () => {
+    it('crea organizacion activa, usuario ADMIN y retorna access_token', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.organization.create.mockResolvedValue({
+        id: 'org-new',
+        name: 'Acme Services',
+        slug: 'acme-services-abc123',
+        is_active: true,
+      });
+      prismaMock.user.create.mockResolvedValue(
+        makeUser({
+          id: 'admin-new',
+          email: 'admin@acme.com',
+          name: 'Admin User',
+          role: 'ADMIN',
+          organization_id: 'org-new',
+        }),
+      );
+
+      const result = await service.registerOrganization({
+        organization_name: 'Acme Services',
+        admin_name: 'Admin User',
+        email: 'ADMIN@ACME.COM',
+        password: 'password123',
+      });
+
+      expect(prismaMock.organization.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Acme Services',
+          is_active: true,
+        }),
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          is_active: true,
+        },
+      });
+      expect(prismaMock.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          email: 'admin@acme.com',
+          name: 'Admin User',
+          role: 'ADMIN',
+          organization_id: 'org-new',
+          owner_id: null,
+        }),
+      });
+      expect(result.access_token).toBe('mocked-token');
+      expect(result.organization).toEqual({
+        id: 'org-new',
+        name: 'Acme Services',
+        slug: 'acme-services-abc123',
+        is_active: true,
+      });
+    });
+
+    it('rechaza emails ya registrados', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(makeUser({ email: 'admin@acme.com' }));
+
+      await expect(
+        service.registerOrganization({
+          organization_name: 'Acme Services',
+          admin_name: 'Admin User',
+          email: 'admin@acme.com',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(prismaMock.organization.create).not.toHaveBeenCalled();
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
+    });
+  });
 
   describe('getMe()', () => {
     it('devuelve owner_id sin company_id/customer_id', async () => {

@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ForgotPasswordSchema, ForgotPasswordFormData } from "@/types/schemas";
+import { z } from "zod";
+import { ForgotPasswordFormData } from "@/types/schemas";
 import { useLanguage } from "@/lib/LanguageContext";
 import { authService } from "@/services/auth.service";
 import { Loader2, Mail, Ship, CheckCircle, ArrowLeft } from "lucide-react";
@@ -13,13 +14,19 @@ export default function ForgotPasswordPage() {
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const forgotPasswordSchema = z.object({
+    email: z.string().email(t.auth.validation.invalid_email),
+  });
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<ForgotPasswordFormData>({
-    resolver: zodResolver(ForgotPasswordSchema),
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
   });
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
