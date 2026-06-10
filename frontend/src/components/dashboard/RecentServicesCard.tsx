@@ -13,9 +13,26 @@ interface Service {
   worker_name: string;
 }
 
+interface RecentServicesTranslations {
+  dashboard: {
+    modules: {
+      recent_services: {
+        title: string;
+        empty_title: string;
+        empty_subtitle: string;
+        col_service: string;
+        col_asset: string;
+        col_operator: string;
+        col_completed: string;
+        view_all: string;
+      };
+    };
+  };
+}
+
 interface Props {
   services: Service[];
-  t: any;
+  t: RecentServicesTranslations;
 }
 
 const getInitials = (name: string) =>
@@ -101,7 +118,7 @@ export default function RecentServicesCard({ services, t }: Props) {
 
       <div className="px-5 pb-5 pt-3 mt-auto border-t border-border-theme/10">
         <Link
-          href="/assets"
+          href="/service"
           className="flex items-center justify-center gap-2 w-full h-11 rounded-2xl border border-brand/30 bg-brand/5 text-brand text-xs font-black uppercase tracking-wider hover:bg-brand/10 hover:border-brand/50 transition-all"
         >
           {m.view_all}

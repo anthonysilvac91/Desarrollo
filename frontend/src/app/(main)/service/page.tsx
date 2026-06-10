@@ -30,15 +30,44 @@ interface ServiceCardProps {
   onClick: () => void;
 }
 
+interface ServiceEvidenceAvatarProps {
+  item: Service;
+  className: string;
+  iconClassName: string;
+}
+
+const getPrimaryEvidenceUrl = (item: Service) =>
+  item.attachments?.find((attachment) => attachment.file_url)?.file_url ?? null;
+
+const ServiceEvidenceAvatar = ({ item, className, iconClassName }: ServiceEvidenceAvatarProps) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = imageFailed ? null : getPrimaryEvidenceUrl(item);
+
+  return (
+    <div className={`${className} rounded-full overflow-hidden bg-brand/10 flex items-center justify-center shrink-0`}>
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageUrl}
+          alt={item.title}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <Wrench className={iconClassName} strokeWidth={1.5} />
+      )}
+    </div>
+  );
+};
+
 const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
   <div
     onClick={onClick}
     className="bg-white rounded-2xl border border-border-theme/30 shadow-sm p-4 cursor-pointer active:scale-[0.99] transition-all"
   >
     <div className="flex items-center gap-3">
-      <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-        <Wrench className="w-5 h-5 text-brand" strokeWidth={1.5} />
-      </div>
+      <ServiceEvidenceAvatar item={item} className="w-12 h-12" iconClassName="w-5 h-5 text-brand" />
 
       <div className="flex-1 min-w-0">
         <p className="font-bold text-title text-sm leading-tight">{item.title}</p>
@@ -228,9 +257,11 @@ export default function ServicesPage() {
       sortValue: (item) => item.title,
       cell: (item) => (
         <div className="flex items-center space-x-3">
-          <div className="rounded-full overflow-hidden border-2 border-surface shadow-sm bg-brand/10 flex items-center justify-center text-brand shrink-0" style={{ width: 52, height: 52 }}>
-            <Wrench className="w-5 h-5" />
-          </div>
+          <ServiceEvidenceAvatar
+            item={item}
+            className="w-[52px] h-[52px] border-2 border-surface shadow-sm"
+            iconClassName="w-5 h-5 text-brand"
+          />
           <span className="font-bold text-title text-xs">{item.title}</span>
         </div>
       )

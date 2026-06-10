@@ -324,8 +324,8 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-title mb-1">{t.mobile.service_detail.lightbox.detail_label}</p>
-                    <p className="text-xs text-subtitle leading-relaxed mb-2">
-                      {t.mobile.service_detail.lightbox.detail_description}
+                    <p className="text-xs text-subtitle leading-relaxed mb-2 whitespace-pre-wrap">
+                      {currentService.description || t.mobile.service_detail.no_description}
                     </p>
                     <p className="text-xs text-subtitle/70 font-medium">
                       {currentService.worker?.name} · {formatDate(currentService.created_at)} · {imageAttachments.length} {imageAttachments.length === 1 ? t.mobile.service_detail.lightbox.photo : t.mobile.service_detail.lightbox.photos}

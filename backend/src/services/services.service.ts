@@ -266,7 +266,10 @@ export class ServicesService {
           include: {
             worker: { select: { id: true, name: true } },
             asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
-            attachments: { select: { id: true, file_id: true, file_type: true } },
+            attachments: {
+              select: { id: true, file_id: true, file_type: true },
+              orderBy: { created_at: 'asc' },
+            },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
@@ -289,7 +292,10 @@ export class ServicesService {
       include: {
         worker: { select: { id: true, name: true } },
         asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
-        attachments: { select: { id: true, file_id: true, file_type: true } },
+        attachments: {
+          select: { id: true, file_id: true, file_type: true },
+          orderBy: { created_at: 'asc' },
+        },
       },
       orderBy: { created_at: 'desc' }
     });
@@ -397,7 +403,7 @@ export class ServicesService {
     const service = await this.prisma.service.findFirst({
       where,
       include: {
-        attachments: true,
+        attachments: { orderBy: { created_at: 'asc' } },
         worker: { select: { name: true, id: true } },
         asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } }
       }
