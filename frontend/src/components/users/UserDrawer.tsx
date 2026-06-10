@@ -9,16 +9,16 @@ import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
 import ServiceDetailView from "@/components/services/ServiceDetailView";
 import type { Service as DrawerService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
-import { User, usersService } from "@/services/users.service";
+import { User } from "@/services/users.service";
 import { servicesService } from "@/services/services.service";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/lib/ToastContext";
-import { compressImageFile } from "@/lib/imageCompression";
-import ImageCropModal from "@/components/ui/ImageCropModal";
+import { useQuery } from "@tanstack/react-query";
 
 interface UserDrawerProps {
   user: User | null;
   onClose: () => void;
+  onEdit?: (user: User) => void;
+  onDelete?: (user: User) => void;
+  onResetPassword?: (user: User) => void;
 }
 
 const ROLE_LABELS: Record<string, { en: string; es: string }> = {
@@ -46,17 +46,12 @@ const getRoleStyle = (role: string) => {
   return styles[role] || "bg-gray-50 text-gray-600 border-gray-100";
 };
 
-export default function UserDrawer({ user, onClose }: UserDrawerProps) {
+export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPassword }: UserDrawerProps) {
   const { t, language } = useLanguage();
-  const { showToast } = useToast();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [dateFilter, setDateFilter] = useState<"custom" | null>(null);
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [cropSrc, setCropSrc] = useState<string | null>(null);
-  const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
   const [view, setView] = useState<"history" | "service-detail">("history");
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
@@ -92,46 +87,6 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
     queryFn: () => servicesService.findAll({ worker_id: user!.id, limit: 50 }),
     enabled: !!user?.id,
   });
-
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    setIsPhotoUpdating(true);
-    try {
-      const compressed = await compressImageFile(file, {
-        maxDimension: 800,
-        quality: 0.85,
-        maxBytes: 2 * 1024 * 1024,
-        fileNamePrefix: "avatar-source",
-      });
-      const reader = new FileReader();
-      reader.onloadend = () => setCropSrc(reader.result as string);
-      reader.readAsDataURL(compressed);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : t.common.image_process_error, "error");
-    } finally {
-      setIsPhotoUpdating(false);
-    }
-  };
-
-  const handleCropConfirm = async (croppedFile: File) => {
-    if (!user?.id || isPhotoUpdating) return;
-    setIsPhotoUpdating(true);
-    try {
-      const formData = new FormData();
-      formData.append("avatar", croppedFile);
-      await usersService.update(user.id, formData);
-      await queryClient.invalidateQueries({ queryKey: ["users"] });
-      showToast(t.assets.drawer.photo_updated, "success");
-      setCropSrc(null);
-    } catch (err: unknown) {
-      const msg = (err as any)?.response?.data?.message;
-      showToast(Array.isArray(msg) ? msg[0] : msg || t.assets.drawer.photo_update_error, "error");
-    } finally {
-      setIsPhotoUpdating(false);
-    }
-  };
 
   if (!user) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
 
@@ -181,7 +136,10 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
               <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
                 <button
                   type="button"
-                  onClick={() => setIsActionsMenuOpen(false)}
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onEdit?.(user);
+                  }}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
                 >
                   <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
@@ -189,7 +147,10 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsActionsMenuOpen(false)}
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onResetPassword?.(user);
+                  }}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
                 >
                   <KeyRound className="w-4 h-4 text-subtitle/50 shrink-0" />
@@ -198,7 +159,10 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
                 <div className="mx-3 my-1 border-t border-border-theme/20" />
                 <button
                   type="button"
-                  onClick={() => setIsActionsMenuOpen(false)}
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onDelete?.(user);
+                  }}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
                 >
                   <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
@@ -221,23 +185,6 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
                   <span className="text-3xl font-black text-brand tracking-tighter">{initials}</span>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
-                disabled={isPhotoUpdating}
-                className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-brand text-white shadow-lg shadow-brand/25 flex items-center justify-center active:scale-95 transition-all disabled:opacity-60"
-              >
-                {isPhotoUpdating
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <Pencil className="w-4 h-4" />}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.heic,.heif"
-                className="hidden"
-                onChange={handlePhotoSelect}
-              />
             </div>
 
             <div className="flex flex-col items-center space-y-1">
@@ -405,15 +352,6 @@ export default function UserDrawer({ user, onClose }: UserDrawerProps) {
 
         </div>
       </Drawer>
-
-      {cropSrc && (
-        <ImageCropModal
-          src={cropSrc}
-          onConfirm={handleCropConfirm}
-          onCancel={() => setCropSrc(null)}
-          onError={(msg) => showToast(msg, "error")}
-        />
-      )}
 
     </>
   );

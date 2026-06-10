@@ -45,7 +45,9 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
               <LayoutDashboard className="h-5 w-5 text-brand" />
             )}
           </div>
-          <p className="truncate text-sm font-black text-title min-w-0">{organizationName}</p>
+          <p className="min-w-0 max-w-[11rem] whitespace-normal break-words text-sm font-black leading-tight text-title">
+            {organizationName}
+          </p>
         </div>
 
         {/* Tablet menu button and title */}

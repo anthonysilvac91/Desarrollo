@@ -15,6 +15,11 @@ export class UpdateOwnProfileDto {
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
+  phone?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
   current_password?: string;
 
   @ApiProperty({ required: false })

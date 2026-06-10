@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 alt={user.organization.name || "Logo"}
                 className="max-h-10 w-auto object-contain shrink-0"
               />
-              <span className="font-bold text-sm text-title tracking-tight leading-tight line-clamp-2">
+              <span className="min-w-0 max-w-[160px] whitespace-normal break-words font-bold text-sm text-title tracking-tight leading-tight">
                 {user.organization.show_org_name ? user.organization.name : "Recall"}
               </span>
             </div>

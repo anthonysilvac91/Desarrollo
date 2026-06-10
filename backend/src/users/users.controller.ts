@@ -102,11 +102,14 @@ export class UsersController {
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar usuarios');
     }
+    if (avatar) {
+      throw new ForbiddenException('Cada usuario debe actualizar su propia foto de perfil');
+    }
     return this.usersService.update(id, dto, {
       id: req.user.id,
       role: req.user.role,
       orgId: req.user.orgId,
-    }, avatar);
+    });
   }
 
   @Patch(':id/status')

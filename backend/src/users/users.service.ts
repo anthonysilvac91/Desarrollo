@@ -325,8 +325,7 @@ export class UsersService {
   async update(
     id: string,
     dto: UpdateUserDto,
-    currentUser: { id: string; role: Role; orgId?: string },
-    avatarFile?: Express.Multer.File
+    currentUser: { id: string; role: Role; orgId?: string }
   ) {
     const currentUserRecord = await this.prisma.user.findUnique({
       where: { id },
@@ -335,7 +334,6 @@ export class UsersService {
         organization_id: true,
         role: true,
         owner_id: true,
-        avatar_file_id: true,
       },
     });
 
@@ -401,90 +399,23 @@ export class UsersService {
       throw new BadRequestException('Un usuario externo debe asociarse a un owner');
     }
 
-    let avatarFileId = currentUserRecord.avatar_file_id;
-
-    if (avatarFile) {
-      const organizationId = targetOrganizationId;
-      if (!organizationId) {
-        throw new BadRequestException('No se puede subir avatar para usuarios sin organizacion');
+    const updatedUser = await this.prisma.user.update({
+      where: { id: currentUserRecord.id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        organization_id: true,
+        owner_id: true,
+        avatar_file_id: true,
+        is_active: true,
+        organization: { select: { id: true, name: true, slug: true } },
+        owner: { select: { id: true, name: true } },
       }
-
-      const imageInfo = validateImageFile(avatarFile, {
-        maxBytes: 2 * 1024 * 1024,
-        label: 'Avatar de usuario',
-        maxWidth: 4096,
-        maxHeight: 4096,
-        maxPixels: 12 * 1024 * 1024,
-      });
-      avatarFile.mimetype = imageInfo.mime;
-      await processUploadedImage(avatarFile, {
-        maxWidth: 512,
-        maxHeight: 512,
-        format: 'webp',
-        quality: 86,
-      });
-      await this.storageGovernance.assertCanStore(
-        organizationId,
-        avatarFile.size,
-        currentUserRecord.avatar_file_id ? [currentUserRecord.avatar_file_id] : [],
-      );
-
-      const avatarUrl = await this.storageService.uploadFile(avatarFile, {
-        folder: buildUserAvatarPath(
-          organizationId,
-          currentUserRecord.id,
-        ),
-        visibility: 'private',
-      });
-      const storedFile = await this.storedFilesService.registerUploadedFile({
-        organizationId,
-        storageRef: avatarUrl,
-        originalName: avatarFile.originalname,
-        mimeType: avatarFile.mimetype,
-        sizeBytes: avatarFile.size,
-        kind: StoredFileKind.USER_AVATAR,
-        visibility: 'private',
-        entityType: 'USER',
-        entityId: currentUserRecord.id,
-        uploadedByUserId: currentUser.id,
-      });
-      avatarFileId = storedFile.id;
-    }
-
-    let updatedUser;
-    try {
-      updatedUser = await this.prisma.user.update({
-        where: { id: currentUserRecord.id },
-        data: {
-          ...data,
-          avatar_file_id: avatarFileId,
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          phone: true,
-          organization_id: true,
-          owner_id: true,
-          avatar_file_id: true,
-          is_active: true,
-          organization: { select: { id: true, name: true, slug: true } },
-          owner: { select: { id: true, name: true } },
-        }
-      });
-    } catch (error) {
-      if (avatarFile && avatarFileId && avatarFileId !== currentUserRecord.avatar_file_id) {
-        await this.storedFilesService.deleteStoredFileAndBlob(avatarFileId);
-      }
-      throw error;
-    }
-
-    if (avatarFile && currentUserRecord.avatar_file_id) {
-      await this.storedFilesService.deleteStoredFileAndBlob(
-        currentUserRecord.avatar_file_id,
-      );
-    }
+    });
 
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
   }
@@ -532,6 +463,11 @@ export class UsersService {
         }
       }
       data.email = email;
+    }
+
+    if (dto.phone !== undefined) {
+      const phone = dto.phone.trim();
+      data.phone = phone || null;
     }
 
     if (dto.new_password) {

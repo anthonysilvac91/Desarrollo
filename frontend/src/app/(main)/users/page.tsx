@@ -14,6 +14,7 @@ import InvitationModal from "@/components/users/InvitationModal";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
+import { authService } from "@/services/auth.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -120,6 +121,7 @@ export default function UsersPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const [page, setPage] = useState(1);
@@ -238,6 +240,19 @@ export default function UsersPage() {
       showToast(getServerErrorMessage(err, t.users.states.error_delete), "error");
     } finally {
       setUserToDelete(null);
+    }
+  };
+
+  const handleConfirmPasswordReset = async () => {
+    if (!userToResetPassword) return;
+
+    try {
+      await authService.forgotPassword(userToResetPassword.email);
+      showToast(t.confirm_modal.reset_password_sent, "success");
+    } catch (err) {
+      showToast(getServerErrorMessage(err, t.confirm_modal.reset_password_error), "error");
+    } finally {
+      setUserToResetPassword(null);
     }
   };
 
@@ -735,6 +750,19 @@ export default function UsersPage() {
       <UserDrawer
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
+        onEdit={(targetUser) => {
+          setSelectedUser(null);
+          setEditingUser(targetUser);
+          setIsModalOpen(true);
+        }}
+        onDelete={(targetUser) => {
+          setSelectedUser(null);
+          setUserToDelete(targetUser);
+        }}
+        onResetPassword={(targetUser) => {
+          setSelectedUser(null);
+          setUserToResetPassword(targetUser);
+        }}
       />
 
       <UserModal
@@ -760,6 +788,21 @@ export default function UsersPage() {
         confirmText={t.confirm_modal.confirm_delete}
         cancelText={t.confirm_modal.cancel_delete}
         variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={!!userToResetPassword}
+        onClose={() => setUserToResetPassword(null)}
+        onConfirm={handleConfirmPasswordReset}
+        title={t.confirm_modal.reset_password_title}
+        description={
+          userToResetPassword
+            ? `${t.confirm_modal.reset_password_description} (${userToResetPassword.email})`
+            : t.confirm_modal.reset_password_description
+        }
+        confirmText={t.confirm_modal.confirm_reset_password}
+        cancelText={t.confirm_modal.cancel_delete}
+        variant="brand"
       />
 
       <InvitationModal
