@@ -24,6 +24,11 @@ const SERVICE_ATTACHMENT_OUTPUT_QUALITY = 82;
 const SERVICE_ATTACHMENT_OUTPUT_FORMAT = 'webp';
 const SHARE_TOKEN_BYTES = 32;
 
+interface ZipEntry {
+  name: string;
+  data: Buffer;
+}
+
 function resolveDateRange(preset?: string, startDate?: string, endDate?: string): { gte: Date; lte: Date } | undefined {
   const now = new Date();
   if (preset === 'Hoy') {
@@ -51,6 +56,134 @@ function resolveDateRange(preset?: string, startDate?: string, endDate?: string)
     };
   }
   return undefined;
+}
+
+function sanitizeDownloadName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'archivo';
+}
+
+function escapePdfText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+const crcTable = new Uint32Array(256).map((_, index) => {
+  let crc = index;
+  for (let bit = 0; bit < 8; bit += 1) {
+    crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+  }
+  return crc >>> 0;
+});
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createZip(entries: ZipEntry[]): Buffer {
+  const localParts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBuffer = Buffer.from(entry.name, 'utf8');
+    const entryCrc = crc32(entry.data);
+
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0x0800, 6);
+    localHeader.writeUInt16LE(0, 8);
+    localHeader.writeUInt16LE(0, 10);
+    localHeader.writeUInt16LE(0, 12);
+    localHeader.writeUInt32LE(entryCrc, 14);
+    localHeader.writeUInt32LE(entry.data.length, 18);
+    localHeader.writeUInt32LE(entry.data.length, 22);
+    localHeader.writeUInt16LE(nameBuffer.length, 26);
+    localHeader.writeUInt16LE(0, 28);
+
+    localParts.push(localHeader, nameBuffer, entry.data);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0x0800, 8);
+    centralHeader.writeUInt16LE(0, 10);
+    centralHeader.writeUInt16LE(0, 12);
+    centralHeader.writeUInt16LE(0, 14);
+    centralHeader.writeUInt32LE(entryCrc, 16);
+    centralHeader.writeUInt32LE(entry.data.length, 20);
+    centralHeader.writeUInt32LE(entry.data.length, 24);
+    centralHeader.writeUInt16LE(nameBuffer.length, 28);
+    centralHeader.writeUInt16LE(0, 30);
+    centralHeader.writeUInt16LE(0, 32);
+    centralHeader.writeUInt16LE(0, 34);
+    centralHeader.writeUInt16LE(0, 36);
+    centralHeader.writeUInt32LE(0, 38);
+    centralHeader.writeUInt32LE(offset, 42);
+
+    centralParts.push(centralHeader, nameBuffer);
+    offset += localHeader.length + nameBuffer.length + entry.data.length;
+  }
+
+  const centralDirectory = Buffer.concat(centralParts);
+  const endHeader = Buffer.alloc(22);
+  endHeader.writeUInt32LE(0x06054b50, 0);
+  endHeader.writeUInt16LE(0, 4);
+  endHeader.writeUInt16LE(0, 6);
+  endHeader.writeUInt16LE(entries.length, 8);
+  endHeader.writeUInt16LE(entries.length, 10);
+  endHeader.writeUInt32LE(centralDirectory.length, 12);
+  endHeader.writeUInt32LE(offset, 16);
+  endHeader.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localParts, centralDirectory, endHeader]);
+}
+
+function createSimplePdf(lines: string[]): Buffer {
+  const safeLines = lines.map((line) => escapePdfText(line));
+  const content = [
+    'BT',
+    '/F1 22 Tf',
+    '50 780 Td',
+    `(${safeLines[0] ?? 'Reporte de servicio'}) Tj`,
+    '/F1 11 Tf',
+    ...safeLines.slice(1).flatMap((line) => ['0 -22 Td', `(${line}) Tj`]),
+    'ET',
+  ].join('\n');
+
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream\nendobj\n`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += object;
+  }
+
+  const xrefOffset = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+
+  return Buffer.from(pdf, 'utf8');
 }
 
 @Injectable()
@@ -495,7 +628,7 @@ export class ServicesService {
       include: {
         service: {
           include: {
-            organization: { select: { name: true, logo_file_id: true } },
+            organization: { select: { name: true, logo_file_id: true, default_asset_icon: true } },
             attachments: { orderBy: { created_at: 'asc' } },
             worker: { select: { name: true, id: true } },
             asset: {
@@ -549,8 +682,75 @@ export class ServicesService {
         organization: {
           name: shareLink.service.organization.name,
           logo_url: organizationLogoUrl,
+          default_asset_icon: shareLink.service.organization.default_asset_icon,
         },
       },
+    };
+  }
+
+  async generateSharedServicePhotosZip(token: string, baseUrl: string): Promise<{ fileName: string; buffer: Buffer }> {
+    const shared = await this.getPublicSharedService(token);
+    if (!shared.allow_downloads) {
+      throw new ForbiddenException('La descarga de fotos esta desactivada');
+    }
+
+    const imageAttachments = (shared.service.attachments ?? []).filter(
+      (attachment: any) => attachment.file_url && attachment.file_type?.startsWith('image/'),
+    );
+
+    if (imageAttachments.length === 0) {
+      throw new NotFoundException('No hay fotos para descargar');
+    }
+
+    const entries: ZipEntry[] = [];
+    for (let index = 0; index < imageAttachments.length; index += 1) {
+      const attachment = imageAttachments[index] as any;
+      const fileUrl = String(attachment.file_url);
+      const resolvedUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = Buffer.from(await response.arrayBuffer());
+      const extension = attachment.file_type?.split('/')[1] || 'webp';
+      const fallbackName = `foto-${index + 1}.${extension}`;
+      entries.push({
+        name: sanitizeDownloadName(attachment.file_name || fallbackName),
+        data,
+      });
+    }
+
+    if (entries.length === 0) {
+      throw new NotFoundException('No se pudieron preparar las fotos');
+    }
+
+    return {
+      fileName: `${sanitizeDownloadName(shared.service.title)}-fotos.zip`,
+      buffer: createZip(entries),
+    };
+  }
+
+  async generateSharedServiceReportPdf(token: string): Promise<{ fileName: string; buffer: Buffer }> {
+    const shared = await this.getPublicSharedService(token);
+    const service = shared.service;
+    const lines = [
+      `Reporte de servicio: ${service.title}`,
+      `Organizacion: ${service.organization?.name ?? 'Recall'}`,
+      `Fecha: ${service.created_at instanceof Date ? service.created_at.toISOString().slice(0, 10) : String(service.created_at).slice(0, 10)}`,
+      `Activo: ${service.asset?.name ?? 'Sin activo'}`,
+      `Responsable: ${service.worker?.name ?? 'No registrado'}`,
+      `Estado: ${service.status}`,
+      '',
+      'Descripcion:',
+      service.description || 'Sin descripcion registrada.',
+      '',
+      `Evidencia fotografica: ${(service.attachments ?? []).filter((attachment: any) => attachment.file_type?.startsWith('image/')).length} foto(s)`,
+    ];
+
+    return {
+      fileName: `${sanitizeDownloadName(service.title)}-reporte.pdf`,
+      buffer: createSimplePdf(lines),
     };
   }
 
