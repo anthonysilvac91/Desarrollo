@@ -10,7 +10,7 @@ import { StoredFilesService } from '../storage/stored-files.service';
 import { validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
 
@@ -22,6 +22,7 @@ const SERVICE_ATTACHMENT_MAX_PIXELS = 24 * 1024 * 1024;
 const SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION = 2000;
 const SERVICE_ATTACHMENT_OUTPUT_QUALITY = 82;
 const SERVICE_ATTACHMENT_OUTPUT_FORMAT = 'webp';
+const SHARE_TOKEN_BYTES = 32;
 
 function resolveDateRange(preset?: string, startDate?: string, endDate?: string): { gte: Date; lte: Date } | undefined {
   const now = new Date();
@@ -96,6 +97,10 @@ export class ServicesService {
     }
 
     return resolvedService;
+  }
+
+  private generateShareToken(): string {
+    return randomBytes(SHARE_TOKEN_BYTES).toString('base64url');
   }
 
   async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
@@ -425,6 +430,128 @@ export class ServicesService {
     }
 
     return this.resolveServiceFileUrls(this.mapServiceRelations(service), service.organization_id);
+  }
+
+  async getOrCreateShareLink(id: string, user: any) {
+    if (isExternalRole(user.role)) {
+      throw new ForbiddenException('No tienes permiso para compartir este servicio');
+    }
+
+    const where: any = { id };
+    if (user.role !== 'SUPER_ADMIN') {
+      where.organization_id = user.orgId;
+    }
+
+    const service = await this.prisma.service.findFirst({
+      where,
+      select: { id: true, organization_id: true },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service no encontrado');
+    }
+
+    const existingLink = await this.prisma.serviceShareLink.findFirst({
+      where: {
+        service_id: service.id,
+        is_enabled: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (existingLink) {
+      return {
+        token: existingLink.token,
+        allow_downloads: existingLink.allow_downloads,
+        expires_at: existingLink.expires_at,
+      };
+    }
+
+    let token = this.generateShareToken();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const tokenExists = await this.prisma.serviceShareLink.findUnique({ where: { token } });
+      if (!tokenExists) break;
+      token = this.generateShareToken();
+    }
+
+    const shareLink = await this.prisma.serviceShareLink.create({
+      data: {
+        service_id: service.id,
+        token,
+        created_by_user_id: user.id,
+      },
+    });
+
+    return {
+      token: shareLink.token,
+      allow_downloads: shareLink.allow_downloads,
+      expires_at: shareLink.expires_at,
+    };
+  }
+
+  async getPublicSharedService(token: string) {
+    const shareLink = await this.prisma.serviceShareLink.findUnique({
+      where: { token },
+      include: {
+        service: {
+          include: {
+            organization: { select: { name: true, logo_file_id: true } },
+            attachments: { orderBy: { created_at: 'asc' } },
+            worker: { select: { name: true, id: true } },
+            asset: {
+              select: {
+                name: true,
+                id: true,
+                category: true,
+                owner_id: true,
+                location: true,
+                thumbnail_file_id: true,
+                owner: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!shareLink || !shareLink.is_enabled) {
+      throw new NotFoundException('Link compartido no encontrado');
+    }
+
+    if (shareLink.expires_at && shareLink.expires_at.getTime() < Date.now()) {
+      throw new NotFoundException('Link compartido expirado');
+    }
+
+    const resolvedService = await this.resolveServiceFileUrls(
+      this.mapServiceRelations(shareLink.service),
+      shareLink.service.organization_id,
+    );
+
+    const organizationLogoUrl = await this.storedFilesService.resolveFileUrlForOrg(
+      shareLink.service.organization.logo_file_id,
+      shareLink.service.organization_id,
+    );
+
+    return {
+      token: shareLink.token,
+      allow_downloads: shareLink.allow_downloads,
+      service: {
+        id: resolvedService.id,
+        asset_id: resolvedService.asset_id,
+        title: resolvedService.title,
+        description: resolvedService.description,
+        status: resolvedService.status,
+        is_public: resolvedService.is_public,
+        created_at: resolvedService.created_at,
+        asset: resolvedService.asset,
+        worker: resolvedService.worker,
+        attachments: resolvedService.attachments,
+        organization: {
+          name: shareLink.service.organization.name,
+          logo_url: organizationLogoUrl,
+        },
+      },
+    };
   }
 
   async remove(id: string, user: any) {

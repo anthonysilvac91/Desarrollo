@@ -44,6 +44,12 @@ export class ServicesController {
     return this.servicesService.getFilterOptions(req.user);
   }
 
+  @Post(':id/share-link')
+  @ApiOperation({ summary: 'Crear u obtener link publico para compartir un servicio' })
+  getOrCreateShareLink(@Param('id') id: string, @Request() req) {
+    return this.servicesService.getOrCreateShareLink(id, req.user);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Editar un Service (solo ADMIN)', description: 'Admite modificación de datos, status y visibilidad.' })
   update(@Param('id') id: string, @Body() updateServiceDto: UpdateServiceDto, @Request() req) {

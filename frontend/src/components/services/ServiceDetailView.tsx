@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info, Share2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -65,6 +65,8 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const pinch = usePinchZoom();
 
   useEffect(() => {
@@ -113,6 +115,34 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
     }
 
     setTouchStartX(null);
+  };
+
+  const handleShareService = async () => {
+    if (isSharing) return;
+
+    setIsSharing(true);
+    setShareError(null);
+
+    try {
+      const shareLink = await servicesService.getOrCreateShareLink(current.id);
+      const shareUrl = `${window.location.origin}/share/services/${shareLink.token}`;
+      const shareText = `${current.title} - ${formatDate(current.created_at)}\n${shareUrl}`;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: current.title,
+          text: shareText,
+          url: shareUrl,
+        });
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      console.error(error);
+      setShareError("No se pudo crear el link para compartir.");
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -245,13 +275,29 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
             {/* Header */}
             <div className="w-full max-w-sm flex items-center justify-between">
               <p className="text-lg font-black text-title">{t.mobile.service_detail.lightbox.title}</p>
-              <button
-                onClick={() => setSelectedImageIndex(null)}
-                className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
-              >
-                <X className="w-5 h-5 text-brand" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleShareService}
+                  disabled={isSharing}
+                  className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all disabled:opacity-50"
+                  aria-label="Compartir servicio"
+                >
+                  {isSharing ? <Loader2 className="w-5 h-5 text-brand animate-spin" /> : <Share2 className="w-5 h-5 text-brand" />}
+                </button>
+                <button
+                  onClick={() => setSelectedImageIndex(null)}
+                  className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-5 h-5 text-brand" />
+                </button>
+              </div>
             </div>
+            {shareError && (
+              <div className="w-full max-w-sm rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-xs font-bold text-error">
+                {shareError}
+              </div>
+            )}
 
             {/* Image with navigation */}
             <div className="relative w-full max-w-sm">

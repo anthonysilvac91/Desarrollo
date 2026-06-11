@@ -118,6 +118,7 @@ model User {
   access_granted_w      WorkerAssetAccess[] @relation("GrantedByAdminW")
   invitations_sent      Invitation[]        @relation("InvitedBy")
   stored_files_uploaded StoredFile[]        @relation("StoredFileUploadedBy")
+  service_share_links   ServiceShareLink[]  @relation("ServiceShareLinkCreatedBy")
   email_tokens          EmailToken[]
   sessions              UserSession[]
 
@@ -203,6 +204,7 @@ model Service {
   asset        Asset               @relation(fields: [asset_id], references: [id])
   worker       User                @relation("ServiceWorker", fields: [worker_id], references: [id])
   attachments  ServiceAttachment[]
+  share_links  ServiceShareLink[]
 
   @@index([organization_id])
   @@index([organization_id, created_at])
@@ -213,6 +215,27 @@ model Service {
   @@index([worker_id, created_at])
   @@index([is_public])
   @@index([created_at])
+}
+
+model ServiceShareLink {
+  id                 String    @id @default(uuid())
+  service_id         String
+  token              String    @unique
+  is_enabled         Boolean   @default(true)
+  allow_downloads    Boolean   @default(true)
+  expires_at         DateTime?
+  created_by_user_id String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  service    Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  created_by User?   @relation("ServiceShareLinkCreatedBy", fields: [created_by_user_id], references: [id])
+
+  @@index([service_id])
+  @@index([token])
+  @@index([is_enabled])
+  @@index([expires_at])
 }
 
 model ServiceAttachment {

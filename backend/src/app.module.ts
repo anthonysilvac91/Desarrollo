@@ -9,6 +9,7 @@ import { AssetsController } from './assets/assets.controller';
 import { AssetsService } from './assets/assets.service';
 import { ServicesController } from './services/services.controller';
 import { ServicesService } from './services/services.service';
+import { ServiceSharesController } from './services/service-shares.controller';
 import { OrganizationsController } from './organizations/organizations.controller';
 import { OrganizationsService } from './organizations/organizations.service';
 import { AuthModule } from './auth/auth.module';
@@ -49,7 +50,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     CompaniesModule,
     HealthModule,
   ],
-  controllers: [AppController, AssetsController, ServicesController, OrganizationsController],
+  controllers: [AppController, AssetsController, ServicesController, ServiceSharesController, OrganizationsController],
   providers: [
     AppService,
     PrismaService,

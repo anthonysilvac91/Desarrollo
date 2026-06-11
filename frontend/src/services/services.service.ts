@@ -17,12 +17,31 @@ export interface Service {
     name: string;
   };
   attachments?: {
+    id?: string;
     file_url?: string | null;
     file_type?: string;
+    file_name?: string | null;
+    file_size_bytes?: number | null;
   }[];
+  organization?: {
+    name: string;
+    logo_url?: string | null;
+  };
   is_public: boolean;
   status: string;
   created_at: string;
+}
+
+export interface ServiceShareLink {
+  token: string;
+  allow_downloads: boolean;
+  expires_at?: string | null;
+}
+
+export interface PublicServiceShare {
+  token: string;
+  allow_downloads: boolean;
+  service: Service;
 }
 
 export interface ServiceStats {
@@ -53,6 +72,14 @@ export const servicesService = {
   },
   findOne: async (id: string) => {
     const res = await api.get<Service>(`/services/${id}`);
+    return res.data;
+  },
+  getOrCreateShareLink: async (id: string): Promise<ServiceShareLink> => {
+    const res = await api.post<ServiceShareLink>(`/services/${id}/share-link`);
+    return res.data;
+  },
+  findPublicShare: async (token: string): Promise<PublicServiceShare> => {
+    const res = await api.get<PublicServiceShare>(`/public/service-shares/${token}`);
     return res.data;
   },
   create: async (data: FormData) => {
