@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [temporaryToken, setTemporaryToken] = useState<string | null>(null);
+  const [twoFactorMethod, setTwoFactorMethod] = useState<'app' | 'email'>('app');
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const { shouldShowInstallButton, shouldShowIOSInstructions, triggerInstall } = usePWA();
   const loginSchema = z.object({
@@ -45,7 +46,17 @@ export default function LoginPage() {
       const response = await authService.login(data);
       if ("requires_2fa" in response && response.requires_2fa) {
         setTemporaryToken(response.temporary_token);
-        showToast(t.auth.login.two_factor_required, "info");
+        setTwoFactorMethod(response.method);
+        if (response.method === 'email') {
+          try {
+            await authService.requestTwoFactorEmailCode(response.temporary_token);
+            showToast(t.auth.login.two_factor_email_required, "info");
+          } catch {
+            showToast(t.auth.login.two_factor_email_required, "info");
+          }
+        } else {
+          showToast(t.auth.login.two_factor_required, "info");
+        }
         return;
       }
       login(response.access_token);
@@ -76,7 +87,9 @@ export default function LoginPage() {
     if (!temporaryToken || !twoFactorCode.trim()) return;
     setIsSubmitting(true);
     try {
-      const response = await authService.loginWithTwoFactor(temporaryToken, twoFactorCode);
+      const response = twoFactorMethod === 'email'
+        ? await authService.loginWithEmailCode(temporaryToken, twoFactorCode)
+        : await authService.loginWithTwoFactor(temporaryToken, twoFactorCode);
       login(response.access_token);
     } catch (error: unknown) {
       const message =
@@ -93,6 +106,19 @@ export default function LoginPage() {
           ? error.response.data.message
           : t.auth.login.two_factor_invalid;
       showToast(message, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendEmailCode = async () => {
+    if (!temporaryToken) return;
+    setIsSubmitting(true);
+    try {
+      await authService.requestTwoFactorEmailCode(temporaryToken);
+      showToast(t.auth.login.two_factor_email_required, "info");
+    } catch {
+      showToast(t.auth.login.two_factor_invalid, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +165,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <p className="text-xs font-semibold text-subtitle/50 ml-1">
-                  {t.auth.login.two_factor_help}
+                  {twoFactorMethod === 'email' ? t.auth.login.two_factor_email_help : t.auth.login.two_factor_help}
                 </p>
               </div>
 
@@ -157,6 +183,17 @@ export default function LoginPage() {
                   <span>{t.auth.login.two_factor_submit}</span>
                 )}
               </button>
+
+              {twoFactorMethod === 'email' && (
+                <button
+                  type="button"
+                  onClick={handleResendEmailCode}
+                  disabled={isSubmitting}
+                  className="w-full text-xs font-black text-brand/60 uppercase tracking-widest hover:text-brand transition-colors disabled:opacity-40"
+                >
+                  {t.auth.login.two_factor_email_resend}
+                </button>
+              )}
 
               <button
                 type="button"

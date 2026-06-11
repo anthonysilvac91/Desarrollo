@@ -3,10 +3,11 @@ import { LoginFormData } from "@/types/schemas";
 
 export type LoginResponse =
   | { access_token: string; requires_2fa?: false }
-  | { requires_2fa: true; temporary_token: string };
+  | { requires_2fa: true; temporary_token: string; method: 'app' | 'email' };
 
 export interface TwoFactorStatus {
   enabled: boolean;
+  method: 'app' | 'email';
   backup_codes_remaining: number;
 }
 
@@ -66,6 +67,29 @@ export const authService = {
   },
   disableTwoFactor: async (code: string) => {
     const res = await api.post<{ enabled: boolean }>("/auth/2fa/disable", { code });
+    return res.data;
+  },
+  sendTwoFactorEmailCode: async () => {
+    const res = await api.post<{ sent: boolean }>("/auth/2fa/email/send-code");
+    return res.data;
+  },
+  verifyTwoFactorEmailSetup: async (code: string) => {
+    const res = await api.post<{ enabled: boolean; backup_codes: string[] }>("/auth/2fa/email/verify-setup", { code });
+    return res.data;
+  },
+  disableTwoFactorEmail: async (code: string) => {
+    const res = await api.post<{ enabled: boolean }>("/auth/2fa/email/disable", { code });
+    return res.data;
+  },
+  requestTwoFactorEmailCode: async (temporaryToken: string) => {
+    const res = await api.post<{ sent: boolean }>("/auth/2fa/email/request", { temporary_token: temporaryToken });
+    return res.data;
+  },
+  loginWithEmailCode: async (temporaryToken: string, code: string) => {
+    const res = await api.post<{ access_token: string }>("/auth/2fa/email/login", {
+      temporary_token: temporaryToken,
+      code,
+    });
     return res.data;
   },
   getMe: async () => {

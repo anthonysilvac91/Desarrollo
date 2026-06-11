@@ -1148,10 +1148,8 @@ function NotificationsTab({ t }: { t: any }) {
 function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }) {
   const { showToast } = useToast();
   const { refreshUser } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isWorking, setIsWorking] = useState(false);
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [backupCount, setBackupCount] = useState(0);
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
   const [code, setCode] = useState("");
   const [disableCode, setDisableCode] = useState("");
@@ -1161,23 +1159,14 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
   const [isBackupCodesOpen, setIsBackupCodesOpen] = useState(false);
   const [isDisableOpen, setIsDisableOpen] = useState(false);
 
-  const loadStatus = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const status = await authService.getTwoFactorStatus();
-      setIsEnabled(status.enabled);
-      setBackupCount(status.backup_codes_remaining);
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || "No se pudo cargar el estado 2FA";
-      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [showToast]);
+  const { data: twoFaStatus, isLoading } = useQuery({
+    queryKey: ["2fa-status"],
+    queryFn: authService.getTwoFactorStatus,
+  });
 
-  React.useEffect(() => {
-    loadStatus();
-  }, [loadStatus]);
+  const isEnabled = !!(twoFaStatus?.enabled && twoFaStatus?.method === 'app');
+  const isOtherMethodActive = !!(twoFaStatus?.enabled && twoFaStatus?.method !== 'app');
+  const backupCount = isEnabled ? (twoFaStatus?.backup_codes_remaining ?? 0) : 0;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1239,13 +1228,12 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
     setIsWorking(true);
     try {
       const result = await authService.verifyTwoFactorSetup(setup.setup_token, code);
-      setIsEnabled(result.enabled);
-      setBackupCount(result.backup_codes.length);
       setBackupCodes(result.backup_codes);
       setSetup(null);
       setIsQrOpen(false);
       setIsBackupCodesOpen(true);
       setCode("");
+      await queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
       await refreshUser();
       showToast("2FA activado correctamente", "success");
     } catch (error: any) {
@@ -1268,11 +1256,10 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
     setIsWorking(true);
     try {
       await authService.disableTwoFactor(disableCode);
-      setIsEnabled(false);
-      setBackupCount(0);
       setDisableCode("");
       setBackupCodes([]);
       setIsDisableOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
       await refreshUser();
       showToast("2FA desactivado", "success");
     } catch (error: any) {
@@ -1497,45 +1484,41 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
             <p className={`text-sm font-bold ${isEnabled ? "text-brand" : "text-title"}`}>{s.twofa_app_name}</p>
             <p className="text-xs text-subtitle/50 mt-0.5">{s.twofa_app_desc}</p>
           </div>
-          {!isEnabled && !setup && (
-            <button
-              type="button"
-              onClick={startSetup}
-              disabled={isWorking || isLoading}
-              className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white shadow-sm shadow-brand/20 hover:bg-brand/90 disabled:opacity-50"
-            >
-              {isWorking ? "..." : s.activate}
-            </button>
-          )}
-          {isEnabled && (
+          {isLoading ? (
+            <span className="text-xs text-subtitle/40">...</span>
+          ) : isEnabled ? (
             <button
               type="button"
               onClick={() => setIsDisableOpen(true)}
-              disabled={isWorking || isLoading}
+              disabled={isWorking}
               className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 disabled:opacity-50"
             >
               {s.deactivate}
             </button>
+          ) : isOtherMethodActive ? null : (
+            !setup && (
+              <button
+                type="button"
+                onClick={startSetup}
+                disabled={isWorking}
+                className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white shadow-sm shadow-brand/20 hover:bg-brand/90 disabled:opacity-50"
+              >
+                {isWorking ? "..." : s.activate}
+              </button>
+            )
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2">
-        {[
-          { icon: MessageSquare, name: s.twofa_sms_name, desc: s.twofa_sms_desc },
-          { icon: Mail, name: s.twofa_email_name, desc: s.twofa_email_desc },
-        ].map(method => {
-          const Icon = method.icon;
-          return (
-            <div key={method.name} className="flex items-center gap-3 p-3 rounded-2xl border border-border-theme/25 bg-app-bg/30 opacity-60">
-              <Icon className="w-4 h-4 text-subtitle/40" />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-title">{method.name}</p>
-                <p className="text-[11px] text-subtitle/50">{method.desc} · Proximamente</p>
-              </div>
-            </div>
-          );
-        })}
+        <TwoFactorEmailPanel s={s} compact={compact} />
+        <div className="flex items-center gap-3 p-3 rounded-2xl border border-border-theme/25 bg-app-bg/30 opacity-60">
+          <MessageSquare className="w-4 h-4 text-subtitle/40" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-title">{s.twofa_sms_name}</p>
+            <p className="text-[11px] text-subtitle/50">{s.twofa_sms_desc} · Proximamente</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-start gap-2 pt-1">
@@ -1546,6 +1529,235 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
   );
 }
 
+function TwoFactorEmailPanel({ s, compact = false }: { s: any; compact?: boolean }) {
+  const { showToast } = useToast();
+  const { refreshUser } = useAuth();
+  const queryClient = useQueryClient();
+  const [isWorking, setIsWorking] = useState(false);
+  const [code, setCode] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [isBackupCodesOpen, setIsBackupCodesOpen] = useState(false);
+  const [isDisableOpen, setIsDisableOpen] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+
+  const { data: twoFaStatus, isLoading } = useQuery({
+    queryKey: ["2fa-status"],
+    queryFn: authService.getTwoFactorStatus,
+  });
+
+  const isEnabled = !!(twoFaStatus?.enabled && twoFaStatus?.method === 'email');
+  const isOtherMethodActive = !!(twoFaStatus?.enabled && twoFaStatus?.method !== 'email');
+
+  const inputClass = compact
+    ? "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand"
+    : "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none focus:ring-2 focus:ring-brand/15 focus:border-brand";
+
+  const sendCode = async () => {
+    setIsWorking(true);
+    try {
+      await authService.sendTwoFactorEmailCode();
+      setCodeSent(true);
+      setCode("");
+      showToast("Código enviado a tu correo", "success");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "No se pudo enviar el código";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const verifySetup = async () => {
+    if (!code.trim()) return;
+    setIsWorking(true);
+    try {
+      const result = await authService.verifyTwoFactorEmailSetup(code);
+      setBackupCodes(result.backup_codes);
+      setCode("");
+      setCodeSent(false);
+      setIsSetupOpen(false);
+      setIsBackupCodesOpen(true);
+      await queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
+      await refreshUser();
+      showToast("2FA por correo activado correctamente", "success");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Código inválido";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const disable = async () => {
+    if (!code.trim()) return;
+    setIsWorking(true);
+    try {
+      await authService.disableTwoFactorEmail(code);
+      setCode("");
+      setCodeSent(false);
+      setIsDisableOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
+      await refreshUser();
+      showToast("2FA por correo desactivado", "success");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "No se pudo desactivar 2FA";
+      showToast(Array.isArray(msg) ? msg[0] : msg, "error");
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const closeSetup = () => { setIsSetupOpen(false); setCode(""); setCodeSent(false); };
+  const closeDisable = () => { setIsDisableOpen(false); setCode(""); setCodeSent(false); };
+
+  const setupModal = isSetupOpen ? (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm" onClick={closeSetup}>
+      <div className="w-full max-w-sm rounded-[28px] bg-white shadow-2xl border border-border-theme/20 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3 border-b border-border-theme/20 px-5 py-4">
+          <div>
+            <p className="text-base font-black text-title">Activar 2FA por correo</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Verifica tu correo electrónico</p>
+          </div>
+          <button type="button" onClick={closeSetup} className="grid h-9 w-9 place-items-center rounded-xl border border-border-theme/30 text-subtitle hover:bg-app-bg" aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-4 px-5 py-5">
+          {!codeSent ? (
+            <>
+              <p className="text-sm text-subtitle/60">Se enviará un código de 6 dígitos a tu correo electrónico para confirmar la activación.</p>
+              <button type="button" onClick={sendCode} disabled={isWorking} className="w-full rounded-2xl bg-brand px-4 py-3 text-sm font-black text-white shadow-sm shadow-brand/20 disabled:opacity-50">
+                {isWorking ? "Enviando..." : "Enviar código"}
+              </button>
+              <button type="button" onClick={closeSetup} className="w-full rounded-2xl border border-border-theme/50 px-4 py-3 text-sm font-bold text-subtitle">
+                Cancelar
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-subtitle/60">Ingresa el código de 6 dígitos enviado a tu correo.</p>
+              <input value={code} onChange={e => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="Código de 6 dígitos" className={inputClass} disabled={isWorking} autoFocus />
+              <div className="flex gap-2">
+                <button type="button" onClick={verifySetup} disabled={isWorking || !code.trim()} className="flex-1 rounded-2xl bg-brand px-4 py-3 text-sm font-black text-white shadow-sm shadow-brand/20 disabled:opacity-50">
+                  Verificar y activar
+                </button>
+                <button type="button" onClick={sendCode} disabled={isWorking} className="rounded-2xl border border-border-theme/50 px-4 py-3 text-sm font-bold text-subtitle disabled:opacity-50">
+                  Reenviar
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const backupCodesModal = backupCodes.length > 0 && isBackupCodesOpen ? (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-[28px] bg-white shadow-2xl border border-border-theme/20 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-border-theme/20 px-5 py-4">
+          <div>
+            <p className="text-base font-black text-title">Codigos de recuperacion</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Guardalos antes de cerrar esta ventana</p>
+          </div>
+          <button type="button" onClick={() => setIsBackupCodesOpen(false)} className="grid h-9 w-9 place-items-center rounded-xl border border-border-theme/30 text-subtitle hover:bg-app-bg" aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-4 px-5 py-5">
+          <div className="grid grid-cols-2 gap-2">
+            {backupCodes.map(item => (
+              <code key={item} className="rounded-xl bg-app-bg px-3 py-2 text-xs font-black text-title text-center">{item}</code>
+            ))}
+          </div>
+          <p className="text-xs font-semibold text-amber-700">
+            Estos codigos se muestran una sola vez. Cada codigo sirve una vez si no tienes acceso a tu correo.
+          </p>
+          <button type="button" onClick={() => setIsBackupCodesOpen(false)} className="w-full rounded-2xl bg-brand px-4 py-3 text-sm font-black text-white shadow-sm shadow-brand/20">
+            Ya los guarde
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const disableModal = isEnabled && isDisableOpen ? (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-sm" onClick={closeDisable}>
+      <div className="w-full max-w-sm rounded-[28px] bg-white shadow-2xl border border-border-theme/20 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3 border-b border-border-theme/20 px-5 py-4">
+          <div>
+            <p className="text-base font-black text-title">Desactivar 2FA por correo</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Confirma con un código para desactivar</p>
+          </div>
+          <button type="button" onClick={closeDisable} className="grid h-9 w-9 place-items-center rounded-xl border border-border-theme/30 text-subtitle hover:bg-app-bg" aria-label="Cerrar">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-4 px-5 py-5">
+          {!codeSent ? (
+            <>
+              <p className="text-sm text-subtitle/60">Se enviará un código de verificación a tu correo para confirmar la desactivación.</p>
+              <button type="button" onClick={sendCode} disabled={isWorking} className="w-full rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-500 border border-red-100 disabled:opacity-50">
+                {isWorking ? "Enviando..." : "Enviar código"}
+              </button>
+              <button type="button" onClick={closeDisable} className="w-full rounded-2xl border border-border-theme/50 px-4 py-3 text-sm font-bold text-subtitle">
+                Cancelar
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-subtitle/60">Ingresa el código enviado a tu correo para desactivar 2FA.</p>
+              <input value={code} onChange={e => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="Código de 6 dígitos" className={inputClass} disabled={isWorking} autoFocus />
+              <div className="flex gap-2">
+                <button type="button" onClick={disable} disabled={isWorking || !code.trim()} className="flex-1 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-500 border border-red-100 disabled:opacity-50">
+                  Desactivar
+                </button>
+                <button type="button" onClick={closeDisable} className="rounded-2xl border border-border-theme/50 px-4 py-3 text-sm font-bold text-subtitle">
+                  Cancelar
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {typeof document !== "undefined" && setupModal ? ReactDOM.createPortal(setupModal, document.body) : null}
+      {typeof document !== "undefined" && backupCodesModal ? ReactDOM.createPortal(backupCodesModal, document.body) : null}
+      {typeof document !== "undefined" && disableModal ? ReactDOM.createPortal(disableModal, document.body) : null}
+
+      <div className={`rounded-2xl border-2 p-4 ${isEnabled ? "border-brand/30 bg-brand/5" : "border-border-theme/30 bg-app-bg/40"}`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isEnabled ? "bg-brand/10" : "bg-white border border-border-theme/30"}`}>
+            <Mail className={`w-5 h-5 ${isEnabled ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-bold ${isEnabled ? "text-brand" : "text-title"}`}>{s.twofa_email_name}</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">{s.twofa_email_desc}</p>
+          </div>
+          {isLoading ? (
+            <span className="text-xs text-subtitle/40">...</span>
+          ) : isEnabled ? (
+            <button type="button" onClick={() => { setIsDisableOpen(true); setCodeSent(false); }} disabled={isWorking} className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 disabled:opacity-50">
+              {s.deactivate}
+            </button>
+          ) : isOtherMethodActive ? (
+            <span className="text-[10px] font-semibold text-subtitle/30 text-right leading-tight max-w-[80px]">Desactiva el método actual primero</span>
+          ) : (
+            <button type="button" onClick={() => { setIsSetupOpen(true); setCodeSent(false); }} disabled={isWorking} className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold bg-brand text-white shadow-sm shadow-brand/20 hover:bg-brand/90 disabled:opacity-50">
+              {s.activate}
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function SecurityTab({ t }: { t: any }) {
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -1553,30 +1765,8 @@ function SecurityTab({ t }: { t: any }) {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [twoFaMethod, setTwoFaMethod] = useState<"app" | "sms" | "email" | null>(null);
 
   const s = t.settings.security_section;
-
-  const twoFaMethods = [
-    {
-      id: "app" as const,
-      icon: Smartphone,
-      name: s.twofa_app_name,
-      desc: s.twofa_app_desc,
-    },
-    {
-      id: "sms" as const,
-      icon: MessageSquare,
-      name: s.twofa_sms_name,
-      desc: s.twofa_sms_desc,
-    },
-    {
-      id: "email" as const,
-      icon: Mail,
-      name: s.twofa_email_name,
-      desc: s.twofa_email_desc,
-    },
-  ];
 
   const inputClass = "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand";
 
@@ -1652,64 +1842,6 @@ function SecurityTab({ t }: { t: any }) {
         <ModuleContainer>
           <div className="p-8 space-y-6">
             <TwoFactorAppPanel s={s} />
-            <div className="hidden">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-base font-black text-title">{s.twofa_title}</p>
-                <p className="text-sm text-subtitle/50 mt-1">{s.twofa_subtitle}</p>
-              </div>
-              <span className={`shrink-0 mt-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                twoFaMethod
-                  ? "bg-green-50 text-green-600 border-green-100"
-                  : "bg-amber-50 text-amber-500 border-amber-100"
-              }`}>
-                {twoFaMethod ? s.twofa_status_active : s.twofa_status_inactive}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {twoFaMethods.map(method => {
-                const Icon = method.icon;
-                const isActive = twoFaMethod === method.id;
-                return (
-                  <div
-                    key={method.id}
-                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
-                      isActive
-                        ? "border-brand/30 bg-brand/5"
-                        : "border-border-theme/30 bg-app-bg/40"
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      isActive ? "bg-brand/10" : "bg-white border border-border-theme/30"
-                    }`}>
-                      <Icon className={`w-5 h-5 ${isActive ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-bold ${isActive ? "text-brand" : "text-title"}`}>{method.name}</p>
-                      <p className="text-xs text-subtitle/50 mt-0.5">{method.desc}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setTwoFaMethod(isActive ? null : method.id)}
-                      className={`shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                        isActive
-                          ? "bg-red-50 text-red-500 border border-red-100 hover:bg-red-100"
-                          : "bg-brand text-white shadow-sm shadow-brand/20 hover:bg-brand/90"
-                      }`}
-                    >
-                      {isActive ? s.deactivate : s.activate}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex items-start gap-2 pt-1">
-              <Info className="w-4 h-4 text-subtitle/30 shrink-0 mt-0.5" />
-              <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
-            </div>
-            </div>
           </div>
         </ModuleContainer>
 
@@ -2191,7 +2323,6 @@ function MobileSecurityTab({ t }: { t: any }) {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [twoFaMethod, setTwoFaMethod] = useState<"app" | "sms" | "email" | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { data: sessions = [], isLoading: isLoadingSessions } = useQuery({
@@ -2232,12 +2363,6 @@ function MobileSecurityTab({ t }: { t: any }) {
     setShowOnlyCurrentMessage(false);
     revokeOthersMutation.mutate();
   };
-
-  const twoFaMethods = [
-    { id: "app" as const,   icon: Smartphone,    name: s.twofa_app_name, desc: s.twofa_app_desc },
-    { id: "sms" as const,   icon: MessageSquare, name: s.twofa_sms_name, desc: s.twofa_sms_desc },
-    { id: "email" as const, icon: Mail,          name: s.twofa_email_name, desc: s.twofa_email_desc },
-  ];
 
   const inputClass = "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand";
 
@@ -2294,60 +2419,6 @@ function MobileSecurityTab({ t }: { t: any }) {
       {/* Two-Factor Authentication */}
       <div className="bg-white rounded-3xl border border-border-theme/30 p-5 space-y-4">
         <TwoFactorAppPanel s={s} compact />
-        <div className="hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-black text-title">{s.twofa_title}</p>
-            <p className="text-xs text-subtitle/50 mt-0.5">{s.twofa_subtitle}</p>
-          </div>
-          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-            twoFaMethod ? "bg-green-50 text-green-600 border-green-100" : "bg-amber-50 text-amber-500 border-amber-100"
-          }`}>
-            {twoFaMethod ? s.twofa_status_active : s.twofa_status_inactive}
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          {twoFaMethods.map(method => {
-            const Icon = method.icon;
-            const isActive = twoFaMethod === method.id;
-            return (
-              <div
-                key={method.id}
-                className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all ${
-                  isActive ? "border-brand/30 bg-brand/5" : "border-border-theme/30 bg-app-bg/40"
-                }`}
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  isActive ? "bg-brand/10" : "bg-white border border-border-theme/30"
-                }`}>
-                  <Icon className={`w-4.5 h-4.5 ${isActive ? "text-brand" : "text-subtitle/40"}`} strokeWidth={1.5} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-bold ${isActive ? "text-brand" : "text-title"}`}>{method.name}</p>
-                  <p className="text-[11px] text-subtitle/50 mt-0.5 leading-tight">{method.desc}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTwoFaMethod(isActive ? null : method.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                    isActive
-                      ? "bg-red-50 text-red-500 border border-red-100"
-                      : "bg-brand text-white shadow-sm shadow-brand/20"
-                  }`}
-                >
-                  {isActive ? s.deactivate : s.activate}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex items-start gap-2">
-          <Info className="w-3.5 h-3.5 text-subtitle/30 shrink-0 mt-0.5" />
-          <p className="text-xs text-subtitle/40">{s.twofa_footer}</p>
-        </div>
-        </div>
       </div>
 
       {/* Active Devices */}

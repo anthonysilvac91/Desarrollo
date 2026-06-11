@@ -62,6 +62,24 @@ export class EmailService {
     }
   }
 
+  async sendTwoFactorCode(to: string, name: string, code: string): Promise<void> {
+    if (!this.resend) {
+      this.logger.warn(`Email skipped (RESEND_API_KEY not set): 2FA code for ${to}`);
+      return;
+    }
+    try {
+      await this.resend.emails.send({
+        from: this.from,
+        to,
+        subject: 'Tu código de verificación — Recall',
+        html: this.twoFactorCodeTemplate(name, code),
+      });
+    } catch (err) {
+      this.logger.error(`Failed to send 2FA code to ${to}`, err);
+      throw err;
+    }
+  }
+
   async sendInvitation(to: string, inviterName: string, orgName: string, inviteUrl: string): Promise<void> {
     if (!this.resend) {
       this.logger.warn(`Email skipped (RESEND_API_KEY not set): invitation for ${to}`);
@@ -136,6 +154,17 @@ export class EmailService {
       <p style="margin:0 0 16px;font-size:15px;color:#6b7280;">Hola ${name}, confirma tu dirección de correo para activar tu cuenta en Recall.</p>
       ${this.btn(verifyUrl, 'Verificar correo')}
       <p style="margin:24px 0 0;font-size:13px;color:#9ca3af;">El enlace expira en <strong>24 horas</strong>.</p>
+    `);
+  }
+
+  private twoFactorCodeTemplate(name: string, code: string): string {
+    return this.base(`
+      <h2 style="margin:0 0 8px;font-size:22px;font-weight:900;color:#111827;">Código de verificación</h2>
+      <p style="margin:0 0 24px;font-size:15px;color:#6b7280;">Hola ${name}, usa el siguiente código para verificar tu identidad en Recall.</p>
+      <div style="text-align:center;margin:0 0 24px;">
+        <span style="display:inline-block;padding:20px 40px;background:#f4f4f5;border-radius:16px;font-size:36px;font-weight:900;letter-spacing:0.4em;color:#111827;font-family:monospace;">${code}</span>
+      </div>
+      <p style="margin:0;font-size:13px;color:#9ca3af;">El código expira en <strong>10 minutos</strong>. No lo compartas con nadie.</p>
     `);
   }
 

@@ -5,7 +5,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { DisableTwoFactorDto, LoginTwoFactorDto, VerifyTwoFactorSetupDto } from './dto/two-factor.dto';
+import { DisableTwoFactorDto, LoginTwoFactorDto, VerifyTwoFactorSetupDto, RequestTwoFactorEmailDto, LoginTwoFactorEmailDto, VerifyTwoFactorEmailSetupDto, DisableTwoFactorEmailDto } from './dto/two-factor.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from './auth.guard';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
@@ -138,6 +138,47 @@ export class AuthController {
   @ApiOperation({ summary: 'Desactivar 2FA del usuario actual' })
   disableTwoFactor(@Request() req, @Body() dto: DisableTwoFactorDto) {
     return this.authService.disableTwoFactor(req.user.id, dto.code);
+  }
+
+  @Post('2fa/email/send-code')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enviar codigo 2FA al correo del usuario autenticado' })
+  sendTwoFactorEmailCode(@Request() req) {
+    return this.authService.sendTwoFactorEmailCode(req.user.id);
+  }
+
+  @Post('2fa/email/verify-setup')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verificar codigo y activar 2FA por correo' })
+  verifyTwoFactorEmailSetup(@Request() req, @Body() dto: VerifyTwoFactorEmailSetupDto) {
+    return this.authService.verifyTwoFactorEmailSetup(req.user.id, dto.code);
+  }
+
+  @Post('2fa/email/disable')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Desactivar 2FA por correo del usuario actual' })
+  disableTwoFactorEmail(@Request() req, @Body() dto: DisableTwoFactorEmailDto) {
+    return this.authService.disableTwoFactorEmail(req.user.id, dto.code);
+  }
+
+  @Post('2fa/email/request')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: 'Solicitar codigo 2FA por correo durante el login' })
+  requestTwoFactorEmailCode(@Body() dto: RequestTwoFactorEmailDto) {
+    return this.authService.requestTwoFactorEmailCode(dto.temporary_token);
+  }
+
+  @Post('2fa/email/login')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: 'Completar login con codigo 2FA por correo' })
+  loginWithEmailCode(@Body() dto: LoginTwoFactorEmailDto, @Request() req) {
+    return this.authService.loginWithEmailCode(dto.temporary_token, dto.code, this.getRequestContext(req));
   }
 
   @Get('me')

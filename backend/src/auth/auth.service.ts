@@ -321,7 +321,11 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
       if (user.two_factor_enabled) {
-        return { requires_2fa: true, temporary_token: this.signTwoFactorLoginToken(user.id) };
+        return {
+          requires_2fa: true,
+          temporary_token: this.signTwoFactorLoginToken(user.id),
+          method: (user.two_factor_method ?? 'APP').toLowerCase(),
+        };
       }
       await this.prisma.user.update({
         where: { id: user.id },
@@ -343,7 +347,11 @@ export class AuthService {
     }
 
     if (user.two_factor_enabled) {
-      return { requires_2fa: true, temporary_token: this.signTwoFactorLoginToken(user.id) };
+      return {
+        requires_2fa: true,
+        temporary_token: this.signTwoFactorLoginToken(user.id),
+        method: (user.two_factor_method ?? 'APP').toLowerCase(),
+      };
     }
 
     await this.prisma.user.update({
@@ -373,7 +381,7 @@ export class AuthService {
       include: { organization: { select: { id: true, is_active: true } } },
     });
 
-    if (!user || !user.is_active || !user.two_factor_enabled || !user.two_factor_secret) {
+    if (!user || !user.is_active || !user.two_factor_enabled || !user.two_factor_secret || user.two_factor_method !== 'APP') {
       throw new UnauthorizedException('2FA no disponible');
     }
 
@@ -726,7 +734,7 @@ export class AuthService {
   async getTwoFactorStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { two_factor_enabled: true, two_factor_backup_codes: true },
+      select: { two_factor_enabled: true, two_factor_method: true, two_factor_backup_codes: true },
     });
 
     if (!user) {
@@ -735,6 +743,7 @@ export class AuthService {
 
     return {
       enabled: user.two_factor_enabled,
+      method: (user.two_factor_method ?? 'APP').toLowerCase() as 'app' | 'email',
       backup_codes_remaining: Array.isArray(user.two_factor_backup_codes)
         ? user.two_factor_backup_codes.length
         : 0,
@@ -837,6 +846,212 @@ export class AuthService {
     });
 
     return { enabled: false };
+  }
+
+  async sendTwoFactorEmailCode(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
+    });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+    const code = this.generateNumericCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.emailToken.deleteMany({
+      where: { user_id: userId, type: 'TWO_FACTOR_CODE', used_at: null },
+    });
+    await this.prisma.emailToken.create({
+      data: {
+        id: randomBytes(16).toString('hex'),
+        user_id: userId,
+        type: 'TWO_FACTOR_CODE',
+        token: code,
+        expires_at: expiresAt,
+      },
+    });
+
+    await this.emailService.sendTwoFactorCode(user.email, user.name, code);
+    return { sent: true };
+  }
+
+  async verifyTwoFactorEmailSetup(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, two_factor_enabled: true },
+    });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (user.two_factor_enabled) throw new BadRequestException('2FA ya esta activo');
+
+    const emailToken = await this.prisma.emailToken.findFirst({
+      where: { user_id: userId, type: 'TWO_FACTOR_CODE', used_at: null, expires_at: { gt: new Date() } },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!emailToken || emailToken.token !== code.trim()) {
+      throw new BadRequestException('Codigo invalido o expirado');
+    }
+
+    await this.prisma.emailToken.update({ where: { id: emailToken.id }, data: { used_at: new Date() } });
+
+    const backupCodes = Array.from({ length: 8 }, () => generateBackupCode());
+    const backupHashes = await Promise.all(backupCodes.map((c) => bcrypt.hash(c, 10)));
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        two_factor_enabled: true,
+        two_factor_method: 'EMAIL',
+        two_factor_secret: null,
+        two_factor_backup_codes: backupHashes,
+      },
+    });
+
+    return { enabled: true, backup_codes: backupCodes };
+  }
+
+  async disableTwoFactorEmail(userId: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { two_factor_enabled: true, two_factor_method: true, two_factor_backup_codes: true },
+    });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (!user.two_factor_enabled || user.two_factor_method !== 'EMAIL') {
+      throw new BadRequestException('2FA por correo no esta activo');
+    }
+
+    const normalizedCode = normalizeCode(code);
+    const backupCodes = Array.isArray(user.two_factor_backup_codes) ? user.two_factor_backup_codes as string[] : [];
+    const backupResult = await this.verifyBackupCode(normalizedCode, backupCodes);
+
+    const emailToken = await this.prisma.emailToken.findFirst({
+      where: { user_id: userId, type: 'TWO_FACTOR_CODE', used_at: null, expires_at: { gt: new Date() } },
+      orderBy: { created_at: 'desc' },
+    });
+    const validEmailCode = emailToken && emailToken.token === normalizedCode;
+
+    if (!backupResult.valid && !validEmailCode) {
+      throw new BadRequestException('Codigo invalido o expirado');
+    }
+
+    if (validEmailCode && emailToken) {
+      await this.prisma.emailToken.update({ where: { id: emailToken.id }, data: { used_at: new Date() } });
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        two_factor_enabled: false,
+        two_factor_method: 'APP',
+        two_factor_secret: null,
+        two_factor_backup_codes: Prisma.JsonNull,
+      },
+    });
+
+    return { enabled: false };
+  }
+
+  async requestTwoFactorEmailCode(temporaryToken: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(temporaryToken);
+    } catch {
+      throw new UnauthorizedException('Token 2FA invalido o expirado');
+    }
+    if (payload?.purpose !== '2fa_login' || !payload.sub) {
+      throw new UnauthorizedException('Token 2FA invalido');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, email: true, name: true, is_active: true, two_factor_enabled: true, two_factor_method: true },
+    });
+
+    if (!user || !user.is_active || !user.two_factor_enabled || user.two_factor_method !== 'EMAIL') {
+      throw new UnauthorizedException('2FA por correo no disponible');
+    }
+
+    const code = this.generateNumericCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.emailToken.deleteMany({
+      where: { user_id: user.id, type: 'TWO_FACTOR_CODE', used_at: null },
+    });
+    await this.prisma.emailToken.create({
+      data: {
+        id: randomBytes(16).toString('hex'),
+        user_id: user.id,
+        type: 'TWO_FACTOR_CODE',
+        token: code,
+        expires_at: expiresAt,
+      },
+    });
+
+    await this.emailService.sendTwoFactorCode(user.email, user.name, code);
+    return { sent: true };
+  }
+
+  async loginWithEmailCode(temporaryToken: string, code: string, context?: AuthRequestContext) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(temporaryToken);
+    } catch {
+      throw new UnauthorizedException('Token 2FA invalido o expirado');
+    }
+    if (payload?.purpose !== '2fa_login' || !payload.sub) {
+      throw new UnauthorizedException('Token 2FA invalido');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { organization: { select: { id: true, is_active: true } } },
+    });
+
+    if (!user || !user.is_active || !user.two_factor_enabled || user.two_factor_method !== 'EMAIL') {
+      throw new UnauthorizedException('2FA por correo no disponible');
+    }
+
+    if (user.role !== 'SUPER_ADMIN') {
+      if (!user.organization_id || !user.organization?.is_active) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      if (user.role === 'EXTERNAL' && !user.owner_id) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    }
+
+    const normalizedCode = normalizeCode(code);
+    const backupCodes = Array.isArray(user.two_factor_backup_codes) ? user.two_factor_backup_codes as string[] : [];
+    const backupResult = await this.verifyBackupCode(normalizedCode, backupCodes);
+
+    if (backupResult.valid) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { last_login_at: new Date(), two_factor_backup_codes: backupResult.remainingHashes },
+      });
+      const session = await this.createSession(user, context);
+      return { access_token: this.signAccessToken(user, session) };
+    }
+
+    const emailToken = await this.prisma.emailToken.findFirst({
+      where: { user_id: user.id, type: 'TWO_FACTOR_CODE', used_at: null, expires_at: { gt: new Date() } },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!emailToken || emailToken.token !== normalizedCode) {
+      throw new UnauthorizedException('Codigo 2FA invalido o expirado');
+    }
+
+    await this.prisma.emailToken.update({ where: { id: emailToken.id }, data: { used_at: new Date() } });
+    await this.prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } });
+
+    const session = await this.createSession(user, context);
+    return { access_token: this.signAccessToken(user, session) };
+  }
+
+  private generateNumericCode(): string {
+    const num = randomBytes(4).readUInt32BE(0) % 1000000;
+    return String(num).padStart(6, '0');
   }
 
   private async verifyBackupCode(code: string, hashes: string[]) {
