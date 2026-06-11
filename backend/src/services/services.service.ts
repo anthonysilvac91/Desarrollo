@@ -495,7 +495,7 @@ export class ServicesService {
       include: {
         service: {
           include: {
-            organization: { select: { name: true, logo_file_id: true } },
+            organization: { select: { name: true, logo_file_id: true, brand_color: true } },
             attachments: { orderBy: { created_at: 'asc' } },
             worker: { select: { name: true, id: true } },
             asset: {
@@ -549,6 +549,7 @@ export class ServicesService {
         organization: {
           name: shareLink.service.organization.name,
           logo_url: organizationLogoUrl,
+          brand_color: shareLink.service.organization.brand_color,
         },
       },
     };
