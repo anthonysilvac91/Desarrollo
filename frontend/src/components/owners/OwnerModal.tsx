@@ -5,6 +5,7 @@ import { X, Building2, Loader2, ToggleLeft, ToggleRight, Upload, ImageIcon } fro
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { ownersService, Owner, OwnerFormData } from "@/services/owners.service";
+import LogoCropModal from "@/components/ui/LogoCropModal";
 
 interface OwnerModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoCropSrc, setLogoCropSrc] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<OwnerFormData>({
     name: "",
@@ -34,15 +36,28 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
         });
         setLogoFile(null);
         setLogoPreview(ownerToEdit.logo_url || null);
+        setLogoCropSrc(null);
       } else {
         setFormData({ name: "", is_active: true });
         setLogoFile(null);
         setLogoPreview(null);
+        setLogoCropSrc(null);
       }
     }
   }, [isOpen, ownerToEdit]);
 
   if (!isOpen) return null;
+
+  const handleLogoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => setLogoCropSrc(reader.result as string);
+    reader.onerror = () => showToast(t.common.image_read_error, "error");
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +88,21 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {logoCropSrc && (
+        <LogoCropModal
+          src={logoCropSrc}
+          onConfirm={(file) => {
+            setLogoFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => setLogoPreview(reader.result as string);
+            reader.onerror = () => showToast(t.common.image_read_error, "error");
+            reader.readAsDataURL(file);
+            setLogoCropSrc(null);
+          }}
+          onCancel={() => setLogoCropSrc(null)}
+          onError={(message) => { showToast(message, "error"); setLogoCropSrc(null); }}
+        />
+      )}
       <div
         className="absolute inset-0 bg-title/40 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
@@ -115,14 +145,7 @@ export default function OwnerModal({ isOpen, onClose, onSuccess, ownerToEdit }: 
                   type="file"
                   className="hidden"
                   accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setLogoFile(file);
-                    const reader = new FileReader();
-                    reader.onloadend = () => setLogoPreview(reader.result as string);
-                    reader.readAsDataURL(file);
-                  }}
+                  onChange={handleLogoSelect}
                 />
               </label>
             </div>

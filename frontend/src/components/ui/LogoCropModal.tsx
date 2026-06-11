@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import Cropper, { Area } from "react-easy-crop";
-import { ZoomIn, ZoomOut, FlipHorizontal, FlipVertical, RotateCcw, Loader2, X } from "lucide-react";
+import { ZoomIn, ZoomOut, FlipHorizontal, FlipVertical, RotateCw, RotateCcw, Loader2, X } from "lucide-react";
 
 interface LogoCropModalProps {
   src: string;
@@ -13,11 +13,24 @@ interface LogoCropModalProps {
 
 const MAX_CANVAS_DIM = 1200;
 
+function getRadianAngle(degreeValue: number) {
+  return (degreeValue * Math.PI) / 180;
+}
+
+function rotateSize(width: number, height: number, rotation: number) {
+  const rotRad = getRadianAngle(rotation);
+  return {
+    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
+    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
+  };
+}
+
 async function getCroppedFile(
   imageSrc: string,
   pixelCrop: Area,
   flipH: boolean,
   flipV: boolean,
+  rotation: number,
 ): Promise<File> {
   const image = new Image();
   await new Promise<void>((resolve, reject) => {
@@ -26,6 +39,23 @@ async function getCroppedFile(
     image.src = imageSrc;
   });
 
+  const rotRad = getRadianAngle(rotation);
+  const { width: rotatedWidth, height: rotatedHeight } = rotateSize(image.width, image.height, rotation);
+
+  const rotatedCanvas = document.createElement("canvas");
+  rotatedCanvas.width = rotatedWidth;
+  rotatedCanvas.height = rotatedHeight;
+  const ctx = rotatedCanvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get canvas context");
+
+  ctx.save();
+  ctx.translate(rotatedWidth / 2, rotatedHeight / 2);
+  ctx.rotate(rotRad);
+  ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+  ctx.translate(-image.width / 2, -image.height / 2);
+  ctx.drawImage(image, 0, 0);
+  ctx.restore();
+
   const scale = Math.min(1, MAX_CANVAS_DIM / Math.max(pixelCrop.width, pixelCrop.height));
   const canvasWidth = Math.round(pixelCrop.width * scale);
   const canvasHeight = Math.round(pixelCrop.height * scale);
@@ -33,26 +63,15 @@ async function getCroppedFile(
   const canvas = document.createElement("canvas");
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not get canvas context");
-
-  ctx.save();
-  if (flipH) {
-    ctx.translate(canvasWidth, 0);
-    ctx.scale(-1, 1);
-  }
-  if (flipV) {
-    ctx.translate(0, canvasHeight);
-    ctx.scale(1, -1);
-  }
-  ctx.drawImage(
-    image,
+  const croppedCtx = canvas.getContext("2d");
+  if (!croppedCtx) throw new Error("Could not get canvas context");
+  croppedCtx.drawImage(
+    rotatedCanvas,
     pixelCrop.x, pixelCrop.y,
     pixelCrop.width, pixelCrop.height,
     0, 0,
     canvasWidth, canvasHeight,
   );
-  ctx.restore();
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(blob => {
@@ -67,6 +86,7 @@ export default function LogoCropModal({ src, onConfirm, onCancel, onError }: Log
   const [zoom, setZoom] = useState(1);
   const [flipH, setFlipH] = useState(false);
   const [flipV, setFlipV] = useState(false);
+  const [rotation, setRotation] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -79,13 +99,14 @@ export default function LogoCropModal({ src, onConfirm, onCancel, onError }: Log
     setZoom(1);
     setFlipH(false);
     setFlipV(false);
+    setRotation(0);
   };
 
   const handleConfirm = async () => {
     if (!croppedAreaPixels || confirming) return;
     setConfirming(true);
     try {
-      const file = await getCroppedFile(src, croppedAreaPixels, flipH, flipV);
+      const file = await getCroppedFile(src, croppedAreaPixels, flipH, flipV, rotation);
       onConfirm(file);
     } catch (err) {
       onError?.(err instanceof Error ? err.message : "No se pudo procesar la imagen.");
@@ -128,6 +149,7 @@ export default function LogoCropModal({ src, onConfirm, onCancel, onError }: Log
               image={src}
               crop={crop}
               zoom={zoom}
+              rotation={rotation}
               aspect={1}
               onCropChange={setCrop}
               onZoomChange={setZoom}
@@ -181,6 +203,18 @@ export default function LogoCropModal({ src, onConfirm, onCancel, onError }: Log
 
           {/* Flip + reset tools */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRotation(value => (value + 90) % 360)}
+              title="Rotar"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                rotation
+                  ? "bg-brand/10 border-brand/30 text-brand"
+                  : "bg-app-bg border-border-theme/30 text-subtitle/60 hover:text-title hover:border-border-theme/60"
+              }`}
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              Rotar
+            </button>
             <button
               onClick={() => setFlipH(v => !v)}
               title="Voltear horizontal"

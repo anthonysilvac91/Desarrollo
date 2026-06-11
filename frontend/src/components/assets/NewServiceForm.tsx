@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { SERVICE_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
+import ImageCropModal from "@/components/ui/ImageCropModal";
 
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 2000;
@@ -37,8 +38,16 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+
+  const openNextCrop = (sources: string[]) => {
+    const [next, ...rest] = sources;
+    setCropSrc(next ?? null);
+    setCropQueue(rest);
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileArray = Array.from(e.target.files ?? []);
@@ -60,15 +69,36 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
           }),
         ),
       );
-      setImages(prev => [
-        ...prev,
-        ...compressed.map(f => ({ url: URL.createObjectURL(f), file: f })),
-      ]);
+      const sources = await Promise.all(
+        compressed.map(
+          file =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = () => reject(new Error(t.common.image_read_error));
+              reader.readAsDataURL(file);
+            }),
+        ),
+      );
+      openNextCrop(sources);
     } catch (err) {
       showToast(err instanceof Error ? err.message : t.common.image_process_error, "error");
     } finally {
       setIsProcessingImages(false);
     }
+  };
+
+  const handleCropConfirm = (croppedFile: File) => {
+    setImages(prev => [
+      ...prev,
+      { url: URL.createObjectURL(croppedFile), file: croppedFile },
+    ]);
+    openNextCrop(cropQueue);
+  };
+
+  const handleCropCancel = () => {
+    setCropSrc(null);
+    setCropQueue([]);
   };
 
   const removeImage = (index: number) => {
@@ -111,10 +141,18 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
   };
 
   const isValid = title.trim().length > 0;
-  const canAddPhoto = images.length < MAX_PHOTOS && !isSubmitting && !isProcessingImages;
+  const canAddPhoto = images.length < MAX_PHOTOS && !isSubmitting && !isProcessingImages && !cropSrc;
 
   return (
     <div className={`flex flex-col animate-in fade-in duration-300 ${inline ? "pb-4" : "pb-28 lg:pb-12"}`}>
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+          onError={(message) => { showToast(message, "error"); handleCropCancel(); }}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between mb-8 lg:mb-10">

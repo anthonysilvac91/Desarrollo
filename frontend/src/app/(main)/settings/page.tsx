@@ -43,6 +43,7 @@ import {
   Database,
   Megaphone,
   AlignLeft,
+  BrushCleaning,
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -54,6 +55,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import LogoCropModal from "@/components/ui/LogoCropModal";
+import ImageCropModal from "@/components/ui/ImageCropModal";
+import { compressImageFile } from "@/lib/imageCompression";
 
 const BRAND_PALETTES = [
   { id: "recall", name: "Recall Blue", base: "bg-blue-600", shades: ["bg-blue-400", "bg-blue-700", "bg-blue-900"] },
@@ -84,8 +87,11 @@ const ASSET_ICONS = [
   { id: "nature", label: "Ambiente", icon: Leaf },
   { id: "corporate", label: "Corporativo", icon: Briefcase },
   { id: "leisure", label: "Ocio", icon: Trophy },
+  { id: "cleaning", label: "Limpieza", icon: BrushCleaning },
   { id: "camera", label: "Inspección", icon: Camera },
 ];
+
+const AVATAR_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 
 export default function SettingsPage() {
   const { t, language } = useLanguage();
@@ -115,6 +121,7 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null);
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["my-organization"],
@@ -239,6 +246,45 @@ export default function SettingsPage() {
     profileMutation.mutate(fd);
   };
 
+  const handleAvatarSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const source = await compressImageFile(file, {
+        maxDimension: 2400,
+        quality: 0.85,
+        maxBytes: 10 * 1024 * 1024,
+        fileNamePrefix: "profile-avatar-source",
+      });
+
+      const reader = new FileReader();
+      reader.onloadend = () => setAvatarCropSrc(reader.result as string);
+      reader.onerror = () => showToast(t.common.image_read_error, "error");
+      reader.readAsDataURL(source);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo procesar la foto de perfil", "error");
+    }
+  };
+
+  const handleAvatarCropConfirm = async (croppedFile: File) => {
+    try {
+      const avatar = await compressImageFile(croppedFile, {
+        maxDimension: 1200,
+        quality: 0.85,
+        maxBytes: AVATAR_IMAGE_MAX_BYTES,
+        fileNamePrefix: "profile-avatar",
+      });
+      setAvatarFile(avatar);
+      setAvatarPreview(URL.createObjectURL(avatar));
+      setAvatarCropSrc(null);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo procesar la foto de perfil", "error");
+      setAvatarCropSrc(null);
+    }
+  };
+
   const allTabs = [
     ...(canManageOrgSettings ? [{ id: "profile", label: t.settings.tabs.profile, icon: Building2 }] : []),
     { id: "my_profile",      label: t.settings.tabs.my_profile,    icon: UserIcon    },
@@ -271,6 +317,14 @@ export default function SettingsPage() {
           }}
           onCancel={() => setLogoCropSrc(null)}
           onError={(msg) => { showToast(msg, "error"); setLogoCropSrc(null); }}
+        />
+      )}
+      {avatarCropSrc && (
+        <ImageCropModal
+          src={avatarCropSrc}
+          onConfirm={handleAvatarCropConfirm}
+          onCancel={() => setAvatarCropSrc(null)}
+          onError={(msg) => { showToast(msg, "error"); setAvatarCropSrc(null); }}
         />
       )}
       {/* ── Mobile Settings ── */}
@@ -470,16 +524,8 @@ export default function SettingsPage() {
                       <input
                         type="file"
                         className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setAvatarFile(file);
-                            const reader = new FileReader();
-                            reader.onloadend = () => setAvatarPreview(reader.result as string);
-                            reader.readAsDataURL(file);
-                          }
-                        }}
+                        accept="image/*,.heic,.heif"
+                        onChange={handleAvatarSelect}
                       />
                     </label>
                   </div>
@@ -895,16 +941,8 @@ export default function SettingsPage() {
                       <input
                         type="file"
                         className="hidden"
-                        accept="image/*"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) {
-                            setAvatarFile(file);
-                            const reader = new FileReader();
-                            reader.onloadend = () => setAvatarPreview(reader.result as string);
-                            reader.readAsDataURL(file);
-                          }
-                        }}
+                        accept="image/*,.heic,.heif"
+                        onChange={handleAvatarSelect}
                       />
                     </label>
                   </div>

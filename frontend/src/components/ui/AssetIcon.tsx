@@ -17,6 +17,7 @@ import {
   Briefcase, 
   Trophy,
   Camera,
+  BrushCleaning,
   LucideIcon
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   nature: Leaf,
   corporate: Briefcase,
   leisure: Trophy,
+  cleaning: BrushCleaning,
   camera: Camera,
 };
 

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
+import { ICON_MAP } from "@/components/ui/AssetIcon";
 import {
-  Ship,
   LayoutGrid,
   Wrench,
   Users,
@@ -23,11 +23,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { canAccess, user } = useAuth();
+  const AssetNavIcon = ICON_MAP[user?.organization?.default_asset_icon || ""] || ICON_MAP.ship;
 
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
     { href: "/organizations", label: t.sidebar.organizations, icon: Building2 },
-    { href: "/assets", label: t.sidebar.assets, icon: Ship },
+    { href: "/assets", label: t.sidebar.assets, icon: AssetNavIcon },
     { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/owners", label: t.sidebar.owners || "Propietarios", icon: Building2 },

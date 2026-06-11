@@ -9,6 +9,8 @@ import { useToast } from "@/lib/ToastContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { servicesService } from "@/services/services.service";
 import { Asset, assetsService } from "@/services/assets.service";
+import ImageCropModal from "@/components/ui/ImageCropModal";
+import { SERVICE_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 400;
@@ -30,6 +32,9 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropQueue, setCropQueue] = useState<string[]>([]);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
 
   const { data: assetsData = [] } = useQuery<Asset[] | { data: Asset[] }>({
     queryKey: ["assets"],
@@ -44,6 +49,14 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
     setTitle("");
     setDescription("");
     setImages([]);
+    setCropSrc(null);
+    setCropQueue([]);
+  };
+
+  const openNextCrop = (sources: string[]) => {
+    const [next, ...rest] = sources;
+    setCropSrc(next ?? null);
+    setCropQueue(rest);
   };
 
   const handleClose = () => {
@@ -51,14 +64,53 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
     onClose();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const newFiles = Array.from(e.target.files).map(file => ({
-      url: URL.createObjectURL(file),
-      file,
-    }));
-    setImages(prev => [...prev, ...newFiles]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileArray = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!fileArray.length) return;
+
+    setIsProcessingImages(true);
+    try {
+      const compressed = await Promise.all(
+        fileArray.map((file, i) =>
+          compressImageFile(file, {
+            maxDimension: 2400,
+            quality: 0.82,
+            maxBytes: SERVICE_IMAGE_MAX_BYTES,
+            fileNamePrefix: `service-${Date.now()}-${i}`,
+          }),
+        ),
+      );
+      const sources = await Promise.all(
+        compressed.map(
+          file =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = () => reject(new Error(t.common.image_read_error));
+              reader.readAsDataURL(file);
+            }),
+        ),
+      );
+      openNextCrop(sources);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.image_process_error, "error");
+    } finally {
+      setIsProcessingImages(false);
+    }
+  };
+
+  const handleCropConfirm = (croppedFile: File) => {
+    setImages(prev => [
+      ...prev,
+      { url: URL.createObjectURL(croppedFile), file: croppedFile },
+    ]);
+    openNextCrop(cropQueue);
+  };
+
+  const handleCropCancel = () => {
+    setCropSrc(null);
+    setCropQueue([]);
   };
 
   const removeImage = (index: number) => {
@@ -74,6 +126,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
     e.preventDefault();
     if (!assetId) { showToast(t.services.modal.asset_required, "error"); return; }
     if (!title.trim()) { showToast(t.services.modal.title_required, "error"); return; }
+    if (isProcessingImages || cropSrc) return;
 
     setLoading(true);
     try {
@@ -97,6 +150,14 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={t.services.modal.title_create}>
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+          onError={(message) => { showToast(message, "error"); handleCropCancel(); }}
+        />
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col space-y-6 mt-2">
 
         {/* Asset */}
@@ -169,15 +230,16 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
             ))}
             <button
               type="button"
+              disabled={isProcessingImages || !!cropSrc}
               onClick={() => fileInputRef.current?.click()}
-              className="w-20 h-20 rounded-2xl border-2 border-dashed border-border-theme flex items-center justify-center text-subtitle/30 hover:border-brand/40 hover:text-brand/40 transition-colors flex-shrink-0"
+              className="w-20 h-20 rounded-2xl border-2 border-dashed border-border-theme flex items-center justify-center text-subtitle/30 hover:border-brand/40 hover:text-brand/40 transition-colors flex-shrink-0 disabled:opacity-50"
             >
-              <ImagePlus className="w-6 h-6" strokeWidth={1.25} />
+              {isProcessingImages ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-6 h-6" strokeWidth={1.25} />}
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               multiple
               className="hidden"
               onChange={handleFileChange}
@@ -196,7 +258,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
           </button>
           <button
             type="submit"
-            disabled={loading || !assetId || !title.trim()}
+            disabled={loading || isProcessingImages || !!cropSrc || !assetId || !title.trim()}
             className="flex-[2] py-4 px-6 rounded-2xl text-sm font-black text-white bg-brand shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.services.modal.submit}

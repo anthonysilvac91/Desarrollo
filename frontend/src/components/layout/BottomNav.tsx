@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Ship, Wrench, LayoutGrid, Settings, Users } from "lucide-react";
+import { Wrench, LayoutGrid, Settings, Users } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
+import { ICON_MAP } from "@/components/ui/AssetIcon";
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { canAccess } = useAuth();
+  const { canAccess, user } = useAuth();
   const { t } = useLanguage();
+  const AssetNavIcon = ICON_MAP[user?.organization?.default_asset_icon || ""] || ICON_MAP.ship;
 
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
-    { href: "/assets", label: t.sidebar.assets, icon: Ship },
+    { href: "/assets", label: t.sidebar.assets, icon: AssetNavIcon },
     { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },
