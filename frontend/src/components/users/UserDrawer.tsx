@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { usePinchZoom } from "@/hooks/usePinchZoom";
 import Drawer from "@/components/ui/Drawer";
 import { Wrench, Calendar, Inbox, Loader2, Mail, Pencil, X, Trash2, KeyRound, MoreVertical } from "lucide-react";
 import { DayPicker } from "react-day-picker";
@@ -55,6 +56,8 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
   const [view, setView] = useState<"history" | "service-detail">("history");
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [isPhotoOpen, setIsPhotoOpen] = useState(false);
+  const pinch = usePinchZoom();
   const actionsMenuRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -178,13 +181,19 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
           {/* Header */}
           <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5 pt-16 lg:pt-24">
             <div className="relative">
-              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-brand/5 flex items-center justify-center ring-1 ring-border-theme/20">
+              <button
+                type="button"
+                onClick={() => user.avatar_url && setIsPhotoOpen(true)}
+                disabled={!user.avatar_url}
+                className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-xl bg-brand/5 flex items-center justify-center ring-1 ring-border-theme/20 active:scale-95 transition-all disabled:cursor-default lg:cursor-default lg:pointer-events-none"
+                aria-label={`Ver foto de ${user.name}`}
+              >
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span className="text-3xl font-black text-brand tracking-tighter">{initials}</span>
                 )}
-              </div>
+              </button>
             </div>
 
             <div className="flex flex-col items-center space-y-1">
@@ -352,6 +361,49 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
 
         </div>
       </Drawer>
+
+      {isPhotoOpen && user.avatar_url && (
+        <div className="fixed inset-0 z-[100] flex min-h-dvh flex-col overflow-y-auto bg-app-bg/80 px-5 py-8 backdrop-blur-2xl animate-in fade-in duration-200 lg:hidden">
+          <button
+            type="button"
+            className="fixed inset-0 cursor-default"
+            aria-label="Cerrar foto"
+            onClick={() => { setIsPhotoOpen(false); pinch.reset(); }}
+          />
+          <button
+            type="button"
+            onClick={() => { setIsPhotoOpen(false); pinch.reset(); }}
+            className="fixed top-8 right-8 z-20 p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
+            aria-label="Cerrar foto"
+          >
+            <X className="h-5 w-5 text-brand" />
+          </button>
+
+          <div className="relative z-10 mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-4">
+            <div>
+              <h2 className="truncate text-xl font-black leading-tight text-title">{user.name}</h2>
+              <span className="mt-1 block truncate text-[10px] font-black uppercase tracking-[0.22em] text-brand">
+                {user.email}
+              </span>
+            </div>
+
+            <div
+              ref={pinch.ref}
+              onTouchStart={pinch.onTouchStart}
+              onTouchEnd={pinch.onTouchEnd}
+              className="relative overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-2xl animate-in zoom-in-95 duration-200"
+            >
+              <img
+                src={user.avatar_url}
+                alt={user.name}
+                className="max-h-[68vh] w-full object-contain bg-black/5"
+                style={pinch.imgStyle}
+                draggable={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );

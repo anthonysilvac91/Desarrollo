@@ -729,7 +729,12 @@ export default function AssetsPage() {
         onSuccess={() => { setIsModalOpen(false); setAssetToEdit(null); refetch(); refetchMobile(); }}
       />
 
-      <AssetDrawer asset={selectedAsset} onClose={() => setSelectedAsset(null)} />
+      <AssetDrawer
+        asset={selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+        onEdit={(asset) => { setAssetToEdit(asset); setIsModalOpen(true); }}
+        onDelete={(asset) => setAssetToDelete(asset)}
+      />
 
       <ConfirmModal
         isOpen={!!assetToDelete}

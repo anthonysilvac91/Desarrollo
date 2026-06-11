@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { usePinchZoom } from "@/hooks/usePinchZoom";
 import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
-import { MapPin, Ship, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
+import { MapPin, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus, MoreVertical, Trash2 } from "lucide-react";
 import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
 import { DayPicker, useDayPicker } from "react-day-picker";
 import type { DateRange, MonthCaptionProps } from "react-day-picker";
@@ -15,6 +16,7 @@ import { formatDate } from "@/lib/formatDate";
 import ServiceDetailView from "@/components/services/ServiceDetailView";
 import ImageCropModal from "@/components/ui/ImageCropModal";
 import NewServiceForm from "@/components/assets/NewServiceForm";
+import AssetIcon from "@/components/ui/AssetIcon";
 import { useToast } from "@/lib/ToastContext";
 import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
@@ -23,6 +25,8 @@ import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRef
 interface AssetDrawerProps {
   asset: Asset | null;
   onClose: () => void;
+  onEdit?: (asset: Asset) => void;
+  onDelete?: (asset: Asset) => void;
 }
 
 // Fallback image component for thumbnails/cards
@@ -63,7 +67,7 @@ function CalendarCaption({ calendarMonth }: MonthCaptionProps) {
   );
 }
 
-export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawerProps) {
+export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDelete }: AssetDrawerProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
@@ -78,13 +82,17 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   const fileInputRef = useRef<HTMLInputElement>(null);
   const workerDropdownRef = useRef<HTMLDivElement>(null);
   const customPickerRef = useRef<HTMLDivElement>(null);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
   const [isAssetPhotoOpen, setIsAssetPhotoOpen] = useState(false);
+  const pinch = usePinchZoom();
   const { user } = useAuth();
   const { t } = useLanguage();
   const { showToast } = useToast();
   const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
+  const iconId = user?.organization?.default_asset_icon;
 
   const {
     data: fullAsset,
@@ -166,6 +174,16 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
     }
   }, [initialAsset?.id]);
 
+  useEffect(() => {
+    if (!isActionsMenuOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node))
+        setIsActionsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [isActionsMenuOpen]);
+
   // Hooks antes del early return — obligatorio por Rules of Hooks
   const allHistory = (fullAsset || initialAsset)?.services || [];
 
@@ -221,24 +239,63 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
   });
   const hasServiceHistory = allHistory.length > 0;
 
-  // Left action for the drawer (Expand icon)
-  const ExpandAction = (
-    <button 
-      onClick={() => {
-        onClose();
-        router.push(`/assets/${initialAsset.id}`);
-      }}
-      className="hidden lg:flex p-2.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all group"
-    >
-      <Maximize2 className="w-6 h-6" />
-    </button>
+  const leftAction = (
+    <>
+      {/* Mobile: 3-dot actions menu */}
+      <div ref={actionsMenuRef} className="relative lg:hidden">
+        <button
+          type="button"
+          onClick={() => setIsActionsMenuOpen(v => !v)}
+          className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
+        >
+          <MoreVertical className="w-5 h-5" />
+        </button>
+        {isActionsMenuOpen && (
+          <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onEdit?.(currentAsset);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+            >
+              <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
+              <span className="text-sm font-semibold text-title">Editar</span>
+            </button>
+            <div className="mx-3 my-1 border-t border-border-theme/20" />
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                onDelete?.(currentAsset);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+            >
+              <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+              <span className="text-sm font-semibold text-error/80">Eliminar</span>
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Desktop: expand icon */}
+      <button
+        onClick={() => {
+          onClose();
+          router.push(`/assets/${initialAsset.id}`);
+        }}
+        className="hidden lg:flex p-2.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all group"
+      >
+        <Maximize2 className="w-6 h-6" />
+      </button>
+    </>
   );
 
   return (
     <Drawer
       isOpen={!!initialAsset}
       onClose={onClose}
-      leftAction={ExpandAction}
+      leftAction={leftAction}
       panelClassName="bg-app-bg"
       closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
     >
@@ -262,7 +319,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                   </span>
                 </>
               ) : (
-                <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
+                <AssetIcon iconId={iconId} className="w-12 h-12 text-brand" strokeWidth={1.5} />
               )}
             </button>
             <button
@@ -316,7 +373,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
                 {currentAsset.thumbnail_url ? (
                   <img src={currentAsset.thumbnail_url} alt={currentAsset.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
-                  <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
+                  <AssetIcon iconId={iconId} className="w-12 h-12 text-brand" strokeWidth={1.5} />
                 )}
               </div>
               <button
@@ -705,11 +762,11 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
             type="button"
             className="fixed inset-0 cursor-default"
             aria-label="Cerrar foto"
-            onClick={() => setIsAssetPhotoOpen(false)}
+            onClick={() => { setIsAssetPhotoOpen(false); pinch.reset(); }}
           />
           <button
             type="button"
-            onClick={() => setIsAssetPhotoOpen(false)}
+            onClick={() => { setIsAssetPhotoOpen(false); pinch.reset(); }}
             className="fixed top-8 right-8 z-20 p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
             aria-label="Cerrar foto"
           >
@@ -728,11 +785,18 @@ export default function AssetDrawer({ asset: initialAsset, onClose }: AssetDrawe
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-2xl animate-in zoom-in-95 duration-200">
+            <div
+              ref={pinch.ref}
+              onTouchStart={pinch.onTouchStart}
+              onTouchEnd={pinch.onTouchEnd}
+              className="relative overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-2xl animate-in zoom-in-95 duration-200"
+            >
               <img
                 src={currentAsset.thumbnail_url}
                 alt={currentAsset.name}
                 className="max-h-[68vh] w-full object-contain bg-black/5"
+                style={pinch.imgStyle}
+                draggable={false}
               />
             </div>
 

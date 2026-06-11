@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { usePinchZoom } from "@/hooks/usePinchZoom";
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
@@ -64,6 +65,12 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const pinch = usePinchZoom();
+
+  useEffect(() => {
+    pinch.reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedImageIndex]);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["service", service.id],
@@ -265,14 +272,31 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
                 </button>
               )}
               <div
-                className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl touch-pan-y"
-                onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
-                onTouchEnd={(e) => handleLightboxSwipeEnd(e.changedTouches[0]?.clientX ?? 0)}
+                ref={pinch.ref}
+                className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl"
+                onTouchStart={(e) => {
+                  pinch.onTouchStart(e);
+                  if (e.touches.length === 1 && !pinch.isZoomed) {
+                    setTouchStartX(e.touches[0]?.clientX ?? null);
+                  } else {
+                    setTouchStartX(null);
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  pinch.onTouchEnd(e);
+                  if (!pinch.isZoomed) {
+                    handleLightboxSwipeEnd(e.changedTouches[0]?.clientX ?? 0);
+                  } else {
+                    setTouchStartX(null);
+                  }
+                }}
                 onTouchCancel={() => setTouchStartX(null)}
               >
                 <img
                   src={imageAttachments[selectedImageIndex]?.file_url ?? ""}
                   className="w-full h-full object-cover"
+                  style={pinch.imgStyle}
+                  draggable={false}
                   alt="Evidencia"
                 />
               </div>
