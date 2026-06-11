@@ -47,4 +47,32 @@ echo "Compose oficial DB: backend/docker-compose.yml"
 echo "========================================================"
 echo ""
 
-npx concurrently --kill-others --names "BACKEND,FRONTEND" --prefix-colors "magenta,cyan" "cd backend && npm run start:dev" "cd frontend && npm run dev"
+(
+    cd backend
+    npm run start:dev
+) &
+BACKEND_PID=$!
+
+(
+    cd frontend
+    npm run dev
+) &
+FRONTEND_PID=$!
+
+cleanup() {
+    trap - INT TERM EXIT
+    echo ""
+    echo "Deteniendo servidores..."
+    kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+}
+
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
+trap cleanup EXIT
+
+while kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null; do
+    sleep 1
+done
+
+cleanup
+wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
