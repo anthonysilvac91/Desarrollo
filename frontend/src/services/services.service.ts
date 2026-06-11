@@ -26,7 +26,6 @@ export interface Service {
   organization?: {
     name: string;
     logo_url?: string | null;
-    brand_color?: string | null;
   };
   is_public: boolean;
   status: string;
