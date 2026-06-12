@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info, Share2, Download, Archive } from "lucide-react";
+import ShareModal from "@/components/ui/ShareModal";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -66,7 +67,8 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareData, setShareData] = useState<{ url: string; text: string } | null>(null);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const pinch = usePinchZoom();
 
   useEffect(() => {
@@ -119,29 +121,57 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
 
   const handleShareService = async () => {
     if (isSharing) return;
-
     setIsSharing(true);
-    setShareError(null);
-
     try {
       const shareLink = await servicesService.getOrCreateShareLink(current.id);
       const shareUrl = `${window.location.origin}/share/services/${shareLink.token}`;
       const shareText = `${current.title} - ${formatDate(current.created_at)}\n${shareUrl}`;
-
-      if (navigator.share) {
-        await navigator.share({
-          title: current.title,
-          text: shareText,
-          url: shareUrl,
-        });
-      } else {
-        window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
-      }
+      setShareData({ url: shareUrl, text: shareText });
     } catch (error) {
       console.error(error);
-      setShareError("No se pudo crear el link para compartir.");
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  const handleDownloadCurrent = async () => {
+    const att = imageAttachments[selectedImageIndex ?? 0];
+    if (!att?.file_url) return;
+    const res = await fetch(att.file_url);
+    const blob = await res.blob();
+    const ext = att.file_type?.split("/")[1] || "jpg";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `foto-${(selectedImageIndex ?? 0) + 1}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const handleDownloadAll = async () => {
+    if (isDownloadingAll) return;
+    setIsDownloadingAll(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      await Promise.all(
+        imageAttachments.map(async (att, i) => {
+          if (!att.file_url) return;
+          const res = await fetch(att.file_url);
+          const blob = await res.blob();
+          const ext = att.file_type?.split("/")[1] || "jpg";
+          zip.file(`foto-${i + 1}.${ext}`, blob);
+        })
+      );
+      const content = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(content);
+      a.download = `${current.title.replace(/\s+/g, "-")}-fotos.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDownloadingAll(false);
     }
   };
 
@@ -150,16 +180,26 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
 
       {/* Back */}
       <div className="px-6 pt-8 pb-5 lg:px-10">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onClose}
+              className="active:scale-90 transition-all shrink-0"
+            >
+              <ChevronLeft className="w-6 h-6 text-brand stroke-[2.5px]" />
+            </button>
+            <span className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
+              {t.mobile.service_detail.title}
+            </span>
+          </div>
           <button
-            onClick={onClose}
-            className="active:scale-90 transition-all shrink-0"
+            onClick={handleShareService}
+            disabled={isSharing}
+            className="p-2.5 rounded-full bg-brand/10 text-brand active:scale-90 transition-all disabled:opacity-50 shrink-0"
+            aria-label="Compartir servicio"
           >
-            <ChevronLeft className="w-6 h-6 text-brand stroke-[2.5px]" />
+            {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
           </button>
-          <span className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
-            {t.mobile.service_detail.title}
-          </span>
         </div>
       </div>
 
@@ -277,14 +317,6 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               <p className="text-lg font-black text-title">{t.mobile.service_detail.lightbox.title}</p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleShareService}
-                  disabled={isSharing}
-                  className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all disabled:opacity-50"
-                  aria-label="Compartir servicio"
-                >
-                  {isSharing ? <Loader2 className="w-5 h-5 text-brand animate-spin" /> : <Share2 className="w-5 h-5 text-brand" />}
-                </button>
-                <button
                   onClick={() => setSelectedImageIndex(null)}
                   className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
                   aria-label="Cerrar"
@@ -293,11 +325,6 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
                 </button>
               </div>
             </div>
-            {shareError && (
-              <div className="w-full max-w-sm rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-xs font-bold text-error">
-                {shareError}
-              </div>
-            )}
 
             {/* Image with navigation */}
             <div className="relative w-full max-w-sm">
@@ -346,6 +373,13 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
                   alt="Evidencia"
                 />
               </div>
+              <button
+                onClick={handleDownloadCurrent}
+                className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
+                aria-label="Descargar foto"
+              >
+                <Download className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Counter */}
@@ -385,6 +419,23 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               </div>
             )}
 
+            {/* Download all ZIP */}
+            {imageAttachments.length > 1 && (
+              <div className="w-full max-w-sm flex justify-end">
+                <button
+                  onClick={handleDownloadAll}
+                  disabled={isDownloadingAll}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface/80 backdrop-blur-sm border border-border-theme/20 shadow-lg text-xs font-black text-subtitle/70 hover:text-brand active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {isDownloadingAll
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
+                    : <Archive className="w-3.5 h-3.5" />
+                  }
+                  {isDownloadingAll ? "Descargando..." : "Descargar todo (.zip)"}
+                </button>
+              </div>
+            )}
+
             {/* Detail section */}
             <div className="w-full max-w-sm">
               <div className="flex items-start gap-3 bg-surface/60 backdrop-blur-sm rounded-2xl p-4 border border-border-theme/20">
@@ -406,6 +457,14 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
           </div>
         </div>
       )}
+
+      <ShareModal
+        isOpen={!!shareData}
+        onClose={() => setShareData(null)}
+        shareUrl={shareData?.url ?? ""}
+        shareText={shareData?.text ?? ""}
+        serviceTitle={current.title}
+      />
     </div>
   );
 }

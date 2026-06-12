@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Drawer from "@/components/ui/Drawer";
-import { Ship, Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2 } from "lucide-react";
+import ShareModal from "@/components/ui/ShareModal";
+import { Ship, Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2, Share2, Download, Archive } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Service, servicesService } from "@/services/services.service";
 import { useQuery } from "@tanstack/react-query";
@@ -73,6 +74,9 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareData, setShareData] = useState<{ url: string; text: string } | null>(null);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["service", service?.id],
@@ -102,6 +106,62 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
     if (deltaX < 0 && selectedImageIndex < imageAttachments.length - 1) setSelectedImageIndex(selectedImageIndex + 1);
     if (deltaX > 0 && selectedImageIndex > 0) setSelectedImageIndex(selectedImageIndex - 1);
     setTouchStartX(null);
+  };
+
+  const handleShareService = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    try {
+      const shareLink = await servicesService.getOrCreateShareLink(currentService.id);
+      const shareUrl = `${window.location.origin}/share/services/${shareLink.token}`;
+      const shareText = `${currentService.title} - ${formatDate(currentService.created_at)}\n${shareUrl}`;
+      setShareData({ url: shareUrl, text: shareText });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleDownloadCurrent = async () => {
+    const att = imageAttachments[selectedImageIndex ?? 0];
+    if (!att?.file_url) return;
+    const res = await fetch(att.file_url);
+    const blob = await res.blob();
+    const ext = att.file_type?.split("/")[1] || "jpg";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `foto-${(selectedImageIndex ?? 0) + 1}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const handleDownloadAll = async () => {
+    if (isDownloadingAll) return;
+    setIsDownloadingAll(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      await Promise.all(
+        imageAttachments.map(async (att, i) => {
+          if (!att.file_url) return;
+          const res = await fetch(att.file_url);
+          const blob = await res.blob();
+          const ext = att.file_type?.split("/")[1] || "jpg";
+          zip.file(`foto-${i + 1}.${ext}`, blob);
+        })
+      );
+      const content = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(content);
+      a.download = `${currentService.title.replace(/\s+/g, "-")}-fotos.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDownloadingAll(false);
+    }
   };
 
   return (
@@ -143,10 +203,18 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
         </div>
 
         {/* Section label */}
-        <div className="px-8 pb-4 border-t border-border-theme/20 pt-6">
+        <div className="px-8 pb-4 border-t border-border-theme/20 pt-6 flex items-center justify-between">
           <span className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
             {t.services.drawer.drawer_title}
           </span>
+          <button
+            onClick={handleShareService}
+            disabled={isSharing}
+            className="p-2.5 rounded-full bg-brand/10 text-brand active:scale-90 transition-all disabled:opacity-50"
+            aria-label="Compartir servicio"
+          >
+            {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+          </button>
         </div>
 
         {/* Badges: date + worker */}
@@ -251,12 +319,15 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             <div className="relative z-10 flex flex-col items-center gap-4 px-6 pt-10 pb-10 min-h-full animate-in zoom-in-95 duration-200">
               <div className="w-full max-w-sm flex items-center justify-between">
                 <p className="text-lg font-black text-title">{t.mobile.service_detail.lightbox.title}</p>
-                <button
-                  onClick={() => setSelectedImageIndex(null)}
-                  className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 active:scale-90 transition-all"
-                >
-                  <X className="w-5 h-5 text-brand" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedImageIndex(null)}
+                    className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 active:scale-90 transition-all"
+                    aria-label="Cerrar"
+                  >
+                    <X className="w-5 h-5 text-brand" />
+                  </button>
+                </div>
               </div>
               <div className="relative w-full max-w-sm">
                 {selectedImageIndex > 0 && (
@@ -287,6 +358,13 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                     alt="Evidencia"
                   />
                 </div>
+                <button
+                  onClick={handleDownloadCurrent}
+                  className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
+                  aria-label="Descargar foto"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
               </div>
               {imageAttachments.length > 1 && (
                 <div className="flex flex-col items-center gap-0.5">
@@ -317,6 +395,24 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                   </div>
                 </div>
               )}
+
+              {/* Download all ZIP */}
+              {imageAttachments.length > 1 && (
+                <div className="w-full max-w-sm flex justify-end">
+                  <button
+                    onClick={handleDownloadAll}
+                    disabled={isDownloadingAll}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface/80 backdrop-blur-sm border border-border-theme/20 shadow-lg text-xs font-black text-subtitle/70 hover:text-brand active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isDownloadingAll
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
+                      : <Archive className="w-3.5 h-3.5" />
+                    }
+                    {isDownloadingAll ? "Descargando..." : "Descargar todo (.zip)"}
+                  </button>
+                </div>
+              )}
+
               <div className="w-full max-w-sm">
                 <div className="flex items-start gap-3 bg-surface/60 backdrop-blur-sm rounded-2xl p-4 border border-border-theme/20">
                   <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -338,6 +434,14 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
         )}
 
       </div>
+
+      <ShareModal
+        isOpen={!!shareData}
+        onClose={() => setShareData(null)}
+        shareUrl={shareData?.url ?? ""}
+        shareText={shareData?.text ?? ""}
+        serviceTitle={currentService.title}
+      />
     </Drawer>
   );
 }

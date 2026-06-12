@@ -50,6 +50,14 @@ export const translations = {
       heic_conversion_error: "Could not convert this HEIC photo. Try selecting another photo or change the camera format to 'Most Compatible' in Settings > Camera > Formats.",
       not_available: "N/A",
       per_page: "page",
+      share_modal: {
+        title: "Share service",
+        copy: "Copy",
+        copied: "Copied!",
+        whatsapp: "WhatsApp",
+        telegram: "Telegram",
+        error: "Could not create the share link.",
+      },
     },
     date_filters: {
       today: "Today",
@@ -831,6 +839,14 @@ export const translations = {
       heic_conversion_error: "No pudimos convertir esta foto HEIC. Intenta seleccionar otra foto o cambia el formato de cámara a 'Más compatible' en Ajustes > Cámara > Formatos.",
       not_available: "N/D",
       per_page: "pág",
+      share_modal: {
+        title: "Compartir servicio",
+        copy: "Copiar",
+        copied: "¡Copiado!",
+        whatsapp: "WhatsApp",
+        telegram: "Telegram",
+        error: "No se pudo crear el link para compartir.",
+      },
     },
     date_filters: {
       today: "Hoy",
