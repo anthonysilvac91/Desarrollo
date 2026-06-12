@@ -35,6 +35,17 @@ const api = axios.create({
   },
 });
 
+const isPublicRequest = (url?: string): boolean => {
+  if (!url) return false;
+
+  try {
+    const parsed = new URL(url, apiBaseUrl);
+    return parsed.pathname.startsWith("/public/");
+  } catch {
+    return url.startsWith("/public/");
+  }
+};
+
 api.interceptors.request.use((config) => {
   // Alineado con AuthContext que usa localStorage
   const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -59,7 +70,7 @@ api.interceptors.response.use(
   },
   (error) => {
     // Si el error es 401 Unauthorized
-    if (error.response && error.response.status === 401) {
+    if (error.response && error.response.status === 401 && !isPublicRequest(error.config?.url)) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
         Cookies.remove("access_token");

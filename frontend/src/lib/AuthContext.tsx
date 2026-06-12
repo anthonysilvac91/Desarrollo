@@ -29,6 +29,15 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
 };
 
+const isPublicRoute = (path: string): boolean =>
+  path === "/login" ||
+  path === "/" ||
+  path === "/forgot-password" ||
+  path === "/reset-password" ||
+  path === "/register" ||
+  path === "/signup" ||
+  path.startsWith("/share/");
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,13 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Proteger rutas (Auth + Roles)
   useEffect(() => {
     if (!loading) {
-      const isPublicPath =
-        pathname === "/login" ||
-        pathname === "/" ||
-        pathname === "/forgot-password" ||
-        pathname === "/reset-password" ||
-        pathname === "/register" ||
-        pathname === "/signup";
+      const isPublicPath = isPublicRoute(pathname);
 
       if (!user && !isPublicPath) {
         router.push("/login");
