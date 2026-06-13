@@ -22,6 +22,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     InvitationsModule,
     DashboardModule,
     StorageModule,
+    RealtimeModule,
     ...(process.env.NODE_ENV !== 'production'
       ? [ServeStaticModule.forRoot({
           rootPath: join(process.cwd(), 'uploads'),

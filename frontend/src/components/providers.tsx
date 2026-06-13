@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { ToastProvider } from "@/lib/ToastContext";
 import { DynamicBranding } from "@/components/layout/DynamicBranding";
 import PWARegistration from "@/components/PWARegistration";
+import { RealtimeQueryInvalidator } from "@/lib/RealtimeQueryInvalidator";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -27,6 +28,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <LanguageProvider>
           <ToastProvider>
+            <RealtimeQueryInvalidator />
             <DynamicBranding />
             <PWARegistration />
             {children}

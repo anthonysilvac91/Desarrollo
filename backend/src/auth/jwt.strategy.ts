@@ -4,6 +4,24 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
+function extractJwtFromCookie(req: any): string | null {
+  const cookieHeader = req?.headers?.cookie;
+  if (!cookieHeader || typeof cookieHeader !== 'string') {
+    return null;
+  }
+
+  const accessTokenCookie = cookieHeader
+    .split(';')
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith('access_token='));
+
+  if (!accessTokenCookie) {
+    return null;
+  }
+
+  return decodeURIComponent(accessTokenCookie.slice('access_token='.length));
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -17,7 +35,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        extractJwtFromCookie,
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
     });

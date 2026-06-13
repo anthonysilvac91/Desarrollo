@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role, StoredFileKind } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -18,6 +18,7 @@ import {
   toDbRole,
   withOwner,
 } from '../common/compat/owner-role-compat';
+import { RealtimeService } from '../realtime/realtime.service';
 @Injectable()
 export class UsersService {
   constructor(
@@ -25,6 +26,7 @@ export class UsersService {
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    @Optional() private realtimeService?: RealtimeService,
   ) {}
 
   private mapUserRelations<T extends Record<string, any>>(user: T): T & { owner_id: string | null; owner: any } {
@@ -319,7 +321,16 @@ export class UsersService {
       }
     });
 
-    return this.mapUserRelations(user);
+    const mappedUser = this.mapUserRelations(user);
+    this.realtimeService?.emit({
+      module: 'users',
+      action: 'created',
+      entityId: user.id,
+      organizationId: user.organization_id,
+      actorUserId: currentUser.id,
+    });
+
+    return mappedUser;
   }
 
   async update(

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -13,6 +13,7 @@ import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
 import { randomBytes, randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
+import { RealtimeService } from '../realtime/realtime.service';
 
 const SERVICE_ATTACHMENT_MAX_FILES = 10;
 const SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES = 10 * 1024 * 1024;
@@ -195,6 +196,7 @@ export class ServicesService {
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    @Optional() private realtimeService?: RealtimeService,
   ) {}
 
   private mapServiceRelations<T extends Record<string, any>>(service: T): T {
@@ -348,7 +350,16 @@ export class ServicesService {
       });
 
       this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
-      return this.resolveServiceFileUrls(newService, serviceOrgId);
+      const resolvedService = await this.resolveServiceFileUrls(newService, serviceOrgId);
+      this.realtimeService?.emit({
+        module: 'services',
+        action: 'created',
+        entityId: newService.id,
+        organizationId: serviceOrgId,
+        actorUserId: user.id,
+      });
+
+      return resolvedService;
     } catch (error) {
       await Promise.all([
         ...storedFileIds.map((id) => this.storedFilesService.deleteStoredFileAndBlob(id)),

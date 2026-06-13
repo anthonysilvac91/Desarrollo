@@ -1,0 +1,140 @@
+"use client";
+
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/AuthContext";
+
+type RealtimeEvent = {
+  module: "assets" | "services" | "users";
+  action: "created" | "updated" | "deleted";
+  entityId: string;
+  organizationId: string | null;
+  actorUserId?: string | null;
+  emittedAt: string;
+};
+
+const apiBaseUrl =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
+
+const invalidatePrefixes = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  prefixes: string[],
+) => {
+  prefixes.forEach((prefix) => {
+    queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === prefix,
+    });
+  });
+};
+
+const parseSseChunk = (buffer: string, onEvent: (event: RealtimeEvent) => void) => {
+  const messages = buffer.split("\n\n");
+  const remainder = messages.pop() ?? "";
+
+  messages.forEach((message) => {
+    const dataLines = message
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice("data:".length).trim());
+
+    if (dataLines.length === 0) {
+      return;
+    }
+
+    onEvent(JSON.parse(dataLines.join("\n")) as RealtimeEvent);
+  });
+
+  return remainder;
+};
+
+export function RealtimeQueryInvalidator() {
+  const { user, loading } = useAuth();
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (loading || !user || !apiBaseUrl) {
+      return;
+    }
+
+    let isActive = true;
+    let reconnectTimer: number | undefined;
+    const abortController = new AbortController();
+
+    const handleEvent = (event: RealtimeEvent) => {
+
+      if (event.module === "assets" && pathname.startsWith("/assets")) {
+        invalidatePrefixes(queryClient, ["assets", "assets-mobile", "assets-stats", "assets-owners-list"]);
+      }
+
+      if (event.module === "services") {
+        if (pathname.startsWith("/service")) {
+          invalidatePrefixes(queryClient, ["services", "services-mobile", "services-stats", "services-workers-list"]);
+        }
+
+        if (pathname.startsWith("/assets")) {
+          invalidatePrefixes(queryClient, ["assets", "assets-mobile", "assets-stats"]);
+        }
+      }
+
+      if (event.module === "users" && pathname.startsWith("/users")) {
+        invalidatePrefixes(queryClient, ["users", "users-stats"]);
+      }
+    };
+
+    const connect = async () => {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/realtime/events`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          signal: abortController.signal,
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error(`Realtime stream failed with status ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (isActive) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+
+          buffer = parseSseChunk(buffer + decoder.decode(value, { stream: true }), handleEvent);
+        }
+      } catch {
+        if (!isActive || abortController.signal.aborted) {
+          return;
+        }
+      }
+
+      if (isActive) {
+        reconnectTimer = window.setTimeout(connect, 3000);
+      }
+    };
+
+    connect();
+
+    return () => {
+      isActive = false;
+      abortController.abort();
+      if (reconnectTimer) {
+        window.clearTimeout(reconnectTimer);
+      }
+    };
+  }, [loading, pathname, queryClient, user]);
+
+  return null;
+}

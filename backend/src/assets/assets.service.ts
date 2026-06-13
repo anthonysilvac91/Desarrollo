@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
@@ -17,6 +17,7 @@ import {
   withOwner,
 } from '../common/compat/owner-role-compat';
 import { ASSET_IMAGE_MAX_BYTES } from './asset-upload-limits';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class AssetsService {
@@ -25,6 +26,7 @@ export class AssetsService {
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    @Optional() private realtimeService?: RealtimeService,
   ) {}
 
   private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { owner_id: string | null; owner: any } {
@@ -176,7 +178,15 @@ export class AssetsService {
       return asset;
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(asset), asset.organization_id);
+    const resolvedAsset = await this.resolveAssetFileUrls(this.mapAssetRelations(asset), asset.organization_id);
+    this.realtimeService?.emit({
+      module: 'assets',
+      action: 'created',
+      entityId: asset.id,
+      organizationId: asset.organization_id,
+    });
+
+    return resolvedAsset;
   }
 
   async findAll(query: any, orgId: string, role: string, ownerId?: string) {
