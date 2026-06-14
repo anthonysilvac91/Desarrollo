@@ -86,8 +86,8 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
   }, [isActionsMenuOpen]);
 
   const { data: servicesData, isLoading } = useQuery({
-    queryKey: ["services", "by-worker", user?.id],
-    queryFn: () => servicesService.findAll({ worker_id: user!.id, limit: 50 }),
+    queryKey: ["services", "by-worker", user?.id, language],
+    queryFn: () => servicesService.findAll({ worker_id: user!.id, limit: 50, lang: language }),
     enabled: !!user?.id,
   });
 

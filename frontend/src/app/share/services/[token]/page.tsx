@@ -7,6 +7,8 @@ import { Archive, Calendar, Camera, Download, FileDown, FileText, Loader2 } from
 import { servicesService } from "@/services/services.service";
 import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
+import { useLanguage } from "@/lib/LanguageContext";
+import { TranslatedDescription } from "@/components/services/TranslatedDescription";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
 
@@ -25,11 +27,12 @@ const getInitials = (name: string) =>
 
 export default function SharedServicePage() {
   const params = useParams<{ token: string }>();
+  const { language } = useLanguage();
   const token = params.token;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["public-service-share", token],
-    queryFn: () => servicesService.findPublicShare(token),
+    queryKey: ["public-service-share", token, language],
+    queryFn: () => servicesService.findPublicShare(token, language),
     enabled: !!token,
     retry: false,
   });
@@ -184,9 +187,15 @@ export default function SharedServicePage() {
           </div>
 
           {service.description && (
-            <p className="max-w-3xl whitespace-pre-wrap text-sm leading-relaxed text-subtitle sm:text-base">
-              {service.description}
-            </p>
+            <div className="max-w-3xl">
+              <TranslatedDescription
+                description={service.description}
+                originalDescription={service.original_description}
+                isTranslated={service.is_translated}
+                emptyText="Sin descripcion"
+                className="whitespace-pre-wrap text-sm leading-relaxed text-subtitle sm:text-base"
+              />
+            </div>
           )}
         </section>
 

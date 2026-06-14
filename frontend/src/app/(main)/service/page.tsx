@@ -94,7 +94,7 @@ const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
 );
 
 export default function ServicesPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
   const canCreate = user?.role === "ADMIN" || user?.role === "WORKER";
@@ -154,6 +154,7 @@ export default function ServicesPage() {
   const queryParams = {
     ...getQueryParams(),
     ...(desktopWorkerFilter ? { worker_id: desktopWorkerFilter } : {}),
+    lang: language,
   };
 
   const { data: responseData, isLoading, isError, refetch } = useQuery({
@@ -164,7 +165,7 @@ export default function ServicesPage() {
     ...AUTO_REFETCH_OPTIONS,
   });
 
-  const mobileQueryParams = getMobileQueryParams();
+  const mobileQueryParams = { ...getMobileQueryParams(), lang: language };
   const { data: mobileResponseData, isLoading: mobileLoading, refetch: refetchMobile } = useQuery({
     queryKey: ["services-mobile", mobileQueryParams],
     queryFn: () => servicesService.findAll(mobileQueryParams),

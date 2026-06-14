@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { ServicesService } from './services.service';
@@ -10,8 +10,8 @@ export class ServiceSharesController {
 
   @Get(':token')
   @ApiOperation({ summary: 'Obtener vista publica de un servicio compartido' })
-  getPublicSharedService(@Param('token') token: string) {
-    return this.servicesService.getPublicSharedService(token);
+  getPublicSharedService(@Param('token') token: string, @Query('lang') lang?: string) {
+    return this.servicesService.getPublicSharedService(token, lang);
   }
 
   @Get(':token/photos.zip')

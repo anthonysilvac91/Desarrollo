@@ -6,6 +6,7 @@ import ShareModal from "@/components/ui/ShareModal";
 import { Ship, Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2, Share2, Download, Archive } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Service, servicesService } from "@/services/services.service";
+import { TranslatedDescription } from "@/components/services/TranslatedDescription";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
@@ -70,7 +71,7 @@ function AttachmentThumb({
 }
 
 export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -79,8 +80,8 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const { data: detail, isLoading } = useQuery({
-    queryKey: ["service", service?.id],
-    queryFn: () => servicesService.findOne(service!.id),
+    queryKey: ["service", service?.id, language],
+    queryFn: () => servicesService.findOne(service!.id, language),
     enabled: !!service?.id,
     refetchInterval: AUTO_REFETCH_INTERVALS.detail,
     ...AUTO_REFETCH_OPTIONS,
@@ -255,13 +256,16 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
             {t.mobile.new_service.description_label}
           </span>
           <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4 space-y-3">
-            <p className={`min-h-22 text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap ${
-              !descriptionExpanded && descriptionIsLong
+            <TranslatedDescription
+              description={currentService.description}
+              originalDescription={currentService.original_description}
+              isTranslated={currentService.is_translated}
+              emptyText={t.mobile.service_detail.no_description}
+              className="min-h-22 text-sm text-subtitle/70 leading-relaxed font-medium whitespace-pre-wrap"
+              clampClassName={!descriptionExpanded && descriptionIsLong
                 ? "overflow-hidden [display:-webkit-box] [-webkit-line-clamp:4] [-webkit-box-orient:vertical]"
-                : ""
-            }`}>
-              {currentService.description || <span className="italic text-subtitle/30">{t.mobile.service_detail.no_description}</span>}
-            </p>
+                : ""}
+            />
             {descriptionIsLong && (
               <button
                 onClick={() => setDescriptionExpanded(v => !v)}

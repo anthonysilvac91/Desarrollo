@@ -134,8 +134,8 @@ export default function UserDetailPage() {
 
   // Servicios realizados por este usuario
   const { data: servicesData, isLoading: isServicesLoading } = useQuery({
-    queryKey: ["services", "by-worker", userId],
-    queryFn: () => servicesService.findAll({ worker_id: userId, limit: 100 }),
+    queryKey: ["services", "by-worker", userId, language],
+    queryFn: () => servicesService.findAll({ worker_id: userId, limit: 100, lang: language }),
     enabled: !!userId,
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,

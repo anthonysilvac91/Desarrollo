@@ -61,8 +61,8 @@ export class ServicesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener detalle de un servicio', description: 'Retorna el servicio con sus adjuntos, operario y activo relacionado.' })
-  findOne(@Param('id') id: string, @Request() req) {
-    return this.servicesService.findOne(id, req.user);
+  findOne(@Param('id') id: string, @Query('lang') lang: string | undefined, @Request() req) {
+    return this.servicesService.findOne(id, req.user, lang);
   }
 
   @Delete(':id')

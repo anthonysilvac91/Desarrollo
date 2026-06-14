@@ -14,6 +14,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
 import { RealtimeService } from '../realtime/realtime.service';
+import { TranslationService } from '../ai/translation.service';
 
 const SERVICE_ATTACHMENT_MAX_FILES = 10;
 const SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES = 10 * 1024 * 1024;
@@ -197,6 +198,7 @@ export class ServicesService {
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
     @Optional() private realtimeService?: RealtimeService,
+    @Optional() private translationService?: TranslationService,
   ) {}
 
   private mapServiceRelations<T extends Record<string, any>>(service: T): T {
@@ -232,6 +234,34 @@ export class ServicesService {
     }
 
     return resolvedService;
+  }
+
+  private async applyDescriptionTranslation<T extends Record<string, any>>(service: T, lang?: string | null): Promise<T> {
+    if (!this.translationService || !lang) {
+      return {
+        ...service,
+        original_description: service.description ?? null,
+        original_language: service.description_language ?? null,
+        translated_language: null,
+        is_translated: false,
+        translation_status: 'original',
+      };
+    }
+
+    const translated = await this.translationService.translateServiceDescription(service, lang);
+    return {
+      ...service,
+      ...translated,
+    };
+  }
+
+  private async prepareServiceResponse<T extends Record<string, any>>(
+    service: T,
+    organizationId: string,
+    lang?: string | null,
+  ): Promise<T> {
+    const resolved = await this.resolveServiceFileUrls(this.mapServiceRelations(service), organizationId);
+    return this.applyDescriptionTranslation(resolved, lang);
   }
 
   private generateShareToken(): string {
@@ -342,6 +372,7 @@ export class ServicesService {
           worker_id: user.id,
           is_public: org.auto_publish_services,
           status: 'COMPLETED',
+          description_language: this.translationService?.detectLanguageHeuristic(createServiceDto.description) ?? null,
           attachments: {
             create: attachments,
           }
@@ -350,7 +381,7 @@ export class ServicesService {
       });
 
       this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
-      const resolvedService = await this.resolveServiceFileUrls(newService, serviceOrgId);
+      const resolvedService = await this.prepareServiceResponse(newService, serviceOrgId);
       this.realtimeService?.emit({
         module: 'services',
         action: 'created',
@@ -427,7 +458,7 @@ export class ServicesService {
         this.prisma.service.count({ where: whereClause })
       ]);
       const mappedData = await Promise.all(
-        data.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item), item.organization_id))
+        data.map(async (item: any) => this.prepareServiceResponse(item, item.organization_id, query.lang))
       );
 
       return {
@@ -449,7 +480,7 @@ export class ServicesService {
       orderBy: { created_at: 'desc' }
     });
     return Promise.all(
-      services.map(async (item: any) => this.resolveServiceFileUrls(this.mapServiceRelations(item), item.organization_id))
+      services.map(async (item: any) => this.prepareServiceResponse(item, item.organization_id, query.lang))
     );
   }
 
@@ -543,7 +574,7 @@ export class ServicesService {
     });
   }
 
-  async findOne(id: string, user: any) {
+  async findOne(id: string, user: any, lang?: string) {
     const where: any = { id };
     if (user.role !== 'SUPER_ADMIN') {
       where.organization_id = user.orgId;
@@ -573,7 +604,7 @@ export class ServicesService {
       }
     }
 
-    return this.resolveServiceFileUrls(this.mapServiceRelations(service), service.organization_id);
+    return this.prepareServiceResponse(service, service.organization_id, lang);
   }
 
   async getOrCreateShareLink(id: string, user: any) {
@@ -633,7 +664,7 @@ export class ServicesService {
     };
   }
 
-  async getPublicSharedService(token: string) {
+  async getPublicSharedService(token: string, lang?: string) {
     const shareLink = await this.prisma.serviceShareLink.findUnique({
       where: { token },
       include: {
@@ -666,9 +697,10 @@ export class ServicesService {
       throw new NotFoundException('Link compartido expirado');
     }
 
-    const resolvedService = await this.resolveServiceFileUrls(
-      this.mapServiceRelations(shareLink.service),
+    const resolvedService = await this.prepareServiceResponse(
+      shareLink.service,
       shareLink.service.organization_id,
+      lang,
     );
 
     const organizationLogoUrl = await this.storedFilesService.resolveFileUrlForOrg(

@@ -3,7 +3,12 @@ import api from "@/lib/api";
 export interface Service {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
+  original_description?: string | null;
+  original_language?: string | null;
+  translated_language?: string | null;
+  is_translated?: boolean;
+  translation_status?: string;
   asset_id: string;
   asset?: {
     id: string;
@@ -58,7 +63,7 @@ export interface ServiceFilterOptions {
 }
 
 export const servicesService = {
-  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string }): Promise<any> => {
+  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string; lang?: string }): Promise<any> => {
     const res = await api.get("/services", { params });
     return res.data;
   },
@@ -71,16 +76,16 @@ export const servicesService = {
     const res = await api.get<ServiceFilterOptions>("/services/filter-options");
     return res.data;
   },
-  findOne: async (id: string) => {
-    const res = await api.get<Service>(`/services/${id}`);
+  findOne: async (id: string, lang?: string) => {
+    const res = await api.get<Service>(`/services/${id}`, { params: { lang } });
     return res.data;
   },
   getOrCreateShareLink: async (id: string): Promise<ServiceShareLink> => {
     const res = await api.post<ServiceShareLink>(`/services/${id}/share-link`);
     return res.data;
   },
-  findPublicShare: async (token: string): Promise<PublicServiceShare> => {
-    const res = await api.get<PublicServiceShare>(`/public/service-shares/${token}`);
+  findPublicShare: async (token: string, lang?: string): Promise<PublicServiceShare> => {
+    const res = await api.get<PublicServiceShare>(`/public/service-shares/${token}`, { params: { lang } });
     return res.data;
   },
   create: async (data: FormData) => {

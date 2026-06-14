@@ -193,6 +193,7 @@ model Service {
   worker_id        String
   title            String
   description      String?
+  description_language String?
   status           ServiceStatus @default(COMPLETED)
   is_public        Boolean       @default(false)
   admin_intervened Boolean       @default(false)
@@ -205,6 +206,7 @@ model Service {
   worker       User                @relation("ServiceWorker", fields: [worker_id], references: [id])
   attachments  ServiceAttachment[]
   share_links  ServiceShareLink[]
+  translations ServiceTranslation[]
 
   @@index([organization_id])
   @@index([organization_id, created_at])
@@ -215,6 +217,41 @@ model Service {
   @@index([worker_id, created_at])
   @@index([is_public])
   @@index([created_at])
+}
+
+model AiProviderSetting {
+  id                                String    @id @default(uuid())
+  provider                          String    @unique
+  encrypted_api_key                 String?
+  api_key_hint                      String?
+  model                             String    @default("gpt-5.4-nano")
+  translations_enabled              Boolean   @default(false)
+  translate_services_created_after  DateTime?
+  configured_by_user_id             String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model ServiceTranslation {
+  id              String @id @default(uuid())
+  service_id      String
+  field           String
+  language        String
+  source_hash     String
+  source_language String?
+  translated_text String
+  status          String @default("ready")
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([service_id, field, language])
+  @@index([service_id])
+  @@index([language])
+  @@index([source_hash])
 }
 
 model ServiceShareLink {

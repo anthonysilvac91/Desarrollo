@@ -19,6 +19,7 @@ import {
   Factory,
   HardHat,
   Cpu,
+  Bot,
   Stethoscope,
   Leaf,
   Briefcase,
@@ -49,6 +50,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import { organizationsService } from "@/services/organizations.service";
+import { aiSettingsService, OpenAiSettings } from "@/services/ai-settings.service";
 import { usersService } from "@/services/users.service";
 import { authService, AuthSession, TwoFactorSetup } from "@/services/auth.service";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -100,6 +102,7 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const { refreshUser, user } = useAuth();
   const canManageOrgSettings = user?.role === "ADMIN";
+  const canManageAiSettings = user?.role === "SUPER_ADMIN";
   const queryClient = useQueryClient();
   
   // States for changes
@@ -287,6 +290,7 @@ export default function SettingsPage() {
 
   const allTabs = [
     ...(canManageOrgSettings ? [{ id: "profile", label: t.settings.tabs.profile, icon: Building2 }] : []),
+    ...(canManageAiSettings ? [{ id: "ai", label: t.settings.tabs.ai, icon: Bot }] : []),
     { id: "my_profile",      label: t.settings.tabs.my_profile,    icon: UserIcon    },
     { id: "plans",           label: t.settings.tabs.plans,          icon: CreditCard  },
     { id: "security",        label: t.settings.tabs.security,       icon: ShieldCheck },
@@ -630,6 +634,8 @@ export default function SettingsPage() {
 
             /* ── Notifications ── */
             <MobileNotificationsTab t={t} />
+          ) : activeTab === "ai" && canManageAiSettings ? (
+            <MobileAiSettingsTab />
 
           ) : (
             /* Coming soon for other tabs */
@@ -1080,7 +1086,184 @@ export default function SettingsPage() {
           <NotificationsTab t={t} />
         )}
 
+        {activeTab === "ai" && canManageAiSettings && (
+          <AiSettingsTab />
+        )}
+
       </div>
+      </div>
+    </div>
+  );
+}
+
+function AiSettingsTab() {
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <ModuleContainer>
+        <OpenAiSettingsForm compact={false} />
+      </ModuleContainer>
+    </div>
+  );
+}
+
+function MobileAiSettingsTab() {
+  return (
+    <div className="p-4 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-white rounded-3xl border border-border-theme/30">
+        <OpenAiSettingsForm compact />
+      </div>
+    </div>
+  );
+}
+
+function OpenAiSettingsForm({ compact }: { compact: boolean }) {
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("gpt-5.4-nano");
+  const [translationsEnabled, setTranslationsEnabled] = useState(false);
+  const [createdAfter, setCreatedAfter] = useState("");
+
+  const { data: settings, isLoading } = useQuery<OpenAiSettings>({
+    queryKey: ["openai-settings"],
+    queryFn: aiSettingsService.getOpenAi,
+  });
+
+  React.useEffect(() => {
+    if (!settings) return;
+    setModel(settings.model || "gpt-5.4-nano");
+    setTranslationsEnabled(settings.translations_enabled);
+    setCreatedAfter(settings.translate_services_created_after?.slice(0, 10) ?? "");
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => aiSettingsService.updateOpenAi({
+      api_key: apiKey.trim() || undefined,
+      model: model.trim() || "gpt-5.4-nano",
+      translations_enabled: translationsEnabled,
+      translate_services_created_after: createdAfter || null,
+    }),
+    onSuccess: async () => {
+      setApiKey("");
+      await queryClient.invalidateQueries({ queryKey: ["openai-settings"] });
+      showToast("Configuracion OpenAI guardada", "success");
+    },
+    onError: () => showToast("No se pudo guardar OpenAI", "error"),
+  });
+
+  const testMutation = useMutation({
+    mutationFn: aiSettingsService.testOpenAi,
+    onSuccess: () => showToast("Conexion OpenAI correcta", "success"),
+    onError: () => showToast("No se pudo validar OpenAI", "error"),
+  });
+
+  const inputClass = "w-full px-4 py-3 border-2 border-border-theme/50 bg-white rounded-2xl text-sm text-title font-semibold shadow-sm outline-none transition-all focus:ring-2 focus:ring-brand/15 focus:border-brand placeholder:text-subtitle/30";
+
+  if (isLoading) {
+    return (
+      <div className={compact ? "p-5" : "p-8"}>
+        <div className="flex items-center gap-2 text-subtitle/50">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm font-bold">Cargando OpenAI...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={compact ? "p-5 space-y-5" : "p-8 space-y-6"}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-base font-black text-title">OpenAI</p>
+          <p className="text-sm text-subtitle/50 mt-1">
+            Configuracion global para traducir descripciones de servicios en toda la plataforma.
+          </p>
+        </div>
+        <span className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${
+          settings?.api_key_configured ? "bg-green-50 text-green-600 border-green-100" : "bg-amber-50 text-amber-600 border-amber-100"
+        }`}>
+          {settings?.api_key_configured ? "Configurado" : "Pendiente"}
+        </span>
+      </div>
+
+      <div className={compact ? "space-y-4" : "grid grid-cols-2 gap-5"}>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-subtitle/50">API key</label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(event) => setApiKey(event.target.value)}
+            placeholder={settings?.api_key_hint ? `Actual: ${settings.api_key_hint}` : "sk-..."}
+            className={inputClass}
+          />
+          <p className="text-[11px] text-subtitle/45">Se guarda cifrada. Si dejas este campo vacio, se mantiene la key actual.</p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-subtitle/50">Modelo</label>
+          <input
+            type="text"
+            value={model}
+            onChange={(event) => setModel(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-subtitle/50">Traducir solo servicios creados desde</label>
+          <input
+            type="date"
+            value={createdAfter}
+            onChange={(event) => setCreatedAfter(event.target.value)}
+            className={inputClass}
+          />
+          <button
+            type="button"
+            onClick={() => setCreatedAfter("")}
+            className="text-[11px] font-black uppercase tracking-wider text-brand"
+          >
+            Quitar limite de fecha
+          </button>
+        </div>
+
+        <div className="flex items-start gap-3 rounded-2xl border border-border-theme/30 bg-app-bg/30 p-4">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={translationsEnabled}
+            onClick={() => setTranslationsEnabled((value) => !value)}
+            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+              translationsEnabled ? "bg-brand" : "bg-border-theme/40"
+            }`}
+          >
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition duration-200 ${translationsEnabled ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
+          <div>
+            <p className="text-sm font-bold text-title">Traduccion automatica</p>
+            <p className="text-xs text-subtitle/50 mt-0.5">Traduce bajo demanda y cachea por servicio, idioma y hash.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap justify-end gap-3 border-t border-border-theme/20 pt-5">
+        <button
+          type="button"
+          onClick={() => testMutation.mutate()}
+          disabled={testMutation.isPending || !settings?.api_key_configured}
+          className="flex items-center gap-2 rounded-2xl border border-border-theme/40 px-5 py-2.5 text-sm font-bold text-subtitle/70 transition-all hover:bg-app-bg disabled:opacity-40"
+        >
+          {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Probar conexion
+        </button>
+        <button
+          type="button"
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="flex items-center gap-2 rounded-2xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-brand/20 transition-all hover:bg-brand/90 disabled:opacity-50"
+        >
+          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Guardar OpenAI
+        </button>
       </div>
     </div>
   );

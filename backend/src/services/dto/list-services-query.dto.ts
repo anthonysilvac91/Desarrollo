@@ -1,4 +1,4 @@
-import { IsOptional, IsUUID } from 'class-validator';
+import { IsIn, IsOptional, IsUUID } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 export class ListServicesQueryDto extends PaginationQueryDto {
@@ -18,4 +18,8 @@ export class ListServicesQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   endDate?: string;
+
+  @IsIn(['es', 'en'])
+  @IsOptional()
+  lang?: string;
 }
