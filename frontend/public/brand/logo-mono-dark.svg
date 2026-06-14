@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 44" fill="none">
+  <!-- Horizontal logo — monochrome navy (for light backgrounds) -->
+  <g transform="scale(0.524)">
+    <path fill="#0A1A3F" d="M0,84 L0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L16,30 L16,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L16,66 L16,84 Z"/>
+  </g>
+  <text x="48" y="31" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="27" fill="#0A1A3F" letter-spacing="-0.5">Fentri</text>
+</svg>

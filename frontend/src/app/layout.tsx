@@ -9,18 +9,19 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Recall | Gestion de Activos",
-  description: "Plataforma de mantenimiento y gestion de activos",
+  title: "Fentri",
+  description: "All your operations, in one place",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Recall",
+    title: "Fentri",
   },
   formatDetection: {
     telephone: false,
   },
   manifest: "/manifest.json",
   icons: {
+    icon: [{ url: "/brand/favicon.png", type: "image/png", sizes: "32x32" }],
     apple: "/icons/apple-touch-icon.png",
   },
 };
@@ -30,7 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#3b82f6",
+  themeColor: "#0D6EFD",
 };
 
 export default function RootLayout({

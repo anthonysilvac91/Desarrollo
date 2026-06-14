@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  /* Exact Figma Design Tokens (Slide 1-280) */
-  --theme-primary: #0058BC;
+  /* Fentri brand tokens */
+  --fentri-primary: #0D6EFD;
+  --fentri-secondary: #3BA3FF;
+  --fentri-navy: #0A1A3F;
+  --fentri-deep-navy: #060F29;
+  /* Design tokens */
+  --theme-primary: #0D6EFD;
   --theme-bg: #F4F3F8;
   --theme-surface: #FFFFFF;
   --theme-title: #1A1B1F;

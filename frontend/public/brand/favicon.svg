@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Favicon: F mark on gradient rounded square, optimized for 16–32px -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D6EFD"/>
+      <stop offset="100%" stop-color="#060F29"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <!-- F shape scaled to fit: 68×84 → target ~18×22px, scale=0.265, offset=(7,5) -->
+  <g transform="translate(7,5) scale(0.265)">
+    <path fill="#FFFFFF" d="M0,84 L0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L16,30 L16,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L16,66 L16,84 Z"/>
+  </g>
+</svg>

@@ -8,7 +8,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { authService } from "@/services/auth.service";
-import { Loader2, User, Lock, Eye, EyeOff, Ship, AlertCircle } from "lucide-react";
+import { Loader2, User, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -99,9 +99,7 @@ function RegisterContent() {
 
         {/* Logo / Brand */}
         <div className="flex flex-col items-center mb-10 text-center">
-          <div className="w-16 h-16 bg-brand rounded-[22px] flex items-center justify-center shadow-lg shadow-brand/20 mb-6">
-            <Ship className="w-9 h-9 text-white stroke-[2.5px]" />
-          </div>
+          <img src="/brand/isotipo.png" alt="Fentri" className="h-14 w-auto object-contain mb-2" draggable={false} />
           <h1 className="text-4xl font-black text-title tracking-tight mb-2">
             {t.auth.register.title}
           </h1>

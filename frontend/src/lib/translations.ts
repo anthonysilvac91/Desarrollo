@@ -390,6 +390,7 @@ export const translations = {
     settings: {
       tabs: {
         profile: "Organization",
+        ai: "AI",
         my_profile: "Profile",
         plans: "Plans & Billing",
         security: "Security & Access",
@@ -497,7 +498,7 @@ export const translations = {
         palette: "Primary Color",
         subtitle: "This color is used for buttons, links and platform highlights.",
         palettes: {
-          recall: "Recall Blue",
+          recall: "Fentri Blue",
           ocean: "Ocean",
           teal: "Teal",
           forest: "Forest",
@@ -665,7 +666,7 @@ export const translations = {
     },
     // Global feedback strings
     feedback: {
-      loading_app: "Starting Recall",
+      loading_app: "Starting Fentri",
       syncing: "Syncing...",
       connecting: "Connecting...",
       retry: "Retry",
@@ -723,7 +724,7 @@ export const translations = {
         install_app: "Install app",
         install_ios_title: "Install on iPhone",
         install_ios_message: "Open in Safari, tap Share and select Add to Home Screen.",
-        footer: "RECALL PLATFORM - MVP STAGE",
+        footer: "FENTRI — ALL YOUR OPERATIONS, IN ONE PLACE",
       },
       forgot_password: {
         title: "Forgot your password?",
@@ -767,7 +768,7 @@ export const translations = {
       },
       signup: {
         title: "Create organization",
-        subtitle: "Start a new Recall workspace",
+        subtitle: "Start a new Fentri workspace",
         organization_label: "Organization Name",
         organization_placeholder: "Acme Services",
         admin_name_label: "Administrator Name",
@@ -782,7 +783,7 @@ export const translations = {
         creating: "Creating organization...",
         back_to_login: "Back to sign in",
         already_have_account: "Already have an account?",
-        login_prompt: "New to Recall?",
+        login_prompt: "New to Fentri?",
         login_link: "Create organization",
         error_generic: "Could not create the organization. Please try again.",
         validation_organization: "Organization name is required",
@@ -1181,6 +1182,7 @@ export const translations = {
     settings: {
       tabs: {
         profile: "Organización",
+        ai: "IA",
         my_profile: "Perfil",
         plans: "Planes y Facturación",
         security: "Seguridad y Acceso",
@@ -1224,7 +1226,7 @@ export const translations = {
         palette: "Color Principal",
         subtitle: "Este color se usa para botones, enlaces y aspectos destacados de la plataforma.",
         palettes: {
-          recall: "Azul Recall",
+          recall: "Azul Fentri",
           ocean: "Océano",
           teal: "Teal",
           forest: "Bosque",
@@ -1456,7 +1458,7 @@ export const translations = {
     },
     // Global feedback strings
     feedback: {
-      loading_app: "Iniciando Recall",
+      loading_app: "Iniciando Fentri",
       syncing: "Sincronizando...",
       connecting: "Conectando...",
       retry: "Reintentar",
@@ -1514,7 +1516,7 @@ export const translations = {
         install_app: "Instalar app",
         install_ios_title: "Instalar en iPhone",
         install_ios_message: "Abre en Safari, toca Compartir y selecciona Añadir a pantalla de inicio.",
-        footer: "RECALL PLATFORM - ETAPA MVP",
+        footer: "FENTRI — ALL YOUR OPERATIONS, IN ONE PLACE",
       },
       forgot_password: {
         title: "¿Olvidaste tu contraseña?",
@@ -1558,7 +1560,7 @@ export const translations = {
       },
       signup: {
         title: "Crear organización",
-        subtitle: "Inicia un nuevo espacio de trabajo en Recall",
+        subtitle: "Inicia un nuevo espacio de trabajo en Fentri",
         organization_label: "Nombre de la organización",
         organization_placeholder: "Acme Services",
         admin_name_label: "Nombre del administrador",
@@ -1573,7 +1575,7 @@ export const translations = {
         creating: "Creando organización...",
         back_to_login: "Volver al inicio de sesión",
         already_have_account: "¿Ya tienes una cuenta?",
-        login_prompt: "¿Nuevo en Recall?",
+        login_prompt: "¿Nuevo en Fentri?",
         login_link: "Crear organización",
         error_generic: "No se pudo crear la organización. Inténtalo de nuevo.",
         validation_organization: "El nombre de la organización es obligatorio",

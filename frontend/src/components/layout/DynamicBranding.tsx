@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 
 const PALETTE_COLORS: Record<string, string> = {
-  recall: "#3b82f6",  // blue-500
+  recall: "#0D6EFD",  // Fentri primary blue
   ocean: "#06b6d4",   // cyan-500
   teal: "#14b8a6",    // teal-500
   forest: "#10b981",  // emerald-500
@@ -28,7 +28,7 @@ export function DynamicBranding() {
       }
     } else {
       // Default color if none set
-      document.documentElement.style.setProperty("--theme-primary", "#0058BC");
+      document.documentElement.style.setProperty("--theme-primary", "#0D6EFD");
     }
   }, [user]);
 

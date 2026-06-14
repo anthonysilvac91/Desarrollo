@@ -8,7 +8,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { authService } from "@/services/auth.service";
-import { Building2, Eye, EyeOff, Loader2, Lock, Mail, Ship, User } from "lucide-react";
+import { Building2, Eye, EyeOff, Loader2, Lock, Mail, User } from "lucide-react";
 import Link from "next/link";
 
 export default function SignupPage() {
@@ -87,9 +87,7 @@ export default function SignupPage() {
     <div className="min-h-screen w-full flex items-center justify-center bg-app-bg p-6">
       <div className="max-w-[480px] w-full animate-in fade-in zoom-in duration-500">
         <div className="flex flex-col items-center mb-10 text-center">
-          <div className="w-16 h-16 bg-brand rounded-[22px] flex items-center justify-center shadow-lg shadow-brand/20 mb-6">
-            <Ship className="w-9 h-9 text-white stroke-[2.5px]" />
-          </div>
+          <img src="/brand/isotipo.png" alt="Fentri" className="h-14 w-auto object-contain mb-2" draggable={false} />
           <h1 className="text-4xl font-black text-title tracking-tight mb-2">
             {t.auth.signup.title}
           </h1>

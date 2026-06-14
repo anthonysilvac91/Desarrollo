@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, LogOut, User, ChevronDown, LayoutDashboard, Menu, KeyRound } from "lucide-react";
+import { Bell, LogOut, User, ChevronDown, Menu, KeyRound } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -26,7 +26,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   };
 
   const userInitial = user?.name?.charAt(0) || user?.email?.charAt(0) || "U";
-  const organizationName = user?.organization?.show_org_name ? user.organization.name : "Recall";
+  const organizationName = user?.organization?.show_org_name ? user.organization.name : "Fentri";
 
   return (
     <header className="h-[92px] lg:h-20 bg-surface border-b border-border-theme/50 sticky top-0 z-20 w-full shrink-0 transition-colors">
@@ -34,15 +34,20 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         
         {/* Mobile app header */}
         <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-brand/10 flex items-center justify-center border border-brand/10">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl flex items-center justify-center">
             {user?.organization?.logo_url ? (
               <img
                 src={user.organization.logo_url}
                 alt={user.organization.name || "Logo"}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover rounded-xl"
               />
             ) : (
-              <LayoutDashboard className="h-5 w-5 text-brand" />
+              <img
+                src="/brand/isotipo.png"
+                alt="Fentri"
+                className="h-8 w-auto object-contain"
+                draggable={false}
+              />
             )}
           </div>
           <p className="min-w-0 max-w-[11rem] whitespace-normal break-words text-sm font-black leading-tight text-title">

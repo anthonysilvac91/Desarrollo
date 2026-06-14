@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 84" fill="none">
+  <!-- Full F outline in Navy — spine gap (y30-40) and bottom (y66-84) remain navy -->
+  <path fill="#0A1A3F" d="M0,84 L0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L16,30 L16,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L16,66 L16,84 Z"/>
+  <!-- Middle bar overlay in Primary Blue -->
+  <path fill="#0D6EFD" d="M0,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L0,66 Z"/>
+  <!-- Top bar overlay in Secondary Blue -->
+  <path fill="#3BA3FF" d="M0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L0,30 Z"/>
+</svg>

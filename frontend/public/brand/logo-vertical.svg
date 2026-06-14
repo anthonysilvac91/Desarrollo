@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 128" fill="none">
+  <!-- Isotipo centered, scaled to 76px tall (scale = 76/84 ≈ 0.905) -->
+  <!-- Scaled width: 68×0.905 ≈ 62px → center offset: (120-62)/2 = 29 -->
+  <g transform="translate(29,0) scale(0.905)">
+    <path fill="#0A1A3F" d="M0,84 L0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L16,30 L16,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L16,66 L16,84 Z"/>
+    <path fill="#0D6EFD" d="M0,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L0,66 Z"/>
+    <path fill="#3BA3FF" d="M0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L0,30 Z"/>
+  </g>
+  <!-- Wordmark "Fentri" centered below isotipo -->
+  <text x="60" y="118" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="30" fill="#060F29" text-anchor="middle" letter-spacing="-0.5">Fentri</text>
+</svg>

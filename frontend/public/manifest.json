@@ -1,13 +1,13 @@
 {
-  "name": "Recall Asset Management",
-  "short_name": "Recall",
-  "description": "Plataforma de gestion de activos y mantenimiento",
+  "name": "Fentri",
+  "short_name": "Fentri",
+  "description": "All your operations, in one place",
   "id": "/",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "background_color": "#060F29",
+  "theme_color": "#0D6EFD",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

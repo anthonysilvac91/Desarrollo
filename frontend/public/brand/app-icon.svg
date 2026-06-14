@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D6EFD"/>
+      <stop offset="100%" stop-color="#060F29"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background (iOS squircle approx.) -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <!-- White F mark: scaled 4.3× and centered -->
+  <!-- F is 68×84; scaled: 292×361; center: x=(512-292)/2=110, y=(512-361)/2=75 -->
+  <g transform="translate(110,75) scale(4.3)">
+    <path fill="#FFFFFF" d="M0,84 L0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L16,30 L16,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L16,66 L16,84 Z"/>
+    <!-- Subtle tint for secondary layers (adds depth on gradient bg) -->
+    <path fill="rgba(255,255,255,0.55)" d="M0,40 L50,40 Q58,40 58,46 L58,60 Q58,66 50,66 L0,66 Z"/>
+    <path fill="rgba(255,255,255,0.75)" d="M0,0 L60,0 Q68,0 68,8 L68,22 Q68,30 60,30 L0,30 Z"/>
+  </g>
+</svg>

@@ -10,7 +10,6 @@ import {
   Wrench,
   Users,
   Settings,
-  LayoutDashboard,
   Building2
 } from "lucide-react";
 
@@ -61,15 +60,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 className="max-h-10 w-auto object-contain shrink-0"
               />
               <span className="min-w-0 max-w-[160px] whitespace-normal break-words font-bold text-sm text-title tracking-tight leading-tight">
-                {user.organization.show_org_name ? user.organization.name : "Recall"}
+                {user.organization.show_org_name ? user.organization.name : "Fentri"}
               </span>
             </div>
           ) : (
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-brand rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-brand/20">
-                <LayoutDashboard className="w-6 h-6 text-white" />
-              </div>
-              <span className="font-bold text-xl text-title tracking-tight leading-none">{t.sidebar.admin_console}</span>
+            <div className="flex items-center gap-3">
+              <img
+                src="/brand/isotipo.png"
+                alt="Fentri"
+                className="h-9 w-auto object-contain"
+                draggable={false}
+              />
+              <span className="font-black text-xl tracking-tight" style={{ color: "#060F29" }}>Fentri</span>
             </div>
           )}
         </div>
