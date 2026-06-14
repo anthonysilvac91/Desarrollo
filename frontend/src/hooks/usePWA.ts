@@ -24,7 +24,7 @@ function isIOSDevice() {
   if (typeof window === "undefined") return false;
 
   const navigatorWithStandalone = window.navigator as NavigatorWithStandalone;
-  const isiPhoneOrIPad = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isiPhoneOrIPad = /iPad|iPhone/.test(navigator.userAgent);
   const isModernIPad = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
 
   return (isiPhoneOrIPad || isModernIPad) && !navigatorWithStandalone.standalone;
@@ -83,7 +83,7 @@ export function usePWA() {
     isIOS,
     isStandalone,
     canInstallNative: Boolean(deferredPrompt) && !isStandalone,
-    shouldShowIOSInstructions: isMobile && isIOS && !isStandalone,
+    shouldShowIOSInstructions: isIOS && !isStandalone,
     shouldShowInstallButton: isMobile && Boolean(deferredPrompt) && !isStandalone,
     triggerInstall,
   };

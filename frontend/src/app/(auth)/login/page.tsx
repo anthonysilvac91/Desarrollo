@@ -332,17 +332,28 @@ export default function LoginPage() {
         )}
 
         {shouldShowIOSInstructions && (
-          <div className="mt-6 rounded-2xl border-2 border-brand/20 bg-brand/5 p-4 text-brand">
-            <div className="flex items-start gap-3">
-              <Share className="mt-0.5 h-5 w-5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-black">{t.auth.login.install_ios_title}</p>
-                <p className="mt-1 text-xs font-bold text-brand/80">
-                  {t.auth.login.install_ios_message}
-                </p>
-              </div>
-              <PlusSquare className="mt-0.5 h-5 w-5 flex-shrink-0" />
-            </div>
+          <div className="mt-5 rounded-2xl border border-brand/10 bg-brand/[0.04] p-4 text-brand">
+            <p className="text-sm font-black leading-tight text-brand">
+              {t.auth.login.install_ios_title}
+            </p>
+            <ol className="mt-3 space-y-2 text-left">
+              <li className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                  <Share className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1 text-xs font-bold leading-snug text-title/75">
+                  {t.auth.login.install_ios_step_share}
+                </span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                  <PlusSquare className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1 text-xs font-bold leading-snug text-title/75">
+                  {t.auth.login.install_ios_step_home}
+                </span>
+              </li>
+            </ol>
           </div>
         )}
 
