@@ -66,7 +66,7 @@ export function RealtimeQueryInvalidator() {
     const handleEvent = (event: RealtimeEvent) => {
 
       if (event.module === "assets" && pathname.startsWith("/assets")) {
-        invalidatePrefixes(queryClient, ["assets", "assets-mobile", "assets-stats", "assets-owners-list"]);
+        invalidatePrefixes(queryClient, ["asset", "assets", "assets-mobile", "assets-stats", "assets-owners-list"]);
       }
 
       if (event.module === "services") {

@@ -533,6 +533,14 @@ export class AssetsService {
       );
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset), asset.organization_id);
+    const resolvedAsset = await this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset), asset.organization_id);
+    this.realtimeService?.emit({
+      module: 'assets',
+      action: 'updated',
+      entityId: updatedAsset.id,
+      organizationId: updatedAsset.organization_id,
+    });
+
+    return resolvedAsset;
   }
 }
