@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
 import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
-import { MapPin, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus, MoreVertical, Trash2 } from "lucide-react";
+import { MapPin, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus, MoreVertical, Trash2, Power } from "lucide-react";
 import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
 import { DayPicker, useDayPicker } from "react-day-picker";
 import type { DateRange, MonthCaptionProps } from "react-day-picker";
@@ -83,6 +83,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
   const workerDropdownRef = useRef<HTMLDivElement>(null);
   const customPickerRef = useRef<HTMLDivElement>(null);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [isPhotoUpdating, setIsPhotoUpdating] = useState(false);
@@ -159,6 +160,40 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
       );
     } finally {
       setIsPhotoUpdating(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!initialAsset?.id || isPhotoUpdating) return;
+    setIsPhotoUpdating(true);
+    try {
+      const formData = new FormData();
+      formData.append("remove_photo", "true");
+      await assetsService.update(initialAsset.id, formData);
+      await queryClient.invalidateQueries({ queryKey: ["asset", initialAsset.id] });
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      showToast(t.assets.drawer.photo_updated, "success");
+    } catch (err: unknown) {
+      const maybeError = err as { response?: { data?: { message?: string | string[] } } };
+      const message = maybeError.response?.data?.message;
+      showToast(Array.isArray(message) ? message[0] : message || t.assets.drawer.photo_update_error, "error");
+    } finally {
+      setIsPhotoUpdating(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (!currentAsset?.id || isTogglingStatus) return;
+    setIsTogglingStatus(true);
+    try {
+      await assetsService.toggleStatus(currentAsset.id, !currentAsset.is_active);
+      await queryClient.invalidateQueries({ queryKey: ["asset", initialAsset!.id] });
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["assets-mobile"] });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsTogglingStatus(false);
     }
   };
 
@@ -240,13 +275,12 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
   const hasServiceHistory = allHistory.length > 0;
 
   const leftAction = (
-    <>
-      {/* Mobile: 3-dot actions menu */}
-      <div ref={actionsMenuRef} className="relative lg:hidden">
+    <div className="flex items-center gap-2">
+      <div ref={actionsMenuRef} className="relative">
         <button
           type="button"
           onClick={() => setIsActionsMenuOpen(v => !v)}
-          className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
+          className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
         >
           <MoreVertical className="w-5 h-5" />
         </button>
@@ -261,7 +295,24 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
             >
               <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
-              <span className="text-sm font-semibold text-title">Editar</span>
+              <span className="text-sm font-semibold text-title">{t.common.edit}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionsMenuOpen(false);
+                handleToggleStatus();
+              }}
+              disabled={isTogglingStatus}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left disabled:opacity-50"
+            >
+              {isTogglingStatus
+                ? <Loader2 className="w-4 h-4 text-subtitle/50 shrink-0 animate-spin" />
+                : <Power className="w-4 h-4 shrink-0" style={{ color: currentAsset.is_active ? "#f59e0b" : "#22c55e" }} />
+              }
+              <span className="text-sm font-semibold text-title">
+                {currentAsset.is_active ? t.common.deactivate : t.common.activate}
+              </span>
             </button>
             <div className="mx-3 my-1 border-t border-border-theme/20" />
             <button
@@ -273,22 +324,21 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
             >
               <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
-              <span className="text-sm font-semibold text-error/80">Eliminar</span>
+              <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
             </button>
           </div>
         )}
       </div>
-      {/* Desktop: expand icon */}
       <button
         onClick={() => {
           onClose();
           router.push(`/assets/${initialAsset.id}`);
         }}
-        className="hidden lg:flex p-2.5 rounded-full hover:bg-app-bg text-subtitle/40 hover:text-brand transition-all group"
+        className="hidden lg:flex p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
       >
-        <Maximize2 className="w-6 h-6" />
+        <Maximize2 className="w-5 h-5" />
       </button>
-    </>
+    </div>
   );
 
   return (
@@ -331,6 +381,17 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
             >
               {isPhotoUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
             </button>
+            {currentAsset.thumbnail_url && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                disabled={isPhotoUpdating}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-60"
+                aria-label="Quitar foto"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -385,6 +446,17 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
               >
                 {isPhotoUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
               </button>
+              {currentAsset.thumbnail_url && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  disabled={isPhotoUpdating}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-60"
+                  aria-label="Quitar foto"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
             <div className="flex flex-col items-center space-y-1">
               <h2 className="text-3xl font-black text-title tracking-tight">{currentAsset.name}</h2>

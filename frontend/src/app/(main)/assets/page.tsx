@@ -13,7 +13,7 @@ import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import { formatDate } from "@/lib/formatDate";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService, Asset } from "@/services/assets.service";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/lib/ToastContext";
@@ -91,6 +91,7 @@ export default function AssetsPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
@@ -230,7 +231,8 @@ export default function AssetsPage() {
     try {
       await assetsService.toggleStatus(asset.id, !asset.is_active);
       showToast(asset.is_active ? t.assets.states.deactivated : t.assets.states.activated, "success");
-      refetch(); refetchMobile();
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      refetchMobile();
     } catch {
       showToast(t.feedback.generic_error, "error");
     }
@@ -247,7 +249,8 @@ export default function AssetsPage() {
         await assetsService.delete(assetToDelete.id);
         showToast(t.feedback.delete_asset_success, "success");
         setAssetToDelete(null);
-        refetch(); refetchMobile();
+        await queryClient.invalidateQueries({ queryKey: ["assets"] });
+        refetchMobile();
       } catch {
         showToast(t.feedback.delete_asset_error, "error");
       }

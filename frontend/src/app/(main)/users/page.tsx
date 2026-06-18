@@ -763,6 +763,10 @@ export default function UsersPage() {
           setSelectedUser(null);
           setUserToResetPassword(targetUser);
         }}
+        onToggleStatus={(targetUser) => {
+          setSelectedUser(null);
+          handleToggleStatus(targetUser);
+        }}
       />
 
       <UserModal
