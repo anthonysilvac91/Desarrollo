@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import Drawer from "@/components/ui/Drawer";
 import ShareModal from "@/components/ui/ShareModal";
-import { Ship, Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2, Share2, Download, Archive } from "lucide-react";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import { Ship, Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2, Share2, Download } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Service, servicesService } from "@/services/services.service";
 import { TranslatedDescription } from "@/components/services/TranslatedDescription";
@@ -78,6 +79,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
   const [isSharing, setIsSharing] = useState(false);
   const [shareData, setShareData] = useState<{ url: string; text: string } | null>(null);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["service", service?.id, language],
@@ -141,25 +143,35 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
     if (isDownloadingAll) return;
     setIsDownloadingAll(true);
     try {
-      const { default: JSZip } = await import("jszip");
-      const zip = new JSZip();
-      await Promise.all(
-        imageAttachments.map(async (att, i) => {
-          if (!att.file_url) return;
+      const items = await Promise.all(
+        imageAttachments.map(async (att) => {
+          if (!att.file_url) return null;
           const res = await fetch(att.file_url);
           const blob = await res.blob();
           const ext = att.file_type?.split("/")[1] || "jpg";
-          zip.file(`foto-${i + 1}.${ext}`, blob);
+          return { blob, ext };
         })
       );
-      const content = await zip.generateAsync({ type: "blob" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(content);
-      a.download = `${currentService.title.replace(/\s+/g, "-")}-fotos.zip`;
-      a.click();
-      URL.revokeObjectURL(a.href);
+      const files = items
+        .map((item, i) => item ? new File([item.blob], `foto-${i + 1}.${item.ext}`, { type: `image/${item.ext}` }) : null)
+        .filter((f): f is File => f !== null);
+
+      const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile && navigator.canShare?.({ files })) {
+        await navigator.share({ files });
+      } else {
+        const { default: JSZip } = await import("jszip");
+        const zip = new JSZip();
+        files.forEach((file) => zip.file(file.name, file));
+        const content = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = `${currentService.title.replace(/\s+/g, "-")}-fotos.zip`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
     } catch (error) {
-      console.error(error);
+      if ((error as Error).name !== "AbortError") console.error(error);
     } finally {
       setIsDownloadingAll(false);
     }
@@ -400,19 +412,18 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                 </div>
               )}
 
-              {/* Download all ZIP */}
               {imageAttachments.length > 1 && (
                 <div className="w-full max-w-sm flex justify-end">
                   <button
-                    onClick={handleDownloadAll}
+                    onClick={() => setShowDownloadConfirm(true)}
                     disabled={isDownloadingAll}
                     className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface/80 backdrop-blur-sm border border-border-theme/20 shadow-lg text-xs font-black text-subtitle/70 hover:text-brand active:scale-95 transition-all disabled:opacity-50"
                   >
                     {isDownloadingAll
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
-                      : <Archive className="w-3.5 h-3.5" />
+                      : <Download className="w-3.5 h-3.5" />
                     }
-                    {isDownloadingAll ? "Descargando..." : "Descargar todo (.zip)"}
+                    {isDownloadingAll ? "Descargando..." : "Descargar todo"}
                   </button>
                 </div>
               )}
@@ -445,6 +456,16 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
         shareUrl={shareData?.url ?? ""}
         shareText={shareData?.text ?? ""}
         serviceTitle={currentService.title}
+      />
+      <ConfirmModal
+        isOpen={showDownloadConfirm}
+        onClose={() => setShowDownloadConfirm(false)}
+        onConfirm={handleDownloadAll}
+        title="Descargar fotos"
+        description={`Se ${imageAttachments.length === 1 ? "descargará 1 foto" : `descargarán ${imageAttachments.length} fotos`} de este servicio.`}
+        confirmText="Descargar"
+        cancelText="Cancelar"
+        variant="brand"
       />
     </Drawer>
   );
