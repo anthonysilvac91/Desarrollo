@@ -500,6 +500,10 @@ export class UsersService {
 
     let avatarFileId = currentUserRecord.avatar_file_id;
 
+    if (dto.remove_avatar === 'true' && !avatarFile) {
+      avatarFileId = null;
+    }
+
     if (avatarFile) {
       const organizationId = currentUserRecord.organization_id;
       if (!organizationId) {
@@ -574,7 +578,7 @@ export class UsersService {
       throw error;
     }
 
-    if (avatarFile && currentUserRecord.avatar_file_id) {
+    if ((avatarFile || dto.remove_avatar === 'true') && currentUserRecord.avatar_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         currentUserRecord.avatar_file_id,
       );

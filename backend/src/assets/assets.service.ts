@@ -462,6 +462,10 @@ export class AssetsService {
 
     ensureNoManualFileUrl(updateDto.thumbnail_url, 'Thumbnail del activo');
 
+    if (updateDto.remove_photo === 'true' && !photo) {
+      thumbnailFileId = null;
+    }
+
     if (photo) {
       const imageInfo = validateImageFile(photo, {
         maxBytes: ASSET_IMAGE_MAX_BYTES,
@@ -527,7 +531,7 @@ export class AssetsService {
       throw error;
     }
 
-    if (photo && (asset as any).thumbnail_file_id) {
+    if ((photo || updateDto.remove_photo === 'true') && (asset as any).thumbnail_file_id) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         (asset as any).thumbnail_file_id ?? null,
       );

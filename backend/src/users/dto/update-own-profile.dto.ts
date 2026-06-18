@@ -28,6 +28,11 @@ export class UpdateOwnProfileDto {
   @IsOptional()
   new_password?: string;
 
+  @ApiProperty({ required: false, description: 'Si es "true", elimina el avatar del usuario.' })
+  @IsString()
+  @IsOptional()
+  remove_avatar?: string;
+
   @ApiHideProperty()
   @IsEmpty({ message: 'avatar_url is no longer accepted; upload avatar file instead' })
   avatar_url?: string;

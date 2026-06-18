@@ -125,6 +125,7 @@ export default function SettingsPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["my-organization"],
@@ -169,6 +170,7 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
       setAvatarFile(null);
+      setRemoveAvatar(false);
       queryClient.invalidateQueries({ queryKey: ["users"] });
       refreshUser();
     },
@@ -242,6 +244,7 @@ export default function SettingsPage() {
     fd.append("email", profileEmail.trim());
     fd.append("phone", profilePhone.trim());
     if (avatarFile) fd.append("avatar", avatarFile);
+    if (removeAvatar && !avatarFile) fd.append("remove_avatar", "true");
     if (newPassword) {
       fd.append("current_password", currentPassword);
       fd.append("new_password", newPassword);
@@ -532,6 +535,16 @@ export default function SettingsPage() {
                         onChange={handleAvatarSelect}
                       />
                     </label>
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setAvatarPreview(null); setAvatarFile(null); setRemoveAvatar(true); }}
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-all"
+                        aria-label="Quitar foto"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Name + status */}
@@ -951,6 +964,16 @@ export default function SettingsPage() {
                         onChange={handleAvatarSelect}
                       />
                     </label>
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setAvatarPreview(null); setAvatarFile(null); setRemoveAvatar(true); }}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-all"
+                        aria-label="Quitar foto"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
                   <p className="text-base font-black text-title">{profileName || user?.email}</p>

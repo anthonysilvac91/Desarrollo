@@ -32,6 +32,11 @@ export class UpdateAssetDto {
   @IsOptional()
   owner_id?: string;
 
+  @ApiPropertyOptional({ description: 'Si es "true", elimina la foto del activo.' })
+  @IsString()
+  @IsOptional()
+  remove_photo?: string;
+
   // Campos bloqueados (legado)
   @ApiHideProperty()
   @IsEmpty({ message: 'thumbnail_url is no longer accepted; upload thumbnail file instead' })
