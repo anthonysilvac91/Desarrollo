@@ -157,7 +157,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                       <div className="w-6 h-6 rounded-full bg-app-bg flex items-center justify-center shrink-0 group-hover:bg-brand/10 transition-colors">
                         <User className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-xs font-bold">Mi Perfil</span>
+                      <span className="text-xs font-bold">{t.common.my_profile}</span>
                     </button>
 
                     <button
@@ -167,9 +167,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                       <div className="w-6 h-6 rounded-full bg-app-bg flex items-center justify-center shrink-0 group-hover:bg-brand/10 transition-colors">
                         <KeyRound className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-xs font-bold">
-                        {language === "es" ? "Cambiar Contraseña" : "Change Password"}
-                      </span>
+                      <span className="text-xs font-bold">{t.common.change_password}</span>
                     </button>
 
                     <button
@@ -179,9 +177,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                       <div className="w-6 h-6 rounded-full bg-app-bg flex items-center justify-center shrink-0 group-hover:bg-error/10 transition-colors">
                         <LogOut className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-xs font-black">
-                        {t.auth.login.submit === "Sign In" ? "Logout" : "Cerrar Sesión"}
-                      </span>
+                      <span className="text-xs font-black">{t.common.logout}</span>
                     </button>
                   </div>
 
