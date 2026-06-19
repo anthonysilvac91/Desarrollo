@@ -18,6 +18,7 @@ import { assetsService, Asset } from "@/services/assets.service";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import AssetIcon from "@/components/ui/AssetIcon";
 import { Loader2, AlertCircle, Inbox } from "lucide-react";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
@@ -111,6 +112,7 @@ export default function AssetsPage() {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [isOwnerDropdownOpen, setIsOwnerDropdownOpen] = useState(false);
   const [ownerSearch, setOwnerSearch] = useState("");
+  const isMobile = useMediaQuery("(max-width: 1023px)");
 
   const queryParams = {
     page, limit, search: debouncedSearch,
@@ -173,6 +175,7 @@ export default function AssetsPage() {
     queryFn: ({ pageParam }) =>
       assetsService.findAll({ page: pageParam as number, limit: 10, search: debouncedSearch }),
     initialPageParam: 1,
+    enabled: isMobile === true,
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
     getNextPageParam: (lastPage) => {

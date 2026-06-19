@@ -193,7 +193,7 @@ export default function AssetDetailPage() {
     queryKey: ["asset", assetId],
     queryFn: () => assetsService.findOne(assetId),
     enabled: !!assetId,
-    refetchInterval: AUTO_REFETCH_INTERVALS.fast,
+    refetchInterval: AUTO_REFETCH_INTERVALS.detail,
     ...AUTO_REFETCH_OPTIONS,
   });
 

@@ -8,7 +8,7 @@
 
 ## Resumen ejecutivo
 
-El sistema está bien estructurado y tiene un buen nivel de hardening para uploads (Sharp, WebP, límites de tamaño). P01/P02/P03 ya están implementados: cache in-memory para signed URLs, `assertCanStore` con aggregate en DB y `resolveFileUrlForOrg` propagado. P07/QW4 también está implementado: los intervalos de refetch frontend ya no son de 5s. No hay bloqueantes absolutos para demo o bajo volumen. Antes de sumar varios clientes activos, los principales riesgos restantes son listados sin paginación, queries duplicadas/innecesarias en frontend y detalle de activo sin paginar.
+El sistema está bien estructurado y tiene un buen nivel de hardening para uploads (Sharp, WebP, límites de tamaño). P01/P02/P03 ya están implementados: cache in-memory para signed URLs, `assertCanStore` con aggregate en DB y `resolveFileUrlForOrg` propagado. P07/QW4 también está implementado: los intervalos de refetch frontend ya no son de 5s. F6/F7 también están implementados: Assets ya no ejecuta la query mobile en desktop y el detalle de activo usa intervalo de refetch de detalle. En producción, el principal riesgo restante es el detalle de activo sin paginar, que debe tratarse como prioridad de producto terminado.
 
 **Prioridades recomendadas (al momento de la auditoría):**
 1. ~~Cache in-memory con TTL para `resolveFileUrl` (quick win, sin migración).~~ → **IMPLEMENTADO**
@@ -18,7 +18,7 @@ El sistema está bien estructurado y tiene un buen nivel de hardening para uploa
 5. ~~Reducir intervalos de refetch del frontend (5s → 30s mínimo).~~ → **IMPLEMENTADO**
 6. ~~Implementar `resolveFileUrlForOrg` para validación multi-tenant en archivos.~~ → **IMPLEMENTADO**
 
-**No hay bloqueantes absolutos para demo o bajo volumen.** Antes de sumar varios clientes activos, los problemas restantes (listados sin paginación, queries duplicadas/innecesarias y detalle de activo sin paginar) serán visibles como latencia o payloads excesivos.
+**Estado producción:** no se debe asumir que la lentitud de navegación es solo un artefacto de `next dev`. La compilación bajo demanda local no aplica a producción, pero los endpoints pesados y las queries innecesarias sí pueden afectar usuarios reales. Quedan como prioridad de producción: paginar el historial de servicios del detalle de activo, mantener límites/failsafes en listados y medir latencia/payload por endpoint.
 
 ---
 
@@ -51,7 +51,7 @@ El sistema está bien estructurado y tiene un buen nivel de hardening para uploa
 
 ### Qué NO se implementó (fuera del alcance del PR)
 
-Los hallazgos P04, P05, P06, P10, P13, P16–P19, y las acciones de tipo M (migración) permanecen pendientes. F1/QW4, F2/P08/P09, F3/P12 y F5 ya fueron implementados; F4 permanece pendiente. Ver sección [Plan de acción recomendado](#plan-de-acción-recomendado).
+Los hallazgos P04, P05, P06, P10, P13, P16–P19, y las acciones de tipo M (migración) permanecen pendientes. F1/QW4, F2/P08/P09, F3/P12, F5, F6 y F7 ya fueron implementados; F4 permanece pendiente. Ver sección [Plan de acción recomendado](#plan-de-acción-recomendado).
 
 ---
 
@@ -117,8 +117,8 @@ Los hallazgos P04, P05, P06, P10, P13, P16–P19, y las acciones de tipo M (migr
 | `GET /assets/:id` | `assets.service.ts:295` | Patrón original: sin filtro tenant en query | Estado actual: P15 implementado con filtro `organization_id` en query | Mantener |
 | Dashboard page | `dashboard/page.tsx` | Refetch cada 60s con 1 query | Aceptable si la query es rápida | QW4 implementado; queda optimizar backend dashboard |
 | Services page | `service/page.tsx` | 3 queries en mount, 3 con refetch cada 30s | `["services-workers-list"]` usa `/services/filter-options`; la query desktop/mobile se activa según viewport | Mantener monitoreo; Assets sigue pendiente si aparece el mismo patrón |
-| Assets page | `assets/page.tsx` | 3 queries en mount, 2 con refetch cada 30s | `["assets-owners-list"]` usa `/assets/filter-options`; ya no carga activos completos para filtros | Consolidar queries sigue pendiente |
-| Asset detail page | `assets/[id]/page.tsx` | Refetch cada 30s, carga todos los servicios | `enabled: !!assetId` correcto, pero la query es costosa | Paginar servicios; considerar intervalos por detalle si sigue pesado |
+| Assets page | `assets/page.tsx` | 2 queries principales en desktop + opciones de filtro; mobile query solo activa en mobile | `["assets-owners-list"]` usa `/assets/filter-options`; `["assets-mobile"]` queda condicionada por viewport | Mantener monitoreo; consolidar queries solo si métricas lo justifican |
+| Asset detail page | `assets/[id]/page.tsx` | Refetch cada 60s, carga todos los servicios | `enabled: !!assetId` correcto, pero la query sigue siendo costosa | Paginar servicios; este es el siguiente cambio prioritario de producción |
 
 ---
 
@@ -560,7 +560,7 @@ const { data: asset } = useQuery({
 // Filtros de workers y fecha se aplican en cliente sobre todos los servicios cargados
 ```
 
-Todo el historial de servicios se carga en el cliente y se filtra en memoria. Con QW4 implementado, este endpoint potencialmente costoso se ejecuta cada 30 segundos; la paginación del historial sigue pendiente en P06/F4.
+Todo el historial de servicios se carga en el cliente y se filtra en memoria. Con QW4 y F7 implementados, este endpoint potencialmente costoso se ejecuta cada 60 segundos; la paginación del historial sigue pendiente en P06/F4.
 
 **Recomendación:**
 - Reducir refetchInterval a 60s.
@@ -741,6 +741,8 @@ LIMIT 10 OFFSET 0;
 | F3 | ✅ **Hecho**: habilitar solo la query desktop/mobile visible en services page | `service/page.tsx` | — |
 | F4 | Paginar historial de servicios en asset detail | `assets/[id]/page.tsx` | 4h |
 | F5 | ✅ **Hecho**: `refetchOnWindowFocus` desactivado en opciones compartidas | `frontend/src/lib/queryAutoRefetch.ts` | — |
+| F6 | ✅ **Hecho**: condicionar query mobile de Assets al viewport mobile | `assets/page.tsx` | — |
+| F7 | ✅ **Hecho**: usar intervalo de detalle para `GET /assets/:id` | `assets/[id]/page.tsx` | — |
 
 ---
 
