@@ -106,7 +106,7 @@ export default function TrashPage() {
         key: "entity_type",
         header: t.trash.table.category,
         sortable: true,
-        render: (item) => {
+        cell: (item) => {
           const Icon = CATEGORY_ICONS[item.entity_type] || Package;
           const style = CATEGORY_STYLES[item.entity_type] || "";
           return (
@@ -121,7 +121,7 @@ export default function TrashPage() {
         key: "name",
         header: t.trash.table.name,
         sortable: true,
-        render: (item) => (
+        cell: (item) => (
           <span className="font-semibold text-title text-sm">{item.name}</span>
         ),
       },
@@ -129,7 +129,7 @@ export default function TrashPage() {
         key: "module",
         header: t.trash.table.module,
         sortable: true,
-        render: (item) => (
+        cell: (item) => (
           <span className="text-subtitle text-sm">
             {MODULE_LABELS[language]?.[item.module] || item.module}
           </span>
@@ -139,7 +139,7 @@ export default function TrashPage() {
         key: "deleted_at",
         header: t.trash.table.deleted_at,
         sortable: true,
-        render: (item) => (
+        cell: (item) => (
           <span className="text-subtitle text-sm">{formatDate(item.deleted_at, language)}</span>
         ),
       },
@@ -147,7 +147,7 @@ export default function TrashPage() {
         key: "deleted_by",
         header: t.trash.table.deleted_by,
         sortable: false,
-        render: (item) => (
+        cell: (item) => (
           <span className="text-subtitle text-sm">
             {item.deleted_by?.name || "—"}
           </span>
@@ -157,7 +157,7 @@ export default function TrashPage() {
         key: "actions",
         header: t.trash.table.actions,
         sortable: false,
-        render: (item) => (
+        cell: (item) => (
           <div className="flex items-center gap-1">
             <button
               onClick={(e) => {
