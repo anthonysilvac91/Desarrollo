@@ -22,7 +22,7 @@ import AssetCoverageCard from "@/components/dashboard/AssetCoverageCard";
 import OperatorActivityCard from "@/components/dashboard/OperatorActivityCard";
 import SystemSummaryCard from "@/components/dashboard/SystemSummaryCard";
 import AssetIcon from "@/components/ui/AssetIcon";
-import { Loader2, AlertCircle, Inbox, Wrench, Clock, Users, Plus, ArrowRight, UploadCloud, CalendarDays } from "lucide-react";
+import { Loader2, AlertCircle, Inbox, Wrench, Clock, Plus, ArrowRight, UploadCloud, CalendarDays, HardHat } from "lucide-react";
 import { formatDate, formatRelativeTime } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
@@ -404,6 +404,8 @@ export default function DashboardPage() {
             value={stats?.total_services ?? 0}
             subtitle={t.dashboard.kpis.subtitle_services_performed}
             icon={Wrench}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-500"
             roundedClass="rounded-2xl"
           />
           <KPICard
@@ -411,6 +413,8 @@ export default function DashboardPage() {
             value={stats?.assets_serviced ?? 0}
             subtitle={t.dashboard.kpis.subtitle_assets_serviced}
             icon={DashboardAssetIcon}
+            iconBg="bg-cyan-50"
+            iconColor="text-cyan-500"
             roundedClass="rounded-2xl"
           />
           <KPICard
@@ -418,13 +422,17 @@ export default function DashboardPage() {
             value={stats?.last_service ? formatRelativeTime(stats.last_service, language as "en" | "es") : "---"}
             subtitle={stats?.last_service ? t.dashboard.kpis.subtitle_last_service : t.dashboard.kpis.subtitle_no_service}
             icon={Clock}
+            iconBg="bg-green-50"
+            iconColor="text-green-600"
             roundedClass="rounded-2xl"
           />
           <KPICard
             title={t.dashboard.kpis.active_operators}
             value={stats?.active_operators ?? 0}
             subtitle={t.dashboard.kpis.subtitle_active_operators}
-            icon={Users}
+            icon={HardHat}
+            iconBg="bg-amber-50"
+            iconColor="text-amber-500"
             roundedClass="rounded-2xl"
           />
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Building2, HardHat, ShieldCheck } from "lucide-react";
+import { Building2, HardHat, ShieldUser } from "lucide-react";
 import AssetIcon from "@/components/ui/AssetIcon";
 
 interface Props {
@@ -20,10 +20,10 @@ export default function SystemSummaryCard({ totalAssets, totalOwners, totalWorke
   );
 
   const items = [
-    { label: m.assets,  value: totalAssets,  icon: AssetSummaryIcon, color: "bg-brand/10 text-brand" },
-    { label: m.owners,  value: totalOwners,  icon: Building2,   color: "bg-violet-50 text-violet-500" },
+    { label: m.assets,  value: totalAssets,  icon: AssetSummaryIcon, color: "bg-cyan-50 text-cyan-500" },
+    { label: m.owners,  value: totalOwners,  icon: Building2,   color: "bg-blue-50 text-blue-500" },
     { label: m.workers, value: totalWorkers, icon: HardHat,     color: "bg-amber-50 text-amber-500" },
-    { label: m.admins,  value: totalAdmins,  icon: ShieldCheck, color: "bg-emerald-50 text-emerald-500" },
+    { label: m.admins,  value: totalAdmins,  icon: ShieldUser,  color: "bg-emerald-50 text-emerald-500" },
   ];
 
   return (

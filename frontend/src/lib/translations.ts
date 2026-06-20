@@ -202,7 +202,7 @@ export const translations = {
         total: "Total services",
         period: "Selected period",
         assets: "Assets serviced",
-        operators: "Active operators",
+        operators: "Active workers",
       },
       table: {
         service: "Service",
@@ -528,7 +528,7 @@ export const translations = {
         services_performed: "Services Performed",
         assets_serviced: "Assets Serviced",
         last_service: "Last Service",
-        active_operators: "Active Operators",
+        active_operators: "Active Workers",
         owners_reached: "Owners Reached",
         growth: "Growth",
         previous_period: "vs previous period",
@@ -536,7 +536,7 @@ export const translations = {
         subtitle_assets_serviced: "Assets with services in selected period",
         subtitle_last_service: "Latest completed service",
         subtitle_no_service: "No activity in selected period",
-        subtitle_active_operators: "Operators with activity",
+        subtitle_active_operators: "Workers with activity",
         // Worker / External role labels
         my_services: "My Services",
         my_assets: "My Assets",
@@ -1057,7 +1057,7 @@ export const translations = {
         total: "Total servicios",
         period: "Período seleccionado",
         assets: "Activos atendidos",
-        operators: "Operadores activos",
+        operators: "Trabajadores activos",
       },
       table: {
         service: "Servicio",
@@ -1385,7 +1385,7 @@ export const translations = {
         services_performed: "Servicios Realizados",
         assets_serviced: "Activos con Servicio",
         last_service: "Último Servicio",
-        active_operators: "Usuarios Activos",
+        active_operators: "Trabajadores Activos",
         owners_reached: "Owners Atendidos",
         growth: "Crecimiento",
         previous_period: "vs periodo anterior",
@@ -1393,7 +1393,7 @@ export const translations = {
         subtitle_assets_serviced: "Activos con actividad en el periodo",
         subtitle_last_service: "Último servicio completado",
         subtitle_no_service: "Sin actividad en el periodo",
-        subtitle_active_operators: "Usuarios con actividad",
+        subtitle_active_operators: "Trabajadores con actividad",
         // Worker / External role labels
         my_services: "Mis Servicios",
         my_assets: "Mis Activos",
@@ -1714,4 +1714,3 @@ export const translations = {
     }
   }
 };
-

@@ -477,8 +477,8 @@ export default function AssetsPage() {
           title={t.assets.kpis.total}
           value={assetStats?.total_assets ?? 0}
           icon={AssetKpiIcon}
-          iconBg="bg-brand/10"
-          iconColor="text-brand"
+          iconBg="bg-cyan-50"
+          iconColor="text-cyan-500"
           roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
         <KPICard
@@ -501,8 +501,8 @@ export default function AssetsPage() {
           title={t.assets.kpis.with_services}
           value={assetStats?.assets_with_services ?? 0}
           icon={Wrench}
-          iconBg="bg-brand/10"
-          iconColor="text-brand"
+          iconBg="bg-blue-50"
+          iconColor="text-blue-500"
           roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
       </div>

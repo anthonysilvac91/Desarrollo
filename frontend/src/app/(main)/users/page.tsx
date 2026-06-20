@@ -18,7 +18,7 @@ import { authService } from "@/services/auth.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send, ChevronDown, X, ShieldCheck, UserCheck } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send, ChevronDown, X, ShieldCheck, ShieldUser, HardHat } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 const getInitials = (name: string) =>
@@ -578,8 +578,8 @@ export default function UsersPage() {
             title={t.users.kpis.total}
             value={userStats?.total_users ?? 0}
             icon={UsersIcon}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-500"
+            iconBg="bg-violet-50"
+            iconColor="text-violet-500"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
           {user?.role === "SUPER_ADMIN" && (
@@ -595,7 +595,7 @@ export default function UsersPage() {
           <KPICard
             title={t.users.kpis.admins}
             value={userStats?.admins ?? 0}
-            icon={ShieldCheck}
+            icon={ShieldUser}
             iconBg="bg-green-50"
             iconColor="text-green-600"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
@@ -603,17 +603,17 @@ export default function UsersPage() {
           <KPICard
             title={t.users.kpis.workers}
             value={userStats?.workers ?? 0}
-            icon={UserCheck}
-            iconBg="bg-orange-50"
-            iconColor="text-orange-500"
+            icon={HardHat}
+            iconBg="bg-amber-50"
+            iconColor="text-amber-500"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
           <KPICard
             title={t.users.kpis.external}
             value={userStats?.external_users ?? 0}
             icon={Building2}
-            iconBg="bg-brand/10"
-            iconColor="text-brand"
+            iconBg="bg-blue-50"
+            iconColor="text-blue-500"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
         </div>

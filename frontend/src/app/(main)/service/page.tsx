@@ -5,7 +5,7 @@ import ReactDOM from "react-dom";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, AlertCircle, Inbox, Plus, CheckSquare, LayoutList, Search, ChevronRight as ChevronRightIcon, X } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, AlertCircle, Inbox, Plus, CheckSquare, Search, ChevronRight as ChevronRightIcon, X, HardHat } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import AssetIcon from "@/components/ui/AssetIcon";
 import FilterDropdown from "@/components/ui/FilterDropdown";
@@ -671,7 +671,7 @@ export default function ServicesPage() {
           <KPICard
             title={t.services.kpis.total}
             value={stats?.total_services ?? 0}
-            icon={LayoutList}
+            icon={Wrench}
             iconBg="bg-blue-50"
             iconColor="text-blue-500"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
@@ -685,19 +685,19 @@ export default function ServicesPage() {
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
           <KPICard
-            title={t.services.kpis.assets}
-            value={stats?.assets_serviced ?? 0}
-            icon={AssetPageIcon}
-            iconBg="bg-brand/10"
-            iconColor="text-brand"
+            title={t.services.kpis.operators}
+            value={stats?.active_operators ?? 0}
+            icon={HardHat}
+            iconBg="bg-amber-50"
+            iconColor="text-amber-500"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
           <KPICard
-            title={t.services.kpis.operators}
-            value={stats?.active_operators ?? 0}
-            icon={User}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-500"
+            title={t.services.kpis.assets}
+            value={stats?.assets_serviced ?? 0}
+            icon={AssetPageIcon}
+            iconBg="bg-cyan-50"
+            iconColor="text-cyan-500"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
         </div>
