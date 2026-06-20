@@ -1,18 +1,78 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Building2, ToggleLeft, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { Plus, Building2, ToggleLeft, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox, AlertCircle, Wrench, Ship } from "lucide-react";
 import FiltersBar from "@/components/ui/FiltersBar";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
-import { ownersService, Owner } from "@/services/owners.service";
+import { assetsService, Asset } from "@/services/assets.service";
+import { ownersService, Owner, OwnerAsset } from "@/services/owners.service";
 import OwnerModal from "@/components/owners/OwnerModal";
+import OwnerDrawer from "@/components/owners/OwnerDrawer";
+import AssetModal from "@/components/assets/AssetModal";
+import AssetDrawer from "@/components/assets/AssetDrawer";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface OwnerCardProps {
+  item: Owner;
+  t: ReturnType<typeof useLanguage>["t"];
+  onClick: () => void;
+}
+
+const OwnerLogo = ({ item, className = "w-16 h-16" }: { item: Owner; className?: string }) => (
+  <div
+    className={`${className} rounded-full overflow-hidden border-2 border-app-bg shadow-sm shrink-0 bg-brand/10 flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`}
+  >
+    {item.logo_url ? (
+      <img src={item.logo_url} alt={item.name} className="w-full h-full object-contain p-2" loading="lazy" />
+    ) : (
+      <Building2 className="w-6 h-6 text-brand" />
+    )}
+  </div>
+);
+
+const OwnerCard = ({ item, t, onClick }: OwnerCardProps) => (
+  <div
+    onClick={onClick}
+    className="bg-surface rounded-2xl border border-border-theme/40 shadow-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
+  >
+    <div className="flex items-center gap-4 p-4">
+      <OwnerLogo item={item} />
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`font-bold text-title text-sm truncate flex-1 ${!item.is_active ? "opacity-40" : ""}`}>
+            {item.name}
+          </span>
+          {item.is_active
+            ? <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-100 text-green-700 border border-green-200">{t.common.active}</span>
+            : <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">{t.common.inactive}</span>
+          }
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border-theme/40 bg-app-bg px-2.5 py-1 text-[10px] font-black text-subtitle/70">
+            <Ship className="w-3 h-3 text-brand" />
+            {item.assets_count ?? 0} {t.owners.table.assets}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border-theme/40 bg-app-bg px-2.5 py-1 text-[10px] font-black text-subtitle/70">
+            <Wrench className="w-3 h-3 text-brand" />
+            {item.services_count ?? 0} {t.owners.table.services}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center text-brand">
+        <ChevronRight className="w-5 h-5 shrink-0" />
+      </div>
+    </div>
+  </div>
+);
 
 export default function OwnersPage() {
   const { t } = useLanguage();
@@ -27,8 +87,13 @@ export default function OwnersPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
+  const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
   const [ownerToDelete, setOwnerToDelete] = useState<Owner | null>(null);
   const [ownerToDeactivate, setOwnerToDeactivate] = useState<Owner | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
+  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
   const getQueryParams = () => {
     const params: { page: number; limit: number; search?: string; is_active?: string } = { page, limit };
@@ -37,7 +102,7 @@ export default function OwnersPage() {
     return params;
   };
 
-  const { data: responseData, isLoading } = useQuery({
+  const { data: responseData, isLoading, isError, refetch } = useQuery({
     queryKey: ["owners", getQueryParams()],
     queryFn: () => ownersService.findAll(getQueryParams()),
   });
@@ -63,6 +128,26 @@ export default function OwnersPage() {
     },
     onError: () => {
       showToast(t.owners.states.error_delete, "error");
+    }
+  });
+
+  const deleteAssetMutation = useMutation({
+    mutationFn: (id: string) => assetsService.delete(id),
+    onSuccess: async () => {
+      showToast(t.feedback.delete_asset_success, "success");
+      if (assetToDelete?.id === selectedAsset?.id) {
+        setSelectedAsset(null);
+      }
+      setAssetToDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["assets-mobile"] });
+      await queryClient.invalidateQueries({ queryKey: ["owners"] });
+      if (selectedOwner?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["owner", selectedOwner.id] });
+      }
+    },
+    onError: () => {
+      showToast(t.feedback.delete_asset_error, "error");
     }
   });
 
@@ -154,6 +239,19 @@ export default function OwnersPage() {
     }
   ];
 
+  const handleOwnerAssetClick = (asset: OwnerAsset, owner: Owner) => {
+    setSelectedAsset({
+      id: asset.id,
+      name: asset.name,
+      category: asset.category ?? undefined,
+      location: asset.location ?? undefined,
+      thumbnail_url: asset.thumbnail_url ?? undefined,
+      is_active: asset.is_active ?? true,
+      owner_id: owner.id,
+      owner: { id: owner.id, name: owner.name },
+    });
+  };
+
   const emptyState = (
     <div className="w-full flex flex-col items-center justify-center py-20 space-y-6">
       <div className="relative">
@@ -176,16 +274,133 @@ export default function OwnersPage() {
     </div>
   );
 
+  const pagination = (
+    <>
+      <div className="flex items-center space-x-3">
+        <div className="text-xs text-subtitle/40 font-medium tracking-tight">
+          {t.owners.pagination.showing}{" "}
+          <span className="text-subtitle/70 font-bold">{ownersList.length}</span>{" "}
+          {t.owners.pagination.of}{" "}
+          <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
+          {t.owners.pagination.owners}
+        </div>
+        <FilterDropdown
+          value={String(limit)}
+          onChange={(v) => { setLimit(Number(v)); setPage(1); }}
+          options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / ${t.common.per_page}` }))}
+          placeholder=""
+          showReset={false}
+          compact
+          neutral
+          up
+        />
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">
+          {page}
+        </button>
+        <button
+          onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+          disabled={page >= meta.totalPages}
+          className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex flex-col space-y-4 lg:space-y-8">
-      <FiltersBar
-        searchPlaceholder={t.owners.search_placeholder}
-        onSearchChange={(value) => { setSearchTerm(value); setPage(1); }}
-        hasExternalFilter={!!statusFilter}
-        onClearAll={() => setStatusFilter("")}
-        showQuickFilters={false}
-        actions={
-          <div className="hidden lg:flex items-center gap-3">
+      <div className="lg:hidden flex flex-col gap-4 pb-8">
+        <h1 className="text-2xl font-black text-title tracking-tight text-center">{t.sidebar.owners}</h1>
+        <FiltersBar
+          searchPlaceholder={t.owners.search_placeholder}
+          onSearchChange={(value) => { setSearchTerm(value); setPage(1); }}
+          hasExternalFilter={!!statusFilter}
+          onClearAll={() => setStatusFilter("")}
+          showQuickFilters={false}
+          showClearAll={false}
+        />
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { value: "", label: t.common.all },
+            { value: "true", label: t.common.active },
+            { value: "false", label: t.common.inactive },
+          ].map((option) => (
+            <button
+              key={option.value || "all"}
+              onClick={() => { setStatusFilter(option.value); setPage(1); }}
+              className={`h-11 px-4 rounded-2xl border text-sm font-semibold shadow-sm transition-all shrink-0 ${
+                statusFilter === option.value
+                  ? "bg-brand/10 border-brand/20 text-brand shadow-sm"
+                  : "border-border-theme/50 bg-white text-subtitle/50 hover:border-border-theme/80"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div className="w-full flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+            <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">{t.owners.states.loading}</p>
+          </div>
+        ) : isError ? (
+          <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="p-4 bg-error/10 rounded-full">
+              <AlertCircle className="w-8 h-8 text-error" />
+            </div>
+            <div className="text-center">
+              <p className="font-black text-title text-xl tracking-tight">{t.owners.states.error_title}</p>
+              <p className="text-subtitle font-medium text-sm">{t.owners.states.error_subtitle}</p>
+            </div>
+            <button onClick={() => refetch()} className="px-6 py-2 bg-app-bg border border-border-theme/40 rounded-xl text-subtitle font-bold text-sm hover:bg-border-theme/10 transition-all">
+              {t.common.retry}
+            </button>
+          </div>
+        ) : ownersList.length === 0 ? (
+          <div className="w-full flex flex-col items-center justify-center py-20 space-y-5 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/8 text-brand/40 ring-8 ring-brand/5">
+              <Building2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-black tracking-tight text-title">{t.owners.states.empty_title}</h3>
+              <p className="text-sm font-medium leading-relaxed text-subtitle/60 max-w-xs mx-auto">{t.owners.states.empty_subtitle}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {ownersList.map((item) => (
+              <OwnerCard
+                key={item.id}
+                item={item}
+                t={t}
+                onClick={() => setSelectedOwner(item)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden lg:flex flex-col space-y-8">
+        <FiltersBar
+          searchPlaceholder={t.owners.search_placeholder}
+          onSearchChange={(value) => { setSearchTerm(value); setPage(1); }}
+          hasExternalFilter={!!statusFilter}
+          onClearAll={() => setStatusFilter("")}
+          showQuickFilters={false}
+          actions={
+            <div className="hidden lg:flex items-center gap-3">
             <FilterDropdown
               value={statusFilter}
               onChange={(v) => { setStatusFilter(v); setPage(1); }}
@@ -203,72 +418,92 @@ export default function OwnersPage() {
               {t.owners.add_new}
             </button>
           </div>
-        }
-      />
+          }
+        />
 
-      <ModuleContainer>
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-brand" />
-            <p className="text-subtitle font-medium animate-pulse">{t.owners.states.loading}</p>
-          </div>
-        ) : ownersList.length === 0 ? (
-          emptyState
-        ) : (
-          <DataTable
-            columns={columns}
-            data={ownersList}
-            footer={
-              <>
-                <div className="flex items-center space-x-3">
-                  <div className="text-xs text-subtitle/40 font-medium tracking-tight">
-                    {t.owners.pagination.showing}{" "}
-                    <span className="text-subtitle/70 font-bold">{ownersList.length}</span>{" "}
-                    {t.owners.pagination.of}{" "}
-                    <span className="text-subtitle/70 font-bold">{meta.total}</span>{" "}
-                    {t.owners.pagination.owners}
-                  </div>
-                  <FilterDropdown
-                    value={String(limit)}
-                    onChange={(v) => { setLimit(Number(v)); setPage(1); }}
-                    options={[5, 10, 20, 50].map(n => ({ value: String(n), label: `${n} / ${t.common.per_page}` }))}
-                    placeholder=""
-                    showReset={false}
-                    compact
-                    neutral
-                    up
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button className="w-9 h-9 flex items-center justify-center rounded-full bg-brand text-white text-xs font-black shadow-md shadow-brand/20">
-                    {page}
-                  </button>
-                  <button
-                    onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                    disabled={page >= meta.totalPages}
-                    className="p-2 rounded-md hover:bg-app-bg text-subtitle transition-colors disabled:opacity-20 flex items-center justify-center"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </>
-            }
-          />
-        )}
-      </ModuleContainer>
+        <ModuleContainer>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <Loader2 className="w-8 h-8 animate-spin text-brand" />
+              <p className="text-subtitle font-medium animate-pulse">{t.owners.states.loading}</p>
+            </div>
+          ) : ownersList.length === 0 ? (
+            emptyState
+          ) : (
+            <DataTable
+              columns={columns}
+              data={ownersList}
+              footer={pagination}
+              onRowClick={(item) => setSelectedOwner(item)}
+            />
+          )}
+        </ModuleContainer>
+      </div>
 
       <OwnerModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         ownerToEdit={editingOwner}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["owners"] })}
+      />
+
+      <OwnerDrawer
+        owner={selectedOwner}
+        onClose={() => setSelectedOwner(null)}
+        onAssetClick={handleOwnerAssetClick}
+        onEdit={(owner) => {
+          setSelectedOwner(null);
+          setEditingOwner(owner);
+          setIsModalOpen(true);
+        }}
+        onDelete={(owner) => {
+          setSelectedOwner(null);
+          setOwnerToDelete(owner);
+        }}
+        onToggleStatus={(owner) => {
+          setSelectedOwner(null);
+          setOwnerToDeactivate(owner);
+        }}
+      />
+
+      <AssetDrawer
+        asset={selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+        onEdit={(asset) => {
+          setAssetToEdit(asset);
+          setIsAssetModalOpen(true);
+        }}
+        onDelete={(asset) => setAssetToDelete(asset)}
+      />
+
+      <AssetModal
+        isOpen={isAssetModalOpen}
+        onClose={() => { setIsAssetModalOpen(false); setAssetToEdit(null); }}
+        asset={assetToEdit}
+        onSuccess={async () => {
+          setIsAssetModalOpen(false);
+          setAssetToEdit(null);
+          await queryClient.invalidateQueries({ queryKey: ["assets"] });
+          await queryClient.invalidateQueries({ queryKey: ["assets-mobile"] });
+          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+          if (selectedOwner?.id) {
+            await queryClient.invalidateQueries({ queryKey: ["owner", selectedOwner.id] });
+          }
+          if (selectedAsset?.id) {
+            await queryClient.invalidateQueries({ queryKey: ["asset", selectedAsset.id] });
+          }
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={!!assetToDelete}
+        onClose={() => setAssetToDelete(null)}
+        onConfirm={() => assetToDelete && deleteAssetMutation.mutate(assetToDelete.id)}
+        title={t.confirm_modal.delete_asset_title}
+        description={t.confirm_modal.delete_description}
+        confirmText={t.confirm_modal.confirm_delete}
+        cancelText={t.confirm_modal.cancel_delete}
+        variant="danger"
       />
 
       <ConfirmModal
@@ -292,6 +527,14 @@ export default function OwnersPage() {
         cancelText={t.confirm_modal.cancel_delete}
         variant="danger"
       />
+
+      <button
+        onClick={() => { setEditingOwner(null); setIsModalOpen(true); }}
+        className="fixed bottom-24 right-6 lg:hidden z-20 w-14 h-14 bg-brand text-white rounded-full shadow-xl shadow-brand/30 flex items-center justify-center active:scale-95 transition-all"
+        aria-label={t.owners.add_new}
+      >
+        <Plus className="w-6 h-6 stroke-[3px]" />
+      </button>
     </div>
   );
 }

@@ -8,8 +8,19 @@ export interface Owner {
   is_active: boolean;
   assets_count?: number;
   services_count?: number;
+  assets?: OwnerAsset[];
+  owner_assets?: OwnerAsset[];
   created_at: string;
   updated_at: string;
+}
+
+export interface OwnerAsset {
+  id: string;
+  name: string;
+  category?: string | null;
+  location?: string | null;
+  is_active?: boolean;
+  thumbnail_url?: string | null;
 }
 
 export interface OwnerFormData {
@@ -20,7 +31,7 @@ export interface OwnerFormData {
 type OwnerPayload = FormData | OwnerFormData | Partial<OwnerFormData>;
 
 export const ownersService = {
-  async findAll(params?: { page?: number; limit?: number; search?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; is_active?: string }) {
     const res = await api.get('/owners', { params });
     return Array.isArray(res.data) ? res.data : res.data;
   },

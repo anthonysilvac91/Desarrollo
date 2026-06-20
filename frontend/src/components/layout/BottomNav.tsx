@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wrench, LayoutGrid, Settings, Users } from "lucide-react";
+import { Wrench, LayoutGrid, Users, Building2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { ICON_MAP } from "@/components/ui/AssetIcon";
@@ -18,7 +18,7 @@ export default function BottomNav() {
     { href: "/assets", label: t.sidebar.assets, icon: AssetNavIcon },
     { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
-    { href: "/settings", label: t.sidebar.settings, icon: Settings },
+    { href: "/owners", label: t.sidebar.owners, icon: Building2 },
   ].filter((link) => canAccess(link.href));
 
   return (
@@ -26,7 +26,10 @@ export default function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border-theme/70 bg-white/95 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-[0_-10px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl md:hidden"
       aria-label="Mobile navigation"
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+      <div
+        className="mx-auto grid max-w-md gap-1"
+        style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}
+      >
         {links.map((link) => {
           const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
