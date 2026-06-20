@@ -39,17 +39,23 @@ function resolveDateRange(preset?: string, startDate?: string, endDate?: string)
       lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)),
     };
   }
+  if (preset === 'Semana') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 7);
+    return { gte: start, lte: now };
+  }
   if (preset === 'Mes') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 30);
     return {
-      gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0)),
-      lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999)),
+      gte: start,
+      lte: now,
     };
   }
   if (preset === 'Año') {
-    return {
-      gte: new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0)),
-      lte: new Date(Date.UTC(now.getUTCFullYear(), 11, 31, 23, 59, 59, 999)),
-    };
+    const start = new Date(now);
+    start.setFullYear(now.getFullYear() - 1);
+    return { gte: start, lte: now };
   }
   if (preset === 'Personalizado' && startDate && endDate) {
     return {
@@ -410,6 +416,10 @@ export class ServicesService {
     if (query.asset_id) whereClause.asset_id = query.asset_id;
     if (query.worker_id) whereClause.worker_id = query.worker_id;
 
+    if (user.role === 'WORKER') {
+      whereClause.worker_id = user.id;
+    }
+
     const dateRange = resolveDateRange(query.preset, query.startDate, query.endDate);
     if (dateRange) whereClause.created_at = dateRange;
 
@@ -491,6 +501,13 @@ export class ServicesService {
       baseWhere.organization_id = user.orgId;
     }
 
+    if (query.asset_id) baseWhere.asset_id = query.asset_id;
+    if (query.worker_id) baseWhere.worker_id = query.worker_id;
+
+    if (user.role === 'WORKER') {
+      baseWhere.worker_id = user.id;
+    }
+
     if (isExternalRole(user.role)) {
       const currentOwnerId = user.owner_id ?? null;
       if (!currentOwnerId) {
@@ -526,6 +543,10 @@ export class ServicesService {
 
     if (user.role !== 'SUPER_ADMIN') {
       serviceWhere.organization_id = user.orgId;
+    }
+
+    if (user.role === 'WORKER') {
+      serviceWhere.worker_id = user.id;
     }
 
     if (isExternalRole(user.role)) {

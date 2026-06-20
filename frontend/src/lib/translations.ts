@@ -555,6 +555,10 @@ export const translations = {
         my_last_services: "My Last Services",
         my_last_assets: "Recent Assets",
       },
+      worker_mobile: {
+        pending_publication: "pending publication",
+        pending_publication_subtitle: "Registered services waiting for admin review.",
+      },
       states: {
         loading: "Syncing dashboard...",
         error_title: "Connection failed",
@@ -1353,6 +1357,10 @@ export const translations = {
         listed_label: "Listado",
         my_last_services: "Mis Últimos Servicios",
         my_last_assets: "Activos Recientes",
+      },
+      worker_mobile: {
+        pending_publication: "pendientes de publicacion",
+        pending_publication_subtitle: "Servicios registrados esperando revision del admin.",
       },
       states: {
         loading: "Sincronizando operaciones...",

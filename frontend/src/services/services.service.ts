@@ -68,7 +68,7 @@ export const servicesService = {
     return res.data;
   },
 
-  getStats: async (params?: { preset?: string; startDate?: string; endDate?: string }): Promise<ServiceStats> => {
+  getStats: async (params?: { preset?: string; startDate?: string; endDate?: string; worker_id?: string; asset_id?: string }): Promise<ServiceStats> => {
     const res = await api.get<ServiceStats>("/services/stats", { params });
     return res.data;
   },

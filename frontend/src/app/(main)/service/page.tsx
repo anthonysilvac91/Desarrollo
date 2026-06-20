@@ -178,6 +178,8 @@ export default function ServicesPage() {
     ...(queryParams.preset ? { preset: queryParams.preset } : {}),
     ...(queryParams.startDate ? { startDate: queryParams.startDate } : {}),
     ...(queryParams.endDate ? { endDate: queryParams.endDate } : {}),
+    ...(queryParams.worker_id ? { worker_id: queryParams.worker_id } : {}),
+    ...(queryParams.asset_id ? { asset_id: queryParams.asset_id } : {}),
   };
 
   const { data: stats } = useQuery({

@@ -47,12 +47,31 @@ export class DashboardService {
       statsWhere.asset = { owner_id: currentOwnerId };
     }
 
+    let selectedDateRange: { gte?: Date; lte?: Date } | undefined;
+
     // Filtros de fecha si se proveen
     if (query?.startDate || query?.endDate) {
       statsWhere.created_at = {};
-      if (query.startDate) statsWhere.created_at.gte = new Date(query.startDate);
-      if (query.endDate) statsWhere.created_at.lte = new Date(query.endDate);
+      selectedDateRange = {};
+      if (query.startDate) {
+        selectedDateRange.gte = new Date(query.startDate);
+        statsWhere.created_at.gte = selectedDateRange.gte;
+      }
+      if (query.endDate) {
+        selectedDateRange.lte = new Date(query.endDate);
+        statsWhere.created_at.lte = selectedDateRange.lte;
+      }
     }
+
+    const defaultEvolutionStart = new Date();
+    defaultEvolutionStart.setDate(defaultEvolutionStart.getDate() - 6);
+    defaultEvolutionStart.setHours(0, 0, 0, 0);
+    const evolutionWhere = selectedDateRange
+      ? statsWhere
+      : {
+          ...statsWhere,
+          created_at: { gte: defaultEvolutionStart },
+        };
 
     const [
       assetsCount,
@@ -71,8 +90,8 @@ export class DashboardService {
     ] = await Promise.all([
       // Assets Count
       isExternal
-        ? this.prisma.asset.count({ where: { ...baseWhere, owner_id: currentOwnerId } })
-        : this.prisma.asset.count({ where: baseWhere }),
+        ? this.prisma.asset.count({ where: { ...baseWhere, owner_id: currentOwnerId, is_active: true } })
+        : this.prisma.asset.count({ where: { ...baseWhere, is_active: true } }),
 
       // Services Count
       this.prisma.service.count({ where: statsWhere }),
@@ -80,9 +99,9 @@ export class DashboardService {
       this.prisma.service.count({ where: { ...statsWhere, is_public: false } }),
 
       // User Counts
-      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.WORKER } }),
-      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.EXTERNAL } }),
-      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.ADMIN } }),
+      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.WORKER, is_active: true } }),
+      (isWorker || isExternal) ? 0 : this.prisma.owner.count({ where: { ...baseWhere, is_active: true } }),
+      (isWorker || isExternal) ? 0 : this.prisma.user.count({ where: { ...baseWhere, role: Role.ADMIN, is_active: true } }),
 
       // Recent Services
       this.prisma.service.findMany({
@@ -94,10 +113,7 @@ export class DashboardService {
 
       // Evolution (Last 7 days)
       this.prisma.service.findMany({
-        where: {
-          ...statsWhere,
-          created_at: { gte: new Date(new Date().setDate(new Date().getDate() - 7)) }
-        },
+        where: evolutionWhere,
         select: { created_at: true },
         orderBy: { created_at: 'asc' }
       }),
@@ -134,7 +150,7 @@ export class DashboardService {
     ]);
 
     // Procesar Evolución
-    const evolution: EvolutionPointDto[] = this.processEvolution(evolutionData);
+    const evolution: EvolutionPointDto[] = this.processEvolution(evolutionData, selectedDateRange);
 
     // Procesar Rankings (Cargar nombres de IDs)
     const [topAssets, topWorkers] = await Promise.all([
@@ -187,12 +203,47 @@ export class DashboardService {
     };
   }
 
-  private processEvolution(data: any[]): EvolutionPointDto[] {
-    const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+  private processEvolution(data: any[], range?: { gte?: Date; lte?: Date }): EvolutionPointDto[] {
+    const end = range?.lte ? new Date(range.lte) : new Date();
+    const start = range?.gte ? new Date(range.gte) : new Date(end);
+    if (!range?.gte) start.setDate(end.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const actualDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / dayMs) + 1);
+
+    if (actualDays > 62) {
+      const buckets: Array<{ year: number; month: number; key: string }> = [];
+      for (
+        let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+        cursor <= end;
+        cursor.setMonth(cursor.getMonth() + 1)
+      ) {
+        const year = cursor.getFullYear();
+        const month = cursor.getMonth();
+        buckets.push({ year, month, key: `${year}-${month}` });
+      }
+
+      const counts = new Map(buckets.map((bucket) => [bucket.key, 0]));
+      data.forEach((item) => {
+        const createdAt = new Date(item.created_at);
+        const key = `${createdAt.getFullYear()}-${createdAt.getMonth()}`;
+        if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+      });
+
+      return buckets.map((bucket) => ({
+        name: `${bucket.month + 1}/${String(bucket.year).slice(-2)}`,
+        value: counts.get(bucket.key) ?? 0,
+      }));
+    }
+
+    const totalDays = actualDays;
+    const last7Days = [...Array(totalDays)].map((_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
       return d.toISOString().split('T')[0];
-    }).reverse();
+    });
 
     const counts: Record<string, number> = {};
     last7Days.forEach(day => counts[day] = 0);

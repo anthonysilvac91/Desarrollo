@@ -44,7 +44,7 @@ describe('ServicesService', () => {
       organization: { findUnique: jest.fn() },
       asset: { findFirst: jest.fn(), findMany: jest.fn() },
       user: { findMany: jest.fn() },
-      service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+      service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
     };
     storageService = {
       uploadFile: jest.fn(),
@@ -240,7 +240,7 @@ describe('ServicesService', () => {
       await service.findAll({}, { id: 'worker-1', orgId: 'org-abc', role: 'WORKER' });
 
       expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ organization_id: 'org-abc' }),
+        where: expect.objectContaining({ organization_id: 'org-abc', worker_id: 'worker-1' }),
       }));
     });
 
@@ -251,6 +251,19 @@ describe('ServicesService', () => {
 
       const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
       expect(JSON.stringify(call.where)).not.toContain('worker_access');
+    });
+
+    it('WORKER: lista solo servicios creados por el usuario actual', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+
+      await service.findAll(
+        { worker_id: 'worker-2' },
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+      );
+
+      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ worker_id: 'worker-1' }),
+      }));
     });
 
     it('EXTERNAL: filtra por is_public, status COMPLETED y owner_id del asset', async () => {
@@ -319,12 +332,12 @@ describe('ServicesService', () => {
 
       expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          services_created: { some: expect.objectContaining({ organization_id: 'org-abc' }) },
+          services_created: { some: expect.objectContaining({ organization_id: 'org-abc', worker_id: 'worker-1' }) },
         }),
       }));
       expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          services: { some: expect.objectContaining({ organization_id: 'org-abc' }) },
+          services: { some: expect.objectContaining({ organization_id: 'org-abc', worker_id: 'worker-1' }) },
         }),
       }));
     });
@@ -347,6 +360,65 @@ describe('ServicesService', () => {
           },
         }),
       }));
+    });
+  });
+
+  describe('getStats()', () => {
+    beforeEach(() => {
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
+      jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([] as any);
+    });
+
+    it('aplica filtros visibles de asset y worker en los KPIs', async () => {
+      await service.getStats(
+        { asset_id: 'asset-1', worker_id: 'worker-2' },
+        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+      );
+
+      expect(prisma.service.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          organization_id: 'org-1',
+          asset_id: 'asset-1',
+          worker_id: 'worker-2',
+        }),
+      });
+      expect(prisma.service.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          organization_id: 'org-1',
+          asset_id: 'asset-1',
+          worker_id: 'worker-2',
+        }),
+      }));
+    });
+
+    it('WORKER ignora worker_id de query y usa el usuario actual', async () => {
+      await service.getStats(
+        { worker_id: 'worker-2' },
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+      );
+
+      expect(prisma.service.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          organization_id: 'org-1',
+          worker_id: 'worker-1',
+        }),
+      });
+    });
+
+    it('Semana aplica rango de fecha en period_services', async () => {
+      await service.getStats(
+        { preset: 'Semana' },
+        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+      );
+
+      expect(prisma.service.count).toHaveBeenNthCalledWith(2, {
+        where: expect.objectContaining({
+          created_at: expect.objectContaining({
+            gte: expect.any(Date),
+            lte: expect.any(Date),
+          }),
+        }),
+      });
     });
   });
 
