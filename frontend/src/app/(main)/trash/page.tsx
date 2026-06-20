@@ -240,7 +240,6 @@ export default function TrashPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <FiltersBar
-              search={search}
               onSearchChange={(val) => { setSearch(val); setPage(1); }}
               searchPlaceholder={t.trash.search_placeholder}
             />
