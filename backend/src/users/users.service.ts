@@ -62,7 +62,7 @@ export class UsersService {
   }
 
   private buildStatsWhere(currentUser: { role: Role; orgId?: string }) {
-    const where: any = {};
+    const where: any = { deleted_at: null };
 
     if (currentUser.role !== Role.SUPER_ADMIN) {
       if (!currentUser.orgId) {
@@ -121,7 +121,7 @@ export class UsersService {
       }
     }
 
-    const where: any = {};
+    const where: any = { deleted_at: null };
 
     // Filtro por rol si se provee
     if (query.role) {
@@ -602,6 +602,21 @@ export class UsersService {
         email: true,
         is_active: true,
       }
+    });
+
+    return updatedUser;
+  }
+
+  async softDelete(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
+    if (id === currentUser.id) {
+      throw new ForbiddenException('No puedes eliminar tu propio usuario');
+    }
+
+    const user = await this.findOne(id, currentUser);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { is_active: false, deleted_at: new Date(), deleted_by_id: currentUser.id },
     });
 
     return updatedUser;

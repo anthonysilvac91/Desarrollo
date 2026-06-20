@@ -407,8 +407,8 @@ export class ServicesService {
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
-    const whereClause: any = {};
-    
+    const whereClause: any = { deleted_at: null };
+
     if (user.role !== 'SUPER_ADMIN') {
       whereClause.organization_id = user.orgId;
     }
@@ -495,7 +495,7 @@ export class ServicesService {
   }
 
   async getStats(query: ServiceStatsQueryDto, user: any) {
-    const baseWhere: any = {};
+    const baseWhere: any = { deleted_at: null };
 
     if (user.role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = user.orgId;
@@ -820,7 +820,7 @@ export class ServicesService {
 
   async remove(id: string, user: any) {
     const service = await this.prisma.service.findUnique({ where: { id } });
-    
+
     if (!service) {
       throw new NotFoundException('Service no encontrado');
     }
@@ -829,25 +829,9 @@ export class ServicesService {
       throw new ForbiddenException('Acceso denegado para eliminar este servicio');
     }
 
-    const attachments = await this.prisma.serviceAttachment.findMany({
-      where: { service_id: id },
-      select: { file_id: true },
-    });
-
-    await this.prisma.serviceAttachment.deleteMany({
-      where: { service_id: id }
-    });
-
-    await Promise.all(
-      attachments.map((attachment) =>
-        this.storedFilesService.deleteStoredFileAndBlob(
-          attachment.file_id,
-        ),
-      ),
-    );
-
-    return this.prisma.service.delete({
-      where: { id }
+    return this.prisma.service.update({
+      where: { id },
+      data: { deleted_at: new Date(), deleted_by_id: user.id },
     });
   }
 

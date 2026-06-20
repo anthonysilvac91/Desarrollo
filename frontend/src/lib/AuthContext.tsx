@@ -27,6 +27,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/settings": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
   "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
   "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
+  "/trash": ["SUPER_ADMIN", "ADMIN"],
 };
 
 const isPublicRoute = (path: string): boolean =>

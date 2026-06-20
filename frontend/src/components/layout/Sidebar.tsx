@@ -10,7 +10,8 @@ import {
   Wrench,
   Users,
   Settings,
-  Building2
+  Building2,
+  Trash2
 } from "lucide-react";
 
 interface SidebarProps {
@@ -31,6 +32,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },
     { href: "/owners", label: t.sidebar.owners || "Propietarios", icon: Building2 },
+    { href: "/trash", label: t.sidebar.trash, icon: Trash2 },
     { href: "/settings", label: t.sidebar.settings, icon: Settings },
   ];
 

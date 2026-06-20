@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Query, Param, UseGuards, Request, ForbiddenException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Query, Param, UseGuards, Request, ForbiddenException, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -120,6 +120,19 @@ export class UsersController {
       throw new ForbiddenException('No tienes permiso para cambiar el estado de usuarios');
     }
     return this.usersService.toggleStatus(id, {
+      id: req.user.id,
+      role: req.user.role,
+      orgId: req.user.orgId,
+    });
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar usuario (soft delete)' })
+  remove(@Param('id') id: string, @Request() req: any) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException('No tienes permiso para eliminar usuarios');
+    }
+    return this.usersService.softDelete(id, {
       id: req.user.id,
       role: req.user.role,
       orgId: req.user.orgId,

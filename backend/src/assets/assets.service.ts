@@ -201,13 +201,12 @@ export class AssetsService {
       },
     };
 
-    const baseWhere: any = {};
+    const baseWhere: any = { deleted_at: null };
 
     if (role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = orgId;
     }
 
-    // Workers and external users can only see active assets
     if (role === 'WORKER' || isExternalRole(role)) {
       baseWhere.is_active = true;
     }
@@ -277,7 +276,7 @@ export class AssetsService {
   }
 
   async getStats(orgId: string, role: string, ownerId?: string) {
-    const baseWhere: any = {};
+    const baseWhere: any = { deleted_at: null };
 
     if (role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = orgId;
@@ -308,7 +307,7 @@ export class AssetsService {
   }
 
   async getFilterOptions(orgId: string, role: string, ownerId?: string) {
-    const assetWhere: any = {};
+    const assetWhere: any = { deleted_at: null };
 
     if (role !== 'SUPER_ADMIN') {
       assetWhere.organization_id = orgId;
@@ -419,14 +418,15 @@ export class AssetsService {
 
     const updatedAsset = await this.prisma.asset.update({
       where: { id },
-      data: { is_active: false },
+      data: { is_active: false, deleted_at: new Date(), deleted_by_id: user.id },
     });
 
-    if ((asset as any).thumbnail_file_id) {
-      await this.storedFilesService.deleteStoredFileAndBlob(
-        (asset as any).thumbnail_file_id ?? null,
-      );
-    }
+    this.realtimeService?.emit({
+      module: 'assets',
+      action: 'deleted',
+      entityId: id,
+      organizationId: asset.organization_id,
+    });
 
     return updatedAsset;
   }

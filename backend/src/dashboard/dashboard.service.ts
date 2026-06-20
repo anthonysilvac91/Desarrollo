@@ -22,7 +22,7 @@ export class DashboardService {
       throw new ForbiddenException('No tienes permiso para acceder al dashboard');
     }
 
-    const baseWhere: any = {};
+    const baseWhere: any = { deleted_at: null };
     if (currentUser.role === Role.SUPER_ADMIN) {
       if (organizationId) {
         baseWhere.organization_id = organizationId;

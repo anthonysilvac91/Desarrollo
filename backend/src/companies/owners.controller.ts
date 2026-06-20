@@ -70,6 +70,6 @@ export class OwnersController {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar owners');
     }
-    return this.companiesService.remove(id, req.user.orgId);
+    return this.companiesService.remove(id, req.user.orgId, req.user.id);
   }
 }
