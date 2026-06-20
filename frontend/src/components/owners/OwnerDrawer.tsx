@@ -2,8 +2,10 @@
 
 import React, { useRef, useState } from "react";
 import Drawer from "@/components/ui/Drawer";
-import { Building2, ChevronRight, Inbox, Loader2, MapPin, MoreVertical, Pencil, Power, Ship, Trash2, Wrench } from "lucide-react";
+import { Building2, ChevronRight, Inbox, Loader2, MapPin, MoreVertical, Pencil, Power, Trash2, Wrench } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
+import AssetIcon from "@/components/ui/AssetIcon";
 import { Owner, OwnerAsset, ownersService } from "@/services/owners.service";
 import { useQuery } from "@tanstack/react-query";
 
@@ -28,10 +30,12 @@ const OwnerLogo = ({ owner }: { owner: Owner }) => (
 
 const AssetRow = ({
   asset,
+  iconId,
   t,
   onClick,
 }: {
   asset: OwnerAsset;
+  iconId?: string | null;
   t: ReturnType<typeof useLanguage>["t"];
   onClick: () => void;
 }) => (
@@ -45,7 +49,7 @@ const AssetRow = ({
       {asset.thumbnail_url ? (
         <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
       ) : (
-        <Ship className="w-9 h-9 text-brand" strokeWidth={1.5} />
+        <AssetIcon iconId={iconId} className="w-9 h-9 text-brand" strokeWidth={1.5} />
       )}
     </div>
 
@@ -77,6 +81,8 @@ const AssetRow = ({
 
 export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggleStatus, onAssetClick }: OwnerDrawerProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const assetIconId = user?.organization?.default_asset_icon;
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -178,7 +184,7 @@ export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggle
         <div className="grid grid-cols-2 gap-3 px-6 py-4">
           <div className="bg-surface rounded-2xl p-4 border border-border-theme/40 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-              <Ship className="w-4 h-4 text-brand" />
+              <AssetIcon iconId={assetIconId} className="w-4 h-4 text-brand" />
             </div>
             <div className="min-w-0">
               <span className="text-[9px] font-black text-subtitle/40 uppercase tracking-widest block">
@@ -229,6 +235,7 @@ export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggle
                 <AssetRow
                   key={asset.id}
                   asset={asset}
+                  iconId={assetIconId}
                   t={t}
                   onClick={() => onAssetClick?.(asset, currentOwner)}
                 />

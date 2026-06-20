@@ -8,7 +8,7 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, Ship, CheckCircle2, MinusCircle, Building2 } from "lucide-react";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, CheckCircle2, MinusCircle, Building2 } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import { formatDate } from "@/lib/formatDate";
@@ -229,6 +229,9 @@ export default function AssetsPage() {
 
   const canManage = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const iconId = user?.organization?.default_asset_icon;
+  const AssetKpiIcon = ({ className, strokeWidth }: { className?: string; strokeWidth?: number }) => (
+    <AssetIcon iconId={iconId} className={className} strokeWidth={strokeWidth} />
+  );
 
   const handleToggleStatus = async (asset: Asset) => {
     try {
@@ -473,9 +476,9 @@ export default function AssetsPage() {
         <KPICard
           title={t.assets.kpis.total}
           value={assetStats?.total_assets ?? 0}
-          icon={Ship}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-500"
+          icon={AssetKpiIcon}
+          iconBg="bg-brand/10"
+          iconColor="text-brand"
           roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
         />
         <KPICard

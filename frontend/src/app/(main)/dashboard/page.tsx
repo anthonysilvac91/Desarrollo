@@ -21,7 +21,8 @@ import RecentServicesCard from "@/components/dashboard/RecentServicesCard";
 import AssetCoverageCard from "@/components/dashboard/AssetCoverageCard";
 import OperatorActivityCard from "@/components/dashboard/OperatorActivityCard";
 import SystemSummaryCard from "@/components/dashboard/SystemSummaryCard";
-import { Loader2, AlertCircle, Inbox, Wrench, Clock, Users, Ship, Plus, ArrowRight, UploadCloud, CalendarDays } from "lucide-react";
+import AssetIcon from "@/components/ui/AssetIcon";
+import { Loader2, AlertCircle, Inbox, Wrench, Clock, Users, Plus, ArrowRight, UploadCloud, CalendarDays } from "lucide-react";
 import { formatDate, formatRelativeTime } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
 
@@ -65,16 +66,21 @@ function WorkerMobileDashboard({
   stats,
   t,
   language,
+  assetIconId,
 }: {
   stats?: DashboardStats;
   t: ReturnType<typeof useLanguage>["t"];
   language: string;
+  assetIconId?: string | null;
 }) {
   const lastServiceLabel = stats?.last_service
     ? formatRelativeTime(stats.last_service, language as "en" | "es")
     : "---";
   const latestService = stats?.recent_services?.[0];
   const weeklyTotal = stats?.evolution?.reduce((sum, point) => sum + point.value, 0) ?? 0;
+  const WorkerAssetIcon = ({ className, strokeWidth }: { className?: string; strokeWidth?: number }) => (
+    <AssetIcon iconId={assetIconId} className={className} strokeWidth={strokeWidth} />
+  );
 
   return (
     <div className="sm:hidden space-y-4 pb-24">
@@ -103,7 +109,7 @@ function WorkerMobileDashboard({
 
       <div className="grid grid-cols-2 gap-3">
         <WorkerMetric label={t.dashboard.kpis.services_performed} value={stats?.total_services ?? 0} icon={Wrench} />
-        <WorkerMetric label={t.dashboard.kpis.assets_attended} value={stats?.assets_serviced ?? 0} icon={Ship} />
+        <WorkerMetric label={t.dashboard.kpis.assets_attended} value={stats?.assets_serviced ?? 0} icon={WorkerAssetIcon} />
         <WorkerMetric label={t.dashboard.kpis.last_service} value={lastServiceLabel} icon={Clock} />
         <WorkerMetric label={t.date_filters.week} value={weeklyTotal} icon={CalendarDays} />
       </div>
@@ -298,6 +304,10 @@ export default function DashboardPage() {
   const [workerDefaultApplied, setWorkerDefaultApplied] = useState(false);
   const isWorker = user?.role === "WORKER";
   const isExternal = user?.role === "EXTERNAL";
+  const assetIconId = user?.organization?.default_asset_icon;
+  const DashboardAssetIcon = ({ className, strokeWidth }: { className?: string; strokeWidth?: number }) => (
+    <AssetIcon iconId={assetIconId} className={className} strokeWidth={strokeWidth} />
+  );
 
   useEffect(() => {
     if (!isWorker || workerDefaultApplied) return;
@@ -384,7 +394,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-w-0 flex-col space-y-5 sm:space-y-6">
-      {isWorker && <WorkerMobileDashboard stats={stats} t={t} language={language} />}
+      {isWorker && <WorkerMobileDashboard stats={stats} t={t} language={language} assetIconId={assetIconId} />}
 
       <div className={isWorker ? "hidden min-w-0 flex-col space-y-5 sm:flex sm:space-y-6" : "flex min-w-0 flex-col space-y-5 sm:space-y-6"}>
         {/* KPI Section */}
@@ -400,7 +410,7 @@ export default function DashboardPage() {
             title={t.dashboard.kpis.assets_serviced}
             value={stats?.assets_serviced ?? 0}
             subtitle={t.dashboard.kpis.subtitle_assets_serviced}
-            icon={Ship}
+            icon={DashboardAssetIcon}
             roundedClass="rounded-2xl"
           />
           <KPICard
@@ -441,8 +451,8 @@ export default function DashboardPage() {
                   <AreaChart data={stats?.evolution || []} margin={{ top: 5, right: 8, left: -20, bottom: 8 }}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="var(--theme-primary)" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="var(--theme-primary)" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
@@ -458,11 +468,11 @@ export default function DashboardPage() {
                     tickLine={false} 
                     tick={{ fontSize: 10, fontWeight: 700, fill: '#94A3B8' }} 
                   />
-                  <Tooltip cursor={{ stroke: '#3b82f6', strokeWidth: 2, strokeDasharray: '4 4' }} />
+                  <Tooltip cursor={{ stroke: "var(--theme-primary)", strokeWidth: 2, strokeDasharray: "4 4" }} />
                   <Area 
                     type="monotone" 
                     dataKey="value" 
-                    stroke="#3b82f6" 
+                    stroke="var(--theme-primary)" 
                     strokeWidth={3}
                     fillOpacity={1} 
                     fill="url(#colorValue)" 
@@ -498,6 +508,7 @@ export default function DashboardPage() {
               totalOwners={stats?.total_owners ?? 0}
               totalWorkers={stats?.total_workers ?? 0}
               totalAdmins={stats?.total_admins ?? 0}
+              assetIconId={assetIconId}
               t={t}
             />
           </div>

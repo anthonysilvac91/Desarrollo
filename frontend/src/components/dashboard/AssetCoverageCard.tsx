@@ -11,7 +11,7 @@ interface Props {
   t: any;
 }
 
-const BLUE  = "#3b82f6";
+const BRAND = "var(--theme-primary)";
 const GRAY  = "#e2e8f0";
 const SIZE  = 140;
 const INNER = 46;
@@ -29,7 +29,7 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
         { value: noActivity },
       ];
 
-  const donutColors = totalAssets === 0 ? [GRAY] : [BLUE, GRAY];
+  const donutColors = totalAssets === 0 ? [GRAY] : [BRAND, GRAY];
 
   const footer = (
     <div className="px-5 pb-5 pt-3 border-t border-border-theme/10">
@@ -102,7 +102,7 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
         <div className="w-full space-y-2 border-t border-border-theme/10 pt-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: BLUE }} />
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: BRAND }} />
               <span className="text-xs font-semibold text-subtitle/60">{m.active_period}</span>
             </div>
             <span className="text-xs font-black text-title">

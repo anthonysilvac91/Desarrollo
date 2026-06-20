@@ -4,8 +4,10 @@ import React, { useState } from "react";
 import Drawer from "@/components/ui/Drawer";
 import ShareModal from "@/components/ui/ShareModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Ship, Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2, Share2, Download } from "lucide-react";
+import { Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, Loader2, Share2, Download } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useAuth } from "@/lib/AuthContext";
+import AssetIcon from "@/components/ui/AssetIcon";
 import { Service, servicesService } from "@/services/services.service";
 import { TranslatedDescription } from "@/components/services/TranslatedDescription";
 import { useQuery } from "@tanstack/react-query";
@@ -73,6 +75,8 @@ function AttachmentThumb({
 
 export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const assetIconId = user?.organization?.default_asset_icon;
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -188,7 +192,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
               {currentService.asset?.thumbnail_url ? (
                 <img src={currentService.asset.thumbnail_url} alt={currentService.asset.name} className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <Ship className="w-12 h-12 text-brand" strokeWidth={1.5} />
+                <AssetIcon iconId={assetIconId} className="w-12 h-12 text-brand" strokeWidth={1.5} />
               )}
             </div>
             <div className="flex flex-col items-center space-y-1">

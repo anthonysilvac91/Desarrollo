@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assetsService, Service, ServiceAttachment } from "@/services/assets.service";
-import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Ship, Plus, Pencil, X, Wrench, ChevronDown } from "lucide-react";
+import { Loader2, AlertCircle, Info, ChevronLeft, MapPin, History, Filter, Users, Calendar, User as UserIcon, Plus, Pencil, X, Wrench, ChevronDown } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import ServiceDrawer from "@/components/services/ServiceDrawer";
@@ -17,6 +17,7 @@ import { useToast } from "@/lib/ToastContext";
 import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import AssetIcon from "@/components/ui/AssetIcon";
 
 const StatusBadge = ({ status }: { status: "OPERATIVO" | "ATENCIÓN" | "PENDIENTE" }) => {
   const styles = {
@@ -108,6 +109,7 @@ export default function AssetDetailPage() {
   const assetId = params.id as string;
   const { t } = useLanguage();
   const { user } = useAuth();
+  const assetIconId = user?.organization?.default_asset_icon;
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
@@ -323,7 +325,7 @@ export default function AssetDetailPage() {
               {asset.thumbnail_url ? (
                 <img src={asset.thumbnail_url} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <Ship className="w-10 h-10 sm:w-12 sm:h-12 text-brand" strokeWidth={1.5} />
+                <AssetIcon iconId={assetIconId} className="w-10 h-10 sm:w-12 sm:h-12 text-brand" strokeWidth={1.5} />
               )}
             </div>
             <button

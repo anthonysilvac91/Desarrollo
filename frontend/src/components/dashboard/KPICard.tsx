@@ -1,13 +1,12 @@
 "use client";
 
 import React from "react";
-import type { LucideIcon } from "lucide-react";
 
 interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon?: LucideIcon;
+  icon?: React.ElementType<{ className?: string; strokeWidth?: number }>;
   iconBg?: string;
   iconColor?: string;
   roundedClass?: string;

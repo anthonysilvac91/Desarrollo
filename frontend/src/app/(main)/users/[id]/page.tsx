@@ -11,10 +11,12 @@ import ServiceAttachmentCard from "@/components/services/ServiceAttachmentCard";
 import { formatDate } from "@/lib/formatDate";
 import {
   Loader2, AlertCircle, ChevronLeft, History, Calendar,
-  Ship, SlidersHorizontal, X, Shield, Mail, Phone,
+  SlidersHorizontal, X, Shield, Mail, Phone,
   Wrench, Info,
 } from "lucide-react";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import { useAuth } from "@/lib/AuthContext";
+import AssetIcon from "@/components/ui/AssetIcon";
 
 const ROLE_LABELS: Record<string, { en: string; es: string }> = {
   SUPER_ADMIN: { en: "Super Admin", es: "Super Admin" },
@@ -34,7 +36,7 @@ const getRoleStyle = (role: string) => {
 };
 
 // ─── Job card adaptada: muestra activo en vez de worker ─────────────────────
-const UserJobCard = ({ job, onClick }: { job: Service; onClick?: () => void }) => {
+const UserJobCard = ({ job, iconId, onClick }: { job: Service; iconId?: string | null; onClick?: () => void }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const textRef = React.useRef<HTMLParagraphElement>(null);
@@ -61,7 +63,7 @@ const UserJobCard = ({ job, onClick }: { job: Service; onClick?: () => void }) =
           </div>
           {job.asset?.name && (
             <div className="bg-app-bg px-3 py-1.5 rounded-full flex items-center border border-border-theme/60">
-              <Ship className="w-3.5 h-3.5 text-subtitle/40 mr-2" />
+              <AssetIcon iconId={iconId} className="w-3.5 h-3.5 text-subtitle/40 mr-2" />
               <span className="text-[10px] font-black text-subtitle/60 uppercase tracking-wider truncate max-w-[140px]">
                 {job.asset.name}
               </span>
@@ -117,6 +119,8 @@ export default function UserDetailPage() {
   const router = useRouter();
   const { id: userId } = useParams() as { id: string };
   const { language } = useLanguage();
+  const { user: authUser } = useAuth();
+  const assetIconId = authUser?.organization?.default_asset_icon;
 
   const [datePreset, setDatePreset] = useState<string | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -418,6 +422,7 @@ export default function UserDetailPage() {
             <UserJobCard
               key={svc.id}
               job={svc}
+              iconId={assetIconId}
               onClick={() => setSelectedService(svc)}
             />
           ))

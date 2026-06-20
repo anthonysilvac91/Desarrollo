@@ -5,8 +5,9 @@ import ReactDOM from "react-dom";
 import ModuleContainer from "@/components/ui/ModuleContainer";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
-import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, AlertCircle, Inbox, Ship, Plus, CheckSquare, LayoutList, Search, ChevronRight as ChevronRightIcon, X } from "lucide-react";
+import { Trash2, Wrench, User, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, AlertCircle, Inbox, Plus, CheckSquare, LayoutList, Search, ChevronRight as ChevronRightIcon, X } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
+import AssetIcon from "@/components/ui/AssetIcon";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import DateFilterDropdown from "@/components/ui/DateFilterDropdown";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -97,6 +98,10 @@ export default function ServicesPage() {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const assetIconId = user?.organization?.default_asset_icon;
+  const AssetPageIcon = ({ className, strokeWidth }: { className?: string; strokeWidth?: number }) => (
+    <AssetIcon iconId={assetIconId} className={className} strokeWidth={strokeWidth} />
+  );
   const canCreate = user?.role === "ADMIN" || user?.role === "WORKER";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -276,7 +281,7 @@ export default function ServicesPage() {
       sortValue: (item) => item.asset?.name || "",
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
-          <Ship className="w-3.5 h-3.5 mr-1.5 text-brand" />
+          <AssetIcon iconId={assetIconId} className="w-3.5 h-3.5 mr-1.5 text-brand" />
           <span className="text-xs font-semibold">{item.asset?.name || "---"}</span>
         </div>
       )
@@ -443,7 +448,7 @@ export default function ServicesPage() {
           >
             {mobileAssetFilter ? (
               <div className="w-6 h-6 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-                <Ship className="w-3 h-3 text-brand" />
+                <AssetIcon iconId={assetIconId} className="w-3 h-3 text-brand" />
               </div>
             ) : (
               <>
@@ -512,7 +517,7 @@ export default function ServicesPage() {
                       className={`w-full flex items-center gap-3 px-5 py-3 transition-colors text-left ${mobileAssetFilter === asset.id ? "bg-brand/5" : "hover:bg-app-bg"}`}
                     >
                       <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-                        <Ship className="w-3.5 h-3.5 text-brand" />
+                        <AssetIcon iconId={assetIconId} className="w-3.5 h-3.5 text-brand" />
                       </div>
                       <span className={`text-sm font-semibold truncate ${mobileAssetFilter === asset.id ? "text-brand" : "text-title"}`}>{asset.name}</span>
                     </button>
@@ -607,7 +612,7 @@ export default function ServicesPage() {
             )}
             {mobileAssetFilter && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand/5 border border-brand/20">
-                <Ship className="w-3.5 h-3.5 text-brand shrink-0" />
+                <AssetIcon iconId={assetIconId} className="w-3.5 h-3.5 text-brand shrink-0" />
                 <span className="text-xs font-semibold text-brand">
                   {assetOptions.find(a => a.id === mobileAssetFilter)?.name ?? ""}
                 </span>
@@ -682,9 +687,9 @@ export default function ServicesPage() {
           <KPICard
             title={t.services.kpis.assets}
             value={stats?.assets_serviced ?? 0}
-            icon={Ship}
-            iconBg="bg-orange-50"
-            iconColor="text-orange-500"
+            icon={AssetPageIcon}
+            iconBg="bg-brand/10"
+            iconColor="text-brand"
             roundedClass="rounded-xl sm:rounded-2xl lg:rounded-[20px]"
           />
           <KPICard

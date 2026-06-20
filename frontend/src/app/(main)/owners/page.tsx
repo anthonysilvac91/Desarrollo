@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Building2, ToggleLeft, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox, AlertCircle, Wrench, Ship } from "lucide-react";
+import { Plus, Building2, ToggleLeft, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox, AlertCircle, Wrench } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import AssetIcon from "@/components/ui/AssetIcon";
 import FiltersBar from "@/components/ui/FiltersBar";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import ModuleContainer from "@/components/ui/ModuleContainer";
@@ -20,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface OwnerCardProps {
   item: Owner;
+  iconId?: string | null;
   t: ReturnType<typeof useLanguage>["t"];
   onClick: () => void;
 }
@@ -36,7 +39,7 @@ const OwnerLogo = ({ item, className = "w-16 h-16" }: { item: Owner; className?:
   </div>
 );
 
-const OwnerCard = ({ item, t, onClick }: OwnerCardProps) => (
+const OwnerCard = ({ item, iconId, t, onClick }: OwnerCardProps) => (
   <div
     onClick={onClick}
     className="bg-surface rounded-2xl border border-border-theme/40 shadow-sm overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
@@ -57,7 +60,7 @@ const OwnerCard = ({ item, t, onClick }: OwnerCardProps) => (
 
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border-theme/40 bg-app-bg px-2.5 py-1 text-[10px] font-black text-subtitle/70">
-            <Ship className="w-3 h-3 text-brand" />
+            <AssetIcon iconId={iconId} className="w-3 h-3 text-brand" />
             {item.assets_count ?? 0} {t.owners.table.assets}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border-theme/40 bg-app-bg px-2.5 py-1 text-[10px] font-black text-subtitle/70">
@@ -77,6 +80,8 @@ const OwnerCard = ({ item, t, onClick }: OwnerCardProps) => (
 export default function OwnersPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const assetIconId = user?.organization?.default_asset_icon;
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -384,6 +389,7 @@ export default function OwnersPage() {
               <OwnerCard
                 key={item.id}
                 item={item}
+                iconId={assetIconId}
                 t={t}
                 onClick={() => setSelectedOwner(item)}
               />

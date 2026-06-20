@@ -1,21 +1,26 @@
 "use client";
 
 import React from "react";
-import { Ship, Building2, HardHat, ShieldCheck } from "lucide-react";
+import { Building2, HardHat, ShieldCheck } from "lucide-react";
+import AssetIcon from "@/components/ui/AssetIcon";
 
 interface Props {
   totalAssets: number;
   totalOwners: number;
   totalWorkers: number;
   totalAdmins: number;
+  assetIconId?: string | null;
   t: any;
 }
 
-export default function SystemSummaryCard({ totalAssets, totalOwners, totalWorkers, totalAdmins, t }: Props) {
+export default function SystemSummaryCard({ totalAssets, totalOwners, totalWorkers, totalAdmins, assetIconId, t }: Props) {
   const m = t.dashboard.modules.system_summary;
+  const AssetSummaryIcon = ({ className }: { className?: string }) => (
+    <AssetIcon iconId={assetIconId} className={className} />
+  );
 
   const items = [
-    { label: m.assets,  value: totalAssets,  icon: Ship,        color: "bg-blue-50 text-blue-500" },
+    { label: m.assets,  value: totalAssets,  icon: AssetSummaryIcon, color: "bg-brand/10 text-brand" },
     { label: m.owners,  value: totalOwners,  icon: Building2,   color: "bg-violet-50 text-violet-500" },
     { label: m.workers, value: totalWorkers, icon: HardHat,     color: "bg-amber-50 text-amber-500" },
     { label: m.admins,  value: totalAdmins,  icon: ShieldCheck, color: "bg-emerald-50 text-emerald-500" },
