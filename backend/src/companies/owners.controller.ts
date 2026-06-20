@@ -2,10 +2,10 @@ import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, 
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { imageUploadOptions } from '../common/files/multer-image-options';
 import { OwnersService } from './companies.service';
 import { CreateOwnerDto } from './dto/create-company.dto';
+import { OwnerQueryDto } from './dto/owner-query.dto';
 import { UpdateOwnerDto } from './dto/update-company.dto';
 
 @ApiTags('owners')
@@ -20,7 +20,7 @@ export class OwnersController {
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Crear un owner' })
   create(@Body() createCompanyDto: CreateOwnerDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
-    if (req.user.role !== 'ADMIN') {
+    if (!['ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para crear owners');
     }
     return this.companiesService.create(createCompanyDto, req.user.orgId, logo);
@@ -28,8 +28,8 @@ export class OwnersController {
 
   @Get()
   @ApiOperation({ summary: 'Obtener todos los owners de la organizacion' })
-  findAll(@Request() req, @Query() query: PaginationQueryDto) {
-    if (req.user.role !== 'ADMIN') {
+  findAll(@Request() req, @Query() query: OwnerQueryDto) {
+    if (!['ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para listar owners');
     }
     return this.companiesService.findAll(req.user.orgId, query);

@@ -232,7 +232,7 @@ export default function AssetModal({ isOpen, onClose, asset, onSuccess }: AssetM
             onChange={(val) => setFormData({ ...formData, owner_id: val })}
             placeholder={t.assets.modal.owner_placeholder}
             onCreate={
-              (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN")
+              (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" || user?.role === "WORKER")
                 ? handleQuickCreateOwner
                 : undefined
             }

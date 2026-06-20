@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOwnerDto } from './dto/create-company.dto';
 import { UpdateOwnerDto } from './dto/update-company.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { OwnerQueryDto } from './dto/owner-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
@@ -98,6 +98,23 @@ export class OwnersService {
   async create(createOwnerDto: CreateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
     ensureNoManualFileUrl(createOwnerDto.logo_url, 'Logo de owner');
     const { logo_url: _logoUrl, ...ownerData } = createOwnerDto;
+    const ownerName = ownerData.name?.trim();
+
+    if (!ownerName) {
+      throw new BadRequestException('El nombre es requerido');
+    }
+
+    const existingOwner = await this.prisma.owner.findFirst({
+      where: {
+        organization_id: orgId,
+        name: { equals: ownerName, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+
+    if (existingOwner) {
+      throw new BadRequestException('Ya existe un owner con ese nombre');
+    }
 
     const ownerId = randomUUID();
     let logoUrl: string | undefined;
@@ -145,6 +162,7 @@ export class OwnersService {
         data: {
           id: ownerId,
           ...ownerData,
+          name: ownerName,
           logo_file_id: logoFileId,
           organization_id: orgId,
         },
@@ -158,11 +176,15 @@ export class OwnersService {
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
-  async findAll(orgId: string, query?: PaginationQueryDto) {
+  async findAll(orgId: string, query?: OwnerQueryDto) {
     const where: any = { organization_id: orgId };
 
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
+    }
+
+    if (query?.is_active === 'true' || query?.is_active === 'false') {
+      where.is_active = query.is_active === 'true';
     }
 
     const orderBy = [{ is_active: 'desc' as const }, { created_at: 'desc' as const }];
@@ -213,7 +235,17 @@ export class OwnersService {
       where: { id },
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
-        assets: { where: { is_active: true }, select: { id: true, name: true, category: true, thumbnail_file_id: true } }
+        assets: {
+          where: { is_active: true },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            location: true,
+            is_active: true,
+            thumbnail_file_id: true,
+          },
+        }
       }
     });
     if (!owner || owner.organization_id !== orgId) {
