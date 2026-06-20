@@ -106,12 +106,15 @@ model User {
   two_factor_backup_codes Json?
   last_login_at      DateTime?
   email_verified_at  DateTime?
+  deleted_at         DateTime?
+  deleted_by_id      String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   organization          Organization?       @relation(fields: [organization_id], references: [id])
   owner                 Owner?              @relation(fields: [owner_id], references: [id])
+  deleted_by            User?               @relation("UserDeletedBy", fields: [deleted_by_id], references: [id])
   avatar_file           StoredFile?         @relation("UserAvatarFile", fields: [avatar_file_id], references: [id])
   services_created      Service[]           @relation("ServiceWorker")
   worker_asset_access   WorkerAssetAccess[] @relation("GrantedToWorker")
@@ -121,6 +124,10 @@ model User {
   service_share_links   ServiceShareLink[]  @relation("ServiceShareLinkCreatedBy")
   email_tokens          EmailToken[]
   sessions              UserSession[]
+  users_deleted         User[]              @relation("UserDeletedBy")
+  assets_deleted        Asset[]             @relation("AssetDeletedBy")
+  services_deleted      Service[]           @relation("ServiceDeletedBy")
+  owners_deleted        Owner[]             @relation("OwnerDeletedBy")
 
   @@index([organization_id])
   @@index([organization_id, created_at])
@@ -128,6 +135,7 @@ model User {
   @@index([owner_id])
   @@index([role])
   @@index([is_active])
+  @@index([deleted_at])
 }
 
 model UserSession {
@@ -168,12 +176,15 @@ model Asset {
   serial_number     String?
   owner_id          String
   is_active         Boolean @default(true)
+  deleted_at        DateTime?
+  deleted_by_id     String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   organization   Organization        @relation(fields: [organization_id], references: [id])
   owner          Owner               @relation(fields: [owner_id], references: [id])
+  deleted_by     User?               @relation("AssetDeletedBy", fields: [deleted_by_id], references: [id])
   thumbnail_file StoredFile?         @relation("AssetThumbnailFile", fields: [thumbnail_file_id], references: [id])
   services       Service[]
   worker_access  WorkerAssetAccess[]
@@ -183,6 +194,7 @@ model Asset {
   @@index([organization_id, owner_id])
   @@index([owner_id])
   @@index([is_active])
+  @@index([deleted_at])
   @@unique([id, organization_id])
 }
 
@@ -197,6 +209,8 @@ model Service {
   status           ServiceStatus @default(COMPLETED)
   is_public        Boolean       @default(false)
   admin_intervened Boolean       @default(false)
+  deleted_at       DateTime?
+  deleted_by_id    String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -204,6 +218,7 @@ model Service {
   organization Organization        @relation(fields: [organization_id], references: [id])
   asset        Asset               @relation(fields: [asset_id], references: [id])
   worker       User                @relation("ServiceWorker", fields: [worker_id], references: [id])
+  deleted_by   User?               @relation("ServiceDeletedBy", fields: [deleted_by_id], references: [id])
   attachments  ServiceAttachment[]
   share_links  ServiceShareLink[]
   translations ServiceTranslation[]
@@ -217,6 +232,7 @@ model Service {
   @@index([worker_id, created_at])
   @@index([is_public])
   @@index([created_at])
+  @@index([deleted_at])
 }
 
 model AiProviderSetting {
@@ -297,18 +313,22 @@ model Owner {
   name            String
   logo_file_id    String? @unique
   is_active       Boolean @default(true)
+  deleted_at      DateTime?
+  deleted_by_id   String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   organization Organization @relation(fields: [organization_id], references: [id])
   logo_file    StoredFile?  @relation("OwnerLogoFile", fields: [logo_file_id], references: [id])
+  deleted_by   User?        @relation("OwnerDeletedBy", fields: [deleted_by_id], references: [id])
   users        User[]
   assets       Asset[]
 
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([is_active])
+  @@index([deleted_at])
   @@unique([id, organization_id])
 }
 

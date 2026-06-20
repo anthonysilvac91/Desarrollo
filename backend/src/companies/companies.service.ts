@@ -177,7 +177,7 @@ export class OwnersService {
   }
 
   async findAll(orgId: string, query?: OwnerQueryDto) {
-    const where: any = { organization_id: orgId };
+    const where: any = { organization_id: orgId, deleted_at: null };
 
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
@@ -366,7 +366,21 @@ export class OwnersService {
     }, orgId);
   }
 
-  async remove(id: string, orgId: string) {
-    return this.deactivate(id, orgId);
+  async remove(id: string, orgId: string, deletedById?: string) {
+    const existingOwner = await this.prisma.owner.findUnique({
+      where: { id },
+      select: { id: true, organization_id: true },
+    });
+
+    if (!existingOwner || existingOwner.organization_id !== orgId) {
+      throw new NotFoundException('Owner no encontrado');
+    }
+
+    const owner = await this.prisma.owner.update({
+      where: { id },
+      data: { is_active: false, deleted_at: new Date(), deleted_by_id: deletedById ?? null },
+    });
+
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 }

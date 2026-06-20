@@ -72,5 +72,10 @@ export const usersService = {
   toggleStatus: async (id: string): Promise<User> => {
     const res = await api.patch(`/users/${id}/status`);
     return res.data;
+  },
+
+  delete: async (id: string): Promise<User> => {
+    const res = await api.delete(`/users/${id}`);
+    return res.data;
   }
 };

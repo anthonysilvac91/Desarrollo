@@ -24,6 +24,7 @@ import { HealthModule } from './health/health.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { RealtimeModule } from './realtime/realtime.module';
 import { AiModule } from './ai/ai.module';
+import { TrashModule } from './trash/trash.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { AiModule } from './ai/ai.module';
         })]
       : []),
     CompaniesModule,
+    TrashModule,
     HealthModule,
   ],
   controllers: [AppController, AssetsController, ServicesController, ServiceSharesController, OrganizationsController],
