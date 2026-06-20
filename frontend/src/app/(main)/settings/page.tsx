@@ -624,15 +624,6 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-subtitle/50">{t.settings.user_profile_section.timezone}</label>
-                    <TimezoneSelect
-                      value={profileTimezone}
-                      onChange={setProfileTimezone}
-                      searchPlaceholder={language === "es" ? "Buscar zona horaria..." : "Search timezone..."}
-                      noResults={language === "es" ? "Sin resultados" : "No results"}
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1057,17 +1048,6 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-subtitle/50">
-                        {t.settings.user_profile_section.timezone}
-                      </label>
-                      <TimezoneSelect
-                        value={profileTimezone}
-                        onChange={setProfileTimezone}
-                        searchPlaceholder={language === "es" ? "Buscar zona horaria..." : "Search timezone..."}
-                        noResults={language === "es" ? "Sin resultados" : "No results"}
-                      />
-                    </div>
                   </div>
 
                   <div className="flex justify-end pt-2">

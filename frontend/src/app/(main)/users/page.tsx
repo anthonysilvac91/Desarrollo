@@ -128,7 +128,7 @@ export default function UsersPage() {
   const [limit, setLimit] = useState(5);
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [roleFilter, setRoleFilter] = useState<User["role"] | null>(null);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -382,12 +382,12 @@ export default function UsersPage() {
     }
   ];
 
-  const hasUserFilters = statusFilter !== "active" || !!roleFilter || !!activeSortKey;
+  const hasUserFilters = statusFilter !== "all" || !!roleFilter || !!activeSortKey;
 
   const clearUserFilters = () => {
     setResetKey(k => k + 1);
     setActiveSortKey(null);
-    setStatusFilter("active");
+    setStatusFilter("all");
     setRoleFilter(null);
     setPage(1);
   };
@@ -641,6 +641,19 @@ export default function UsersPage() {
               }))}
               placeholder={t.users.table.role}
               className="w-44"
+            />
+            <FilterDropdown
+              value={statusFilter === "all" ? "" : statusFilter}
+              onChange={(value) => {
+                setStatusFilter(value ? value as "active" | "inactive" : "all");
+                setPage(1);
+              }}
+              options={[
+                { value: "active", label: t.common.active },
+                { value: "inactive", label: t.common.inactive },
+              ]}
+              placeholder={t.users.table.status}
+              className="w-40"
             />
             <div ref={desktopAddMenuRef} className="relative">
               <button
