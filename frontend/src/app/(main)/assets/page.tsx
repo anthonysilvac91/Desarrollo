@@ -7,7 +7,7 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
-import ConfirmModal from "@/components/ui/ConfirmModal";
+import RelationshipDeleteModal from "@/components/ui/RelationshipDeleteModal";
 import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, CheckCircle2, MinusCircle, Building2 } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
@@ -22,6 +22,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import AssetIcon from "@/components/ui/AssetIcon";
 import { Loader2, AlertCircle, Inbox } from "lucide-react";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import DeletedBadge from "@/components/ui/DeletedBadge";
 
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -70,7 +71,11 @@ const AssetCard = ({ item, canManage, iconId, t, onEdit, onDelete, onToggle, onC
           }
         </div>
         {/* Owner */}
-        <p className="text-xs font-bold text-brand truncate mb-0.5">{item.owner?.name || "---"}</p>
+        {item.owner?.deleted_at || item.owner?.purged_at ? (
+          <DeletedBadge name={item.owner?.name} className="mb-0.5" />
+        ) : (
+          <p className="text-xs font-bold text-brand truncate mb-0.5">{item.owner?.name || "---"}</p>
+        )}
         {/* Location */}
         {item.location && (
           <div className="flex items-center mt-1">
@@ -100,6 +105,7 @@ export default function AssetsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
+  const [assetDeleteScope, setAssetDeleteScope] = useState<"asset" | "asset-services">("asset");
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
 
   const [page, setPage] = useState(1);
@@ -246,16 +252,27 @@ export default function AssetsPage() {
 
   const handleDeleteRequest = (e: React.MouseEvent, asset: Asset) => {
     e.stopPropagation();
+    setAssetDeleteScope("asset");
     setAssetToDelete(asset);
   };
 
   const handleConfirmDelete = async () => {
     if (assetToDelete) {
       try {
-        await assetsService.delete(assetToDelete.id);
+        await assetsService.delete(assetToDelete.id, {
+          deleteServices: assetDeleteScope === "asset-services",
+        });
         showToast(t.feedback.delete_asset_success, "success");
+        if (selectedAsset?.id === assetToDelete.id) {
+          setSelectedAsset(null);
+        }
         setAssetToDelete(null);
         await queryClient.invalidateQueries({ queryKey: ["assets"] });
+        await queryClient.invalidateQueries({ queryKey: ["services"] });
+        await queryClient.invalidateQueries({ queryKey: ["services-mobile"] });
+        await queryClient.invalidateQueries({ queryKey: ["services-stats"] });
+        await queryClient.invalidateQueries({ queryKey: ["services-workers-list"] });
+        await queryClient.invalidateQueries({ queryKey: ["trash"] });
         refetchMobile();
       } catch {
         showToast(t.feedback.delete_asset_error, "error");
@@ -264,6 +281,7 @@ export default function AssetsPage() {
   };
 
   const displayData = filteredData;
+  const assetDeleteServicesCount = assetToDelete?._count?.services ?? assetToDelete?.services?.length ?? 0;
 
   const columns: ColumnDef<Asset>[] = [
     {
@@ -288,7 +306,11 @@ export default function AssetsPage() {
       cell: (item) => (
         <div className="flex items-center gap-1.5 text-subtitle/80">
           <Building2 className="w-3.5 h-3.5 text-brand shrink-0" />
-          <span className="font-bold text-xs">{item.owner?.name || "---"}</span>
+          {item.owner?.deleted_at || item.owner?.purged_at ? (
+            <DeletedBadge name={item.owner?.name} />
+          ) : (
+            <span className="font-bold text-xs">{item.owner?.name || "---"}</span>
+          )}
         </div>
       ),
     },
@@ -742,18 +764,31 @@ export default function AssetsPage() {
         asset={selectedAsset}
         onClose={() => setSelectedAsset(null)}
         onEdit={(asset) => { setAssetToEdit(asset); setIsModalOpen(true); }}
-        onDelete={(asset) => setAssetToDelete(asset)}
+        onDelete={(asset) => { setAssetDeleteScope("asset"); setAssetToDelete(asset); }}
       />
 
-      <ConfirmModal
+      <RelationshipDeleteModal
         isOpen={!!assetToDelete}
         onClose={() => setAssetToDelete(null)}
         onConfirm={handleConfirmDelete}
         title={t.confirm_modal.delete_asset_title}
-        description={t.confirm_modal.delete_description}
+        description={t.trash.relationship_delete.asset_description.replace("{count}", String(assetDeleteServicesCount))}
+        options={[
+          {
+            value: "asset",
+            title: t.trash.relationship_delete.asset_only_title,
+            description: t.trash.relationship_delete.asset_only_description,
+          },
+          {
+            value: "asset-services",
+            title: t.trash.relationship_delete.asset_services_title,
+            description: t.trash.relationship_delete.asset_services_description,
+          },
+        ]}
+        value={assetDeleteScope}
+        onChange={(value) => setAssetDeleteScope(value as "asset" | "asset-services")}
         confirmText={t.confirm_modal.confirm_delete}
         cancelText={t.confirm_modal.cancel_delete}
-        variant="danger"
       />
     </div>
   );

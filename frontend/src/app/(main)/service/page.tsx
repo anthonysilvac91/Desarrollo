@@ -15,13 +15,14 @@ import ServiceDrawer from "@/components/services/ServiceDrawer";
 import ServiceModal from "@/components/services/ServiceModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/lib/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { servicesService, Service } from "@/services/services.service";
 import { useToast } from "@/lib/ToastContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import DeletedBadge from "@/components/ui/DeletedBadge";
 
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -72,7 +73,11 @@ const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
 
       <div className="flex-1 min-w-0">
         <p className="font-bold text-title text-sm leading-tight">{item.title}</p>
-        <p className="text-xs font-bold text-brand truncate mt-0.5">{item.asset?.name || "---"}</p>
+        {item.asset?.deleted_at || item.asset?.purged_at ? (
+          <DeletedBadge name={item.asset?.name} className="mt-0.5 truncate" />
+        ) : (
+          <p className="text-xs font-bold text-brand truncate mt-0.5">{item.asset?.name || "---"}</p>
+        )}
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
           <div className="flex items-center gap-1.5">
             <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
@@ -80,7 +85,11 @@ const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
                 {item.worker?.name ? getInitials(item.worker.name) : "?"}
               </span>
             </div>
-            <span className="text-[11px] text-subtitle/70 font-semibold">{item.worker?.name || "---"}</span>
+            {item.worker?.deleted_at || item.worker?.purged_at ? (
+              <DeletedBadge name={item.worker?.name} />
+            ) : (
+              <span className="text-[11px] text-subtitle/70 font-semibold">{item.worker?.name || "---"}</span>
+            )}
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3 text-brand shrink-0" />
@@ -98,6 +107,7 @@ export default function ServicesPage() {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const assetIconId = user?.organization?.default_asset_icon;
   const AssetPageIcon = ({ className, strokeWidth }: { className?: string; strokeWidth?: number }) => (
     <AssetIcon iconId={assetIconId} className={className} strokeWidth={strokeWidth} />
@@ -243,11 +253,16 @@ export default function ServicesPage() {
     if (serviceToDelete) {
       try {
         await servicesService.delete(serviceToDelete.id);
-        showToast("Servicio eliminado con éxito.", "success");
+        showToast(t.feedback.delete_service_success, "success");
         setServiceToDelete(null);
+        await queryClient.invalidateQueries({ queryKey: ["services"] });
+        await queryClient.invalidateQueries({ queryKey: ["services-mobile"] });
+        await queryClient.invalidateQueries({ queryKey: ["services-stats"] });
+        await queryClient.invalidateQueries({ queryKey: ["services-workers-list"] });
+        await queryClient.invalidateQueries({ queryKey: ["trash"] });
         refetchActiveServices();
       } catch (err) {
-        showToast(t.feedback.generic_error, "error");
+        showToast(t.feedback.delete_service_error, "error");
       }
     }
   };
@@ -282,7 +297,11 @@ export default function ServicesPage() {
       cell: (item) => (
         <div className="flex items-center text-subtitle/70">
           <AssetIcon iconId={assetIconId} className="w-3.5 h-3.5 mr-1.5 text-brand" />
-          <span className="text-xs font-semibold">{item.asset?.name || "---"}</span>
+          {item.asset?.deleted_at || item.asset?.purged_at ? (
+            <DeletedBadge name={item.asset?.name} />
+          ) : (
+            <span className="text-xs font-semibold">{item.asset?.name || "---"}</span>
+          )}
         </div>
       )
     },
@@ -298,7 +317,11 @@ export default function ServicesPage() {
               {item.worker?.name ? getInitials(item.worker.name) : "?"}
             </span>
           </div>
-          <span className="font-bold text-subtitle/80 text-xs">{item.worker?.name || "---"}</span>
+          {item.worker?.deleted_at || item.worker?.purged_at ? (
+            <DeletedBadge name={item.worker?.name} />
+          ) : (
+            <span className="font-bold text-subtitle/80 text-xs">{item.worker?.name || "---"}</span>
+          )}
         </div>
       )
     },
@@ -339,7 +362,7 @@ export default function ServicesPage() {
           <button
             onClick={(e) => handleDeleteRequest(e, item)}
             className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
-            title="Eliminar servicio"
+            title={t.confirm_modal.delete_service_title}
           >
             <Trash2 className="w-5 h-5" />
           </button>

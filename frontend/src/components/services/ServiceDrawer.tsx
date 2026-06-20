@@ -13,6 +13,7 @@ import { TranslatedDescription } from "@/components/services/TranslatedDescripti
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import DeletedBadge from "@/components/ui/DeletedBadge";
 
 const DESCRIPTION_CLAMP_THRESHOLD = 160;
 
@@ -196,10 +197,18 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
               )}
             </div>
             <div className="flex flex-col items-center space-y-1">
-              <h2 className="text-3xl font-black text-title tracking-tight">{currentService.asset?.name || "---"}</h2>
-              <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
-                {currentService.asset?.owner?.name || "---"}
-              </span>
+              {currentService.asset?.deleted_at || currentService.asset?.purged_at ? (
+                <DeletedBadge name={currentService.asset?.name} className="justify-center" />
+              ) : (
+                <h2 className="text-3xl font-black text-title tracking-tight">{currentService.asset?.name || "---"}</h2>
+              )}
+              {currentService.asset?.owner?.deleted_at || currentService.asset?.owner?.purged_at ? (
+                <DeletedBadge name={currentService.asset?.owner?.name} className="justify-center" />
+              ) : (
+                <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
+                  {currentService.asset?.owner?.name || "---"}
+                </span>
+              )}
               <div className="flex items-center gap-3 pt-2">
                 {currentService.asset?.location && (
                   <>
@@ -381,7 +390,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                 <button
                   onClick={handleDownloadCurrent}
                   className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
-                  aria-label="Descargar foto"
+                  aria-label={t.common.download_photo}
                 >
                   <Download className="w-4 h-4" />
                 </button>
@@ -427,7 +436,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
                       : <Download className="w-3.5 h-3.5" />
                     }
-                    {isDownloadingAll ? "Descargando..." : "Descargar todo"}
+                    {isDownloadingAll ? t.common.downloading : t.common.download_all}
                   </button>
                 </div>
               )}
@@ -465,10 +474,10 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
         isOpen={showDownloadConfirm}
         onClose={() => setShowDownloadConfirm(false)}
         onConfirm={handleDownloadAll}
-        title="Descargar fotos"
-        description={`Se ${imageAttachments.length === 1 ? "descargará 1 foto" : `descargarán ${imageAttachments.length} fotos`} de este servicio.`}
-        confirmText="Descargar"
-        cancelText="Cancelar"
+        title={t.common.download_photos_title}
+        description={t.common.download_photos_description.replace("{count}", String(imageAttachments.length))}
+        confirmText={t.common.download}
+        cancelText={t.common.cancel}
         variant="brand"
       />
     </Drawer>

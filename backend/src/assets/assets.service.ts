@@ -170,7 +170,7 @@ export class AssetsService {
       where: { id: newAsset.id },
       include: {
         organization: { select: { name: true } },
-        owner: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
       },
     });
 
@@ -192,7 +192,7 @@ export class AssetsService {
   async findAll(query: any, orgId: string, role: string, ownerId?: string) {
     const include = {
       organization: { select: { name: true } },
-      owner: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
       _count: { select: { services: true } },
       services: {
         select: { created_at: true },
@@ -201,7 +201,7 @@ export class AssetsService {
       },
     };
 
-    const baseWhere: any = { deleted_at: null };
+    const baseWhere: any = { deleted_at: null, purged_at: null };
 
     if (role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = orgId;
@@ -276,7 +276,7 @@ export class AssetsService {
   }
 
   async getStats(orgId: string, role: string, ownerId?: string) {
-    const baseWhere: any = { deleted_at: null };
+    const baseWhere: any = { deleted_at: null, purged_at: null };
 
     if (role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = orgId;
@@ -307,7 +307,7 @@ export class AssetsService {
   }
 
   async getFilterOptions(orgId: string, role: string, ownerId?: string) {
-    const assetWhere: any = { deleted_at: null };
+    const assetWhere: any = { deleted_at: null, purged_at: null };
 
     if (role !== 'SUPER_ADMIN') {
       assetWhere.organization_id = orgId;
@@ -336,7 +336,7 @@ export class AssetsService {
   }
 
   async findOne(id: string, user: any) {
-    const where: any = { id };
+    const where: any = { id, deleted_at: null, purged_at: null };
     if (user.role !== 'SUPER_ADMIN') {
       where.organization_id = user.orgId;
     }
@@ -346,12 +346,12 @@ export class AssetsService {
       include: {
         services: {
           include: {
-            worker: { select: { name: true, id: true } },
+            worker: { select: { name: true, id: true, deleted_at: true, purged_at: true } },
             attachments: { select: { id: true, file_id: true, file_type: true } },
           },
           orderBy: { created_at: 'desc' },
         },
-        owner: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
       },
     });
 
@@ -397,7 +397,7 @@ export class AssetsService {
 
   async toggleStatus(id: string, is_active: boolean, user: any) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
-    if (!asset) {
+    if (!asset || asset.deleted_at || (asset as any).purged_at) {
       throw new NotFoundException('Activo no encontrado');
     }
     if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
@@ -406,9 +406,9 @@ export class AssetsService {
     return this.prisma.asset.update({ where: { id }, data: { is_active } });
   }
 
-  async remove(id: string, user: any) {
+  async remove(id: string, user: any, options?: { deleteServices?: boolean }) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
-    if (!asset) {
+    if (!asset || asset.deleted_at || (asset as any).purged_at) {
       throw new NotFoundException('Activo no encontrado');
     }
 
@@ -416,10 +416,26 @@ export class AssetsService {
       throw new ForbiddenException('No tienes permiso para borrar este activo');
     }
 
-    const updatedAsset = await this.prisma.asset.update({
-      where: { id },
-      data: { is_active: false, deleted_at: new Date(), deleted_by_id: user.id },
-    });
+    const deletedAt = new Date();
+    const [updatedAsset] = await this.prisma.$transaction([
+      this.prisma.asset.update({
+        where: { id },
+        data: { is_active: false, deleted_at: deletedAt, deleted_by_id: user.id },
+      }),
+      ...(options?.deleteServices
+        ? [
+            this.prisma.service.updateMany({
+              where: {
+                asset_id: id,
+                organization_id: asset.organization_id,
+                deleted_at: null,
+                purged_at: null,
+              },
+              data: { deleted_at: deletedAt, deleted_by_id: user.id },
+            }),
+          ]
+        : []),
+    ]);
 
     this.realtimeService?.emit({
       module: 'assets',
@@ -433,7 +449,7 @@ export class AssetsService {
 
   async update(id: string, updateDto: UpdateAssetDto, orgId: string, role: string, photo?: Express.Multer.File) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
-    if (!asset) {
+    if (!asset || asset.deleted_at || (asset as any).purged_at) {
       throw new NotFoundException('Activo no encontrado');
     }
 

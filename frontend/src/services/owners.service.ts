@@ -62,8 +62,8 @@ export const ownersService = {
     return res.data;
   },
 
-  async remove(id: string) {
-    const res = await api.delete(`/owners/${id}`);
+  async remove(id: string, options?: { deleteAssets?: boolean; deleteServices?: boolean }) {
+    const res = await api.delete(`/owners/${id}`, { data: options });
     return res.data;
   }
 };

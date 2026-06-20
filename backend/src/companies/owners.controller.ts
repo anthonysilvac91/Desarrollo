@@ -66,10 +66,13 @@ export class OwnersController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar logicamente un owner' })
-  remove(@Param('id') id: string, @Request() req) {
+  remove(@Param('id') id: string, @Body() body: { deleteAssets?: boolean; deleteServices?: boolean } | undefined, @Request() req) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar owners');
     }
-    return this.companiesService.remove(id, req.user.orgId, req.user.id);
+    return this.companiesService.remove(id, req.user.orgId, req.user.id, {
+      deleteAssets: body?.deleteAssets === true,
+      deleteServices: body?.deleteServices === true,
+    });
   }
 }

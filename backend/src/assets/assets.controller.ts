@@ -85,9 +85,9 @@ export class AssetsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un activo permanentemente' })
-  remove(@Param('id') id: string, @Request() req) {
+  remove(@Param('id') id: string, @Body() body: { deleteServices?: boolean } | undefined, @Request() req) {
     if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') throw new ForbiddenException('No tienes permiso para borrar activos');
-    return this.assetsService.remove(id, req.user);
+    return this.assetsService.remove(id, req.user, { deleteServices: body?.deleteServices === true });
   }
 
   @Patch(':id')

@@ -12,7 +12,7 @@ import UserModal from "@/components/users/UserModal";
 import UserDrawer from "@/components/users/UserDrawer";
 import InvitationModal from "@/components/users/InvitationModal";
 import { useLanguage } from "@/lib/LanguageContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
 import { authService } from "@/services/auth.service";
 import { useToast } from "@/lib/ToastContext";
@@ -115,6 +115,7 @@ export default function UsersPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -225,15 +226,9 @@ export default function UsersPage() {
     }
     
     try {
-      // Si el usuario ya está inactivo, el toggle lo activaría.
-      // En un sistema sin DELETE físico, "Eliminar" debe asegurar la desactivación.
-      if (userToDelete.is_active) {
-        await usersService.toggleStatus(userToDelete.id);
-        showToast(t.users.states.delete_success, "success");
-      } else {
-        // Si ya está inactivo, informamos que ya ha sido "eliminado" lógicamente
-        showToast("El usuario ya se encuentra desactivado", "info");
-      }
+      await usersService.delete(userToDelete.id);
+      showToast(t.users.states.delete_success, "success");
+      await queryClient.invalidateQueries({ queryKey: ["trash"] });
       refetch();
       refetchUserStats();
     } catch (err) {

@@ -392,7 +392,7 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               <button
                 onClick={handleDownloadCurrent}
                 className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
-                aria-label="Descargar foto"
+                aria-label={t.common.download_photo}
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -446,7 +446,7 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
                     : <Download className="w-3.5 h-3.5" />
                   }
-                  {isDownloadingAll ? "Descargando..." : "Descargar todo"}
+                  {isDownloadingAll ? t.common.downloading : t.common.download_all}
                 </button>
               </div>
             )}
@@ -484,10 +484,10 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
         isOpen={showDownloadConfirm}
         onClose={() => setShowDownloadConfirm(false)}
         onConfirm={handleDownloadAll}
-        title="Descargar fotos"
-        description={`Se ${imageAttachments.length === 1 ? "descargará 1 foto" : `descargarán ${imageAttachments.length} fotos`} de este servicio.`}
-        confirmText="Descargar"
-        cancelText="Cancelar"
+        title={t.common.download_photos_title}
+        description={t.common.download_photos_description.replace("{count}", String(imageAttachments.length))}
+        confirmText={t.common.download}
+        cancelText={t.common.cancel}
         variant="brand"
       />
     </div>

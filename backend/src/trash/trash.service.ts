@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoredFilesService } from '../storage/stored-files.service';
+import * as bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 
 export interface TrashItem {
   id: string;
@@ -18,12 +20,50 @@ export class TrashService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  async findAll(orgId: string, query?: { search?: string; entity_type?: string; page?: number; limit?: number }) {
+  async getFilterOptions(orgId: string) {
+    const deletedBySelect = { id: true, name: true };
+
+    const [assetUsers, serviceUsers, usersUsers, ownerUsers] = await Promise.all([
+      this.prisma.asset.findMany({
+        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+        select: { deleted_by: { select: deletedBySelect } },
+        distinct: ['deleted_by_id'],
+      }),
+      this.prisma.service.findMany({
+        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+        select: { deleted_by: { select: deletedBySelect } },
+        distinct: ['deleted_by_id'],
+      }),
+      this.prisma.user.findMany({
+        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+        select: { deleted_by: { select: deletedBySelect } },
+        distinct: ['deleted_by_id'],
+      }),
+      this.prisma.owner.findMany({
+        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+        select: { deleted_by: { select: deletedBySelect } },
+        distinct: ['deleted_by_id'],
+      }),
+    ]);
+
+    const users = new Map<string, { id: string; name: string }>();
+    [...assetUsers, ...serviceUsers, ...usersUsers, ...ownerUsers].forEach((item) => {
+      if (item.deleted_by) users.set(item.deleted_by.id, item.deleted_by);
+    });
+
+    return {
+      categories: ['asset', 'service', 'user', 'owner'],
+      users: Array.from(users.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }
+
+  async findAll(orgId: string, query?: { search?: string; entity_type?: string; deleted_by_id?: string; page?: number; limit?: number }) {
     const items: TrashItem[] = [];
 
     const deletedBySelect = { id: true, name: true };
 
     const typeFilter = query?.entity_type;
+    const deletedById = query?.deleted_by_id;
     const search = query?.search;
     const searchFilter = search ? { contains: search, mode: 'insensitive' as const } : undefined;
 
@@ -33,6 +73,8 @@ export class TrashService {
             where: {
               organization_id: orgId,
               deleted_at: { not: null },
+              purged_at: null,
+              ...(deletedById ? { deleted_by_id: deletedById } : {}),
               ...(searchFilter ? { name: searchFilter } : {}),
             },
             include: { deleted_by: { select: deletedBySelect }, owner: { select: { name: true } } },
@@ -44,6 +86,8 @@ export class TrashService {
             where: {
               organization_id: orgId,
               deleted_at: { not: null },
+              purged_at: null,
+              ...(deletedById ? { deleted_by_id: deletedById } : {}),
               ...(searchFilter ? { title: searchFilter } : {}),
             },
             include: { deleted_by: { select: deletedBySelect }, asset: { select: { name: true } } },
@@ -55,6 +99,8 @@ export class TrashService {
             where: {
               organization_id: orgId,
               deleted_at: { not: null },
+              purged_at: null,
+              ...(deletedById ? { deleted_by_id: deletedById } : {}),
               ...(searchFilter ? { name: searchFilter } : {}),
             },
             include: { deleted_by: { select: deletedBySelect } },
@@ -66,6 +112,8 @@ export class TrashService {
             where: {
               organization_id: orgId,
               deleted_at: { not: null },
+              purged_at: null,
+              ...(deletedById ? { deleted_by_id: deletedById } : {}),
               ...(searchFilter ? { name: searchFilter } : {}),
             },
             include: { deleted_by: { select: deletedBySelect } },
@@ -137,7 +185,7 @@ export class TrashService {
     switch (entityType) {
       case 'asset': {
         const asset = await this.prisma.asset.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!asset) throw new NotFoundException('Activo no encontrado en papelera');
         return this.prisma.asset.update({
@@ -147,7 +195,7 @@ export class TrashService {
       }
       case 'service': {
         const service = await this.prisma.service.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!service) throw new NotFoundException('Servicio no encontrado en papelera');
         return this.prisma.service.update({
@@ -157,7 +205,7 @@ export class TrashService {
       }
       case 'user': {
         const user = await this.prisma.user.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!user) throw new NotFoundException('Usuario no encontrado en papelera');
         return this.prisma.user.update({
@@ -167,7 +215,7 @@ export class TrashService {
       }
       case 'owner': {
         const owner = await this.prisma.owner.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!owner) throw new NotFoundException('Owner no encontrado en papelera');
         return this.prisma.owner.update({
@@ -180,24 +228,38 @@ export class TrashService {
     }
   }
 
-  async permanentDelete(entityType: string, id: string, orgId: string) {
+  async permanentDelete(entityType: string, id: string, orgId: string, actorUserId?: string) {
     switch (entityType) {
       case 'asset': {
         const asset = await this.prisma.asset.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!asset) throw new NotFoundException('Activo no encontrado en papelera');
 
-        if ((asset as any).thumbnail_file_id) {
-          await this.storedFilesService.deleteStoredFileAndBlob((asset as any).thumbnail_file_id);
-        }
+        const thumbnailFileId = (asset as any).thumbnail_file_id;
         await this.prisma.workerAssetAccess.deleteMany({ where: { asset_id: id } });
-        await this.prisma.asset.delete({ where: { id } });
+        await this.prisma.asset.update({
+          where: { id },
+          data: {
+            name: 'Asset eliminado',
+            description: null,
+            category: null,
+            location: null,
+            serial_number: null,
+            thumbnail_file_id: null,
+            is_active: false,
+            purged_at: new Date(),
+            purged_by_id: actorUserId ?? null,
+          },
+        });
+        if (thumbnailFileId) {
+          await this.storedFilesService.deleteStoredFileAndBlob(thumbnailFileId);
+        }
         return { deleted: true };
       }
       case 'service': {
         const service = await this.prisma.service.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!service) throw new NotFoundException('Servicio no encontrado en papelera');
 
@@ -209,36 +271,82 @@ export class TrashService {
         await this.prisma.serviceShareLink.deleteMany({ where: { service_id: id } });
         await this.prisma.serviceTranslation.deleteMany({ where: { service_id: id } });
         await Promise.all(
-          attachments.map((a) => this.storedFilesService.deleteStoredFileAndBlob(a.file_id)),
+          attachments
+            .map((a) => a.file_id)
+            .filter((fileId): fileId is string => !!fileId)
+            .map((fileId) => this.storedFilesService.deleteStoredFileAndBlob(fileId)),
         );
-        await this.prisma.service.delete({ where: { id } });
+        await this.prisma.service.update({
+          where: { id },
+          data: {
+            title: 'Servicio eliminado',
+            description: null,
+            description_language: null,
+            is_public: false,
+            admin_intervened: false,
+            purged_at: new Date(),
+            purged_by_id: actorUserId ?? null,
+          },
+        });
         return { deleted: true };
       }
       case 'user': {
         const user = await this.prisma.user.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!user) throw new NotFoundException('Usuario no encontrado en papelera');
 
-        if ((user as any).avatar_file_id) {
-          await this.storedFilesService.deleteStoredFileAndBlob((user as any).avatar_file_id);
-        }
+        const avatarFileId = (user as any).avatar_file_id;
+        const purgedAt = new Date();
+        const anonymizedEmail = `deleted-${id}@deleted.local`;
+        const unusablePasswordHash = await bcrypt.hash(`purged:${id}:${purgedAt.toISOString()}`, 10);
         await this.prisma.workerAssetAccess.deleteMany({ where: { worker_id: id } });
         await this.prisma.userSession.deleteMany({ where: { user_id: id } });
         await this.prisma.emailToken.deleteMany({ where: { user_id: id } });
-        await this.prisma.user.delete({ where: { id } });
+        await this.prisma.user.update({
+          where: { id },
+          data: {
+            name: 'Usuario eliminado',
+            email: anonymizedEmail,
+            phone: null,
+            avatar_file_id: null,
+            password_hash: unusablePasswordHash,
+            owner_id: null,
+            is_active: false,
+            two_factor_enabled: false,
+            two_factor_secret: null,
+            two_factor_backup_codes: Prisma.JsonNull,
+            last_login_at: null,
+            email_verified_at: null,
+            purged_at: purgedAt,
+            purged_by_id: actorUserId ?? null,
+          },
+        });
+        if (avatarFileId) {
+          await this.storedFilesService.deleteStoredFileAndBlob(avatarFileId);
+        }
         return { deleted: true };
       }
       case 'owner': {
         const owner = await this.prisma.owner.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null } },
+          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
         });
         if (!owner) throw new NotFoundException('Owner no encontrado en papelera');
 
-        if ((owner as any).logo_file_id) {
-          await this.storedFilesService.deleteStoredFileAndBlob((owner as any).logo_file_id);
+        const logoFileId = (owner as any).logo_file_id;
+        await this.prisma.owner.update({
+          where: { id },
+          data: {
+            name: 'Owner eliminado',
+            logo_file_id: null,
+            is_active: false,
+            purged_at: new Date(),
+            purged_by_id: actorUserId ?? null,
+          },
+        });
+        if (logoFileId) {
+          await this.storedFilesService.deleteStoredFileAndBlob(logoFileId);
         }
-        await this.prisma.owner.delete({ where: { id } });
         return { deleted: true };
       }
       default:

@@ -21,6 +21,7 @@ import { useToast } from "@/lib/ToastContext";
 import { ASSET_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import type { Service as DrawerService } from "@/services/services.service";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import DeletedBadge from "@/components/ui/DeletedBadge";
 
 interface AssetDrawerProps {
   asset: Asset | null;
@@ -402,9 +403,13 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
           </div>
           <div className="flex flex-col items-center space-y-1">
             <h2 className="text-3xl font-black text-title tracking-tight">{currentAsset.name}</h2>
-            <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
-              {currentAsset.owner?.name || t.common.unassigned}
-            </span>
+            {currentAsset.owner?.deleted_at || currentAsset.owner?.purged_at ? (
+              <DeletedBadge name={currentAsset.owner?.name} className="justify-center" />
+            ) : (
+              <span className="text-brand font-black text-sm uppercase tracking-[0.2em]">
+                {currentAsset.owner?.name || t.common.unassigned}
+              </span>
+            )}
             {/* Mobile: location + status inline */}
             <div className="lg:hidden flex items-center gap-3 pt-2">
               {currentAsset.location && (
@@ -852,7 +857,9 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
                   {currentAsset.name}
                 </h2>
                 <span className="mt-1 block truncate text-[10px] font-black uppercase tracking-[0.22em] text-brand">
-                  {currentAsset.owner?.name || t.common.unassigned}
+                  {currentAsset.owner?.deleted_at || currentAsset.owner?.purged_at
+                    ? t.trash.deleted_badge
+                    : currentAsset.owner?.name || t.common.unassigned}
                 </span>
               </div>
             </div>

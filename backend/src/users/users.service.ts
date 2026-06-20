@@ -169,7 +169,7 @@ export class UsersService {
       created_at: true,
       updated_at: true,
       organization: { select: { id: true, name: true, slug: true } },
-      owner: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
     };
 
     if (query.page && query.limit) {
@@ -223,7 +223,7 @@ export class UsersService {
         avatar_file_id: true,
         owner_id: true,
         organization: { select: { id: true, name: true, slug: true } },
-        owner: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
         is_active: true,
         last_login_at: true,
         created_at: true,
@@ -424,7 +424,7 @@ export class UsersService {
         avatar_file_id: true,
         is_active: true,
         organization: { select: { id: true, name: true, slug: true } },
-        owner: { select: { id: true, name: true } },
+        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
       }
     });
 
@@ -568,7 +568,7 @@ export class UsersService {
           avatar_file_id: true,
           is_active: true,
           organization: { select: { id: true, name: true, slug: true } },
-          owner: { select: { id: true, name: true } },
+          owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
         },
       });
     } catch (error) {

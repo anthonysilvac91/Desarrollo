@@ -407,7 +407,7 @@ export class ServicesService {
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
-    const whereClause: any = { deleted_at: null };
+    const whereClause: any = { deleted_at: null, purged_at: null };
 
     if (user.role !== 'SUPER_ADMIN') {
       whereClause.organization_id = user.orgId;
@@ -454,8 +454,8 @@ export class ServicesService {
         this.prisma.service.findMany({
           where: whereClause,
           include: {
-            worker: { select: { id: true, name: true } },
-            asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
+            worker: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+            asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, deleted_at: true, purged_at: true, owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } } } },
             attachments: {
               select: { id: true, file_id: true, file_type: true },
               orderBy: { created_at: 'asc' },
@@ -480,8 +480,8 @@ export class ServicesService {
     const services = await this.prisma.service.findMany({
       where: whereClause,
       include: {
-        worker: { select: { id: true, name: true } },
-        asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } },
+        worker: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+        asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, deleted_at: true, purged_at: true, owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } } } },
         attachments: {
           select: { id: true, file_id: true, file_type: true },
           orderBy: { created_at: 'asc' },
@@ -495,7 +495,7 @@ export class ServicesService {
   }
 
   async getStats(query: ServiceStatsQueryDto, user: any) {
-    const baseWhere: any = { deleted_at: null };
+    const baseWhere: any = { deleted_at: null, purged_at: null };
 
     if (user.role !== 'SUPER_ADMIN') {
       baseWhere.organization_id = user.orgId;
@@ -539,7 +539,7 @@ export class ServicesService {
   }
 
   async getFilterOptions(user: any) {
-    const serviceWhere: any = {};
+    const serviceWhere: any = { deleted_at: null, purged_at: null };
 
     if (user.role !== 'SUPER_ADMIN') {
       serviceWhere.organization_id = user.orgId;
@@ -582,7 +582,7 @@ export class ServicesService {
 
   async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
     const service = await this.prisma.service.findUnique({ where: { id } });
-    if (!service || service.organization_id !== orgId) {
+    if (!service || service.organization_id !== orgId || service.deleted_at || (service as any).purged_at) {
       throw new NotFoundException('Service no encontrado o no pertenece a tu Organización');
     }
 
@@ -596,7 +596,7 @@ export class ServicesService {
   }
 
   async findOne(id: string, user: any, lang?: string) {
-    const where: any = { id };
+    const where: any = { id, deleted_at: null, purged_at: null };
     if (user.role !== 'SUPER_ADMIN') {
       where.organization_id = user.orgId;
     }
@@ -605,8 +605,8 @@ export class ServicesService {
       where,
       include: {
         attachments: { orderBy: { created_at: 'asc' } },
-        worker: { select: { name: true, id: true } },
-        asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_file_id: true, owner: { select: { id: true, name: true } } } }
+        worker: { select: { name: true, id: true, deleted_at: true, purged_at: true } },
+        asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_file_id: true, deleted_at: true, purged_at: true, owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } } } }
       }
     });
 
@@ -633,7 +633,7 @@ export class ServicesService {
       throw new ForbiddenException('No tienes permiso para compartir este servicio');
     }
 
-    const where: any = { id };
+    const where: any = { id, deleted_at: null, purged_at: null };
     if (user.role !== 'SUPER_ADMIN') {
       where.organization_id = user.orgId;
     }
@@ -693,7 +693,7 @@ export class ServicesService {
           include: {
             organization: { select: { name: true, logo_file_id: true, default_asset_icon: true } },
             attachments: { orderBy: { created_at: 'asc' } },
-            worker: { select: { name: true, id: true } },
+            worker: { select: { name: true, id: true, deleted_at: true, purged_at: true } },
             asset: {
               select: {
                 name: true,
@@ -702,7 +702,9 @@ export class ServicesService {
                 owner_id: true,
                 location: true,
                 thumbnail_file_id: true,
-                owner: { select: { id: true, name: true } },
+                deleted_at: true,
+                purged_at: true,
+                owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
               },
             },
           },
@@ -710,7 +712,7 @@ export class ServicesService {
       },
     });
 
-    if (!shareLink || !shareLink.is_enabled) {
+    if (!shareLink || !shareLink.is_enabled || shareLink.service.deleted_at || (shareLink.service as any).purged_at) {
       throw new NotFoundException('Link compartido no encontrado');
     }
 
@@ -821,7 +823,7 @@ export class ServicesService {
   async remove(id: string, user: any) {
     const service = await this.prisma.service.findUnique({ where: { id } });
 
-    if (!service) {
+    if (!service || service.deleted_at || (service as any).purged_at) {
       throw new NotFoundException('Service no encontrado');
     }
 

@@ -56,9 +56,13 @@ export class OwnersService {
       by: ['asset_id'],
       where: {
         organization_id: orgId,
+        deleted_at: null,
+        purged_at: null,
         asset: {
           owner_id: { in: ownerIds },
           is_active: true,
+          deleted_at: null,
+          purged_at: null,
         },
       },
       _count: { _all: true },
@@ -69,6 +73,8 @@ export class OwnersService {
         organization_id: orgId,
         owner_id: { in: ownerIds },
         is_active: true,
+        deleted_at: null,
+        purged_at: null,
       },
       select: { id: true, owner_id: true },
     });
@@ -177,7 +183,7 @@ export class OwnersService {
   }
 
   async findAll(orgId: string, query?: OwnerQueryDto) {
-    const where: any = { organization_id: orgId, deleted_at: null };
+    const where: any = { organization_id: orgId, deleted_at: null, purged_at: null };
 
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
@@ -198,7 +204,7 @@ export class OwnersService {
           include: {
             _count: {
               select: {
-                assets: { where: { is_active: true } },
+                assets: { where: { is_active: true, deleted_at: null, purged_at: null } },
               },
             },
           },
@@ -220,7 +226,7 @@ export class OwnersService {
       include: {
         _count: {
           select: {
-            assets: { where: { is_active: true } },
+            assets: { where: { is_active: true, deleted_at: null, purged_at: null } },
           },
         },
       },
@@ -236,7 +242,7 @@ export class OwnersService {
       include: {
         users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
         assets: {
-          where: { is_active: true },
+          where: { is_active: true, deleted_at: null, purged_at: null },
           select: {
             id: true,
             name: true,
@@ -248,7 +254,7 @@ export class OwnersService {
         }
       }
     });
-    if (!owner || owner.organization_id !== orgId) {
+    if (!owner || owner.organization_id !== orgId || owner.deleted_at || (owner as any).purged_at) {
       throw new NotFoundException('Owner no encontrado');
     }
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
@@ -257,10 +263,10 @@ export class OwnersService {
   async update(id: string, updateOwnerDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
     const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, logo_file_id: true },
+      select: { id: true, organization_id: true, logo_file_id: true, deleted_at: true, purged_at: true },
     });
 
-    if (!existingOwner || existingOwner.organization_id !== orgId) {
+    if (!existingOwner || existingOwner.organization_id !== orgId || existingOwner.deleted_at || existingOwner.purged_at) {
       throw new NotFoundException('Owner no encontrado');
     }
 
@@ -338,10 +344,10 @@ export class OwnersService {
   async deactivate(id: string, orgId: string) {
     const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true },
+      select: { id: true, organization_id: true, deleted_at: true, purged_at: true },
     });
 
-    if (!existingOwner || existingOwner.organization_id !== orgId) {
+    if (!existingOwner || existingOwner.organization_id !== orgId || existingOwner.deleted_at || existingOwner.purged_at) {
       throw new NotFoundException('Owner no encontrado');
     }
 
@@ -366,20 +372,67 @@ export class OwnersService {
     }, orgId);
   }
 
-  async remove(id: string, orgId: string, deletedById?: string) {
+  async remove(
+    id: string,
+    orgId: string,
+    deletedById?: string,
+    options?: { deleteAssets?: boolean; deleteServices?: boolean },
+  ) {
     const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true },
+      select: { id: true, organization_id: true, deleted_at: true, purged_at: true },
     });
 
-    if (!existingOwner || existingOwner.organization_id !== orgId) {
+    if (!existingOwner || existingOwner.organization_id !== orgId || existingOwner.deleted_at || existingOwner.purged_at) {
       throw new NotFoundException('Owner no encontrado');
     }
 
-    const owner = await this.prisma.owner.update({
-      where: { id },
-      data: { is_active: false, deleted_at: new Date(), deleted_by_id: deletedById ?? null },
+    const deleteAssets = options?.deleteAssets === true || options?.deleteServices === true;
+    const deleteServices = options?.deleteServices === true;
+    const deletedAt = new Date();
+    const ownerAssetIds = await this.prisma.asset.findMany({
+      where: {
+        organization_id: orgId,
+        owner_id: id,
+        deleted_at: null,
+        purged_at: null,
+      },
+      select: { id: true },
     });
+    const assetIds = ownerAssetIds.map((asset) => asset.id);
+
+    const [owner] = await this.prisma.$transaction([
+      this.prisma.owner.update({
+        where: { id },
+        data: { is_active: false, deleted_at: deletedAt, deleted_by_id: deletedById ?? null },
+      }),
+      ...(deleteAssets
+        ? [
+            this.prisma.asset.updateMany({
+              where: {
+                organization_id: orgId,
+                owner_id: id,
+                deleted_at: null,
+                purged_at: null,
+              },
+              data: { is_active: false, deleted_at: deletedAt, deleted_by_id: deletedById ?? null },
+            }),
+          ]
+        : []),
+      ...(deleteServices && assetIds.length > 0
+        ? [
+            this.prisma.service.updateMany({
+              where: {
+                organization_id: orgId,
+                asset_id: { in: assetIds },
+                deleted_at: null,
+                purged_at: null,
+              },
+              data: { deleted_at: deletedAt, deleted_by_id: deletedById ?? null },
+            }),
+          ]
+        : []),
+    ]);
 
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }

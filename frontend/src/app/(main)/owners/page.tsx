@@ -17,6 +17,7 @@ import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import RelationshipDeleteModal from "@/components/ui/RelationshipDeleteModal";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -94,10 +95,12 @@ export default function OwnersPage() {
   const [editingOwner, setEditingOwner] = useState<Owner | null>(null);
   const [selectedOwner, setSelectedOwner] = useState<Owner | null>(null);
   const [ownerToDelete, setOwnerToDelete] = useState<Owner | null>(null);
+  const [ownerDeleteScope, setOwnerDeleteScope] = useState<"owner" | "owner-assets" | "owner-assets-services">("owner");
   const [ownerToDeactivate, setOwnerToDeactivate] = useState<Owner | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
+  const [assetDeleteScope, setAssetDeleteScope] = useState<"asset" | "asset-services">("asset");
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
 
   const getQueryParams = () => {
@@ -125,9 +128,20 @@ export default function OwnersPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => ownersService.remove(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owners"] });
+    mutationFn: ({ id, scope }: { id: string; scope: "owner" | "owner-assets" | "owner-assets-services" }) =>
+      ownersService.remove(id, {
+        deleteAssets: scope === "owner-assets" || scope === "owner-assets-services",
+        deleteServices: scope === "owner-assets-services",
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["owners"] });
+      await queryClient.invalidateQueries({ queryKey: ["assets"] });
+      await queryClient.invalidateQueries({ queryKey: ["assets-mobile"] });
+      await queryClient.invalidateQueries({ queryKey: ["services"] });
+      await queryClient.invalidateQueries({ queryKey: ["services-mobile"] });
+      await queryClient.invalidateQueries({ queryKey: ["services-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["services-workers-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["trash"] });
       showToast(t.owners.states.delete_success, "success");
       setOwnerToDelete(null);
     },
@@ -137,7 +151,8 @@ export default function OwnersPage() {
   });
 
   const deleteAssetMutation = useMutation({
-    mutationFn: (id: string) => assetsService.delete(id),
+    mutationFn: ({ id, scope }: { id: string; scope: "asset" | "asset-services" }) =>
+      assetsService.delete(id, { deleteServices: scope === "asset-services" }),
     onSuccess: async () => {
       showToast(t.feedback.delete_asset_success, "success");
       if (assetToDelete?.id === selectedAsset?.id) {
@@ -147,6 +162,11 @@ export default function OwnersPage() {
       await queryClient.invalidateQueries({ queryKey: ["assets"] });
       await queryClient.invalidateQueries({ queryKey: ["assets-mobile"] });
       await queryClient.invalidateQueries({ queryKey: ["owners"] });
+      await queryClient.invalidateQueries({ queryKey: ["services"] });
+      await queryClient.invalidateQueries({ queryKey: ["services-mobile"] });
+      await queryClient.invalidateQueries({ queryKey: ["services-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["services-workers-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["trash"] });
       if (selectedOwner?.id) {
         await queryClient.invalidateQueries({ queryKey: ["owner", selectedOwner.id] });
       }
@@ -233,7 +253,7 @@ export default function OwnersPage() {
             <Pencil className="w-4 h-4" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setOwnerToDelete(item); }}
+            onClick={(e) => { e.stopPropagation(); setOwnerDeleteScope("owner"); setOwnerToDelete(item); }}
             className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
             title={t.owners.actions.delete}
           >
@@ -464,6 +484,7 @@ export default function OwnersPage() {
         }}
         onDelete={(owner) => {
           setSelectedOwner(null);
+          setOwnerDeleteScope("owner");
           setOwnerToDelete(owner);
         }}
         onToggleStatus={(owner) => {
@@ -479,7 +500,7 @@ export default function OwnersPage() {
           setAssetToEdit(asset);
           setIsAssetModalOpen(true);
         }}
-        onDelete={(asset) => setAssetToDelete(asset)}
+        onDelete={(asset) => { setAssetDeleteScope("asset"); setAssetToDelete(asset); }}
       />
 
       <AssetModal
@@ -501,15 +522,28 @@ export default function OwnersPage() {
         }}
       />
 
-      <ConfirmModal
+      <RelationshipDeleteModal
         isOpen={!!assetToDelete}
         onClose={() => setAssetToDelete(null)}
-        onConfirm={() => assetToDelete && deleteAssetMutation.mutate(assetToDelete.id)}
+        onConfirm={() => assetToDelete && deleteAssetMutation.mutate({ id: assetToDelete.id, scope: assetDeleteScope })}
         title={t.confirm_modal.delete_asset_title}
-        description={t.confirm_modal.delete_description}
+        description={t.trash.relationship_delete.asset_from_owner_description}
+        options={[
+          {
+            value: "asset",
+            title: t.trash.relationship_delete.asset_only_title,
+            description: t.trash.relationship_delete.asset_only_description,
+          },
+          {
+            value: "asset-services",
+            title: t.trash.relationship_delete.asset_services_title,
+            description: t.trash.relationship_delete.asset_services_description,
+          },
+        ]}
+        value={assetDeleteScope}
+        onChange={(value) => setAssetDeleteScope(value as "asset" | "asset-services")}
         confirmText={t.confirm_modal.confirm_delete}
         cancelText={t.confirm_modal.cancel_delete}
-        variant="danger"
       />
 
       <ConfirmModal
@@ -523,15 +557,35 @@ export default function OwnersPage() {
         variant="danger"
       />
 
-      <ConfirmModal
+      <RelationshipDeleteModal
         isOpen={!!ownerToDelete}
         onClose={() => setOwnerToDelete(null)}
-        onConfirm={() => ownerToDelete && deleteMutation.mutate(ownerToDelete.id)}
+        onConfirm={() => ownerToDelete && deleteMutation.mutate({ id: ownerToDelete.id, scope: ownerDeleteScope })}
         title={t.owners.delete_modal.title}
-        description={t.owners.delete_modal.description}
+        description={t.trash.relationship_delete.owner_description
+          .replace("{assets}", String(ownerToDelete?.assets_count ?? 0))
+          .replace("{services}", String(ownerToDelete?.services_count ?? 0))}
+        options={[
+          {
+            value: "owner",
+            title: t.trash.relationship_delete.owner_only_title,
+            description: t.trash.relationship_delete.owner_only_description,
+          },
+          {
+            value: "owner-assets",
+            title: t.trash.relationship_delete.owner_assets_title,
+            description: t.trash.relationship_delete.owner_assets_description,
+          },
+          {
+            value: "owner-assets-services",
+            title: t.trash.relationship_delete.owner_assets_services_title,
+            description: t.trash.relationship_delete.owner_assets_services_description,
+          },
+        ]}
+        value={ownerDeleteScope}
+        onChange={(value) => setOwnerDeleteScope(value as "owner" | "owner-assets" | "owner-assets-services")}
         confirmText={t.owners.delete_modal.confirm}
         cancelText={t.confirm_modal.cancel_delete}
-        variant="danger"
       />
 
       <button

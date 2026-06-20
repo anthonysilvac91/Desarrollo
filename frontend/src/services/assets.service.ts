@@ -12,7 +12,7 @@ export interface Service {
   description?: string;
   created_at: string;
   attachments: ServiceAttachment[];
-  worker: { name: string; id: string };
+  worker: { name: string; id: string; deleted_at?: string | null; purged_at?: string | null };
   asset?: {
     name: string;
     id: string;
@@ -36,6 +36,8 @@ export interface Asset {
   owner?: {
     id: string;
     name: string;
+    deleted_at?: string | null;
+    purged_at?: string | null;
     action_type?: string;
   } | null;
   last_service?: {
@@ -113,8 +115,8 @@ export const assetsService = {
     return res.data;
   },
 
-  delete: async (id: string) => {
-    const res = await api.delete(`/assets/${id}`);
+  delete: async (id: string, options?: { deleteServices?: boolean }) => {
+    const res = await api.delete(`/assets/${id}`, { data: options });
     return res.data;
   },
 

@@ -108,6 +108,8 @@ model User {
   email_verified_at  DateTime?
   deleted_at         DateTime?
   deleted_by_id      String?
+  purged_at          DateTime?
+  purged_by_id       String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -136,6 +138,7 @@ model User {
   @@index([role])
   @@index([is_active])
   @@index([deleted_at])
+  @@index([purged_at])
 }
 
 model UserSession {
@@ -178,6 +181,8 @@ model Asset {
   is_active         Boolean @default(true)
   deleted_at        DateTime?
   deleted_by_id     String?
+  purged_at         DateTime?
+  purged_by_id      String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -195,6 +200,7 @@ model Asset {
   @@index([owner_id])
   @@index([is_active])
   @@index([deleted_at])
+  @@index([purged_at])
   @@unique([id, organization_id])
 }
 
@@ -211,6 +217,8 @@ model Service {
   admin_intervened Boolean       @default(false)
   deleted_at       DateTime?
   deleted_by_id    String?
+  purged_at        DateTime?
+  purged_by_id     String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -233,6 +241,7 @@ model Service {
   @@index([is_public])
   @@index([created_at])
   @@index([deleted_at])
+  @@index([purged_at])
 }
 
 model AiProviderSetting {
@@ -315,6 +324,8 @@ model Owner {
   is_active       Boolean @default(true)
   deleted_at      DateTime?
   deleted_by_id   String?
+  purged_at       DateTime?
+  purged_by_id    String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -329,6 +340,7 @@ model Owner {
   @@index([organization_id, created_at])
   @@index([is_active])
   @@index([deleted_at])
+  @@index([purged_at])
   @@unique([id, organization_id])
 }
 

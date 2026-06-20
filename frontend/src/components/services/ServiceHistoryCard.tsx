@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Calendar, Camera, ChevronRight } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
+import DeletedBadge from "@/components/ui/DeletedBadge";
 
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -33,8 +34,8 @@ export interface ServiceForCard {
   title: string;
   description?: string | null;
   created_at: string;
-  worker?: { name: string } | null;
-  asset?: { owner?: { id?: string; name: string } | null } | null;
+  worker?: { name: string; deleted_at?: string | null; purged_at?: string | null } | null;
+  asset?: { owner?: { id?: string; name: string; deleted_at?: string | null; purged_at?: string | null } | null } | null;
   attachments?: { file_url?: string | null }[];
 }
 
@@ -56,6 +57,10 @@ export default function ServiceHistoryCard({
     secondaryBadge === "worker"
       ? service.worker?.name
       : service.asset?.owner?.name;
+  const badgeDeleted =
+    secondaryBadge === "worker"
+      ? !!(service.worker?.deleted_at || service.worker?.purged_at)
+      : !!(service.asset?.owner?.deleted_at || service.asset?.owner?.purged_at);
 
   return (
     <div className="group bg-surface border border-border-theme/40 rounded-2xl hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all min-h-35 flex flex-col overflow-hidden">
@@ -73,9 +78,13 @@ export default function ServiceHistoryCard({
               <span className="mr-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[7px] font-black text-brand">
                 {getInitials(badgeName)}
               </span>
-              <span className="truncate text-[10px] font-black text-subtitle/60 uppercase tracking-wider">
-                {badgeName}
-              </span>
+              {badgeDeleted ? (
+                <DeletedBadge name={badgeName} />
+              ) : (
+                <span className="truncate text-[10px] font-black text-subtitle/60 uppercase tracking-wider">
+                  {badgeName}
+                </span>
+              )}
             </div>
           )}
         </div>

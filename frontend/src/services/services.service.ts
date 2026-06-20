@@ -15,11 +15,15 @@ export interface Service {
     name: string;
     location?: string;
     thumbnail_url?: string | null;
-    owner?: { id: string; name: string };
+    deleted_at?: string | null;
+    purged_at?: string | null;
+    owner?: { id: string; name: string; deleted_at?: string | null; purged_at?: string | null };
   };
   worker?: {
     id: string;
     name: string;
+    deleted_at?: string | null;
+    purged_at?: string | null;
   };
   attachments?: {
     id?: string;
