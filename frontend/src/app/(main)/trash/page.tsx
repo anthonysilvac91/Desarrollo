@@ -140,7 +140,7 @@ export default function TrashPage() {
         header: t.trash.table.deleted_at,
         sortable: true,
         cell: (item) => (
-          <span className="text-subtitle text-sm">{formatDate(item.deleted_at, language)}</span>
+          <span className="text-subtitle text-sm">{formatDate(item.deleted_at)}</span>
         ),
       },
       {
