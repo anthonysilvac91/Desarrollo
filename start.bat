@@ -35,7 +35,13 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo [3/4] Preparando Backend...
-call npm install
+echo Cerrando backend local previo si esta usando el puerto 3001...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":3001 .*LISTENING"') do (
+    taskkill /PID %%P /F >nul 2>&1
+)
+timeout /t 1 >nul
+
+call npm install --ignore-scripts
 call npx prisma generate
 call npx prisma migrate dev --name init_local --skip-generate
 cd ..
