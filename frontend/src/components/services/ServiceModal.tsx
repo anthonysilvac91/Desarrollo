@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, Loader2, ImagePlus } from "lucide-react";
+import { X, Loader2, ImagePlus, FileText, FileSpreadsheet, Paperclip } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -14,6 +14,9 @@ import { SERVICE_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompressi
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 400;
 const MAX_PHOTOS = 20;
+const MAX_DOCUMENTS = 10;
+const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+const DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx";
 
 interface ServiceModalProps {
   isOpen: boolean;
@@ -26,12 +29,14 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
   const [assetId, setAssetId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
+  const [documents, setDocuments] = useState<File[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
 
   const { data: assetsData = [] } = useQuery<Asset[] | { data: Asset[] }>({
@@ -47,6 +52,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
     setTitle("");
     setDescription("");
     setImages([]);
+    setDocuments([]);
   };
 
   const handleClose = () => {
@@ -94,6 +100,30 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
     });
   };
 
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileArray = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!fileArray.length) return;
+    const remaining = MAX_DOCUMENTS - documents.length;
+    const toAdd = fileArray.slice(0, remaining);
+    const valid = toAdd.filter(f => {
+      if (f.size > DOCUMENT_MAX_BYTES) {
+        showToast(`${f.name}: ${t.mobile.new_service.document_too_large}`, "error");
+        return false;
+      }
+      return true;
+    });
+    if (valid.length) setDocuments(prev => [...prev, ...valid]);
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments(prev => {
+      const next = [...prev];
+      next.splice(index, 1);
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetId) { showToast(t.services.modal.asset_required, "error"); return; }
@@ -107,6 +137,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
       formData.append("title", title.trim());
       formData.append("description", description);
       images.forEach(img => formData.append("files", img.file));
+      documents.forEach(doc => formData.append("files", doc));
 
       await servicesService.create(formData);
       queryClient.invalidateQueries({ queryKey: ["services"] });
@@ -211,6 +242,60 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
               onChange={handleFileChange}
             />
           </div>
+        </div>
+
+        {/* Documents */}
+        <div className="flex flex-col space-y-2">
+          <label className="text-[13px] font-bold text-subtitle uppercase tracking-widest pl-1 flex items-center justify-between">
+            <span>{t.services.modal.documents_label}</span>
+            {documents.length > 0 && (
+              <span className="bg-brand/10 text-brand text-[11px] px-2 py-0.5 rounded-full font-black normal-case tracking-normal">
+                {documents.length}
+              </span>
+            )}
+          </label>
+          <div className="space-y-2">
+            {documents.map((doc, i) => {
+              const ext = doc.name.toLowerCase().split(".").pop();
+              const isPdf = ext === "pdf";
+              const isExcel = ext === "xls" || ext === "xlsx";
+              const Icon = isPdf ? FileText : isExcel ? FileSpreadsheet : FileText;
+              const color = isPdf ? "text-red-500" : isExcel ? "text-green-600" : "text-blue-500";
+              const sizeStr = doc.size < 1024 * 1024
+                ? `${(doc.size / 1024).toFixed(0)} KB`
+                : `${(doc.size / (1024 * 1024)).toFixed(1)} MB`;
+              return (
+                <div key={`${doc.name}-${i}`} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-border-theme/40">
+                  <Icon className={`w-5 h-5 ${color} shrink-0`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-title truncate">{doc.name}</p>
+                    <p className="text-[10px] text-subtitle/50 font-medium">{sizeStr}</p>
+                  </div>
+                  <button type="button" onClick={() => removeDocument(i)} className="p-1.5 rounded-full hover:bg-red-50 text-subtitle/40 hover:text-red-500 transition-colors">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+            {documents.length < MAX_DOCUMENTS && (
+              <button
+                type="button"
+                onClick={() => docInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-border-theme hover:border-brand/40 hover:text-brand/60 text-subtitle/30 transition-colors"
+              >
+                <Paperclip className="w-4 h-4" />
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {t.services.modal.add_documents}
+                </span>
+              </button>
+            )}
+            {documents.length === 0 && (
+              <p className="text-center text-[10px] text-subtitle/30 font-medium tracking-wide">
+                PDF, Word, Excel · {t.services.modal.document_max_size}
+              </p>
+            )}
+          </div>
+          <input ref={docInputRef} type="file" accept={DOCUMENT_ACCEPT} multiple className="hidden" onChange={handleDocumentChange} />
         </div>
 
         {/* Actions */}
