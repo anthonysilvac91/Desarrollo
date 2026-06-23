@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { CheckCircle, AlertCircle, X, Info } from "lucide-react";
 
 type ToastType = "success" | "error" | "info";
@@ -29,6 +29,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
   }, []);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { message, type } = (e as CustomEvent).detail;
+      showToast(message, type);
+    };
+    window.addEventListener("api-toast", handler);
+    return () => window.removeEventListener("api-toast", handler);
+  }, [showToast]);
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

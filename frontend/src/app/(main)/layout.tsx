@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 import BottomNav from "@/components/layout/BottomNav";
+import AccountStatusBanner from "@/components/subscriptions/AccountStatusBanner";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { Loader2 } from "lucide-react";
@@ -38,7 +39,8 @@ export default function MainLayout({
       
       <div className="flex-1 flex flex-col min-w-0 lg:ml-[260px] transition-all duration-300">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-        
+        <AccountStatusBanner />
+
         {/* Main Content Area */}
         <main className="flex-1 px-4 pb-28 md:pb-8 sm:px-8 lg:px-14 lg:pb-12 pt-4 sm:pt-8 lg:pt-10 max-w-[1700px] w-full mx-auto">
           {children}

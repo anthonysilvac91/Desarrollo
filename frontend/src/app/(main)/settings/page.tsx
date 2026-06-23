@@ -58,6 +58,7 @@ import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import LogoCropModal from "@/components/ui/LogoCropModal";
 import ImageCropModal from "@/components/ui/ImageCropModal";
+import PlanStatusCard from "@/components/subscriptions/PlanStatusCard";
 import { compressImageFile } from "@/lib/imageCompression";
 
 const BRAND_PALETTES = [
@@ -641,6 +642,11 @@ export default function SettingsPage() {
           ) : activeTab === "ai" && canManageAiSettings ? (
             <MobileAiSettingsTab />
 
+          ) : activeTab === "plans" ? (
+            <div className="p-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <PlanStatusCard />
+            </div>
+
           ) : (
             /* Coming soon for other tabs */
             <div className="flex flex-col items-center justify-center gap-3 py-32 text-center animate-in fade-in duration-300">
@@ -1066,16 +1072,10 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
-        {/* Plans placeholder */}
+        {/* Plans */}
         {activeTab === "plans" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <ModuleContainer>
-              <div className="px-8 py-16 flex flex-col items-center justify-center gap-3 text-center">
-                <CreditCard className="w-10 h-10 text-subtitle/20" strokeWidth={1.5} />
-                <p className="text-sm font-semibold text-subtitle/40">{t.settings.tabs.plans}</p>
-                <p className="text-xs text-subtitle/30">Próximamente</p>
-              </div>
-            </ModuleContainer>
+            <PlanStatusCard />
           </div>
         )}
 

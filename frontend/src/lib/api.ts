@@ -69,6 +69,32 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error.response?.data?.error === "PLAN_LIMIT_EXCEEDED") {
+      const { resource, limit, upgrade_to } = error.response.data;
+      const names: Record<string, string> = {
+        assets: "activos",
+        users: "usuarios",
+        storage: "almacenamiento",
+        video: "video",
+      };
+      const msg = `Límite de ${names[resource] ?? resource} alcanzado (${limit}). Actualiza al plan ${upgrade_to} para continuar.`;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("api-toast", { detail: { message: msg, type: "error" } }));
+      }
+      return Promise.reject(error);
+    }
+
+    if (error.response?.data?.error === "DEMO_EXPIRED") {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("api-toast", {
+            detail: { message: "Tu periodo de prueba ha expirado. Contacta con tu administrador.", type: "error" },
+          }),
+        );
+      }
+      return Promise.reject(error);
+    }
+
     // Si el error es 401 Unauthorized
     if (error.response && error.response.status === 401 && !isPublicRequest(error.config?.url)) {
       if (typeof window !== "undefined") {
