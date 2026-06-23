@@ -25,6 +25,9 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { RealtimeModule } from './realtime/realtime.module';
 import { AiModule } from './ai/ai.module';
 import { TrashModule } from './trash/trash.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -47,16 +50,27 @@ import { TrashModule } from './trash/trash.module';
     RealtimeModule,
     AiModule,
     ...(process.env.NODE_ENV !== 'production'
-      ? [ServeStaticModule.forRoot({
-          rootPath: join(process.cwd(), 'uploads'),
-          serveRoot: '/uploads',
-        })]
+      ? [
+          ServeStaticModule.forRoot({
+            rootPath: join(process.cwd(), 'uploads'),
+            serveRoot: '/uploads',
+          }),
+        ]
       : []),
+    ScheduleModule.forRoot(),
+    SubscriptionsModule,
     CompaniesModule,
     TrashModule,
+    UploadsModule,
     HealthModule,
   ],
-  controllers: [AppController, AssetsController, ServicesController, ServiceSharesController, OrganizationsController],
+  controllers: [
+    AppController,
+    AssetsController,
+    ServicesController,
+    ServiceSharesController,
+    OrganizationsController,
+  ],
   providers: [
     AppService,
     PrismaService,

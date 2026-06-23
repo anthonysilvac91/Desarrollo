@@ -6,9 +6,13 @@ import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { StoredFileKind } from '@prisma/client';
-import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import {
+  ensureNoManualFileUrl,
+  validateImageFile,
+} from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildOrganizationLogoPath } from '../common/files/storage-paths';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class OrganizationsService {
@@ -19,16 +23,21 @@ export class OrganizationsService {
     private storage: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   async findAll() {
     const organizations = await this.prisma.organization.findMany({
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
     });
 
     return Promise.all(
       organizations.map(async (organization: any) => {
-        organization.logo_url = await this.storedFilesService.resolveFileUrlForOrg(organization.logo_file_id, organization.id);
+        organization.logo_url =
+          await this.storedFilesService.resolveFileUrlForOrg(
+            organization.logo_file_id,
+            organization.id,
+          );
 
         return organization;
       }),
@@ -37,14 +46,18 @@ export class OrganizationsService {
 
   async findOne(id: string) {
     const organization = await this.prisma.organization.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!organization) {
       return organization;
     }
 
-    (organization as any).logo_url = await this.storedFilesService.resolveFileUrlForOrg(organization.logo_file_id, organization.id);
+    (organization as any).logo_url =
+      await this.storedFilesService.resolveFileUrlForOrg(
+        organization.logo_file_id,
+        organization.id,
+      );
 
     return organization;
   }
@@ -54,7 +67,10 @@ export class OrganizationsService {
   }
 
   async reconcileStorage(orgId: string, deleteOrphans = false) {
-    return this.storageGovernance.reconcileOrganizationFiles(orgId, deleteOrphans);
+    return this.storageGovernance.reconcileOrganizationFiles(
+      orgId,
+      deleteOrphans,
+    );
   }
 
   private buildSlug(name: string): string {
@@ -76,6 +92,8 @@ export class OrganizationsService {
       data: { name: dto.name, slug },
     });
 
+    await this.subscriptionsService.createForOrganization(org.id, 'DEMO');
+
     this.logger.log(`Organization created: ${org.name}`);
     return { organization: org };
   }
@@ -83,11 +101,15 @@ export class OrganizationsService {
   async toggleStatus(id: string, is_active: boolean) {
     return this.prisma.organization.update({
       where: { id },
-      data: { is_active }
+      data: { is_active },
     });
   }
 
-  async updateSettings(orgId: string, dto: UpdateOrganizationSettingsDto, logoFile?: Express.Multer.File) {
+  async updateSettings(
+    orgId: string,
+    dto: UpdateOrganizationSettingsDto,
+    logoFile?: Express.Multer.File,
+  ) {
     const data: any = { ...dto };
     const currentOrg = await this.prisma.organization.findUnique({
       where: { id: orgId },
@@ -145,11 +167,13 @@ export class OrganizationsService {
     try {
       updatedOrg = await this.prisma.organization.update({
         where: { id: orgId },
-        data
+        data,
       });
     } catch (error) {
       if (logoFile && data.logo_file_id) {
-        await this.storedFilesService.deleteStoredFileAndBlob(data.logo_file_id);
+        await this.storedFilesService.deleteStoredFileAndBlob(
+          data.logo_file_id,
+        );
       }
       throw error;
     }
@@ -160,7 +184,10 @@ export class OrganizationsService {
       );
     }
 
-    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrlForOrg(updatedOrg.logo_file_id, updatedOrg.id);
+    updatedOrg.logo_url = await this.storedFilesService.resolveFileUrlForOrg(
+      updatedOrg.logo_file_id,
+      updatedOrg.id,
+    );
 
     return updatedOrg;
   }

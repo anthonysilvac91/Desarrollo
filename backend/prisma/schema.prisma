@@ -47,6 +47,30 @@ enum StoredFileKind {
   OWNER_LOGO
 }
 
+enum UploadStatus {
+  PENDING
+  UPLOADING
+  UPLOADED
+  CONFIRMED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum AttachmentMediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum ServiceAttachmentUploadStatus {
+  NONE
+  UPLOADING
+  PARTIALLY_READY
+  READY
+  FAILED
+}
+
 enum EmailTokenType {
   PASSWORD_RESET
   EMAIL_VERIFICATION
@@ -56,6 +80,21 @@ enum EmailTokenType {
 enum TwoFactorMethod {
   APP
   EMAIL
+}
+
+enum PlanTier {
+  DEMO
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  SUSPENDED
+  CANCELLED
 }
 
 model Organization {
@@ -73,6 +112,10 @@ model Organization {
   worker_edit_window_hours Int?
   worker_restricted_access Boolean          @default(false)
   show_org_name            Boolean          @default(false)
+  video_uploads_enabled      Boolean @default(false)
+  storage_quota_bytes        BigInt?
+  max_video_file_bytes       BigInt?
+  upload_concurrency_limit   Int     @default(2)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -84,9 +127,47 @@ model Organization {
   owners       Owner[]
   invitations  Invitation[]
   stored_files StoredFile[]
+  file_uploads FileUpload[]
+  storage_usage OrganizationStorageUsage?
+  storage_reconciliation_issues StorageReconciliationIssue[]
+  subscription  Subscription?
 
   @@index([is_active])
   @@index([created_at])
+}
+
+model Subscription {
+  id                        String             @id @default(uuid())
+  organization_id           String             @unique
+  plan                      PlanTier           @default(DEMO)
+  status                    SubscriptionStatus @default(TRIALING)
+
+  max_users                 Int                @default(3)
+  max_assets                Int                @default(20)
+  max_storage_gb            Float              @default(1.0)
+  max_video_hours           Float              @default(0.0)
+  allow_external            Boolean            @default(false)
+  allow_branding            Boolean            @default(false)
+  allow_ai_translation      Boolean            @default(false)
+
+  demo_expires_at           DateTime?
+
+  pending_plan              PlanTier?
+  pending_plan_requested_at DateTime?
+  pending_plan_requested_by String?
+
+  notes                     String?
+
+  payment_status            String?
+
+  created_at                DateTime           @default(now())
+  updated_at                DateTime           @updatedAt
+
+  organization              Organization       @relation(fields: [organization_id], references: [id])
+
+  @@index([plan])
+  @@index([status])
+  @@index([demo_expires_at])
 }
 
 model User {
@@ -124,6 +205,7 @@ model User {
   invitations_sent      Invitation[]        @relation("InvitedBy")
   stored_files_uploaded StoredFile[]        @relation("StoredFileUploadedBy")
   service_share_links   ServiceShareLink[]  @relation("ServiceShareLinkCreatedBy")
+  file_uploads_created  FileUpload[]         @relation("FileUploadCreatedBy")
   email_tokens          EmailToken[]
   sessions              UserSession[]
   users_deleted         User[]              @relation("UserDeletedBy")
@@ -215,6 +297,12 @@ model Service {
   status           ServiceStatus @default(COMPLETED)
   is_public        Boolean       @default(false)
   admin_intervened Boolean       @default(false)
+  attachment_upload_status ServiceAttachmentUploadStatus @default(NONE)
+  pending_attachment_count Int @default(0)
+  failed_attachment_count  Int @default(0)
+  ready_attachment_count   Int @default(0)
+  attachment_bytes_total   BigInt @default(0)
+  attachment_bytes_ready   BigInt @default(0)
   deleted_at       DateTime?
   deleted_by_id    String?
   purged_at        DateTime?
@@ -228,6 +316,7 @@ model Service {
   worker       User                @relation("ServiceWorker", fields: [worker_id], references: [id])
   deleted_by   User?               @relation("ServiceDeletedBy", fields: [deleted_by_id], references: [id])
   attachments  ServiceAttachment[]
+  file_uploads FileUpload[]
   share_links  ServiceShareLink[]
   translations ServiceTranslation[]
 
@@ -303,17 +392,115 @@ model ServiceShareLink {
 model ServiceAttachment {
   id              String  @id @default(uuid())
   service_id      String
+  upload_id       String? @unique
   file_id         String? @unique
   file_type       String?
   file_name       String?
   file_size_bytes Int?
+  media_type       AttachmentMediaType @default(IMAGE)
+  duration_seconds Int?
+  width            Int?
+  height           Int?
+  sort_order       Int                 @default(0)
 
   created_at DateTime @default(now())
 
   service Service     @relation(fields: [service_id], references: [id])
+  upload  FileUpload? @relation(fields: [upload_id], references: [id])
   file    StoredFile? @relation("ServiceAttachmentFile", fields: [file_id], references: [id])
 
   @@index([service_id])
+  @@index([service_id, media_type])
+}
+
+model FileUpload {
+  id                  String       @id @default(uuid())
+  organization_id     String
+  service_id          String
+  created_by_user_id  String
+
+  storage_ref         String       @unique
+  original_name       String
+  declared_mime_type  String
+  detected_mime_type  String?
+  declared_size_bytes BigInt
+  actual_size_bytes   BigInt?
+
+  media_type          AttachmentMediaType
+  status              UploadStatus @default(PENDING)
+
+  signed_token_hash   String?
+  upload_started_at   DateTime?
+  upload_completed_at DateTime?
+  confirmed_at        DateTime?
+  expires_at          DateTime
+  failure_reason      String?
+  local_progress      Int          @default(0)
+
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  organization        Organization @relation(fields: [organization_id], references: [id])
+  service             Service      @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  created_by          User         @relation("FileUploadCreatedBy", fields: [created_by_user_id], references: [id])
+  attachment          ServiceAttachment?
+
+  @@index([organization_id, status])
+  @@index([service_id])
+  @@index([created_by_user_id])
+  @@index([expires_at])
+}
+
+model OrganizationStorageUsage {
+  organization_id       String   @id
+  ready_bytes           BigInt   @default(0)
+  reserved_bytes        BigInt   @default(0)
+  ready_file_count      Int      @default(0)
+  pending_upload_count  Int      @default(0)
+  reconciled_at         DateTime?
+  updated_at            DateTime @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+}
+
+model MaintenanceJobLock {
+  name          String   @id
+  locked_until DateTime
+  locked_by    String
+  updated_at   DateTime @updatedAt
+}
+
+model UploadMaintenanceRun {
+  id             String   @id @default(uuid())
+  job_name       String
+  status         String
+  started_at     DateTime @default(now())
+  finished_at    DateTime?
+  expired_count  Int      @default(0)
+  reconciled_count Int    @default(0)
+  issue_count    Int      @default(0)
+  error_message  String?
+
+  @@index([job_name, started_at])
+  @@index([status])
+}
+
+model StorageReconciliationIssue {
+  id              String   @id @default(uuid())
+  organization_id String
+  issue_type      String
+  storage_ref     String?
+  entity_type     String?
+  entity_id       String?
+  detail          String?
+  resolved_at     DateTime?
+  created_at      DateTime @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@index([organization_id, issue_type])
+  @@index([resolved_at])
+  @@index([created_at])
 }
 
 model Owner {

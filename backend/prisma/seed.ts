@@ -15,6 +15,7 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.storedFile.deleteMany();
   await prisma.owner.deleteMany();
+  await prisma.subscription.deleteMany();
   await prisma.organization.deleteMany();
 
   const hashedPwd = await bcrypt.hash('password123', 10);
@@ -34,6 +35,21 @@ async function main() {
       slug: 'oceanic-yachts',
       auto_publish_services: true,
       worker_edit_policy: WorkerEditPolicy.TIME_WINDOW,
+    },
+  });
+
+  await prisma.subscription.create({
+    data: {
+      organization_id: organization.id,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      max_users: 10,
+      max_assets: 500,
+      max_storage_gb: 50,
+      max_video_hours: 10,
+      allow_external: true,
+      allow_branding: false,
+      allow_ai_translation: true,
     },
   });
 
@@ -156,6 +172,21 @@ async function main() {
       slug: 'yates-alejandro',
       auto_publish_services: true,
       worker_edit_policy: WorkerEditPolicy.TIME_WINDOW,
+    },
+  });
+
+  await prisma.subscription.create({
+    data: {
+      organization_id: orgYates.id,
+      plan: 'PRO',
+      status: 'ACTIVE',
+      max_users: 10,
+      max_assets: 500,
+      max_storage_gb: 50,
+      max_video_hours: 10,
+      allow_external: true,
+      allow_branding: false,
+      allow_ai_translation: true,
     },
   });
 
