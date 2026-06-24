@@ -24,13 +24,23 @@ import { PlanLimitGuard, CheckPlanLimit } from '../subscriptions/check-plan-limi
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { fileUploadOptions } from '../common/files/multer-image-options';
 import { CreateServiceWithUploadManifestDto } from '../uploads/dto/create-service-with-upload-manifest.dto';
+import { UploadsService } from '../uploads/uploads.service';
 
 @ApiTags('Services')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('services')
 export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {}
+  constructor(
+    private readonly servicesService: ServicesService,
+    private readonly uploadsService: UploadsService,
+  ) {}
+
+  @Get('attachment-config')
+  @ApiOperation({ summary: 'Configuracion efectiva para adjuntos de servicio' })
+  getAttachmentConfig(@Request() req) {
+    return this.uploadsService.getAttachmentConfig(req.user);
+  }
 
   @Post()
   @UseGuards(PlanLimitGuard)

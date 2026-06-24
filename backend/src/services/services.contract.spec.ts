@@ -4,7 +4,7 @@ import { ServicesController } from './services.controller';
 describe('ServicesController contract', () => {
   it('EXTERNAL recibe ForbiddenException al intentar registrar un servicio', () => {
     const servicesService = { create: jest.fn() } as any;
-    const controller = new ServicesController(servicesService);
+    const controller = new ServicesController(servicesService, {} as any);
     const req = { user: { role: 'EXTERNAL', orgId: 'org-1' } };
 
     expect(() => controller.create({} as any, req as any, [])).toThrow(
@@ -15,7 +15,7 @@ describe('ServicesController contract', () => {
 
   it('WORKER puede llamar create() sin error de rol', () => {
     const servicesService = { create: jest.fn().mockReturnValue({}) } as any;
-    const controller = new ServicesController(servicesService);
+    const controller = new ServicesController(servicesService, {} as any);
     const req = { user: { role: 'WORKER', orgId: 'org-1', id: 'worker-1' } };
 
     expect(() => controller.create({} as any, req as any, [])).not.toThrow();
@@ -24,7 +24,7 @@ describe('ServicesController contract', () => {
 
   it('ADMIN puede llamar create() sin error de rol', () => {
     const servicesService = { create: jest.fn().mockReturnValue({}) } as any;
-    const controller = new ServicesController(servicesService);
+    const controller = new ServicesController(servicesService, {} as any);
     const req = { user: { role: 'ADMIN', orgId: 'org-1', id: 'admin-1' } };
 
     expect(() => controller.create({} as any, req as any, [])).not.toThrow();
@@ -33,7 +33,7 @@ describe('ServicesController contract', () => {
 
   it('SUPER_ADMIN puede llamar create() sin error de rol', () => {
     const servicesService = { create: jest.fn().mockReturnValue({}) } as any;
-    const controller = new ServicesController(servicesService);
+    const controller = new ServicesController(servicesService, {} as any);
     const req = { user: { role: 'SUPER_ADMIN', orgId: null, id: 'sa-1' } };
 
     expect(() => controller.create({} as any, req as any, [])).not.toThrow();
@@ -44,7 +44,7 @@ describe('ServicesController contract', () => {
     const servicesService = {
       getFilterOptions: jest.fn().mockReturnValue({ workers: [], assets: [] }),
     } as any;
-    const controller = new ServicesController(servicesService);
+    const controller = new ServicesController(servicesService, {} as any);
     const req = { user: { role: 'ADMIN', orgId: 'org-1', id: 'admin-1' } };
 
     expect(controller.getFilterOptions(req as any)).toEqual({

@@ -31,12 +31,6 @@ export class UploadsController {
     private readonly reconciliationService: UploadReconciliationService,
   ) {}
 
-  @Get('services/attachment-config')
-  @ApiOperation({ summary: 'Configuracion efectiva para adjuntos de servicio' })
-  getAttachmentConfig(@Request() req) {
-    return this.uploadsService.getAttachmentConfig(req.user);
-  }
-
   @Post('services/:serviceId/attachments/upload-intents')
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: 'Crear intencion de carga directa a Supabase' })
