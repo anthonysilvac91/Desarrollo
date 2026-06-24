@@ -38,6 +38,15 @@ backend/uploads/
 dev.db
 *.db
 *.db-journal
+backend/*.js
+backend/*.d.ts
+backend/*.js.map
+backend/prisma/seed.js
+backend/prisma/seed.d.ts
+backend/prisma/seed.js.map
+backend/scripts/*.js
+backend/scripts/*.d.ts
+backend/scripts/*.js.map
 
 # Frontend (Next.js - Preparación)
 .next/
