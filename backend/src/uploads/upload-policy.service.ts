@@ -43,15 +43,21 @@ export class UploadPolicyService {
   }
 
   async resolvePolicy(organizationId: string): Promise<AttachmentPolicy> {
-    const org = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: {
-        video_uploads_enabled: true,
-        storage_quota_bytes: true,
-        max_video_file_bytes: true,
-        upload_concurrency_limit: true,
-      },
-    });
+    const [org, subscription] = await Promise.all([
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          video_uploads_enabled: true,
+          storage_quota_bytes: true,
+          max_video_file_bytes: true,
+          upload_concurrency_limit: true,
+        },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { organization_id: organizationId },
+        select: { max_storage_gb: true },
+      }),
+    ]);
 
     if (!org) {
       throw new ForbiddenException('Organizacion no disponible');
@@ -63,7 +69,10 @@ export class UploadPolicyService {
         String(100 * 1024 * 1024),
       ),
     );
-    const quotaBytes = org.storage_quota_bytes ?? globalQuota;
+    const planQuota = subscription?.max_storage_gb
+      ? BigInt(subscription.max_storage_gb) * 1024n * 1024n * 1024n
+      : null;
+    const quotaBytes = org.storage_quota_bytes ?? planQuota ?? globalQuota;
     const maxVideoFileBytes =
       org.max_video_file_bytes ??
       BigInt(
