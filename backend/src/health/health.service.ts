@@ -12,7 +12,10 @@ export class HealthService {
     try {
       await this.prisma.$queryRaw(Prisma.sql`SELECT 1`);
     } catch (err) {
-      this.logger.error('Database health check failed', err instanceof Error ? err.message : 'unknown error');
+      this.logger.error(
+        'Database health check failed',
+        err instanceof Error ? err.message : 'unknown error',
+      );
       throw err;
     }
   }

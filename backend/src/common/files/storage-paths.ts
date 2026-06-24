@@ -6,11 +6,17 @@ export function buildUserAvatarPath(orgId: string, userId: string): string {
   return `org/${orgId}/users/${userId}/avatar`;
 }
 
-export function buildAssetThumbnailPath(orgId: string, assetId: string): string {
+export function buildAssetThumbnailPath(
+  orgId: string,
+  assetId: string,
+): string {
   return `org/${orgId}/assets/${assetId}/thumbnail`;
 }
 
-export function buildServiceAttachmentsPath(orgId: string, serviceId: string): string {
+export function buildServiceAttachmentsPath(
+  orgId: string,
+  serviceId: string,
+): string {
   return `org/${orgId}/services/${serviceId}/attachments`;
 }
 

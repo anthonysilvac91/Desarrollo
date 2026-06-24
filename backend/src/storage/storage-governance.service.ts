@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  PayloadTooLargeException,
-} from '@nestjs/common';
+import { Injectable, Logger, PayloadTooLargeException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
@@ -34,13 +30,23 @@ export class StorageGovernanceService {
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
   ) {
-    this.quotaBytes = this.configService.get<number>('ORG_STORAGE_QUOTA_BYTES', 100 * 1024 * 1024);
+    this.quotaBytes = this.configService.get<number>(
+      'ORG_STORAGE_QUOTA_BYTES',
+      100 * 1024 * 1024,
+    );
   }
 
-  async getOrganizationUsage(organizationId: string): Promise<OrganizationStorageUsage> {
+  async getOrganizationUsage(
+    organizationId: string,
+  ): Promise<OrganizationStorageUsage> {
     const refs = await this.listOrganizationFileRefs(organizationId);
-    const sizes = await Promise.all(refs.map((ref) => this.storageService.getFileSize(ref)));
-    const bytesUsed = sizes.reduce<number>((total, size) => total + (size ?? 0), 0);
+    const sizes = await Promise.all(
+      refs.map((ref) => this.storageService.getFileSize(ref)),
+    );
+    const bytesUsed = sizes.reduce<number>(
+      (total, size) => total + (size ?? 0),
+      0,
+    );
     const quotaBytes = this.quotaBytes > 0 ? this.quotaBytes : null;
 
     return {
@@ -48,7 +54,8 @@ export class StorageGovernanceService {
       bytesUsed,
       fileCount: refs.length,
       quotaBytes,
-      availableBytes: quotaBytes === null ? null : Math.max(quotaBytes - bytesUsed, 0),
+      availableBytes:
+        quotaBytes === null ? null : Math.max(quotaBytes - bytesUsed, 0),
       quotaExceeded: quotaBytes === null ? false : bytesUsed > quotaBytes,
     };
   }
@@ -118,7 +125,9 @@ export class StorageGovernanceService {
     };
   }
 
-  private async listOrganizationFileRefs(organizationId: string): Promise<string[]> {
+  private async listOrganizationFileRefs(
+    organizationId: string,
+  ): Promise<string[]> {
     const storedFiles = await this.prisma.storedFile.findMany({
       where: { organization_id: organizationId },
       select: { storage_ref: true },
@@ -128,12 +137,17 @@ export class StorageGovernanceService {
       new Set(
         storedFiles
           .map((item) => item.storage_ref)
-          .filter((ref): ref is string => !!ref && this.storageService.canHandleFileRef(ref)),
+          .filter(
+            (ref): ref is string =>
+              !!ref && this.storageService.canHandleFileRef(ref),
+          ),
       ),
     );
   }
 
-  private async listStoredFileRefsByIds(storedFileIds: string[]): Promise<string[]> {
+  private async listStoredFileRefsByIds(
+    storedFileIds: string[],
+  ): Promise<string[]> {
     const ids = storedFileIds.filter((id) => !!id);
     if (!ids.length) {
       return [];
@@ -146,6 +160,9 @@ export class StorageGovernanceService {
 
     return storedFiles
       .map((item) => item.storage_ref)
-      .filter((ref): ref is string => !!ref && this.storageService.canHandleFileRef(ref));
+      .filter(
+        (ref): ref is string =>
+          !!ref && this.storageService.canHandleFileRef(ref),
+      );
   }
 }

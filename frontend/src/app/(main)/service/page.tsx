@@ -63,6 +63,22 @@ const ServiceEvidenceAvatar = ({ item, className, iconClassName }: ServiceEviden
   );
 };
 
+const AttachmentStatusBadge = ({ item }: { item: Service }) => {
+  const summary = item.attachmentUploadSummary;
+  if (!summary || summary.status === "NONE" || summary.status === "READY") return null;
+  const label = summary.status === "FAILED"
+    ? `No se pudieron cargar ${summary.failed} archivo${summary.failed === 1 ? "" : "s"}`
+    : `${summary.ready} de ${summary.expected} archivos listos`;
+  const className = summary.status === "FAILED"
+    ? "bg-red-50 text-red-600 border-red-100"
+    : "bg-amber-50 text-amber-700 border-amber-100";
+  return (
+    <span className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${className}`}>
+      {label}
+    </span>
+  );
+};
+
 const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
   <div
     onClick={onClick}
@@ -95,6 +111,9 @@ const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
             <Calendar className="w-3 h-3 text-brand shrink-0" />
             <span className="text-[11px] text-subtitle/70 font-semibold">{formatDate(item.created_at)}</span>
           </div>
+        </div>
+        <div className="mt-2">
+          <AttachmentStatusBadge item={item} />
         </div>
       </div>
 
@@ -285,7 +304,12 @@ export default function ServicesPage() {
             className="w-[52px] h-[52px] border-2 border-surface shadow-sm"
             iconClassName="w-5 h-5 text-brand"
           />
-          <span className="font-bold text-title text-xs">{item.title}</span>
+          <div className="min-w-0">
+            <span className="font-bold text-title text-xs">{item.title}</span>
+            <div className="mt-1">
+              <AttachmentStatusBadge item={item} />
+            </div>
+          </div>
         </div>
       )
     },

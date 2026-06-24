@@ -8,19 +8,14 @@ describe('DashboardController', () => {
     } as unknown as DashboardService;
     const controller = new DashboardController(dashboardService);
 
-    controller.getStats(
-      undefined as any,
-      undefined as any,
-      undefined as any,
-      {
-        user: {
-          id: 'external-1',
-          role: 'EXTERNAL',
-          orgId: 'org-1',
-          owner_id: 'owner-1',
-        },
+    controller.getStats(undefined as any, undefined as any, undefined as any, {
+      user: {
+        id: 'external-1',
+        role: 'EXTERNAL',
+        orgId: 'org-1',
+        owner_id: 'owner-1',
       },
-    );
+    });
 
     expect(dashboardService.getStats).toHaveBeenCalledWith(
       {

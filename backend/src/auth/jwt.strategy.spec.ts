@@ -29,7 +29,9 @@ describe('JwtStrategy.validate()', () => {
 
   it('JWT válido pero usuario no existe => Unauthorized', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(null);
-    await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('JWT válido pero user.is_active=false => Unauthorized', async () => {
@@ -41,7 +43,9 @@ describe('JwtStrategy.validate()', () => {
       is_active: false,
       organization: { id: 'org-1', is_active: true },
     });
-    await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('JWT válido pero user.role cambió en DB => req.user usa rol de DB', async () => {
@@ -80,7 +84,9 @@ describe('JwtStrategy.validate()', () => {
       is_active: true,
       organization: null,
     });
-    await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('Usuario no SUPER_ADMIN con Organization inactiva => Unauthorized', async () => {
@@ -92,7 +98,9 @@ describe('JwtStrategy.validate()', () => {
       is_active: true,
       organization: { id: 'org-1', is_active: false },
     });
-    await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('SUPER_ADMIN con organization_id null => permitido, orgId=null', async () => {
@@ -119,7 +127,9 @@ describe('JwtStrategy.validate()', () => {
       is_active: true,
       organization: { id: 'org-1', is_active: true },
     });
-    await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('EXTERNAL sin owner_id => Unauthorized', async () => {
@@ -131,7 +141,9 @@ describe('JwtStrategy.validate()', () => {
       is_active: true,
       organization: { id: 'org-1', is_active: true },
     });
-    await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
+    await expect(strategy.validate(payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('EXTERNAL con owner_id => permitido, owner_id viene de DB no del JWT', async () => {
@@ -143,7 +155,10 @@ describe('JwtStrategy.validate()', () => {
       is_active: true,
       organization: { id: 'org-1', is_active: true },
     });
-    const result = await strategy.validate({ sub: 'user-1', owner_id: 'owner-jwt' });
+    const result = await strategy.validate({
+      sub: 'user-1',
+      owner_id: 'owner-jwt',
+    });
     expect(result.owner_id).toBe('owner-db');
     expect(result.orgId).toBe('org-1');
   });

@@ -1,5 +1,11 @@
 import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateOwnProfileDto {
   @ApiProperty({ required: false })
@@ -24,16 +30,23 @@ export class UpdateOwnProfileDto {
 
   @ApiProperty({ required: false })
   @IsString()
-  @MinLength(6, { message: 'La nueva contrasena debe tener al menos 6 caracteres' })
+  @MinLength(6, {
+    message: 'La nueva contrasena debe tener al menos 6 caracteres',
+  })
   @IsOptional()
   new_password?: string;
 
-  @ApiProperty({ required: false, description: 'Si es "true", elimina el avatar del usuario.' })
+  @ApiProperty({
+    required: false,
+    description: 'Si es "true", elimina el avatar del usuario.',
+  })
   @IsString()
   @IsOptional()
   remove_avatar?: string;
 
   @ApiHideProperty()
-  @IsEmpty({ message: 'avatar_url is no longer accepted; upload avatar file instead' })
+  @IsEmpty({
+    message: 'avatar_url is no longer accepted; upload avatar file instead',
+  })
   avatar_url?: string;
 }

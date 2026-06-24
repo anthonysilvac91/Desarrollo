@@ -1,5 +1,16 @@
-import { IsEmpty, IsString, IsNotEmpty, MinLength, IsOptional, IsUUID } from 'class-validator';
-import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmpty,
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  IsOptional,
+  IsUUID,
+} from 'class-validator';
+import {
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty({ description: 'Token de invitación.' })
@@ -22,7 +33,9 @@ export class RegisterDto {
   @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
-  @ApiPropertyOptional({ description: 'ID canonico del owner para el registro.' })
+  @ApiPropertyOptional({
+    description: 'ID canonico del owner para el registro.',
+  })
   @IsUUID()
   @IsOptional()
   owner_id?: string;

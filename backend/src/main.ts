@@ -26,9 +26,13 @@ function requireProductionEnv(configService: ConfigService) {
     'CORS_ORIGIN',
   ];
 
-  const missing = requiredEnvVars.filter((key) => !configService.get<string>(key));
+  const missing = requiredEnvVars.filter(
+    (key) => !configService.get<string>(key),
+  );
   if (missing.length > 0) {
-    throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
+    throw new Error(
+      `Missing required production environment variables: ${missing.join(', ')}`,
+    );
   }
 
   if (configService.get<string>('STORAGE_TYPE') !== 'supabase') {
@@ -37,7 +41,11 @@ function requireProductionEnv(configService: ConfigService) {
 }
 
 function parseCorsOrigins(configService: ConfigService): string[] {
-  return (configService.get<string>('CORS_ORIGIN') ?? configService.get<string>('CORS_ORIGINS') ?? '')
+  return (
+    configService.get<string>('CORS_ORIGIN') ??
+    configService.get<string>('CORS_ORIGINS') ??
+    ''
+  )
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -54,11 +62,13 @@ async function bootstrap() {
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   const allowedOrigins = parseCorsOrigins(configService);
 
-  app.use(helmet({
-    crossOriginResourcePolicy: {
-      policy: isProduction ? 'same-origin' : 'cross-origin',
-    },
-  }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: {
+        policy: isProduction ? 'same-origin' : 'cross-origin',
+      },
+    }),
+  );
 
   const logger = new Logger('RequestTiming');
   app.use((req, res, next) => {
@@ -66,7 +76,9 @@ async function bootstrap() {
     res.on('finish', () => {
       const durationMs = Date.now() - startedAt;
       if (durationMs >= 300) {
-        logger.log(`${req.method} ${req.originalUrl ?? req.url} ${res.statusCode} ${durationMs}ms`);
+        logger.log(
+          `${req.method} ${req.originalUrl ?? req.url} ${res.statusCode} ${durationMs}ms`,
+        );
       }
     });
     next();
@@ -94,19 +106,23 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
   app.useGlobalFilters(new AllExceptionsFilter());
 
   if (!isProduction) {
     const config = new DocumentBuilder()
       .setTitle('Recall MVP API')
-      .setDescription('API central del sistema Recall. La ruta oficial para owners es /owners.')
+      .setDescription(
+        'API central del sistema Recall. La ruta oficial para owners es /owners.',
+      )
       .setVersion('1.0')
       .addBearerAuth()
       .build();

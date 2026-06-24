@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -47,16 +53,27 @@ export class AuthService {
     private emailService: EmailService,
   ) {}
 
-  private buildAccessPayload(user: {
-    id: string;
-    role: string;
-    organization_id: string | null;
-    owner_id: string | null;
-  }, session?: { id: string; token_jti: string }) {
-    const sessionPayload = session ? { sid: session.id, jti: session.token_jti } : {};
+  private buildAccessPayload(
+    user: {
+      id: string;
+      role: string;
+      organization_id: string | null;
+      owner_id: string | null;
+    },
+    session?: { id: string; token_jti: string },
+  ) {
+    const sessionPayload = session
+      ? { sid: session.id, jti: session.token_jti }
+      : {};
 
     if (user.role === 'SUPER_ADMIN') {
-      return { sub: user.id, orgId: null, role: 'SUPER_ADMIN', owner_id: null, ...sessionPayload };
+      return {
+        sub: user.id,
+        orgId: null,
+        role: 'SUPER_ADMIN',
+        owner_id: null,
+        ...sessionPayload,
+      };
     }
 
     return {
@@ -68,12 +85,15 @@ export class AuthService {
     };
   }
 
-  private signAccessToken(user: {
-    id: string;
-    role: string;
-    organization_id: string | null;
-    owner_id: string | null;
-  }, session?: { id: string; token_jti: string }) {
+  private signAccessToken(
+    user: {
+      id: string;
+      role: string;
+      organization_id: string | null;
+      owner_id: string | null;
+    },
+    session?: { id: string; token_jti: string },
+  ) {
     return this.jwtService.sign(this.buildAccessPayload(user, session));
   }
 
@@ -83,33 +103,49 @@ export class AuthService {
     const isTablet = /iPad|Tablet/i.test(ua);
     const device_type = isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop';
 
-    const browser =
-      /Edg\/([\d.]+)/.exec(ua)?.[1] ? `Microsoft Edge ${/Edg\/([\d.]+)/.exec(ua)?.[1]}` :
-      /Chrome\/([\d.]+)/.exec(ua)?.[1] ? `Chrome ${/Chrome\/([\d.]+)/.exec(ua)?.[1]}` :
-      /Firefox\/([\d.]+)/.exec(ua)?.[1] ? `Firefox ${/Firefox\/([\d.]+)/.exec(ua)?.[1]}` :
-      /Version\/([\d.]+).*Safari/.exec(ua)?.[1] ? `Safari ${/Version\/([\d.]+).*Safari/.exec(ua)?.[1]}` :
-      /Safari\/([\d.]+)/.exec(ua)?.[1] ? 'Safari' :
-      'Unknown browser';
+    const browser = /Edg\/([\d.]+)/.exec(ua)?.[1]
+      ? `Microsoft Edge ${/Edg\/([\d.]+)/.exec(ua)?.[1]}`
+      : /Chrome\/([\d.]+)/.exec(ua)?.[1]
+        ? `Chrome ${/Chrome\/([\d.]+)/.exec(ua)?.[1]}`
+        : /Firefox\/([\d.]+)/.exec(ua)?.[1]
+          ? `Firefox ${/Firefox\/([\d.]+)/.exec(ua)?.[1]}`
+          : /Version\/([\d.]+).*Safari/.exec(ua)?.[1]
+            ? `Safari ${/Version\/([\d.]+).*Safari/.exec(ua)?.[1]}`
+            : /Safari\/([\d.]+)/.exec(ua)?.[1]
+              ? 'Safari'
+              : 'Unknown browser';
 
-    const os =
-      /Windows NT 10/.test(ua) ? 'Windows 10/11' :
-      /Windows NT 6\.3/.test(ua) ? 'Windows 8.1' :
-      /Windows NT 6\.1/.test(ua) ? 'Windows 7' :
-      /Mac OS X ([\d_]+)/.exec(ua)?.[1] ? `macOS ${/Mac OS X ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}` :
-      /Android ([\d.]+)/.exec(ua)?.[1] ? `Android ${/Android ([\d.]+)/.exec(ua)?.[1]}` :
-      /iPhone OS ([\d_]+)/.exec(ua)?.[1] ? `iOS ${/iPhone OS ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}` :
-      /CPU OS ([\d_]+)/.exec(ua)?.[1] ? `iPadOS ${/CPU OS ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}` :
-      /Linux/.test(ua) ? 'Linux' :
-      'Unknown OS';
+    const os = /Windows NT 10/.test(ua)
+      ? 'Windows 10/11'
+      : /Windows NT 6\.3/.test(ua)
+        ? 'Windows 8.1'
+        : /Windows NT 6\.1/.test(ua)
+          ? 'Windows 7'
+          : /Mac OS X ([\d_]+)/.exec(ua)?.[1]
+            ? `macOS ${/Mac OS X ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}`
+            : /Android ([\d.]+)/.exec(ua)?.[1]
+              ? `Android ${/Android ([\d.]+)/.exec(ua)?.[1]}`
+              : /iPhone OS ([\d_]+)/.exec(ua)?.[1]
+                ? `iOS ${/iPhone OS ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}`
+                : /CPU OS ([\d_]+)/.exec(ua)?.[1]
+                  ? `iPadOS ${/CPU OS ([\d_]+)/.exec(ua)?.[1].replace(/_/g, '.')}`
+                  : /Linux/.test(ua)
+                    ? 'Linux'
+                    : 'Unknown OS';
 
-    const device_name =
-      /iPhone/.test(ua) ? 'iPhone' :
-      /iPad/.test(ua) ? 'iPad' :
-      /Android/.test(ua) ? 'Android Device' :
-      /Macintosh/.test(ua) ? 'Mac' :
-      /Windows/.test(ua) ? 'Windows PC' :
-      /Linux/.test(ua) ? 'Linux Device' :
-      'Unknown Device';
+    const device_name = /iPhone/.test(ua)
+      ? 'iPhone'
+      : /iPad/.test(ua)
+        ? 'iPad'
+        : /Android/.test(ua)
+          ? 'Android Device'
+          : /Macintosh/.test(ua)
+            ? 'Mac'
+            : /Windows/.test(ua)
+              ? 'Windows PC'
+              : /Linux/.test(ua)
+                ? 'Linux Device'
+                : 'Unknown Device';
 
     return { device_name, device_type, browser, os };
   }
@@ -145,13 +181,20 @@ export class AuthService {
 
   private parseGeoIpResponse(data: any): Omit<ResolvedIpLocation, 'ipAddress'> {
     return {
-      country: data.country_name || data.countryName || data.country || data.countryCode || null,
+      country:
+        data.country_name ||
+        data.countryName ||
+        data.country ||
+        data.countryCode ||
+        null,
       region: data.region || data.regionName || data.region_name || null,
       city: data.city || data.cityName || null,
     };
   }
 
-  private async fetchGeoIpLocation(ip: string): Promise<Omit<ResolvedIpLocation, 'ipAddress'> | null> {
+  private async fetchGeoIpLocation(
+    ip: string,
+  ): Promise<Omit<ResolvedIpLocation, 'ipAddress'> | null> {
     const customTemplate = this.config.get<string>('GEOIP_LOOKUP_URL_TEMPLATE');
     const templates = [
       customTemplate,
@@ -164,9 +207,12 @@ export class AuthService {
 
     for (const template of templates) {
       try {
-        const response = await fetch(template.replace('{ip}', encodeURIComponent(ip)), {
-          signal: AbortSignal.timeout(1800),
-        });
+        const response = await fetch(
+          template.replace('{ip}', encodeURIComponent(ip)),
+          {
+            signal: AbortSignal.timeout(1800),
+          },
+        );
 
         if (!response.ok) continue;
 
@@ -174,7 +220,8 @@ export class AuthService {
         if (data.success === false || data.status === 'fail') continue;
 
         const location = this.parseGeoIpResponse(data);
-        if (location.country || location.region || location.city) return location;
+        if (location.country || location.region || location.city)
+          return location;
       } catch {
         continue;
       }
@@ -183,7 +230,9 @@ export class AuthService {
     return null;
   }
 
-  private async resolveIpLocation(context?: AuthRequestContext): Promise<ResolvedIpLocation> {
+  private async resolveIpLocation(
+    context?: AuthRequestContext,
+  ): Promise<ResolvedIpLocation> {
     const ip = this.normalizeIp(context?.ipAddress);
     const headerLocation = {
       country: context?.country || null,
@@ -193,23 +242,35 @@ export class AuthService {
 
     if (!ip) return { ipAddress: null, ...headerLocation };
 
-    if (headerLocation.country || headerLocation.region || headerLocation.city) {
+    if (
+      headerLocation.country ||
+      headerLocation.region ||
+      headerLocation.city
+    ) {
       return { ipAddress: ip, ...headerLocation };
     }
 
     if (this.isPrivateIp(ip)) {
-      return { ipAddress: ip, country: null, region: null, city: 'Local network' };
+      return {
+        ipAddress: ip,
+        country: null,
+        region: null,
+        city: 'Local network',
+      };
     }
 
     const lookupLocation = await this.fetchGeoIpLocation(ip);
     return { ipAddress: ip, ...(lookupLocation || headerLocation) };
   }
 
-  private async createSession(user: {
-    id: string;
-    role: string;
-    organization_id: string | null;
-  }, context?: AuthRequestContext) {
+  private async createSession(
+    user: {
+      id: string;
+      role: string;
+      organization_id: string | null;
+    },
+    context?: AuthRequestContext,
+  ) {
     const now = new Date();
     const tokenJti = randomBytes(24).toString('hex');
     const device = this.parseDevice(context?.userAgent);
@@ -275,14 +336,16 @@ export class AuthService {
   }
 
   private normalizeSlugBase(name: string): string {
-    return name
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .substring(0, 36) || 'organization';
+    return (
+      name
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 36) || 'organization'
+    );
   }
 
   private async buildUniqueOrganizationSlug(name: string) {
@@ -291,7 +354,9 @@ export class AuthService {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const suffix = randomBytes(3).toString('hex');
       const slug = `${base}-${suffix}`;
-      const existing = await this.prisma.organization.findUnique({ where: { slug } });
+      const existing = await this.prisma.organization.findUnique({
+        where: { slug },
+      });
       if (!existing) return slug;
     }
 
@@ -317,7 +382,9 @@ export class AuthService {
 
     if (user.role === 'SUPER_ADMIN') {
       if (user.organization_id !== null) {
-        this.logger.warn(`SUPER_ADMIN ${user.id} has organization_id, rejecting`);
+        this.logger.warn(
+          `SUPER_ADMIN ${user.id} has organization_id, rejecting`,
+        );
         throw new UnauthorizedException('Invalid credentials');
       }
       if (user.two_factor_enabled) {
@@ -336,7 +403,11 @@ export class AuthService {
       return { access_token: this.signAccessToken(user, session) };
     }
 
-    if (!user.organization_id || !user.organization || !user.organization.is_active) {
+    if (
+      !user.organization_id ||
+      !user.organization ||
+      !user.organization.is_active
+    ) {
       this.logger.warn(`User ${user.id} missing or inactive organization`);
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -364,7 +435,11 @@ export class AuthService {
     return { access_token: this.signAccessToken(user, session) };
   }
 
-  async loginWithTwoFactor(temporaryToken: string, code: string, context?: AuthRequestContext) {
+  async loginWithTwoFactor(
+    temporaryToken: string,
+    code: string,
+    context?: AuthRequestContext,
+  ) {
     let payload: any;
     try {
       payload = this.jwtService.verify(temporaryToken);
@@ -381,7 +456,13 @@ export class AuthService {
       include: { organization: { select: { id: true, is_active: true } } },
     });
 
-    if (!user || !user.is_active || !user.two_factor_enabled || !user.two_factor_secret || user.two_factor_method !== 'APP') {
+    if (
+      !user ||
+      !user.is_active ||
+      !user.two_factor_enabled ||
+      !user.two_factor_secret ||
+      user.two_factor_method !== 'APP'
+    ) {
       throw new UnauthorizedException('2FA no disponible');
     }
 
@@ -395,7 +476,7 @@ export class AuthService {
     }
 
     const backupCodes = Array.isArray(user.two_factor_backup_codes)
-      ? user.two_factor_backup_codes as string[]
+      ? (user.two_factor_backup_codes as string[])
       : [];
     const backupResult = await this.verifyBackupCode(code, backupCodes);
     const validTotp = verifyTotpCode(user.two_factor_secret, code);
@@ -408,7 +489,9 @@ export class AuthService {
       where: { id: user.id },
       data: {
         last_login_at: new Date(),
-        ...(backupResult.valid ? { two_factor_backup_codes: backupResult.remainingHashes } : {}),
+        ...(backupResult.valid
+          ? { two_factor_backup_codes: backupResult.remainingHashes }
+          : {}),
       },
     });
 
@@ -419,10 +502,16 @@ export class AuthService {
   async register(registerDto: RegisterDto, context?: AuthRequestContext) {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token: registerDto.token },
-      include: { organization: { select: { id: true, name: true, is_active: true } } },
+      include: {
+        organization: { select: { id: true, name: true, is_active: true } },
+      },
     });
 
-    if (!invitation || invitation.is_used || invitation.expires_at < new Date()) {
+    if (
+      !invitation ||
+      invitation.is_used ||
+      invitation.expires_at < new Date()
+    ) {
       throw new BadRequestException('Token de invitación inválido o expirado');
     }
 
@@ -430,7 +519,9 @@ export class AuthService {
       throw new ForbiddenException('La organización no está activa');
     }
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email: invitation.email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: invitation.email },
+    });
     if (existingUser) {
       throw new BadRequestException('Ya existe una cuenta con este correo');
     }
@@ -461,7 +552,10 @@ export class AuthService {
     return { access_token: this.signAccessToken(user, session) };
   }
 
-  async registerOrganization(dto: RegisterOrganizationDto, context?: AuthRequestContext) {
+  async registerOrganization(
+    dto: RegisterOrganizationDto,
+    context?: AuthRequestContext,
+  ) {
     const email = dto.email.trim().toLowerCase();
     const organizationName = dto.organization_name.trim();
     const adminName = dto.admin_name.trim();
@@ -474,46 +568,54 @@ export class AuthService {
       throw new BadRequestException('Admin name is required');
     }
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
     if (existingUser) {
-      throw new BadRequestException('An account with this email already exists');
+      throw new BadRequestException(
+        'An account with this email already exists',
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const slug = await this.buildUniqueOrganizationSlug(organizationName);
 
-    const { organization, user } = await this.prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.create({
-        data: {
-          name: organizationName,
-          slug,
-          is_active: true,
-        },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          is_active: true,
-        },
-      });
+    const { organization, user } = await this.prisma.$transaction(
+      async (tx) => {
+        const organization = await tx.organization.create({
+          data: {
+            name: organizationName,
+            slug,
+            is_active: true,
+          },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            is_active: true,
+          },
+        });
 
-      const user = await tx.user.create({
-        data: {
-          email,
-          name: adminName,
-          password_hash: passwordHash,
-          role: 'ADMIN',
-          organization_id: organization.id,
-          owner_id: null,
-        },
-      });
+        const user = await tx.user.create({
+          data: {
+            email,
+            name: adminName,
+            password_hash: passwordHash,
+            role: 'ADMIN',
+            organization_id: organization.id,
+            owner_id: null,
+          },
+        });
 
-      return { organization, user };
-    });
+        return { organization, user };
+      },
+    );
 
     const session = await this.createSession(user, context);
 
-    this.logger.log(`Organization ${organization.id} registered with admin ${user.id}`);
+    this.logger.log(
+      `Organization ${organization.id} registered with admin ${user.id}`,
+    );
     return {
       access_token: this.signAccessToken(user, session),
       organization,
@@ -538,7 +640,9 @@ export class AuthService {
       const fingerprint = `${session.user_agent || 'unknown'}|${session.ip_address || 'unknown'}`;
       if (session.id === currentSessionId) {
         const existingIndex = dedupedSessions.findIndex(
-          (dedupedSession) => `${dedupedSession.user_agent || 'unknown'}|${dedupedSession.ip_address || 'unknown'}` === fingerprint,
+          (dedupedSession) =>
+            `${dedupedSession.user_agent || 'unknown'}|${dedupedSession.ip_address || 'unknown'}` ===
+            fingerprint,
         );
         if (existingIndex >= 0) {
           duplicateSessionIds.push(dedupedSessions[existingIndex].id);
@@ -549,7 +653,10 @@ export class AuthService {
         continue;
       }
 
-      if (!seenFingerprints.has(fingerprint) || session.id === currentSessionId) {
+      if (
+        !seenFingerprints.has(fingerprint) ||
+        session.id === currentSessionId
+      ) {
         seenFingerprints.add(fingerprint);
         dedupedSessions.push(session);
         continue;
@@ -566,19 +673,23 @@ export class AuthService {
       sessions = dedupedSessions;
     }
 
-    const sessionsToBackfill = sessions.filter((session) =>
-      session.ip_address &&
-      !this.isPrivateIp(session.ip_address) &&
-      !session.country &&
-      !session.region &&
-      !session.city
+    const sessionsToBackfill = sessions.filter(
+      (session) =>
+        session.ip_address &&
+        !this.isPrivateIp(session.ip_address) &&
+        !session.country &&
+        !session.region &&
+        !session.city,
     );
 
     if (sessionsToBackfill.length > 0) {
       const updates = await Promise.all(
         sessionsToBackfill.map(async (session) => {
-          const location = await this.resolveIpLocation({ ipAddress: session.ip_address ?? undefined });
-          if (!location.country && !location.region && !location.city) return null;
+          const location = await this.resolveIpLocation({
+            ipAddress: session.ip_address ?? undefined,
+          });
+          if (!location.country && !location.region && !location.city)
+            return null;
 
           await this.prisma.userSession.updateMany({
             where: { id: session.id, user_id: userId, revoked_at: null },
@@ -596,7 +707,12 @@ export class AuthService {
       sessions = sessions.map((session) => {
         const update = updates.find((item) => item?.id === session.id);
         return update
-          ? { ...session, country: update.country, region: update.region, city: update.city }
+          ? {
+              ...session,
+              country: update.country,
+              region: update.region,
+              city: update.city,
+            }
           : session;
       });
     }
@@ -608,7 +724,10 @@ export class AuthService {
       browser: session.browser,
       os: session.os,
       ip_address: session.ip_address,
-      location: [session.city, session.region, session.country].filter(Boolean).join(', ') || null,
+      location:
+        [session.city, session.region, session.country]
+          .filter(Boolean)
+          .join(', ') || null,
       first_seen_at: session.first_seen_at,
       last_seen_at: session.last_seen_at,
       is_current: session.id === currentSessionId,
@@ -616,9 +735,15 @@ export class AuthService {
     }));
   }
 
-  async revokeSession(userId: string, sessionId: string, currentSessionId?: string) {
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    currentSessionId?: string,
+  ) {
     if (sessionId === currentSessionId) {
-      throw new BadRequestException('No puedes cerrar la sesion actual desde esta accion');
+      throw new BadRequestException(
+        'No puedes cerrar la sesion actual desde esta accion',
+      );
     }
 
     await this.prisma.userSession.updateMany({
@@ -654,20 +779,28 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const genericResponse = { message: 'Si el correo existe recibirás un enlace de recuperación.' };
+    const genericResponse = {
+      message: 'Si el correo existe recibirás un enlace de recuperación.',
+    };
 
     if (!this.emailService.isEnabled()) {
-      this.logger.error('forgotPassword called but EmailService is disabled (RESEND_API_KEY missing)');
+      this.logger.error(
+        'forgotPassword called but EmailService is disabled (RESEND_API_KEY missing)',
+      );
       return genericResponse;
     }
 
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     if (!frontendUrl) {
-      this.logger.error('FRONTEND_URL is not set — cannot build password reset link');
+      this.logger.error(
+        'FRONTEND_URL is not set — cannot build password reset link',
+      );
       return genericResponse;
     }
 
-    const user = await this.prisma.user.findFirst({ where: { email, is_active: true } });
+    const user = await this.prisma.user.findFirst({
+      where: { email, is_active: true },
+    });
 
     // Respuesta genérica para no exponer si el email existe
     if (!user) {
@@ -696,7 +829,10 @@ export class AuthService {
     return genericResponse;
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
     const emailToken = await this.prisma.emailToken.findUnique({
       where: { token },
     });
@@ -734,7 +870,11 @@ export class AuthService {
   async getTwoFactorStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { two_factor_enabled: true, two_factor_method: true, two_factor_backup_codes: true },
+      select: {
+        two_factor_enabled: true,
+        two_factor_method: true,
+        two_factor_backup_codes: true,
+      },
     });
 
     if (!user) {
@@ -743,7 +883,9 @@ export class AuthService {
 
     return {
       enabled: user.two_factor_enabled,
-      method: (user.two_factor_method ?? 'APP').toLowerCase() as 'app' | 'email',
+      method: (user.two_factor_method ?? 'APP').toLowerCase() as
+        | 'app'
+        | 'email',
       backup_codes_remaining: Array.isArray(user.two_factor_backup_codes)
         ? user.two_factor_backup_codes.length
         : 0,
@@ -767,7 +909,11 @@ export class AuthService {
     const secret = generateTotpSecret();
     return {
       secret,
-      otpauth_url: buildOtpAuthUrl({ issuer: 'Recall', accountName: user.email, secret }),
+      otpauth_url: buildOtpAuthUrl({
+        issuer: 'Recall',
+        accountName: user.email,
+        secret,
+      }),
       setup_token: this.signTwoFactorSetupToken(user.id, secret),
     };
   }
@@ -780,7 +926,11 @@ export class AuthService {
       throw new BadRequestException('Setup 2FA invalido o expirado');
     }
 
-    if (payload?.purpose !== '2fa_setup' || payload.sub !== userId || !payload.secret) {
+    if (
+      payload?.purpose !== '2fa_setup' ||
+      payload.sub !== userId ||
+      !payload.secret
+    ) {
       throw new BadRequestException('Setup 2FA invalido');
     }
 
@@ -789,7 +939,9 @@ export class AuthService {
     }
 
     const backupCodes = Array.from({ length: 8 }, () => generateBackupCode());
-    const backupHashes = await Promise.all(backupCodes.map((backupCode) => bcrypt.hash(backupCode, 10)));
+    const backupHashes = await Promise.all(
+      backupCodes.map((backupCode) => bcrypt.hash(backupCode, 10)),
+    );
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -826,10 +978,12 @@ export class AuthService {
       }
 
       const backupCodes = Array.isArray(user.two_factor_backup_codes)
-        ? user.two_factor_backup_codes as string[]
+        ? (user.two_factor_backup_codes as string[])
         : [];
       const backupResult = await this.verifyBackupCode(code, backupCodes);
-      const validTotp = !!user.two_factor_secret && verifyTotpCode(user.two_factor_secret, code);
+      const validTotp =
+        !!user.two_factor_secret &&
+        verifyTotpCode(user.two_factor_secret, code);
 
       if (!validTotp && !backupResult.valid) {
         throw new BadRequestException('Codigo 2FA invalido');
@@ -881,10 +1035,16 @@ export class AuthService {
       select: { id: true, two_factor_enabled: true },
     });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
-    if (user.two_factor_enabled) throw new BadRequestException('2FA ya esta activo');
+    if (user.two_factor_enabled)
+      throw new BadRequestException('2FA ya esta activo');
 
     const emailToken = await this.prisma.emailToken.findFirst({
-      where: { user_id: userId, type: 'TWO_FACTOR_CODE', used_at: null, expires_at: { gt: new Date() } },
+      where: {
+        user_id: userId,
+        type: 'TWO_FACTOR_CODE',
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
       orderBy: { created_at: 'desc' },
     });
 
@@ -892,10 +1052,15 @@ export class AuthService {
       throw new BadRequestException('Codigo invalido o expirado');
     }
 
-    await this.prisma.emailToken.update({ where: { id: emailToken.id }, data: { used_at: new Date() } });
+    await this.prisma.emailToken.update({
+      where: { id: emailToken.id },
+      data: { used_at: new Date() },
+    });
 
     const backupCodes = Array.from({ length: 8 }, () => generateBackupCode());
-    const backupHashes = await Promise.all(backupCodes.map((c) => bcrypt.hash(c, 10)));
+    const backupHashes = await Promise.all(
+      backupCodes.map((c) => bcrypt.hash(c, 10)),
+    );
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -913,7 +1078,11 @@ export class AuthService {
   async disableTwoFactorEmail(userId: string, code: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { two_factor_enabled: true, two_factor_method: true, two_factor_backup_codes: true },
+      select: {
+        two_factor_enabled: true,
+        two_factor_method: true,
+        two_factor_backup_codes: true,
+      },
     });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
     if (!user.two_factor_enabled || user.two_factor_method !== 'EMAIL') {
@@ -921,11 +1090,21 @@ export class AuthService {
     }
 
     const normalizedCode = normalizeCode(code);
-    const backupCodes = Array.isArray(user.two_factor_backup_codes) ? user.two_factor_backup_codes as string[] : [];
-    const backupResult = await this.verifyBackupCode(normalizedCode, backupCodes);
+    const backupCodes = Array.isArray(user.two_factor_backup_codes)
+      ? (user.two_factor_backup_codes as string[])
+      : [];
+    const backupResult = await this.verifyBackupCode(
+      normalizedCode,
+      backupCodes,
+    );
 
     const emailToken = await this.prisma.emailToken.findFirst({
-      where: { user_id: userId, type: 'TWO_FACTOR_CODE', used_at: null, expires_at: { gt: new Date() } },
+      where: {
+        user_id: userId,
+        type: 'TWO_FACTOR_CODE',
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
       orderBy: { created_at: 'desc' },
     });
     const validEmailCode = emailToken && emailToken.token === normalizedCode;
@@ -935,7 +1114,10 @@ export class AuthService {
     }
 
     if (validEmailCode && emailToken) {
-      await this.prisma.emailToken.update({ where: { id: emailToken.id }, data: { used_at: new Date() } });
+      await this.prisma.emailToken.update({
+        where: { id: emailToken.id },
+        data: { used_at: new Date() },
+      });
     }
 
     await this.prisma.user.update({
@@ -964,10 +1146,22 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, name: true, is_active: true, two_factor_enabled: true, two_factor_method: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        is_active: true,
+        two_factor_enabled: true,
+        two_factor_method: true,
+      },
     });
 
-    if (!user || !user.is_active || !user.two_factor_enabled || user.two_factor_method !== 'EMAIL') {
+    if (
+      !user ||
+      !user.is_active ||
+      !user.two_factor_enabled ||
+      user.two_factor_method !== 'EMAIL'
+    ) {
       throw new UnauthorizedException('2FA por correo no disponible');
     }
 
@@ -991,7 +1185,11 @@ export class AuthService {
     return { sent: true };
   }
 
-  async loginWithEmailCode(temporaryToken: string, code: string, context?: AuthRequestContext) {
+  async loginWithEmailCode(
+    temporaryToken: string,
+    code: string,
+    context?: AuthRequestContext,
+  ) {
     let payload: any;
     try {
       payload = this.jwtService.verify(temporaryToken);
@@ -1007,7 +1205,12 @@ export class AuthService {
       include: { organization: { select: { id: true, is_active: true } } },
     });
 
-    if (!user || !user.is_active || !user.two_factor_enabled || user.two_factor_method !== 'EMAIL') {
+    if (
+      !user ||
+      !user.is_active ||
+      !user.two_factor_enabled ||
+      user.two_factor_method !== 'EMAIL'
+    ) {
       throw new UnauthorizedException('2FA por correo no disponible');
     }
 
@@ -1021,20 +1224,33 @@ export class AuthService {
     }
 
     const normalizedCode = normalizeCode(code);
-    const backupCodes = Array.isArray(user.two_factor_backup_codes) ? user.two_factor_backup_codes as string[] : [];
-    const backupResult = await this.verifyBackupCode(normalizedCode, backupCodes);
+    const backupCodes = Array.isArray(user.two_factor_backup_codes)
+      ? (user.two_factor_backup_codes as string[])
+      : [];
+    const backupResult = await this.verifyBackupCode(
+      normalizedCode,
+      backupCodes,
+    );
 
     if (backupResult.valid) {
       await this.prisma.user.update({
         where: { id: user.id },
-        data: { last_login_at: new Date(), two_factor_backup_codes: backupResult.remainingHashes },
+        data: {
+          last_login_at: new Date(),
+          two_factor_backup_codes: backupResult.remainingHashes,
+        },
       });
       const session = await this.createSession(user, context);
       return { access_token: this.signAccessToken(user, session) };
     }
 
     const emailToken = await this.prisma.emailToken.findFirst({
-      where: { user_id: user.id, type: 'TWO_FACTOR_CODE', used_at: null, expires_at: { gt: new Date() } },
+      where: {
+        user_id: user.id,
+        type: 'TWO_FACTOR_CODE',
+        used_at: null,
+        expires_at: { gt: new Date() },
+      },
       orderBy: { created_at: 'desc' },
     });
 
@@ -1042,8 +1258,14 @@ export class AuthService {
       throw new UnauthorizedException('Codigo 2FA invalido o expirado');
     }
 
-    await this.prisma.emailToken.update({ where: { id: emailToken.id }, data: { used_at: new Date() } });
-    await this.prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } });
+    await this.prisma.emailToken.update({
+      where: { id: emailToken.id },
+      data: { used_at: new Date() },
+    });
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { last_login_at: new Date() },
+    });
 
     const session = await this.createSession(user, context);
     return { access_token: this.signAccessToken(user, session) };
@@ -1089,15 +1311,23 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado o inactivo');
     }
 
-    (user as any).avatar_url = await this.storedFilesService.resolveFileUrl(user.avatar_file_id);
+    (user as any).avatar_url = await this.storedFilesService.resolveFileUrl(
+      user.avatar_file_id,
+    );
 
     if (user.organization) {
-      (user.organization as any).logo_url = await this.storedFilesService.resolveFileUrl(
-        user.organization.logo_file_id,
-      );
+      (user.organization as any).logo_url =
+        await this.storedFilesService.resolveFileUrl(
+          user.organization.logo_file_id,
+        );
     }
 
-    const { password_hash, two_factor_secret, two_factor_backup_codes, ...result } = user;
+    const {
+      password_hash,
+      two_factor_secret,
+      two_factor_backup_codes,
+      ...result
+    } = user;
     return {
       ...result,
       role: toApiRole(result.role),

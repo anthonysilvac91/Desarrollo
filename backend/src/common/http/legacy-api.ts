@@ -10,4 +10,3 @@ export function markLegacyResponse(res: Response) {
 export function legacyRouteDescription(officialRoute: string) {
   return `Ruta legacy. La ruta oficial es ${officialRoute}.`;
 }
-

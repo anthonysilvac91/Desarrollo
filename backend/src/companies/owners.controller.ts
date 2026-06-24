@@ -1,5 +1,24 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Request,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { imageUploadOptions } from '../common/files/multer-image-options';
@@ -19,7 +38,11 @@ export class OwnersController {
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Crear un owner' })
-  create(@Body() createCompanyDto: CreateOwnerDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
+  create(
+    @Body() createCompanyDto: CreateOwnerDto,
+    @Request() req,
+    @UploadedFile() logo?: Express.Multer.File,
+  ) {
     if (!['ADMIN', 'WORKER'].includes(req.user.role)) {
       throw new ForbiddenException('No tienes permiso para crear owners');
     }
@@ -48,11 +71,21 @@ export class OwnersController {
   @UseInterceptors(FileInterceptor('logo', imageUploadOptions(2 * 1024 * 1024)))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Actualizar un owner' })
-  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateOwnerDto, @Request() req, @UploadedFile() logo?: Express.Multer.File) {
+  update(
+    @Param('id') id: string,
+    @Body() updateCompanyDto: UpdateOwnerDto,
+    @Request() req,
+    @UploadedFile() logo?: Express.Multer.File,
+  ) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para actualizar owners');
     }
-    return this.companiesService.update(id, updateCompanyDto, req.user.orgId, logo);
+    return this.companiesService.update(
+      id,
+      updateCompanyDto,
+      req.user.orgId,
+      logo,
+    );
   }
 
   @Patch(':id/status')
@@ -66,7 +99,12 @@ export class OwnersController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar logicamente un owner' })
-  remove(@Param('id') id: string, @Body() body: { deleteAssets?: boolean; deleteServices?: boolean } | undefined, @Request() req) {
+  remove(
+    @Param('id') id: string,
+    @Body()
+    body: { deleteAssets?: boolean; deleteServices?: boolean } | undefined,
+    @Request() req,
+  ) {
     if (req.user.role !== 'ADMIN') {
       throw new ForbiddenException('No tienes permiso para eliminar owners');
     }

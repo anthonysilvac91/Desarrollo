@@ -7,17 +7,29 @@ export function generateTotpSecret(byteLength = 20): string {
 }
 
 export function generateBackupCode(): string {
-  const raw = randomBytes(9).toString('base64url').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  const raw = randomBytes(9)
+    .toString('base64url')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 10);
   return `${raw.slice(0, 5)}-${raw.slice(5)}`;
 }
 
-export function buildOtpAuthUrl(input: { issuer: string; accountName: string; secret: string }) {
+export function buildOtpAuthUrl(input: {
+  issuer: string;
+  accountName: string;
+  secret: string;
+}) {
   const issuer = encodeURIComponent(input.issuer);
   const accountName = encodeURIComponent(input.accountName);
   return `otpauth://totp/${issuer}:${accountName}?secret=${input.secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
 }
 
-export function verifyTotpCode(secret: string, code: string, window = 1): boolean {
+export function verifyTotpCode(
+  secret: string,
+  code: string,
+  window = 1,
+): boolean {
   const normalizedCode = normalizeCode(code);
   if (!/^\d{6}$/.test(normalizedCode)) {
     return false;

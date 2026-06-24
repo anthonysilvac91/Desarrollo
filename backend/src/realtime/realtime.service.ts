@@ -32,11 +32,14 @@ export class RealtimeService {
   subscribe(user: RealtimeSubscriber): Observable<MessageEvent> {
     return this.events$.pipe(
       filter((event) => this.canReceiveEvent(event, user)),
-      map((event) => ({ data: event }) as MessageEvent),
+      map((event) => ({ data: event })),
     );
   }
 
-  private canReceiveEvent(event: RealtimeEvent, user: RealtimeSubscriber): boolean {
+  private canReceiveEvent(
+    event: RealtimeEvent,
+    user: RealtimeSubscriber,
+  ): boolean {
     if (user.role === 'SUPER_ADMIN') {
       return true;
     }

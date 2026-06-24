@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -16,55 +21,85 @@ export class InvitationsService {
     private config: ConfigService,
   ) {}
 
-  async create(dto: CreateInvitationDto, actor: { id: string; role: string; orgId: string | null }) {
-    const organizationId = actor.role === 'SUPER_ADMIN' ? dto.organization_id : actor.orgId;
+  async create(
+    dto: CreateInvitationDto,
+    actor: { id: string; role: string; orgId: string | null },
+  ) {
+    const organizationId =
+      actor.role === 'SUPER_ADMIN' ? dto.organization_id : actor.orgId;
 
     if (!organizationId) {
-      throw new BadRequestException('organization_id es requerido para SUPER_ADMIN');
+      throw new BadRequestException(
+        'organization_id es requerido para SUPER_ADMIN',
+      );
     }
 
     if (dto.role === 'EXTERNAL' && !dto.owner_id) {
-      throw new BadRequestException('owner_id es requerido para invitaciones con rol EXTERNAL');
+      throw new BadRequestException(
+        'owner_id es requerido para invitaciones con rol EXTERNAL',
+      );
     }
 
     if (!this.emailService.isEnabled()) {
-      this.logger.error('Cannot create invitation: EmailService is disabled (RESEND_API_KEY missing)');
-      throw new BadRequestException('El servicio de email no está configurado. Contacta al administrador.');
+      this.logger.error(
+        'Cannot create invitation: EmailService is disabled (RESEND_API_KEY missing)',
+      );
+      throw new BadRequestException(
+        'El servicio de email no está configurado. Contacta al administrador.',
+      );
     }
 
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     if (!frontendUrl) {
       this.logger.error('Cannot create invitation: FRONTEND_URL is not set');
-      throw new BadRequestException('El servicio de email no está configurado. Contacta al administrador.');
+      throw new BadRequestException(
+        'El servicio de email no está configurado. Contacta al administrador.',
+      );
     }
 
-    const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
     if (!org || !org.is_active) {
       throw new BadRequestException('Organización no encontrada o inactiva');
     }
 
     if (dto.role === 'EXTERNAL' && dto.owner_id) {
       const owner = await this.prisma.owner.findFirst({
-        where: { id: dto.owner_id, organization_id: organizationId, is_active: true },
+        where: {
+          id: dto.owner_id,
+          organization_id: organizationId,
+          is_active: true,
+        },
         select: { id: true },
       });
       if (!owner) {
-        throw new BadRequestException('El owner indicado no existe o no pertenece a esta organización');
+        throw new BadRequestException(
+          'El owner indicado no existe o no pertenece a esta organización',
+        );
       }
     }
 
     const existing = await this.prisma.invitation.findFirst({
-      where: { email: dto.email, organization_id: organizationId, is_used: false },
+      where: {
+        email: dto.email,
+        organization_id: organizationId,
+        is_used: false,
+      },
     });
     if (existing && existing.expires_at > new Date()) {
-      throw new BadRequestException('Ya existe una invitación vigente para este correo');
+      throw new BadRequestException(
+        'Ya existe una invitación vigente para este correo',
+      );
     }
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (existingUser) {
-      throw new BadRequestException('Ya existe una cuenta con este correo en Recall');
+      throw new BadRequestException(
+        'Ya existe una cuenta con este correo en Recall',
+      );
     }
 
     const token = randomBytes(32).toString('hex');
@@ -74,7 +109,7 @@ export class InvitationsService {
       data: {
         organization_id: organizationId,
         email: dto.email,
-        role: dto.role as Role,
+        role: dto.role,
         token,
         invited_by_id: actor.id,
         owner_id: dto.owner_id ?? null,
@@ -82,11 +117,21 @@ export class InvitationsService {
       },
     });
 
-    const inviter = await this.prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } });
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { name: true },
+    });
     const inviteUrl = `${frontendUrl}/register?token=${token}`;
 
-    await this.emailService.sendInvitation(dto.email, inviter?.name ?? 'Un administrador', org.name, inviteUrl);
-    this.logger.log(`Invitation sent to ${dto.email} for org ${organizationId}`);
+    await this.emailService.sendInvitation(
+      dto.email,
+      inviter?.name ?? 'Un administrador',
+      org.name,
+      inviteUrl,
+    );
+    this.logger.log(
+      `Invitation sent to ${dto.email} for org ${organizationId}`,
+    );
 
     return { message: 'Invitación enviada', id: invitation.id };
   }
@@ -97,7 +142,11 @@ export class InvitationsService {
       include: { organization: { select: { name: true, brand_color: true } } },
     });
 
-    if (!invitation || invitation.is_used || invitation.expires_at < new Date()) {
+    if (
+      !invitation ||
+      invitation.is_used ||
+      invitation.expires_at < new Date()
+    ) {
       throw new BadRequestException('Token de invitación inválido o expirado');
     }
 

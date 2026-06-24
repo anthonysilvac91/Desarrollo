@@ -26,14 +26,12 @@ export async function processUploadedImage(
   const format = options.format ?? 'webp';
   const quality = options.quality ?? 82;
 
-  let pipeline = sharp(file.buffer, { animated: false })
-    .rotate()
-    .resize({
-      width: options.maxWidth,
-      height: options.maxHeight,
-      fit: 'inside',
-      withoutEnlargement: true,
-    });
+  let pipeline = sharp(file.buffer, { animated: false }).rotate().resize({
+    width: options.maxWidth,
+    height: options.maxHeight,
+    fit: 'inside',
+    withoutEnlargement: true,
+  });
 
   switch (format) {
     case 'jpeg':

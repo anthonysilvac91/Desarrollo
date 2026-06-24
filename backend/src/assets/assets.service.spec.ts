@@ -29,7 +29,10 @@ describe('AssetsService', () => {
         AssetsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: { uploadFile: jest.fn() } },
-        { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
+        {
+          provide: StorageGovernanceService,
+          useValue: { assertCanStore: jest.fn() },
+        },
         {
           provide: StoredFilesService,
           useValue: {
@@ -48,36 +51,70 @@ describe('AssetsService', () => {
 
   describe('create()', () => {
     it('WORKER: inyecta su propio orgId como organization_id del activo', async () => {
-      const mockAsset = { id: 'asset-1', name: 'Lancha', organization_id: 'org-1', owner_id: 'owner-1' };
-      jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue({ id: 'owner-1' } as any);
+      const mockAsset = {
+        id: 'asset-1',
+        name: 'Lancha',
+        organization_id: 'org-1',
+        owner_id: 'owner-1',
+      };
+      jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue({ id: 'owner-1' } as any);
       jest.spyOn(prisma.asset, 'create').mockResolvedValue(mockAsset as any);
-      jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(mockAsset as any);
+      jest
+        .spyOn(prisma.asset, 'findUnique')
+        .mockResolvedValue(mockAsset as any);
 
-      const result = await service.create({ name: 'Lancha', owner_id: 'owner-1' }, 'org-1');
+      const result = await service.create(
+        { name: 'Lancha', owner_id: 'owner-1' },
+        'org-1',
+      );
 
-      expect(prisma.asset.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ organization_id: 'org-1', owner_id: 'owner-1' }),
-      }));
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organization_id: 'org-1',
+            owner_id: 'owner-1',
+          }),
+        }),
+      );
       expect(result).toHaveProperty('organization_id', 'org-1');
     });
 
     it('ADMIN: crea activo inyectando su propio orgId', async () => {
-      const mockAsset = { id: 'asset-2', name: 'Velero', organization_id: 'org-admin', owner_id: 'owner-2' };
-      jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue({ id: 'owner-2' } as any);
+      const mockAsset = {
+        id: 'asset-2',
+        name: 'Velero',
+        organization_id: 'org-admin',
+        owner_id: 'owner-2',
+      };
+      jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue({ id: 'owner-2' } as any);
       jest.spyOn(prisma.asset, 'create').mockResolvedValue(mockAsset as any);
-      jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(mockAsset as any);
+      jest
+        .spyOn(prisma.asset, 'findUnique')
+        .mockResolvedValue(mockAsset as any);
 
-      const result = await service.create({ name: 'Velero', owner_id: 'owner-2' }, 'org-admin');
+      const result = await service.create(
+        { name: 'Velero', owner_id: 'owner-2' },
+        'org-admin',
+      );
 
-      expect(prisma.asset.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ organization_id: 'org-admin' }),
-      }));
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ organization_id: 'org-admin' }),
+        }),
+      );
       expect(result).toHaveProperty('organization_id', 'org-admin');
     });
 
     it('cualquier rol con orgId: rechaza si dtoOrgId difiere (cross-org bloqueado)', async () => {
       await expect(
-        service.create({ name: 'Yacht', owner_id: 'owner-1', organization_id: 'org-otro' }, 'org-1'),
+        service.create(
+          { name: 'Yacht', owner_id: 'owner-1', organization_id: 'org-otro' },
+          'org-1',
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -90,25 +127,39 @@ describe('AssetsService', () => {
     });
 
     it('SUPER_ADMIN: usa dtoOrgId cuando su orgId es null/undefined', async () => {
-      const mockAsset = { id: 'asset-2', name: 'Moto', organization_id: 'org-x', owner_id: 'owner-2' };
-      jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue({ id: 'owner-2' } as any);
+      const mockAsset = {
+        id: 'asset-2',
+        name: 'Moto',
+        organization_id: 'org-x',
+        owner_id: 'owner-2',
+      };
+      jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue({ id: 'owner-2' } as any);
       jest.spyOn(prisma.asset, 'create').mockResolvedValue(mockAsset as any);
-      jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(mockAsset as any);
+      jest
+        .spyOn(prisma.asset, 'findUnique')
+        .mockResolvedValue(mockAsset as any);
 
       const result = await service.create(
         { name: 'Moto', owner_id: 'owner-2', organization_id: 'org-x' },
         undefined as any,
       );
 
-      expect(prisma.asset.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ organization_id: 'org-x' }),
-      }));
+      expect(prisma.asset.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ organization_id: 'org-x' }),
+        }),
+      );
       expect(result).toHaveProperty('organization_id', 'org-x');
     });
 
     it('lanza BadRequestException si no se puede resolver un orgId', async () => {
       await expect(
-        service.create({ name: 'Sin org', owner_id: 'owner-1' }, undefined as any),
+        service.create(
+          { name: 'Sin org', owner_id: 'owner-1' },
+          undefined as any,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -119,9 +170,13 @@ describe('AssetsService', () => {
 
       await service.findAll({}, 'org-1', 'WORKER');
 
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.not.objectContaining({ worker_access: expect.anything() }),
-      }));
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.not.objectContaining({
+            worker_access: expect.anything(),
+          }),
+        }),
+      );
     });
 
     it('WORKER: filtra por organization_id de su tenant', async () => {
@@ -129,9 +184,11 @@ describe('AssetsService', () => {
 
       await service.findAll({}, 'org-tenant-1', 'WORKER');
 
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ organization_id: 'org-tenant-1' }),
-      }));
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organization_id: 'org-tenant-1' }),
+        }),
+      );
     });
 
     it('EXTERNAL: solo ve activos de su owner', async () => {
@@ -139,9 +196,11 @@ describe('AssetsService', () => {
 
       await service.findAll({}, 'org-1', 'EXTERNAL', 'owner-abc');
 
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ owner_id: 'owner-abc' }),
-      }));
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ owner_id: 'owner-abc' }),
+        }),
+      );
     });
 
     it('EXTERNAL sin owner_id retorna array vacío sin consultar DB', async () => {
@@ -163,7 +222,9 @@ describe('AssetsService', () => {
 
   describe('getFilterOptions()', () => {
     it('retorna owners con shape liviano', async () => {
-      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([{ id: 'owner-1', name: 'Owner One' }] as any);
+      jest
+        .spyOn(prisma.owner, 'findMany')
+        .mockResolvedValue([{ id: 'owner-1', name: 'Owner One' }] as any);
 
       const result = await service.getFilterOptions('org-1', 'ADMIN');
 
@@ -172,44 +233,50 @@ describe('AssetsService', () => {
       });
       expect(result).not.toHaveProperty('assets');
       expect(result).not.toHaveProperty('thumbnail_url');
-      expect(prisma.owner.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        select: { id: true, name: true },
-      }));
+      expect(prisma.owner.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: { id: true, name: true },
+        }),
+      );
     });
 
     it('no-SUPER_ADMIN: respeta organization_id en activos visibles', async () => {
-      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([]);
 
       await service.getFilterOptions('org-tenant-1', 'WORKER');
 
-      expect(prisma.owner.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: {
-          assets: {
-            some: expect.objectContaining({
-              organization_id: 'org-tenant-1',
-              is_active: true,
-            }),
+      expect(prisma.owner.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            assets: {
+              some: expect.objectContaining({
+                organization_id: 'org-tenant-1',
+                is_active: true,
+              }),
+            },
           },
-        },
-      }));
+        }),
+      );
     });
 
     it('EXTERNAL: limita owners al owner_id del usuario', async () => {
-      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prisma.owner, 'findMany').mockResolvedValue([]);
 
       await service.getFilterOptions('org-1', 'EXTERNAL', 'owner-abc');
 
-      expect(prisma.owner.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: {
-          assets: {
-            some: expect.objectContaining({
-              organization_id: 'org-1',
-              owner_id: 'owner-abc',
-              is_active: true,
-            }),
+      expect(prisma.owner.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            assets: {
+              some: expect.objectContaining({
+                organization_id: 'org-1',
+                owner_id: 'owner-abc',
+                is_active: true,
+              }),
+            },
           },
-        },
-      }));
+        }),
+      );
     });
   });
 });

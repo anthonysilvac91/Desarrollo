@@ -2,15 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, Loader2, Info, Share2, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, FileSpreadsheet, Loader2, Info, Share2, Download, Eye } from "lucide-react";
 import ShareModal from "@/components/ui/ShareModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useQuery } from "@tanstack/react-query";
 import { Service, servicesService } from "@/services/services.service";
+import { useToast } from "@/lib/ToastContext";
 import { TranslatedDescription } from "@/components/services/TranslatedDescription";
 import { useLanguage } from "@/lib/LanguageContext";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import { VideoAttachmentCard } from "@/components/services/VideoAttachmentCard";
+import { VideoPlayerModal } from "@/components/services/VideoPlayerModal";
 
 const DESCRIPTION_CLAMP_THRESHOLD = 160;
 
@@ -63,8 +66,72 @@ function AttachmentThumb({
   );
 }
 
+function getDocIcon(mime: string | undefined) {
+  if (mime === "application/pdf") return { Icon: FileText, color: "text-red-500" };
+  if (mime?.includes("spreadsheet") || mime?.includes("ms-excel")) return { Icon: FileSpreadsheet, color: "text-green-600" };
+  if (mime?.includes("word") || mime?.includes("msword")) return { Icon: FileText, color: "text-blue-500" };
+  return { Icon: FileText, color: "text-subtitle/50" };
+}
+
+function formatBytes(bytes: number | null | undefined) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentUploadSummary({ service }: { service: Service }) {
+  const { t } = useLanguage();
+  const summary = service.attachmentUploadSummary;
+  const pending = service.pendingAttachments ?? [];
+  if (!summary || summary.status === "NONE") return null;
+  const total = Math.max(summary.expected, 1);
+  const percent = Math.round((summary.ready / total) * 100);
+
+  return (
+    <div className="px-6 pb-5 lg:px-10">
+      <div className="rounded-2xl border border-border-theme/40 bg-surface px-5 py-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-title">{t.mobile.upload_queue.service_files}</p>
+            <p className="text-xs font-semibold text-subtitle/50">
+              {t.mobile.upload_queue.available_count
+                .replace("{ready}", String(summary.ready))
+                .replace("{expected}", String(summary.expected))}
+            </p>
+          </div>
+          {summary.status !== "READY" && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
+              {summary.status === "FAILED" ? t.mobile.upload_queue.status_failed : t.mobile.upload_queue.status_loading}
+            </span>
+          )}
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-app-bg">
+          <div className="h-full bg-brand" style={{ width: `${percent}%` }} />
+        </div>
+        {pending.length > 0 && (
+          <div className="space-y-2">
+            {pending.map((item) => (
+              <div key={item.uploadId} className="flex items-center justify-between gap-3 rounded-xl bg-app-bg/60 px-3 py-2">
+                <p className="min-w-0 truncate text-xs font-bold text-title">{item.name}</p>
+                <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-subtitle/50">
+                  {item.status === "FAILED" || item.status === "EXPIRED" ? "Error" : `${item.progress}%`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-[11px] font-semibold text-subtitle/50">
+          {t.mobile.upload_queue.continues_open}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ServiceDetailView({ service, onClose, hideWorker = false }: ServiceDetailViewProps) {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -72,6 +139,10 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [shareData, setShareData] = useState<{ url: string; text: string } | null>(null);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [videoPreview, setVideoPreview] = useState<{ url: string; name?: string | null } | null>(null);
+  const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
   const pinch = usePinchZoom();
 
   useEffect(() => {
@@ -92,6 +163,12 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const attachments = current.attachments ?? [];
   const imageAttachments = attachments.filter(
     a => a.file_url && a.file_type?.startsWith("image/"),
+  );
+  const videoAttachments = attachments.filter(
+    a => a.media_type === "VIDEO" || a.file_type?.startsWith("video/"),
+  );
+  const documentAttachments = attachments.filter(
+    a => a.file_type && !a.file_type.startsWith("image/") && !a.file_type.startsWith("video/"),
   );
   const descriptionIsLong = (current.description?.length ?? 0) > DESCRIPTION_CLAMP_THRESHOLD;
 
@@ -188,6 +265,50 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
     }
   };
 
+  const handlePdfPreview = async (att: { id?: string; file_name?: string | null }) => {
+    if (!att.id || isPdfLoading) return;
+    setIsPdfLoading(true);
+    try {
+      const { url, file_name } = await servicesService.getAttachmentDownloadUrl(current.id, att.id);
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      setPdfPreview({ url: blobUrl, name: file_name || "document.pdf" });
+    } catch {
+      showToast(t.feedback.generic_error, "error");
+    } finally {
+      setIsPdfLoading(false);
+    }
+  };
+
+  const handleDocumentDownload = async (att: { id?: string; file_name?: string | null; file_type?: string }) => {
+    if (!att.id) return;
+    try {
+      const { url, file_name } = await servicesService.getAttachmentDownloadUrl(current.id, att.id);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file_name || "document";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.click();
+    } catch {
+      showToast(t.feedback.generic_error, "error");
+    }
+  };
+
+  const handleVideoPlay = async (att: { id?: string; file_name?: string | null }) => {
+    if (!att.id || loadingVideoId) return;
+    setLoadingVideoId(att.id);
+    try {
+      const { url } = await servicesService.getVideoPlaybackUrl(current.id, att.id);
+      setVideoPreview({ url, name: att.file_name });
+    } catch {
+      showToast(t.feedback.generic_error, "error");
+    } finally {
+      setLoadingVideoId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col pb-10 animate-in fade-in duration-200">
 
@@ -280,16 +401,18 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
         </div>
       </div>
 
-      {/* Evidencia */}
+      <AttachmentUploadSummary service={current} />
+
+      {/* Evidencia (fotos) */}
       <div className="px-6 lg:px-10">
         <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden">
           <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
             <h3 className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
               {t.services.drawer.evidence_label}
             </h3>
-            {attachments.length > 0 && (
+            {imageAttachments.length > 0 && (
               <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
-                {attachments.length}
+                {imageAttachments.length}
               </span>
             )}
           </div>
@@ -298,9 +421,9 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
             <div className="flex justify-center py-10">
               <Loader2 className="w-6 h-6 animate-spin text-brand/20" />
             </div>
-          ) : attachments.length > 0 ? (
+          ) : imageAttachments.length > 0 ? (
             <div className="p-4 grid grid-cols-3 gap-2.5">
-              {attachments.map((att, idx) => (
+              {imageAttachments.map((att, idx) => (
                 <AttachmentThumb
                   key={idx}
                   attachment={att}
@@ -318,6 +441,82 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
           )}
         </div>
       </div>
+
+      {/* Videos */}
+      {videoAttachments.length > 0 && (
+        <div className="px-6 lg:px-10 mt-4">
+          <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden">
+            <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+                Videos
+              </h3>
+              <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
+                {videoAttachments.length}
+              </span>
+            </div>
+            <div className="p-4 space-y-2">
+              {videoAttachments.map((video) => (
+                <div key={video.id} className={loadingVideoId === video.id ? "opacity-60 pointer-events-none" : undefined}>
+                  <VideoAttachmentCard
+                    name={video.file_name}
+                    size={video.file_size_bytes}
+                    onPlay={() => handleVideoPlay(video)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documentos adjuntos */}
+      {documentAttachments.length > 0 && (
+        <div className="px-6 lg:px-10 mt-4">
+          <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden">
+            <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+                {t.services.drawer.documents_label}
+              </h3>
+              <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
+                {documentAttachments.length}
+              </span>
+            </div>
+            <div className="p-4 space-y-2">
+              {documentAttachments.map((doc) => {
+                const { Icon, color } = getDocIcon(doc.file_type);
+                const isPdf = doc.file_type === "application/pdf";
+                return (
+                  <div key={doc.id} className="flex items-center gap-3 p-3 rounded-xl bg-app-bg/60 border border-border-theme/30">
+                    <Icon className={`w-5 h-5 ${color} shrink-0`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-title truncate">{doc.file_name || "Document"}</p>
+                      {doc.file_size_bytes != null && (
+                        <p className="text-[10px] text-subtitle/50 font-medium">{formatBytes(doc.file_size_bytes)}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {isPdf && (
+                        <button
+                          onClick={() => handlePdfPreview(doc)}
+                          className="p-2 rounded-full bg-brand/10 text-brand hover:bg-brand/20 active:scale-90 transition-all"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDocumentDownload(doc)}
+                        className="p-2 rounded-full bg-brand/10 text-brand hover:bg-brand/20 active:scale-90 transition-all"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {selectedImageIndex !== null && imageAttachments.length > 0 && (
@@ -471,6 +670,45 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
 
           </div>
         </div>
+      )}
+
+      {/* PDF Preview */}
+      {pdfPreview && (
+        <div className="fixed inset-0 z-100">
+          <div
+            className="absolute inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
+            onClick={() => { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}
+          />
+          <div className="relative z-10 flex flex-col h-full animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <FileText className="w-5 h-5 text-red-500 shrink-0" />
+                <p className="text-sm font-black text-title truncate">{pdfPreview.name}</p>
+              </div>
+              <button
+                onClick={() => { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}
+                className="p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 active:scale-90 transition-all shrink-0"
+              >
+                <X className="w-5 h-5 text-brand" />
+              </button>
+            </div>
+            <div className="flex-1 px-4 pb-4">
+              <iframe
+                src={pdfPreview.url}
+                className="w-full h-full rounded-2xl border border-border-theme/20 bg-white"
+                title={pdfPreview.name}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {videoPreview && (
+        <VideoPlayerModal
+          url={videoPreview.url}
+          title={videoPreview.name}
+          onClose={() => setVideoPreview(null)}
+        />
       )}
 
       <ShareModal

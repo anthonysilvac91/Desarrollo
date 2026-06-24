@@ -6,7 +6,11 @@ import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 
 const prismaMock = {
-  invitation: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn() },
+  invitation: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
   organization: { findUnique: jest.fn() },
   user: { findFirst: jest.fn(), findUnique: jest.fn() },
 };
@@ -32,7 +36,9 @@ describe('InvitationsService', () => {
 
   it('validate() con token inexistente lanza BadRequestException', async () => {
     prismaMock.invitation.findUnique.mockResolvedValue(null);
-    await expect(service.validate('bad-token')).rejects.toThrow(BadRequestException);
+    await expect(service.validate('bad-token')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('validate() con token válido retorna datos de la invitación', async () => {

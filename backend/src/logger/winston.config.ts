@@ -14,12 +14,14 @@ export const winstonConfig: winston.LoggerOptions = {
         winston.format.timestamp({ format: 'HH:mm:ss' }),
         winston.format.errors({ stack: true }),
         winston.format.colorize(),
-        winston.format.printf(({ timestamp, level, message, context, stack }) => {
-          const ctx = context ? ` [${context}]` : '';
-          return stack
-            ? `${timestamp} ${level}${ctx} ${message}\n${stack}`
-            : `${timestamp} ${level}${ctx} ${message}`;
-        }),
+        winston.format.printf(
+          ({ timestamp, level, message, context, stack }) => {
+            const ctx = context ? ` [${context}]` : '';
+            return stack
+              ? `${timestamp} ${level}${ctx} ${message}\n${stack}`
+              : `${timestamp} ${level}${ctx} ${message}`;
+          },
+        ),
       ),
   transports: [new winston.transports.Console()],
 };

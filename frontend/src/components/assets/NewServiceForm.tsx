@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Camera, Check, ChevronLeft, Loader2,
-  X, CalendarDays, MapPin,
+  X, CalendarDays, MapPin, FileText, FileSpreadsheet, Paperclip, Video,
 } from "lucide-react";
 import { Asset, assetsService } from "@/services/assets.service";
 import { useToast } from "@/lib/ToastContext";
@@ -13,10 +13,17 @@ import { useAuth } from "@/lib/AuthContext";
 import { SERVICE_IMAGE_MAX_BYTES, compressImageFile } from "@/lib/imageCompression";
 import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
+import { uploadService } from "@/services/uploadService";
+import { useUploadQueue } from "@/providers/UploadQueueProvider";
+import { AttachmentConfig } from "@/types/uploads";
 
 const TITLE_MAX_LENGTH = 120;
 const DESCRIPTION_MAX_LENGTH = 2000;
 const MAX_PHOTOS = 20;
+const MAX_DOCUMENTS = 10;
+const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+const DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx";
+const VIDEO_ACCEPT = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
 
 interface NewServiceFormProps {
   asset: Asset;
@@ -33,12 +40,24 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
   const { user } = useAuth();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const { enqueueVideos } = useUploadQueue();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<{ url: string; file: File }[]>([]);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [videos, setVideos] = useState<File[]>([]);
+  const [attachmentConfig, setAttachmentConfig] = useState<AttachmentConfig | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
+
+  useEffect(() => {
+    uploadService.getAttachmentConfig()
+      .then(setAttachmentConfig)
+      .catch(() => setAttachmentConfig(null));
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileArray = Array.from(e.target.files ?? []);
@@ -80,6 +99,66 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
     });
   };
 
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileArray = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!fileArray.length) return;
+    const remaining = MAX_DOCUMENTS - documents.length;
+    const toAdd = fileArray.slice(0, remaining);
+    const valid = toAdd.filter(f => {
+      if (f.size > DOCUMENT_MAX_BYTES) {
+        showToast(`${f.name}: ${t.mobile.new_service.document_too_large}`, "error");
+        return false;
+      }
+      return true;
+    });
+    if (valid.length) setDocuments(prev => [...prev, ...valid]);
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments(prev => {
+      const next = [...prev];
+      next.splice(index, 1);
+      return next;
+    });
+  };
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileArray = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!fileArray.length) return;
+
+    if (!attachmentConfig?.videoUploadsEnabled) {
+      showToast(t.mobile.upload_queue.video_disabled, "error");
+      return;
+    }
+
+    const maxBatch = attachmentConfig.maxBatchSize || 20;
+    const remaining = maxBatch - videos.length;
+    const maxBytes = Number(attachmentConfig.maxVideoFileBytes || 0);
+    const allowed = new Set(attachmentConfig.allowedVideoMimeTypes ?? []);
+    const valid = fileArray.slice(0, Math.max(remaining, 0)).filter((file) => {
+      if (maxBytes > 0 && file.size > maxBytes) {
+        showToast(t.mobile.upload_queue.video_too_large.replace("{name}", file.name), "error");
+        return false;
+      }
+      if (allowed.size > 0 && !allowed.has(file.type)) {
+        showToast(t.mobile.upload_queue.video_bad_format.replace("{name}", file.name), "error");
+        return false;
+      }
+      return true;
+    });
+    if (valid.length) setVideos(prev => [...prev, ...valid]);
+  };
+
+  const removeVideo = (index: number) => {
+    setVideos(prev => {
+      const next = [...prev];
+      next.splice(index, 1);
+      return next;
+    });
+  };
+
   const handleSubmit = async () => {
     if (!title.trim() || isSubmitting || isProcessingImages) return;
     setIsSubmitting(true);
@@ -89,14 +168,29 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
       formData.append("description", description);
       formData.append("asset_id", asset.id);
       images.forEach(img => formData.append("files", img.file));
+      documents.forEach(doc => formData.append("files", doc));
 
-      await assetsService.createService(formData);
+      const createdService = await assetsService.createService(formData);
+      if (videos.length > 0) {
+        const intents = await Promise.all(videos.map((video) => uploadService.createIntent(createdService.id, {
+          originalName: video.name,
+          mimeType: video.type,
+          sizeBytes: String(video.size),
+          mediaType: "VIDEO",
+        })));
+        enqueueVideos({ serviceId: createdService.id, files: videos, intents });
+        showToast(t.mobile.upload_queue.uploading_count
+          .replace("{count}", String(videos.length))
+          .replace("{plural}", videos.length === 1 ? "" : "s")
+          .replace("{percent}", "0"), "success");
+      } else {
+        showToast(t.mobile.new_service.success, "success");
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["assets"] }),
         queryClient.invalidateQueries({ queryKey: ["asset", asset.id] }),
         queryClient.invalidateQueries({ queryKey: ["services"] }),
       ]);
-      showToast(t.mobile.new_service.success, "success");
       onSuccess();
     } catch (err: any) {
       console.error('[NewServiceForm] save error:', err?.response?.status, err?.response?.data, err?.message);
@@ -112,6 +206,8 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
 
   const isValid = title.trim().length > 0;
   const canAddPhoto = images.length < MAX_PHOTOS && !isSubmitting && !isProcessingImages;
+  const canAddDocument = documents.length < MAX_DOCUMENTS && !isSubmitting;
+  const canAddVideo = !!attachmentConfig?.videoUploadsEnabled && videos.length < (attachmentConfig.maxBatchSize || 20) && !isSubmitting;
 
   return (
     <div className={`flex flex-col animate-in fade-in duration-300 ${inline ? "pb-4" : "pb-28 lg:pb-12"}`}>
@@ -198,10 +294,18 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
           <div className={inline ? undefined : "block lg:hidden"}>
             <EvidenceSection
               images={images}
-              canAdd={canAddPhoto}
+              documents={documents}
+              videos={videos}
+              canAddPhoto={canAddPhoto}
+              canAddDocument={canAddDocument}
+              canAddVideo={canAddVideo}
               isProcessing={isProcessingImages}
-              onAdd={() => fileInputRef.current?.click()}
-              onRemove={removeImage}
+              onAddPhoto={() => fileInputRef.current?.click()}
+              onAddDocument={() => docInputRef.current?.click()}
+              onAddVideo={() => videoInputRef.current?.click()}
+              onRemoveImage={removeImage}
+              onRemoveDocument={removeDocument}
+              onRemoveVideo={removeVideo}
               t={t}
             />
           </div>
@@ -261,10 +365,18 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
 
             <EvidenceSection
               images={images}
-              canAdd={canAddPhoto}
+              documents={documents}
+              videos={videos}
+              canAddPhoto={canAddPhoto}
+              canAddDocument={canAddDocument}
+              canAddVideo={canAddVideo}
               isProcessing={isProcessingImages}
-              onAdd={() => fileInputRef.current?.click()}
-              onRemove={removeImage}
+              onAddPhoto={() => fileInputRef.current?.click()}
+              onAddDocument={() => docInputRef.current?.click()}
+              onAddVideo={() => videoInputRef.current?.click()}
+              onRemoveImage={removeImage}
+              onRemoveDocument={removeDocument}
+              onRemoveVideo={removeVideo}
               t={t}
             />
 
@@ -300,84 +412,208 @@ export default function NewServiceForm({ asset, onSuccess, onCancel, inline = fa
         </div>
       )}
 
-      {/* Input de archivo */}
       <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleFileChange} />
+      <input ref={docInputRef} type="file" accept={DOCUMENT_ACCEPT} multiple className="hidden" onChange={handleDocumentChange} />
+      <input ref={videoInputRef} type="file" accept={VIDEO_ACCEPT} multiple className="hidden" onChange={handleVideoChange} />
     </div>
   );
 }
 
 interface EvidenceSectionProps {
   images: { url: string; file: File }[];
-  canAdd: boolean;
+  documents: File[];
+  videos: File[];
+  canAddPhoto: boolean;
+  canAddDocument: boolean;
+  canAddVideo: boolean;
   isProcessing: boolean;
-  onAdd: () => void;
-  onRemove: (i: number) => void;
+  onAddPhoto: () => void;
+  onAddDocument: () => void;
+  onAddVideo: () => void;
+  onRemoveImage: (i: number) => void;
+  onRemoveDocument: (i: number) => void;
+  onRemoveVideo: (i: number) => void;
   t: any;
 }
 
-function EvidenceSection({ images, canAdd, isProcessing, onAdd, onRemove, t }: EvidenceSectionProps) {
+function getDocIcon(name: string) {
+  const ext = name.toLowerCase().split(".").pop();
+  if (ext === "pdf") return { Icon: FileText, color: "text-red-500" };
+  if (ext === "xls" || ext === "xlsx") return { Icon: FileSpreadsheet, color: "text-green-600" };
+  return { Icon: FileText, color: "text-blue-500" };
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function EvidenceSection({ images, documents, videos, canAddPhoto, canAddDocument, canAddVideo, isProcessing, onAddPhoto, onAddDocument, onAddVideo, onRemoveImage, onRemoveDocument, onRemoveVideo, t }: EvidenceSectionProps) {
   return (
-    <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
-      <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
-        <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
-          {t.mobile.new_service.evidence_label}
-        </label>
-        {images.length > 0 && (
-          <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
-            {images.length}/{MAX_PHOTOS}
-          </span>
-        )}
-      </div>
+    <div className="space-y-4">
+      {/* Photos */}
+      <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
+        <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
+          <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+            {t.mobile.new_service.evidence_label}
+          </label>
+          {images.length > 0 && (
+            <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
+              {images.length}/{MAX_PHOTOS}
+            </span>
+          )}
+        </div>
 
-      <div className="p-4 grid grid-cols-3 gap-2.5">
-        {canAdd && (
-          <button
-            type="button"
-            onClick={onAdd}
-            className="aspect-square rounded-2xl border-2 border-dashed border-brand/30 bg-brand/5 flex flex-col items-center justify-center text-brand gap-1.5 active:scale-95 transition-all hover:border-brand/50 hover:bg-brand/10"
-          >
-            {isProcessing ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Camera className="w-5 h-5" />
-                <span className="text-[9px] font-black uppercase tracking-wider">
-                  {t.mobile.new_service.evidence_add}
-                </span>
-              </>
-            )}
-          </button>
-        )}
-
-        {images.map((img, i) => (
-          <div key={img.url} className="aspect-square rounded-2xl overflow-hidden relative border border-border-theme/40 group">
-            <img src={img.url} alt="" className="w-full h-full object-cover" />
+        <div className="p-4 grid grid-cols-3 gap-2.5">
+          {canAddPhoto && (
             <button
               type="button"
-              onClick={() => onRemove(i)}
-              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-title/60 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-transform"
+              onClick={onAddPhoto}
+              className="aspect-square rounded-2xl border-2 border-dashed border-brand/30 bg-brand/5 flex flex-col items-center justify-center text-brand gap-1.5 active:scale-95 transition-all hover:border-brand/50 hover:bg-brand/10"
             >
-              <X className="w-3.5 h-3.5" />
+              {isProcessing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Camera className="w-5 h-5" />
+                  <span className="text-[9px] font-black uppercase tracking-wider">
+                    {t.mobile.new_service.evidence_add}
+                  </span>
+                </>
+              )}
             </button>
-          </div>
-        ))}
+          )}
 
-        {images.length === 0 &&
-          [0, 1, 2, 3, 4].map(i => (
-            <div
-              key={`slot-${i}`}
-              className="aspect-square rounded-2xl border border-dashed border-border-theme/40 bg-app-bg/40 flex items-center justify-center"
-            >
-              <Camera className="w-4 h-4 text-subtitle/20" />
+          {images.map((img, i) => (
+            <div key={img.url} className="aspect-square rounded-2xl overflow-hidden relative border border-border-theme/40 group">
+              <img src={img.url} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => onRemoveImage(i)}
+                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-title/60 backdrop-blur-sm text-white flex items-center justify-center active:scale-90 transition-transform"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
+
+          {images.length === 0 &&
+            [0, 1, 2, 3, 4].map(i => (
+              <div
+                key={`slot-${i}`}
+                className="aspect-square rounded-2xl border border-dashed border-border-theme/40 bg-app-bg/40 flex items-center justify-center"
+              >
+                <Camera className="w-4 h-4 text-subtitle/20" />
+              </div>
+            ))}
+        </div>
+
+        {images.length === 0 && (
+          <p className="text-center text-xs text-subtitle/30 font-semibold pb-5 -mt-1">
+            {t.mobile.new_service.evidence_empty_hint}
+          </p>
+        )}
       </div>
 
-      {images.length === 0 && (
-        <p className="text-center text-xs text-subtitle/30 font-semibold pb-5 -mt-1">
-          {t.mobile.new_service.evidence_empty_hint}
-        </p>
-      )}
+      {/* Documents */}
+      <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
+        <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
+          <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+            {t.mobile.new_service.documents_label}
+          </label>
+          {documents.length > 0 && (
+            <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
+              {documents.length}/{MAX_DOCUMENTS}
+            </span>
+          )}
+        </div>
+
+        <div className="p-4 space-y-2">
+          {documents.map((doc, i) => {
+            const { Icon, color } = getDocIcon(doc.name);
+            return (
+              <div key={`${doc.name}-${i}`} className="flex items-center gap-3 p-3 rounded-xl bg-app-bg/60 border border-border-theme/30">
+                <Icon className={`w-5 h-5 ${color} shrink-0`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-title truncate">{doc.name}</p>
+                  <p className="text-[10px] text-subtitle/50 font-medium">{formatBytes(doc.size)}</p>
+                </div>
+                <button type="button" onClick={() => onRemoveDocument(i)} className="p-1.5 rounded-full hover:bg-red-50 text-subtitle/40 hover:text-red-500 transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+
+          {canAddDocument && (
+            <button
+              type="button"
+              onClick={onAddDocument}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-brand/30 bg-brand/5 text-brand active:scale-[0.98] transition-all hover:border-brand/50 hover:bg-brand/10"
+            >
+              <Paperclip className="w-4 h-4" />
+              <span className="text-xs font-black uppercase tracking-wider">
+                {t.mobile.new_service.add_documents}
+              </span>
+            </button>
+          )}
+
+          {documents.length === 0 && (
+            <p className="text-center text-xs text-subtitle/30 font-semibold pb-1">
+              PDF, Word, Excel · {t.mobile.new_service.document_max_size}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Videos */}
+      <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden shadow-sm">
+        <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
+          <label className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
+            Videos
+          </label>
+          {videos.length > 0 && (
+            <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
+              {videos.length}
+            </span>
+          )}
+        </div>
+
+        <div className="p-4 space-y-2">
+          {videos.map((video, i) => (
+            <div key={`${video.name}-${i}`} className="flex items-center gap-3 p-3 rounded-xl bg-app-bg/60 border border-border-theme/30">
+              <Video className="w-5 h-5 text-brand shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-title truncate">{video.name}</p>
+                <p className="text-[10px] text-subtitle/50 font-medium">{formatBytes(video.size)}</p>
+              </div>
+              <button type="button" onClick={() => onRemoveVideo(i)} className="p-1.5 rounded-full hover:bg-red-50 text-subtitle/40 hover:text-red-500 transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+
+          {canAddVideo && (
+            <button
+              type="button"
+              onClick={onAddVideo}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-brand/30 bg-brand/5 text-brand active:scale-[0.98] transition-all hover:border-brand/50 hover:bg-brand/10"
+            >
+              <Video className="w-4 h-4" />
+              <span className="text-xs font-black uppercase tracking-wider">
+                {t.mobile.upload_queue.add_videos}
+              </span>
+            </button>
+          )}
+
+          {videos.length === 0 && (
+            <p className="text-center text-xs text-subtitle/30 font-semibold pb-1">
+              {t.mobile.upload_queue.continues_open}
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

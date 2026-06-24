@@ -10,12 +10,18 @@ describe('OrganizationsService', () => {
   let prisma: PrismaService;
 
   beforeEach(async () => {
-    const prismaMock = { organization: { findUnique: jest.fn(), update: jest.fn(), create: jest.fn() } };
+    const prismaMock = {
+      organization: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        create: jest.fn(),
+      },
+    };
     const storageMock = { uploadFile: jest.fn() };
-    
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ 
-        OrganizationsService, 
+      providers: [
+        OrganizationsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: storageMock },
         {
@@ -30,6 +36,7 @@ describe('OrganizationsService', () => {
           provide: StoredFilesService,
           useValue: {
             resolveFileUrl: jest.fn().mockResolvedValue(null),
+            resolveFileUrlForOrg: jest.fn().mockResolvedValue(null),
             registerUploadedFile: jest.fn(),
             deleteStoredFileAndBlob: jest.fn(),
           },
@@ -42,13 +49,25 @@ describe('OrganizationsService', () => {
   });
 
   it('Debería poder actualizar settings de la organización', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ logo_file_id: null } as any);
-    jest.spyOn(prisma.organization, 'update').mockResolvedValue({ logo_file_id: null } as any);
-    await service.updateSettings('org-1', { auto_publish_jobs: false, worker_edit_policy: 'ALWAYS_OPEN' });
-    expect(prisma.organization.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'org-1' },
-      data: { auto_publish_jobs: false, worker_edit_policy: 'ALWAYS_OPEN' }
-    }));
+    jest
+      .spyOn(prisma.organization, 'findUnique')
+      .mockResolvedValue({ logo_file_id: null } as any);
+    jest
+      .spyOn(prisma.organization, 'update')
+      .mockResolvedValue({ logo_file_id: null } as any);
+    await service.updateSettings('org-1', {
+      auto_publish_services: false,
+      worker_edit_policy: 'ALWAYS_OPEN',
+    });
+    expect(prisma.organization.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'org-1' },
+        data: {
+          auto_publish_services: false,
+          worker_edit_policy: 'ALWAYS_OPEN',
+        },
+      }),
+    );
   });
 
   it('create() no requiere slug — solo name', async () => {
@@ -75,7 +94,8 @@ describe('OrganizationsService', () => {
   it('dos Organizations con el mismo name no generan slug duplicado', async () => {
     const org1 = { id: 'org-1', name: 'Marina', slug: 'marina-aaa111' };
     const org2 = { id: 'org-2', name: 'Marina', slug: 'marina-bbb222' };
-    jest.spyOn(prisma.organization, 'create')
+    jest
+      .spyOn(prisma.organization, 'create')
       .mockResolvedValueOnce(org1 as any)
       .mockResolvedValueOnce(org2 as any);
 

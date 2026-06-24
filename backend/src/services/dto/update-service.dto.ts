@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ServiceStatus } from '@prisma/client';
 
 export class UpdateServiceDto {
@@ -12,7 +18,9 @@ export class UpdateServiceDto {
   @ApiPropertyOptional({ description: 'Descripción del servicio.' })
   @IsString()
   @IsOptional()
-  @MaxLength(2000, { message: 'La descripcion no puede superar los 2000 caracteres' })
+  @MaxLength(2000, {
+    message: 'La descripcion no puede superar los 2000 caracteres',
+  })
   description?: string;
 
   @ApiPropertyOptional({ description: 'Visibilidad hacia el cliente.' })
@@ -20,7 +28,10 @@ export class UpdateServiceDto {
   @IsOptional()
   is_public?: boolean;
 
-  @ApiPropertyOptional({ enum: ServiceStatus, description: 'COMPLETED o ARCHIVED' })
+  @ApiPropertyOptional({
+    enum: ServiceStatus,
+    description: 'COMPLETED o ARCHIVED',
+  })
   @IsEnum(ServiceStatus)
   @IsOptional()
   status?: ServiceStatus;

@@ -1,18 +1,31 @@
 import { IsEmpty, IsString, IsOptional, IsNotEmpty } from 'class-validator';
-import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 
 export class CreateAssetDto {
-  @ApiProperty({ example: 'Generador Alpha-1', description: 'El nombre identificador de la unidad técnica/inmueble/embarcación' })
+  @ApiProperty({
+    example: 'Generador Alpha-1',
+    description:
+      'El nombre identificador de la unidad técnica/inmueble/embarcación',
+  })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Sector B', description: 'Información accesoria del activo.' })
+  @ApiPropertyOptional({
+    example: 'Sector B',
+    description: 'Información accesoria del activo.',
+  })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Categoría del activo (ej: boat, car, machinery).' })
+  @ApiPropertyOptional({
+    description: 'Categoría del activo (ej: boat, car, machinery).',
+  })
   @IsString()
   @IsOptional()
   category?: string;
@@ -23,7 +36,10 @@ export class CreateAssetDto {
   location?: string;
 
   @ApiHideProperty()
-  @IsEmpty({ message: 'thumbnail_url is no longer accepted; upload thumbnail file instead' })
+  @IsEmpty({
+    message:
+      'thumbnail_url is no longer accepted; upload thumbnail file instead',
+  })
   thumbnail_url?: string;
 
   @ApiPropertyOptional({ description: 'Número de serie o matrícula.' })
@@ -35,7 +51,9 @@ export class CreateAssetDto {
   @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
-  @ApiPropertyOptional({ description: 'ID canonico del owner asignado al activo.' })
+  @ApiPropertyOptional({
+    description: 'ID canonico del owner asignado al activo.',
+  })
   @IsString()
   @IsOptional()
   owner_id?: string;
@@ -44,9 +62,10 @@ export class CreateAssetDto {
   @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
 
-  @ApiPropertyOptional({ description: 'ID de la organización (opcional, defaults a la del usuario).' })
+  @ApiPropertyOptional({
+    description: 'ID de la organización (opcional, defaults a la del usuario).',
+  })
   @IsString()
   @IsOptional()
   organization_id?: string;
 }
-

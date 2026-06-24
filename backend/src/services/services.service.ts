@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger, BadRequestException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+  BadRequestException,
+  Optional,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -9,14 +16,22 @@ import { StorageGovernanceService } from '../storage/storage-governance.service'
 import { StoredFilesService } from '../storage/stored-files.service';
 import { validateImageFile } from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
+import {
+  validateDocumentFile,
+  isImageMime,
+} from '../common/files/document-validation';
 import { buildServiceAttachmentsPath } from '../common/files/storage-paths';
 import { randomBytes, randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { isExternalRole, withOwner } from '../common/compat/owner-role-compat';
 import { RealtimeService } from '../realtime/realtime.service';
 import { TranslationService } from '../ai/translation.service';
+import { UploadPolicyService } from '../uploads/upload-policy.service';
+import { CreateServiceWithUploadManifestDto } from '../uploads/dto/create-service-with-upload-manifest.dto';
+import { extensionForVideoMime } from '../common/files/video-signature-validation';
+import { createHash } from 'crypto';
 
-const SERVICE_ATTACHMENT_MAX_FILES = 10;
+const SERVICE_ATTACHMENT_MAX_FILES = 30;
 const SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES = 10 * 1024 * 1024;
 const SERVICE_ATTACHMENT_MAX_TOTAL_ORIGINAL_BYTES = 40 * 1024 * 1024;
 const SERVICE_ATTACHMENT_MAX_DIMENSION = 6000;
@@ -25,18 +40,48 @@ const SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION = 2000;
 const SERVICE_ATTACHMENT_OUTPUT_QUALITY = 82;
 const SERVICE_ATTACHMENT_OUTPUT_FORMAT = 'webp';
 const SHARE_TOKEN_BYTES = 32;
+const ACTIVE_ATTACHMENT_UPLOAD_STATUSES = ['PENDING', 'UPLOADING', 'UPLOADED'];
+const FAILED_ATTACHMENT_UPLOAD_STATUSES = ['FAILED', 'EXPIRED'];
+
+function hashUploadToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 interface ZipEntry {
   name: string;
   data: Buffer;
 }
 
-function resolveDateRange(preset?: string, startDate?: string, endDate?: string): { gte: Date; lte: Date } | undefined {
+function resolveDateRange(
+  preset?: string,
+  startDate?: string,
+  endDate?: string,
+): { gte: Date; lte: Date } | undefined {
   const now = new Date();
   if (preset === 'Hoy') {
     return {
-      gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)),
-      lte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)),
+      gte: new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate(),
+          0,
+          0,
+          0,
+          0,
+        ),
+      ),
+      lte: new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          now.getUTCDate(),
+          23,
+          59,
+          59,
+          999,
+        ),
+      ),
     };
   }
   if (preset === 'Semana') {
@@ -67,22 +112,27 @@ function resolveDateRange(preset?: string, startDate?: string, endDate?: string)
 }
 
 function sanitizeDownloadName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80) || 'archivo';
+  return (
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'archivo'
+  );
 }
 
 function escapePdfText(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
 }
 
 const crcTable = new Uint32Array(256).map((_, index) => {
   let crc = index;
   for (let bit = 0; bit < 8; bit += 1) {
-    crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+    crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
   }
   return crc >>> 0;
 });
@@ -205,6 +255,7 @@ export class ServicesService {
     private storedFilesService: StoredFilesService,
     @Optional() private realtimeService?: RealtimeService,
     @Optional() private translationService?: TranslationService,
+    @Optional() private uploadPolicyService?: UploadPolicyService,
   ) {}
 
   private mapServiceRelations<T extends Record<string, any>>(service: T): T {
@@ -216,33 +267,52 @@ export class ServicesService {
       ...service,
       asset: {
         ...withOwner(service.asset),
-      }
+      },
     };
   }
 
-  private async resolveServiceFileUrls<T extends Record<string, any>>(service: T, organizationId: string): Promise<T> {
+  private async resolveServiceFileUrls<T extends Record<string, any>>(
+    service: T,
+    organizationId: string,
+  ): Promise<T> {
     const resolvedService = { ...service } as any;
 
     if (resolvedService.asset) {
-      resolvedService.asset.thumbnail_url = await this.storedFilesService.resolveFileUrlForOrg(
-        resolvedService.asset.thumbnail_file_id,
-        organizationId,
-      );
+      resolvedService.asset.thumbnail_url =
+        await this.storedFilesService.resolveFileUrlForOrg(
+          resolvedService.asset.thumbnail_file_id,
+          organizationId,
+        );
     }
 
     if (Array.isArray(resolvedService.attachments)) {
       resolvedService.attachments = await Promise.all(
-        resolvedService.attachments.map(async (attachment: any) => ({
-          ...attachment,
-          file_url: await this.storedFilesService.resolveFileUrlForOrg(attachment.file_id, organizationId),
-        }))
+        resolvedService.attachments.map(async (attachment: any) => {
+          const isVideo =
+            attachment.media_type === 'VIDEO' ||
+            String(attachment.file_type ?? '')
+              .toLowerCase()
+              .startsWith('video/');
+          return {
+            ...attachment,
+            file_url: isVideo
+              ? null
+              : await this.storedFilesService.resolveFileUrlForOrg(
+                  attachment.file_id,
+                  organizationId,
+                ),
+          };
+        }),
       );
     }
 
     return resolvedService;
   }
 
-  private async applyDescriptionTranslation<T extends Record<string, any>>(service: T, lang?: string | null): Promise<T> {
+  private async applyDescriptionTranslation<T extends Record<string, any>>(
+    service: T,
+    lang?: string | null,
+  ): Promise<T> {
     if (!this.translationService || !lang) {
       return {
         ...service,
@@ -254,7 +324,8 @@ export class ServicesService {
       };
     }
 
-    const translated = await this.translationService.translateServiceDescription(service, lang);
+    const translated =
+      await this.translationService.translateServiceDescription(service, lang);
     return {
       ...service,
       ...translated,
@@ -265,16 +336,74 @@ export class ServicesService {
     service: T,
     organizationId: string,
     lang?: string | null,
+    includePendingAttachments = true,
   ): Promise<T> {
-    const resolved = await this.resolveServiceFileUrls(this.mapServiceRelations(service), organizationId);
-    return this.applyDescriptionTranslation(resolved, lang);
+    const resolved = await this.resolveServiceFileUrls(
+      this.mapServiceRelations(service),
+      organizationId,
+    );
+    const withUploadSummary = this.serializeAttachmentUploadState(
+      resolved,
+      includePendingAttachments,
+    );
+    return this.applyDescriptionTranslation(withUploadSummary, lang);
+  }
+
+  private serializeAttachmentUploadState<T extends Record<string, any>>(
+    service: T,
+    includePending = true,
+  ): T {
+    const attachmentBytesTotal = service.attachment_bytes_total ?? 0;
+    const attachmentBytesReady = service.attachment_bytes_ready ?? 0;
+    const pendingAttachments =
+      includePending && Array.isArray(service.file_uploads)
+        ? service.file_uploads
+            .filter(
+              (upload: any) =>
+                upload.status !== 'CONFIRMED' && upload.status !== 'CANCELLED',
+            )
+            .map((upload: any) => ({
+              uploadId: upload.id,
+              name: upload.original_name,
+              mediaType: upload.media_type,
+              status: upload.status,
+              progress: upload.local_progress ?? 0,
+              file_size_bytes: String(
+                upload.actual_size_bytes ?? upload.declared_size_bytes ?? 0,
+              ),
+              failureCode: upload.failure_reason ?? null,
+            }))
+        : [];
+    const { file_uploads: _fileUploads, ...serviceWithoutUploads } = service;
+    return {
+      ...serviceWithoutUploads,
+      attachment_bytes_total: String(attachmentBytesTotal),
+      attachment_bytes_ready: String(attachmentBytesReady),
+      attachmentUploadSummary: {
+        status: service.attachment_upload_status ?? 'NONE',
+        expected:
+          (service.pending_attachment_count ?? 0) +
+          (service.failed_attachment_count ?? 0) +
+          (service.ready_attachment_count ?? 0),
+        ready: service.ready_attachment_count ?? 0,
+        uploading: service.pending_attachment_count ?? 0,
+        failed: service.failed_attachment_count ?? 0,
+        bytesTotal: String(attachmentBytesTotal),
+        bytesReady: String(attachmentBytesReady),
+      },
+      pendingAttachments,
+    } as unknown as T;
   }
 
   private generateShareToken(): string {
     return randomBytes(SHARE_TOKEN_BYTES).toString('base64url');
   }
 
-  async create(createServiceDto: CreateServiceDto, user: any, files?: Express.Multer.File[]) {
+  async create(
+    createServiceDto: CreateServiceDto,
+    user: any,
+    files?: Express.Multer.File[],
+  ) {
     let serviceOrgId: string;
 
     if (user.role === 'SUPER_ADMIN') {
@@ -286,26 +415,38 @@ export class ServicesService {
       serviceOrgId = asset.organization_id;
     } else {
       const asset = await this.prisma.asset.findFirst({
-        where: { id: createServiceDto.asset_id, organization_id: user.orgId, is_active: true },
+        where: {
+          id: createServiceDto.asset_id,
+          organization_id: user.orgId,
+          is_active: true,
+        },
         select: { id: true },
       });
-      if (!asset) throw new BadRequestException('El activo indicado no pertenece a tu organización');
+      if (!asset)
+        throw new BadRequestException(
+          'El activo indicado no pertenece a tu organización',
+        );
       serviceOrgId = user.orgId;
     }
 
     const org = await this.prisma.organization.findUnique({
       where: { id: serviceOrgId },
-      select: { auto_publish_services: true }
+      select: { auto_publish_services: true },
     });
     if (!org) throw new NotFoundException('Organization not found');
 
     if (files && files.length > SERVICE_ATTACHMENT_MAX_FILES) {
-      throw new BadRequestException('Solo puedes adjuntar hasta 10 imagenes por servicio');
+      throw new BadRequestException(
+        `Solo puedes adjuntar hasta ${SERVICE_ATTACHMENT_MAX_FILES} archivos por servicio`,
+      );
     }
 
-    const totalOriginalBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
+    const totalOriginalBytes =
+      files?.reduce((total, file) => total + file.size, 0) ?? 0;
     if (totalOriginalBytes > SERVICE_ATTACHMENT_MAX_TOTAL_ORIGINAL_BYTES) {
-      throw new BadRequestException('Los adjuntos del servicio exceden el maximo total permitido');
+      throw new BadRequestException(
+        'Los adjuntos del servicio exceden el maximo total permitido',
+      );
     }
 
     const serviceId = randomUUID();
@@ -314,30 +455,45 @@ export class ServicesService {
       file_type: string;
       file_name: string;
       file_size_bytes: number;
+      media_type: 'IMAGE' | 'DOCUMENT';
     }> = [];
     const storedFileIds: string[] = [];
     const uploadedStorageRefs: string[] = [];
 
     try {
       for (const file of files ?? []) {
-        const imageInfo = validateImageFile(file, {
-          maxBytes: SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES,
-          label: 'Adjunto de servicio',
-          maxWidth: SERVICE_ATTACHMENT_MAX_DIMENSION,
-          maxHeight: SERVICE_ATTACHMENT_MAX_DIMENSION,
-          maxPixels: SERVICE_ATTACHMENT_MAX_PIXELS,
-        });
-        file.mimetype = imageInfo.mime;
-        await processUploadedImage(file, {
-          maxWidth: SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION,
-          maxHeight: SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION,
-          format: SERVICE_ATTACHMENT_OUTPUT_FORMAT,
-          quality: SERVICE_ATTACHMENT_OUTPUT_QUALITY,
-        });
+        const mimeFromUpload = file.mimetype?.toLowerCase() || '';
+
+        if (isImageMime(mimeFromUpload)) {
+          const imageInfo = validateImageFile(file, {
+            maxBytes: SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES,
+            label: 'Adjunto de servicio',
+            maxWidth: SERVICE_ATTACHMENT_MAX_DIMENSION,
+            maxHeight: SERVICE_ATTACHMENT_MAX_DIMENSION,
+            maxPixels: SERVICE_ATTACHMENT_MAX_PIXELS,
+          });
+          file.mimetype = imageInfo.mime;
+          await processUploadedImage(file, {
+            maxWidth: SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION,
+            maxHeight: SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION,
+            format: SERVICE_ATTACHMENT_OUTPUT_FORMAT,
+            quality: SERVICE_ATTACHMENT_OUTPUT_QUALITY,
+          });
+        } else {
+          const docInfo = validateDocumentFile(file, {
+            maxBytes: SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES,
+            label: 'Documento adjunto',
+          });
+          file.mimetype = docInfo.mime;
+        }
       }
 
-      const totalProcessedBytes = files?.reduce((total, file) => total + file.size, 0) ?? 0;
-      await this.storageGovernance.assertCanStore(serviceOrgId, totalProcessedBytes);
+      const totalProcessedBytes =
+        files?.reduce((total, file) => total + file.size, 0) ?? 0;
+      await this.storageGovernance.assertCanStore(
+        serviceOrgId,
+        totalProcessedBytes,
+      );
 
       for (const file of files ?? []) {
         const file_url = await this.storageService.uploadFile(file, {
@@ -367,6 +523,7 @@ export class ServicesService {
           file_type: file.mimetype,
           file_name: file.originalname,
           file_size_bytes: file.size,
+          media_type: isImageMime(file.mimetype) ? 'IMAGE' : 'DOCUMENT',
         });
       }
 
@@ -378,16 +535,28 @@ export class ServicesService {
           worker_id: user.id,
           is_public: org.auto_publish_services,
           status: 'COMPLETED',
-          description_language: this.translationService?.detectLanguageHeuristic(createServiceDto.description) ?? null,
+          description_language:
+            this.translationService?.detectLanguageHeuristic(
+              createServiceDto.description,
+            ) ?? null,
+          attachment_upload_status: attachments.length > 0 ? 'READY' : 'NONE',
+          ready_attachment_count: attachments.length,
+          attachment_bytes_total: BigInt(totalProcessedBytes),
+          attachment_bytes_ready: BigInt(totalProcessedBytes),
           attachments: {
             create: attachments,
-          }
+          },
         },
-        include: { attachments: true }
+        include: { attachments: true },
       });
 
-      this.logger.log(`Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`);
-      const resolvedService = await this.prepareServiceResponse(newService, serviceOrgId);
+      this.logger.log(
+        `Service created: Asset [${createServiceDto.asset_id}] by Worker [${user.id}] with ${attachments.length} attachments`,
+      );
+      const resolvedService = await this.prepareServiceResponse(
+        newService,
+        serviceOrgId,
+      );
       this.realtimeService?.emit({
         module: 'services',
         action: 'created',
@@ -399,11 +568,230 @@ export class ServicesService {
       return resolvedService;
     } catch (error) {
       await Promise.all([
-        ...storedFileIds.map((id) => this.storedFilesService.deleteStoredFileAndBlob(id)),
-        ...uploadedStorageRefs.map((ref) => this.storageService.deleteFile(ref)),
+        ...storedFileIds.map((id) =>
+          this.storedFilesService.deleteStoredFileAndBlob(id),
+        ),
+        ...uploadedStorageRefs.map((ref) =>
+          this.storageService.deleteFile(ref),
+        ),
       ]);
       throw error;
     }
+  }
+
+  async createWithUploadManifest(
+    dto: CreateServiceWithUploadManifestDto,
+    user: any,
+  ) {
+    if (!['SUPER_ADMIN', 'ADMIN', 'WORKER'].includes(user.role)) {
+      throw new ForbiddenException(
+        'No tienes permiso para registrar servicios',
+      );
+    }
+    if (!this.uploadPolicyService) {
+      throw new BadRequestException('La carga desacoplada no esta disponible');
+    }
+
+    let serviceOrgId: string;
+    if (user.role === 'SUPER_ADMIN') {
+      const asset = await this.prisma.asset.findFirst({
+        where: { id: dto.asset_id, is_active: true },
+        select: { organization_id: true },
+      });
+      if (!asset) throw new BadRequestException('El activo indicado no existe');
+      serviceOrgId = asset.organization_id;
+    } else {
+      const asset = await this.prisma.asset.findFirst({
+        where: {
+          id: dto.asset_id,
+          organization_id: user.orgId,
+          is_active: true,
+        },
+        select: { id: true },
+      });
+      if (!asset)
+        throw new BadRequestException(
+          'El activo indicado no pertenece a tu organizacion',
+        );
+      serviceOrgId = user.orgId;
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: serviceOrgId },
+      select: { auto_publish_services: true },
+    });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const videos = (dto.expectedAttachments ?? []).filter(
+      (item) => item.mediaType === 'VIDEO',
+    );
+    const policy = await this.uploadPolicyService.resolvePolicy(serviceOrgId);
+    if (videos.length > policy.maxBatchSize) {
+      throw new BadRequestException(
+        `Solo puedes preparar hasta ${policy.maxBatchSize} archivos por lote`,
+      );
+    }
+
+    const serviceId = randomUUID();
+    const ttlMinutes = Number(
+      process.env.SERVICE_UPLOAD_INTENT_TTL_MINUTES ?? '1440',
+    );
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+    const uploadIntents: any[] = [];
+    let declaredTotal = 0n;
+
+    for (const video of videos) {
+      const declaredSize = this.uploadPolicyService.parseBytes(video.sizeBytes);
+      this.uploadPolicyService.validateVideoIntent(
+        policy,
+        video.name,
+        video.mimeType,
+        declaredSize,
+      );
+      declaredTotal += declaredSize;
+      if (policy.quotaBytes > 0n && declaredTotal > policy.availableBytes) {
+        throw new BadRequestException(
+          'No hay almacenamiento disponible para el lote seleccionado',
+        );
+      }
+
+      const uploadId = randomUUID();
+      const ext = extensionForVideoMime(
+        video.name,
+        video.mimeType.toLowerCase(),
+      );
+      const objectPath = `organizations/${serviceOrgId}/services/${serviceId}/attachments/${uploadId}/${randomUUID()}.${ext}`;
+      const signedIntent =
+        await this.storageService.createSignedUploadIntent(objectPath);
+      uploadIntents.push({
+        clientId: video.clientId,
+        uploadId,
+        bucket: signedIntent.bucket,
+        objectPath: signedIntent.objectPath,
+        storageRef: signedIntent.storageRef,
+        signedUploadToken: signedIntent.signedUploadToken,
+        tusEndpoint: signedIntent.tusEndpoint,
+        originalName: video.name,
+        mimeType: video.mimeType.toLowerCase(),
+        sizeBytes: declaredSize,
+        expiresAt,
+      });
+    }
+
+    const service = await this.prisma.$transaction(
+      async (tx) => {
+        if (declaredTotal > 0n) {
+          const [{ _sum: readySum }, { _sum: reservedSum }] = await Promise.all(
+            [
+              tx.storedFile.aggregate({
+                where: { organization_id: serviceOrgId, status: 'READY' },
+                _sum: { size_bytes: true },
+              }),
+              tx.fileUpload.aggregate({
+                where: {
+                  organization_id: serviceOrgId,
+                  status: { in: [...ACTIVE_ATTACHMENT_UPLOAD_STATUSES] as any },
+                },
+                _sum: { declared_size_bytes: true },
+              }),
+            ],
+          );
+          const projected =
+            BigInt(readySum.size_bytes ?? 0) +
+            (reservedSum?.declared_size_bytes ?? 0n) +
+            declaredTotal;
+          if (policy.quotaBytes > 0n && projected > policy.quotaBytes) {
+            throw new BadRequestException(
+              'No hay almacenamiento disponible para el lote seleccionado',
+            );
+          }
+        }
+
+        const created = await tx.service.create({
+          data: {
+            id: serviceId,
+            asset_id: dto.asset_id,
+            title: dto.title,
+            description: dto.description,
+            organization_id: serviceOrgId,
+            worker_id: user.id,
+            is_public: org.auto_publish_services,
+            status: 'COMPLETED',
+            description_language:
+              this.translationService?.detectLanguageHeuristic(
+                dto.description,
+              ) ?? null,
+            attachment_upload_status:
+              uploadIntents.length > 0 ? 'UPLOADING' : 'NONE',
+            pending_attachment_count: uploadIntents.length,
+            attachment_bytes_total: declaredTotal,
+          },
+          include: { attachments: true },
+        });
+
+        for (const intent of uploadIntents) {
+          await tx.fileUpload.create({
+            data: {
+              id: intent.uploadId,
+              organization_id: serviceOrgId,
+              service_id: serviceId,
+              created_by_user_id: user.id,
+              storage_ref: intent.storageRef,
+              original_name: intent.originalName,
+              declared_mime_type: intent.mimeType,
+              declared_size_bytes: intent.sizeBytes,
+              media_type: 'VIDEO',
+              signed_token_hash: hashUploadToken(intent.signedUploadToken),
+              expires_at: intent.expiresAt,
+            },
+          });
+        }
+
+        if (declaredTotal > 0n) {
+          await tx.organizationStorageUsage.upsert({
+            where: { organization_id: serviceOrgId },
+            create: {
+              organization_id: serviceOrgId,
+              reserved_bytes: declaredTotal,
+              pending_upload_count: uploadIntents.length,
+            },
+            update: {
+              reserved_bytes: { increment: declaredTotal },
+              pending_upload_count: { increment: uploadIntents.length },
+            },
+          });
+        }
+
+        return created;
+      },
+      { isolationLevel: 'Serializable' },
+    );
+
+    this.realtimeService?.emit({
+      module: 'services',
+      action: 'created',
+      entityId: service.id,
+      organizationId: serviceOrgId,
+      actorUserId: user.id,
+    });
+
+    const resolvedService = await this.prepareServiceResponse(
+      service,
+      serviceOrgId,
+    );
+    return {
+      service: resolvedService,
+      uploadIntents: uploadIntents.map((intent) => ({
+        clientId: intent.clientId,
+        uploadId: intent.uploadId,
+        bucket: intent.bucket,
+        objectPath: intent.objectPath,
+        signedUploadToken: intent.signedUploadToken,
+        tusEndpoint: intent.tusEndpoint,
+        expiresAt: intent.expiresAt.toISOString(),
+        chunkSizeBytes: 6 * 1024 * 1024,
+      })),
+    };
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
@@ -412,7 +800,7 @@ export class ServicesService {
     if (user.role !== 'SUPER_ADMIN') {
       whereClause.organization_id = user.orgId;
     }
-    
+
     if (query.asset_id) whereClause.asset_id = query.asset_id;
     if (query.worker_id) whereClause.worker_id = query.worker_id;
 
@@ -420,7 +808,11 @@ export class ServicesService {
       whereClause.worker_id = user.id;
     }
 
-    const dateRange = resolveDateRange(query.preset, query.startDate, query.endDate);
+    const dateRange = resolveDateRange(
+      query.preset,
+      query.startDate,
+      query.endDate,
+    );
     if (dateRange) whereClause.created_at = dateRange;
 
     if (isExternalRole(user.role)) {
@@ -429,7 +821,12 @@ export class ServicesService {
         return query.page && query.limit
           ? {
               data: [],
-              meta: { total: 0, page: Number(query.page), limit: Number(query.limit), totalPages: 0 },
+              meta: {
+                total: 0,
+                page: Number(query.page),
+                limit: Number(query.limit),
+                totalPages: 0,
+              },
             }
           : [];
       }
@@ -443,7 +840,7 @@ export class ServicesService {
       whereClause.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
         { worker: { name: { contains: query.search, mode: 'insensitive' } } },
-        { asset: { name: { contains: query.search, mode: 'insensitive' } } }
+        { asset: { name: { contains: query.search, mode: 'insensitive' } } },
       ];
     }
 
@@ -454,43 +851,132 @@ export class ServicesService {
         this.prisma.service.findMany({
           where: whereClause,
           include: {
-            worker: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
-            asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, deleted_at: true, purged_at: true, owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } } } },
+            worker: {
+              select: {
+                id: true,
+                name: true,
+                deleted_at: true,
+                purged_at: true,
+              },
+            },
+            asset: {
+              select: {
+                id: true,
+                name: true,
+                location: true,
+                owner_id: true,
+                thumbnail_file_id: true,
+                deleted_at: true,
+                purged_at: true,
+                owner: {
+                  select: {
+                    id: true,
+                    name: true,
+                    deleted_at: true,
+                    purged_at: true,
+                  },
+                },
+              },
+            },
             attachments: {
-              select: { id: true, file_id: true, file_type: true },
+              select: {
+                id: true,
+                file_id: true,
+                file_type: true,
+                file_name: true,
+                file_size_bytes: true,
+                media_type: true,
+              },
+              orderBy: { created_at: 'asc' },
+            },
+            file_uploads: {
+              select: {
+                id: true,
+                original_name: true,
+                media_type: true,
+                status: true,
+                local_progress: true,
+                declared_size_bytes: true,
+                actual_size_bytes: true,
+                failure_reason: true,
+              },
               orderBy: { created_at: 'asc' },
             },
           },
           orderBy: { created_at: 'desc' },
           skip: (page - 1) * limit,
-          take: limit
+          take: limit,
         }),
-        this.prisma.service.count({ where: whereClause })
+        this.prisma.service.count({ where: whereClause }),
       ]);
       const mappedData = await Promise.all(
-        data.map(async (item: any) => this.prepareServiceResponse(item, item.organization_id, query.lang))
+        data.map(async (item: any) =>
+          this.prepareServiceResponse(item, item.organization_id, query.lang),
+        ),
       );
 
       return {
         data: mappedData,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }
 
     const services = await this.prisma.service.findMany({
       where: whereClause,
       include: {
-        worker: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
-        asset: { select: { id: true, name: true, location: true, owner_id: true, thumbnail_file_id: true, deleted_at: true, purged_at: true, owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } } } },
+        worker: {
+          select: { id: true, name: true, deleted_at: true, purged_at: true },
+        },
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            owner_id: true,
+            thumbnail_file_id: true,
+            deleted_at: true,
+            purged_at: true,
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                deleted_at: true,
+                purged_at: true,
+              },
+            },
+          },
+        },
         attachments: {
-          select: { id: true, file_id: true, file_type: true },
+          select: {
+            id: true,
+            file_id: true,
+            file_type: true,
+            file_name: true,
+            file_size_bytes: true,
+            media_type: true,
+          },
+          orderBy: { created_at: 'asc' },
+        },
+        file_uploads: {
+          select: {
+            id: true,
+            original_name: true,
+            media_type: true,
+            status: true,
+            local_progress: true,
+            declared_size_bytes: true,
+            actual_size_bytes: true,
+            failure_reason: true,
+          },
           orderBy: { created_at: 'asc' },
         },
       },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
     });
     return Promise.all(
-      services.map(async (item: any) => this.prepareServiceResponse(item, item.organization_id, query.lang))
+      services.map(async (item: any) =>
+        this.prepareServiceResponse(item, item.organization_id, query.lang),
+      ),
     );
   }
 
@@ -511,7 +997,12 @@ export class ServicesService {
     if (isExternalRole(user.role)) {
       const currentOwnerId = user.owner_id ?? null;
       if (!currentOwnerId) {
-        return { total_services: 0, period_services: 0, assets_serviced: 0, active_operators: 0 };
+        return {
+          total_services: 0,
+          period_services: 0,
+          assets_serviced: 0,
+          active_operators: 0,
+        };
       }
       baseWhere.is_public = true;
       baseWhere.status = 'COMPLETED';
@@ -520,15 +1011,23 @@ export class ServicesService {
 
     const periodWhere: any = { ...baseWhere };
 
-    const dateRange = resolveDateRange(query.preset, query.startDate, query.endDate);
+    const dateRange = resolveDateRange(
+      query.preset,
+      query.startDate,
+      query.endDate,
+    );
     if (dateRange) periodWhere.created_at = dateRange;
 
-    const [total_services, period_services, assetGroups, workerGroups] = await Promise.all([
-      this.prisma.service.count({ where: baseWhere }),
-      this.prisma.service.count({ where: periodWhere }),
-      this.prisma.service.groupBy({ by: ['asset_id'], where: periodWhere }),
-      this.prisma.service.groupBy({ by: ['worker_id'], where: { ...periodWhere, worker_id: { not: null } } }),
-    ]);
+    const [total_services, period_services, assetGroups, workerGroups] =
+      await Promise.all([
+        this.prisma.service.count({ where: baseWhere }),
+        this.prisma.service.count({ where: periodWhere }),
+        this.prisma.service.groupBy({ by: ['asset_id'], where: periodWhere }),
+        this.prisma.service.groupBy({
+          by: ['worker_id'],
+          where: { ...periodWhere, worker_id: { not: null } },
+        }),
+      ]);
 
     return {
       total_services,
@@ -582,16 +1081,23 @@ export class ServicesService {
 
   async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
     const service = await this.prisma.service.findUnique({ where: { id } });
-    if (!service || service.organization_id !== orgId || service.deleted_at || (service as any).purged_at) {
-      throw new NotFoundException('Service no encontrado o no pertenece a tu Organización');
+    if (
+      !service ||
+      service.organization_id !== orgId ||
+      service.deleted_at ||
+      (service as any).purged_at
+    ) {
+      throw new NotFoundException(
+        'Service no encontrado o no pertenece a tu Organización',
+      );
     }
 
     return this.prisma.service.update({
       where: { id },
       data: {
         ...updateServiceDto,
-        admin_intervened: true
-      }
+        admin_intervened: true,
+      },
     });
   }
 
@@ -605,9 +1111,43 @@ export class ServicesService {
       where,
       include: {
         attachments: { orderBy: { created_at: 'asc' } },
-        worker: { select: { name: true, id: true, deleted_at: true, purged_at: true } },
-        asset: { select: { name: true, id: true, category: true, owner_id: true, location: true, thumbnail_file_id: true, deleted_at: true, purged_at: true, owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } } } }
-      }
+        file_uploads: {
+          select: {
+            id: true,
+            original_name: true,
+            media_type: true,
+            status: true,
+            local_progress: true,
+            declared_size_bytes: true,
+            actual_size_bytes: true,
+            failure_reason: true,
+          },
+          orderBy: { created_at: 'asc' },
+        },
+        worker: {
+          select: { name: true, id: true, deleted_at: true, purged_at: true },
+        },
+        asset: {
+          select: {
+            name: true,
+            id: true,
+            category: true,
+            owner_id: true,
+            location: true,
+            thumbnail_file_id: true,
+            deleted_at: true,
+            purged_at: true,
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                deleted_at: true,
+                purged_at: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!service) {
@@ -616,7 +1156,9 @@ export class ServicesService {
 
     if (isExternalRole(user.role)) {
       if (!service.is_public) {
-        throw new ForbiddenException('No tienes permiso para ver este servicio privado');
+        throw new ForbiddenException(
+          'No tienes permiso para ver este servicio privado',
+        );
       }
 
       const currentOwnerId = user.owner_id ?? null;
@@ -625,12 +1167,19 @@ export class ServicesService {
       }
     }
 
-    return this.prepareServiceResponse(service, service.organization_id, lang);
+    return this.prepareServiceResponse(
+      service,
+      service.organization_id,
+      lang,
+      !isExternalRole(user.role),
+    );
   }
 
   async getOrCreateShareLink(id: string, user: any) {
     if (isExternalRole(user.role)) {
-      throw new ForbiddenException('No tienes permiso para compartir este servicio');
+      throw new ForbiddenException(
+        'No tienes permiso para compartir este servicio',
+      );
     }
 
     const where: any = { id, deleted_at: null, purged_at: null };
@@ -665,7 +1214,9 @@ export class ServicesService {
 
     let token = this.generateShareToken();
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const tokenExists = await this.prisma.serviceShareLink.findUnique({ where: { token } });
+      const tokenExists = await this.prisma.serviceShareLink.findUnique({
+        where: { token },
+      });
       if (!tokenExists) break;
       token = this.generateShareToken();
     }
@@ -691,9 +1242,35 @@ export class ServicesService {
       include: {
         service: {
           include: {
-            organization: { select: { name: true, logo_file_id: true, default_asset_icon: true } },
+            organization: {
+              select: {
+                name: true,
+                logo_file_id: true,
+                default_asset_icon: true,
+              },
+            },
             attachments: { orderBy: { created_at: 'asc' } },
-            worker: { select: { name: true, id: true, deleted_at: true, purged_at: true } },
+            file_uploads: {
+              select: {
+                id: true,
+                original_name: true,
+                media_type: true,
+                status: true,
+                local_progress: true,
+                declared_size_bytes: true,
+                actual_size_bytes: true,
+                failure_reason: true,
+              },
+              orderBy: { created_at: 'asc' },
+            },
+            worker: {
+              select: {
+                name: true,
+                id: true,
+                deleted_at: true,
+                purged_at: true,
+              },
+            },
             asset: {
               select: {
                 name: true,
@@ -704,7 +1281,14 @@ export class ServicesService {
                 thumbnail_file_id: true,
                 deleted_at: true,
                 purged_at: true,
-                owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+                owner: {
+                  select: {
+                    id: true,
+                    name: true,
+                    deleted_at: true,
+                    purged_at: true,
+                  },
+                },
               },
             },
           },
@@ -712,7 +1296,12 @@ export class ServicesService {
       },
     });
 
-    if (!shareLink || !shareLink.is_enabled || shareLink.service.deleted_at || (shareLink.service as any).purged_at) {
+    if (
+      !shareLink ||
+      !shareLink.is_enabled ||
+      shareLink.service.deleted_at ||
+      (shareLink.service as any).purged_at
+    ) {
       throw new NotFoundException('Link compartido no encontrado');
     }
 
@@ -724,12 +1313,14 @@ export class ServicesService {
       shareLink.service,
       shareLink.service.organization_id,
       lang,
+      false,
     );
 
-    const organizationLogoUrl = await this.storedFilesService.resolveFileUrlForOrg(
-      shareLink.service.organization.logo_file_id,
-      shareLink.service.organization_id,
-    );
+    const organizationLogoUrl =
+      await this.storedFilesService.resolveFileUrlForOrg(
+        shareLink.service.organization.logo_file_id,
+        shareLink.service.organization_id,
+      );
 
     return {
       token: shareLink.token,
@@ -754,14 +1345,18 @@ export class ServicesService {
     };
   }
 
-  async generateSharedServicePhotosZip(token: string, baseUrl: string): Promise<{ fileName: string; buffer: Buffer }> {
+  async generateSharedServicePhotosZip(
+    token: string,
+    baseUrl: string,
+  ): Promise<{ fileName: string; buffer: Buffer }> {
     const shared = await this.getPublicSharedService(token);
     if (!shared.allow_downloads) {
       throw new ForbiddenException('La descarga de fotos esta desactivada');
     }
 
     const imageAttachments = (shared.service.attachments ?? []).filter(
-      (attachment: any) => attachment.file_url && attachment.file_type?.startsWith('image/'),
+      (attachment: any) =>
+        attachment.file_url && attachment.file_type?.startsWith('image/'),
     );
 
     if (imageAttachments.length === 0) {
@@ -772,7 +1367,9 @@ export class ServicesService {
     for (let index = 0; index < imageAttachments.length; index += 1) {
       const attachment = imageAttachments[index] as any;
       const fileUrl = String(attachment.file_url);
-      const resolvedUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
+      const resolvedUrl = fileUrl.startsWith('http')
+        ? fileUrl
+        : `${baseUrl}${fileUrl}`;
       const response = await fetch(resolvedUrl);
       if (!response.ok) {
         continue;
@@ -797,7 +1394,9 @@ export class ServicesService {
     };
   }
 
-  async generateSharedServiceReportPdf(token: string): Promise<{ fileName: string; buffer: Buffer }> {
+  async generateSharedServiceReportPdf(
+    token: string,
+  ): Promise<{ fileName: string; buffer: Buffer }> {
     const shared = await this.getPublicSharedService(token);
     const service = shared.service;
     const lines = [
@@ -820,6 +1419,50 @@ export class ServicesService {
     };
   }
 
+  async getAttachmentDownloadUrl(
+    serviceId: string,
+    attachmentId: string,
+    user: any,
+  ) {
+    const where: any = { id: serviceId, deleted_at: null, purged_at: null };
+    if (user.role !== 'SUPER_ADMIN') {
+      where.organization_id = user.orgId;
+    }
+
+    const service = await this.prisma.service.findFirst({
+      where,
+      select: { id: true, organization_id: true },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Servicio no encontrado');
+    }
+
+    const attachment = await this.prisma.serviceAttachment.findFirst({
+      where: { id: attachmentId, service_id: serviceId },
+      select: { file_id: true, file_name: true, file_type: true },
+    });
+
+    if (!attachment || !attachment.file_id) {
+      throw new NotFoundException('Adjunto no encontrado');
+    }
+
+    const url = await this.storedFilesService.resolveFileUrlForOrg(
+      attachment.file_id,
+      service.organization_id,
+    );
+
+    if (!url) {
+      throw new NotFoundException('Archivo no encontrado en el almacenamiento');
+    }
+
+    return {
+      url,
+      file_name: attachment.file_name,
+      file_type: attachment.file_type,
+    };
+  }
+
   async remove(id: string, user: any) {
     const service = await this.prisma.service.findUnique({ where: { id } });
 
@@ -828,7 +1471,9 @@ export class ServicesService {
     }
 
     if (user.role !== 'SUPER_ADMIN' && service.organization_id !== user.orgId) {
-      throw new ForbiddenException('Acceso denegado para eliminar este servicio');
+      throw new ForbiddenException(
+        'Acceso denegado para eliminar este servicio',
+      );
     }
 
     return this.prisma.service.update({
@@ -836,5 +1481,4 @@ export class ServicesService {
       data: { deleted_at: new Date(), deleted_by_id: user.id },
     });
   }
-
 }

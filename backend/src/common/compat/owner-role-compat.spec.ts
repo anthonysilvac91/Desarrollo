@@ -26,7 +26,9 @@ describe('owner-role contract helpers', () => {
   });
 
   it('returns only owner fields for relation mapping', () => {
-    expect(withOwner({ owner_id: 'owner-1', owner: { id: 'owner-1' } })).toEqual({
+    expect(
+      withOwner({ owner_id: 'owner-1', owner: { id: 'owner-1' } }),
+    ).toEqual({
       owner_id: 'owner-1',
       owner: { id: 'owner-1' },
     });

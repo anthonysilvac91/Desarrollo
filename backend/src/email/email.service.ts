@@ -11,13 +11,16 @@ export class EmailService {
   constructor(private config: ConfigService) {
     const apiKey = config.get<string>('RESEND_API_KEY');
     if (!apiKey) {
-      this.logger.warn('RESEND_API_KEY not set — EmailService disabled, emails will be skipped');
+      this.logger.warn(
+        'RESEND_API_KEY not set — EmailService disabled, emails will be skipped',
+      );
       this.resend = null;
     } else {
       this.resend = new Resend(apiKey);
     }
 
-    const fromEmail = config.get<string>('EMAIL_FROM') || 'noreply@localhost.dev';
+    const fromEmail =
+      config.get<string>('EMAIL_FROM') || 'noreply@localhost.dev';
     const fromName = config.get<string>('EMAIL_FROM_NAME') || 'Recall';
     this.from = `${fromName} <${fromEmail}>`;
   }
@@ -26,9 +29,15 @@ export class EmailService {
     return this.resend !== null;
   }
 
-  async sendPasswordReset(to: string, name: string, resetUrl: string): Promise<void> {
+  async sendPasswordReset(
+    to: string,
+    name: string,
+    resetUrl: string,
+  ): Promise<void> {
     if (!this.resend) {
-      this.logger.warn(`Email skipped (RESEND_API_KEY not set): password reset for ${to}`);
+      this.logger.warn(
+        `Email skipped (RESEND_API_KEY not set): password reset for ${to}`,
+      );
       return;
     }
     try {
@@ -44,9 +53,15 @@ export class EmailService {
     }
   }
 
-  async sendEmailVerification(to: string, name: string, verifyUrl: string): Promise<void> {
+  async sendEmailVerification(
+    to: string,
+    name: string,
+    verifyUrl: string,
+  ): Promise<void> {
     if (!this.resend) {
-      this.logger.warn(`Email skipped (RESEND_API_KEY not set): email verification for ${to}`);
+      this.logger.warn(
+        `Email skipped (RESEND_API_KEY not set): email verification for ${to}`,
+      );
       return;
     }
     try {
@@ -62,9 +77,15 @@ export class EmailService {
     }
   }
 
-  async sendTwoFactorCode(to: string, name: string, code: string): Promise<void> {
+  async sendTwoFactorCode(
+    to: string,
+    name: string,
+    code: string,
+  ): Promise<void> {
     if (!this.resend) {
-      this.logger.warn(`Email skipped (RESEND_API_KEY not set): 2FA code for ${to}`);
+      this.logger.warn(
+        `Email skipped (RESEND_API_KEY not set): 2FA code for ${to}`,
+      );
       return;
     }
     try {
@@ -80,9 +101,16 @@ export class EmailService {
     }
   }
 
-  async sendInvitation(to: string, inviterName: string, orgName: string, inviteUrl: string): Promise<void> {
+  async sendInvitation(
+    to: string,
+    inviterName: string,
+    orgName: string,
+    inviteUrl: string,
+  ): Promise<void> {
     if (!this.resend) {
-      this.logger.warn(`Email skipped (RESEND_API_KEY not set): invitation for ${to}`);
+      this.logger.warn(
+        `Email skipped (RESEND_API_KEY not set): invitation for ${to}`,
+      );
       return;
     }
     try {
@@ -168,7 +196,11 @@ export class EmailService {
     `);
   }
 
-  private invitationTemplate(inviterName: string, orgName: string, inviteUrl: string): string {
+  private invitationTemplate(
+    inviterName: string,
+    orgName: string,
+    inviteUrl: string,
+  ): string {
     return this.base(`
       <h2 style="margin:0 0 8px;font-size:22px;font-weight:900;color:#111827;">Te invitaron a ${orgName}</h2>
       <p style="margin:0 0 16px;font-size:15px;color:#6b7280;"><strong>${inviterName}</strong> te ha invitado a unirte a <strong>${orgName}</strong> en Recall.</p>

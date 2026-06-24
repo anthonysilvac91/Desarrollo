@@ -6,8 +6,18 @@ import { StorageService } from './storage.service';
 
 describe('StoredFilesService', () => {
   let service: StoredFilesService;
-  let prisma: { storedFile: { create: jest.Mock; findUnique: jest.Mock; deleteMany: jest.Mock } };
-  let storageService: { deleteFile: jest.Mock; resolveFileUrl: jest.Mock; canHandleFileRef: jest.Mock };
+  let prisma: {
+    storedFile: {
+      create: jest.Mock;
+      findUnique: jest.Mock;
+      deleteMany: jest.Mock;
+    };
+  };
+  let storageService: {
+    deleteFile: jest.Mock;
+    resolveFileUrl: jest.Mock;
+    canHandleFileRef: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
@@ -111,7 +121,9 @@ describe('StoredFilesService', () => {
         }),
       ).rejects.toThrow('DB error');
 
-      expect(storageService.deleteFile).toHaveBeenCalledWith('private://org-1/file.jpg');
+      expect(storageService.deleteFile).toHaveBeenCalledWith(
+        'private://org-1/file.jpg',
+      );
     });
   });
 });

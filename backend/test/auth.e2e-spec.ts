@@ -49,8 +49,12 @@ describe('Auth & Register (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'test@test.com', password: '123456', organizationId: org.id });
-      
+        .send({
+          email: 'test@test.com',
+          password: '123456',
+          organizationId: org.id,
+        });
+
       expect(response.status).toBe(201);
       expect(response.body.access_token).toBeDefined();
     });
@@ -59,60 +63,120 @@ describe('Auth & Register (e2e)', () => {
   describe('POST /auth/register', () => {
     it('debería registrar y validar a usuario si manda token válido', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      
-      const inv = await testUtils.seedTestInvitation(org.id, 'newcomer@test.com', Role.WORKER, admin.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
+
+      const inv = await testUtils.seedTestInvitation(
+        org.id,
+        'newcomer@test.com',
+        Role.WORKER,
+        admin.id,
+      );
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ token: inv.token, name: 'John Doe', password: 'securepassword123' });
+        .send({
+          token: inv.token,
+          name: 'John Doe',
+          password: 'securepassword123',
+        });
 
       expect(response.status).toBe(201);
       expect(response.body.access_token).toBeDefined();
       expect(response.body.user.role).toBe(Role.WORKER);
       expect(response.body.user.email).toBe('newcomer@test.com');
-      
+
       // Valida que el token se ha quemado
-      const consumido = await prisma.invitation.findUnique({ where: { id: inv.id }});
+      const consumido = await prisma.invitation.findUnique({
+        where: { id: inv.id },
+      });
       expect(consumido?.is_used).toBe(true);
     });
 
     it('rechaza registro EXTERNAL sin owner_id', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'external@test.com', Role.EXTERNAL, admin.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
+      const inv = await testUtils.seedTestInvitation(
+        org.id,
+        'external@test.com',
+        Role.EXTERNAL,
+        admin.id,
+      );
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ token: inv.token, name: 'External User', password: 'securepassword123' });
+        .send({
+          token: inv.token,
+          name: 'External User',
+          password: 'securepassword123',
+        });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Un usuario externo debe asociarse a un owner');
+      expect(response.body.message).toBe(
+        'Un usuario externo debe asociarse a un owner',
+      );
     });
 
     it('registra EXTERNAL con owner_id valida', async () => {
       const org = await testUtils.createTestOrganization();
       const owner = await testUtils.createTestOwner('Empresa A', org.id);
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'external@test.com', Role.EXTERNAL, admin.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
+      const inv = await testUtils.seedTestInvitation(
+        org.id,
+        'external@test.com',
+        Role.EXTERNAL,
+        admin.id,
+      );
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ token: inv.token, name: 'Owner User', password: 'securepassword123', owner_id: owner.id });
+        .send({
+          token: inv.token,
+          name: 'Owner User',
+          password: 'securepassword123',
+          owner_id: owner.id,
+        });
 
       expect(response.status).toBe(201);
-      const user = await prisma.user.findFirst({ where: { email: 'external@test.com' } });
+      const user = await prisma.user.findFirst({
+        where: { email: 'external@test.com' },
+      });
       expect(user?.owner_id).toBe(owner.id);
     });
 
     it('debería arrojar 401 si mandan token usado', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'newcomer@test.com', Role.WORKER, admin.id, true); // was used
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
+      const inv = await testUtils.seedTestInvitation(
+        org.id,
+        'newcomer@test.com',
+        Role.WORKER,
+        admin.id,
+        true,
+      ); // was used
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ token: inv.token, name: 'John Doe', password: 'securepassword123' });
+        .send({
+          token: inv.token,
+          name: 'John Doe',
+          password: 'securepassword123',
+        });
 
       expect(response.status).toBe(401);
       expect(response.body.message).toContain('ya fue utilizada');
@@ -120,8 +184,19 @@ describe('Auth & Register (e2e)', () => {
 
     it('debería arrojar 401 si token está vencido', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'newcomer@test.com', Role.WORKER, admin.id, false, true); // expired
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
+      const inv = await testUtils.seedTestInvitation(
+        org.id,
+        'newcomer@test.com',
+        Role.WORKER,
+        admin.id,
+        false,
+        true,
+      ); // expired
 
       const response = await request(app.getHttpServer())
         .post('/auth/register')
@@ -140,7 +215,11 @@ describe('Auth & Register (e2e)', () => {
 
     it('debería retornar el perfil completo del usuario si el token es válido', async () => {
       const org = await testUtils.createTestOrganization('Branding');
-      const user = await testUtils.createTestUser(Role.ADMIN, 'me@test.com', org.id);
+      const user = await testUtils.createTestUser(
+        Role.ADMIN,
+        'me@test.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(user);
 
       const response = await request(app.getHttpServer())

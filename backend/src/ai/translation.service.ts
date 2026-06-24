@@ -4,7 +4,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiSettingsService } from './ai-settings.service';
 
 const SUPPORTED_LANGUAGES = new Set(['es', 'en']);
-const SKIP_TERMS = ['test', 'prueba', 'demo', 'lorem', 'asdf', 'xxx', 'qwerty', 'basura'];
+const SKIP_TERMS = [
+  'test',
+  'prueba',
+  'demo',
+  'lorem',
+  'asdf',
+  'xxx',
+  'qwerty',
+  'basura',
+];
 
 type TranslationStatus =
   | 'original'
@@ -34,35 +43,76 @@ export class TranslationService {
     private aiSettingsService: AiSettingsService,
   ) {}
 
-  async translateServiceDescription(service: any, targetLanguage?: string | null): Promise<TranslatedDescription> {
+  async translateServiceDescription(
+    service: any,
+    targetLanguage?: string | null,
+  ): Promise<TranslatedDescription> {
     const original = service.description?.trim() || null;
     const normalizedTarget = this.normalizeLanguage(targetLanguage);
 
     if (!original) {
-      return this.originalPayload(original, service.description_language ?? null, normalizedTarget, 'original');
+      return this.originalPayload(
+        original,
+        service.description_language ?? null,
+        normalizedTarget,
+        'original',
+      );
     }
 
     if (!normalizedTarget) {
-      return this.originalPayload(original, service.description_language ?? null, null, 'skipped_unsupported_language');
+      return this.originalPayload(
+        original,
+        service.description_language ?? null,
+        null,
+        'skipped_unsupported_language',
+      );
     }
 
     if (!this.isTextEligible(original)) {
-      return this.originalPayload(original, service.description_language ?? null, normalizedTarget, 'skipped_low_quality');
+      return this.originalPayload(
+        original,
+        service.description_language ?? null,
+        normalizedTarget,
+        'skipped_low_quality',
+      );
     }
 
-    const detectedLanguage = service.description_language || this.detectLanguageHeuristic(original);
+    const detectedLanguage =
+      service.description_language || this.detectLanguageHeuristic(original);
     if (detectedLanguage && detectedLanguage === normalizedTarget) {
-      await this.persistDetectedLanguage(service.id, detectedLanguage, service.description_language);
-      return this.originalPayload(original, detectedLanguage, normalizedTarget, 'skipped_same_language');
+      await this.persistDetectedLanguage(
+        service.id,
+        detectedLanguage,
+        service.description_language,
+      );
+      return this.originalPayload(
+        original,
+        detectedLanguage,
+        normalizedTarget,
+        'skipped_same_language',
+      );
     }
 
     const runtime = await this.aiSettingsService.getOpenAiRuntimeConfig();
     if (!runtime) {
-      return this.originalPayload(original, detectedLanguage, normalizedTarget, 'skipped_disabled');
+      return this.originalPayload(
+        original,
+        detectedLanguage,
+        normalizedTarget,
+        'skipped_disabled',
+      );
     }
 
-    if (runtime.translateServicesCreatedAfter && service.created_at < runtime.translateServicesCreatedAfter) {
-      return this.originalPayload(original, detectedLanguage, normalizedTarget, 'skipped_date');
+    if (
+      runtime.translateServicesCreatedAfter &&
+      service.created_at < runtime.translateServicesCreatedAfter
+    ) {
+      return this.originalPayload(
+        original,
+        detectedLanguage,
+        normalizedTarget,
+        'skipped_date',
+      );
     }
 
     const sourceHash = this.hashText(original);
@@ -95,14 +145,31 @@ export class TranslationService {
         targetLanguage: normalizedTarget,
       });
 
-      const sourceLanguage = this.normalizeLanguage(generated.source_language) ?? detectedLanguage ?? null;
+      const sourceLanguage =
+        this.normalizeLanguage(generated.source_language) ??
+        detectedLanguage ??
+        null;
       if (sourceLanguage && sourceLanguage === normalizedTarget) {
-        await this.persistDetectedLanguage(service.id, sourceLanguage, service.description_language);
-        return this.originalPayload(original, sourceLanguage, normalizedTarget, 'skipped_same_language');
+        await this.persistDetectedLanguage(
+          service.id,
+          sourceLanguage,
+          service.description_language,
+        );
+        return this.originalPayload(
+          original,
+          sourceLanguage,
+          normalizedTarget,
+          'skipped_same_language',
+        );
       }
 
       if (!generated.translated_text?.trim()) {
-        return this.originalPayload(original, sourceLanguage, normalizedTarget, 'failed');
+        return this.originalPayload(
+          original,
+          sourceLanguage,
+          normalizedTarget,
+          'failed',
+        );
       }
 
       const translation = await this.prisma.serviceTranslation.upsert({
@@ -129,7 +196,11 @@ export class TranslationService {
         },
       });
 
-      await this.persistDetectedLanguage(service.id, sourceLanguage, service.description_language);
+      await this.persistDetectedLanguage(
+        service.id,
+        sourceLanguage,
+        service.description_language,
+      );
 
       return {
         description: translation.translated_text,
@@ -140,19 +211,60 @@ export class TranslationService {
         translation_status: 'translated',
       };
     } catch (error) {
-      this.logger.warn(`OpenAI translation failed for service ${service.id}: ${error instanceof Error ? error.message : String(error)}`);
-      return this.originalPayload(original, detectedLanguage, normalizedTarget, 'failed');
+      this.logger.warn(
+        `OpenAI translation failed for service ${service.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return this.originalPayload(
+        original,
+        detectedLanguage,
+        normalizedTarget,
+        'failed',
+      );
     }
   }
 
   detectLanguageHeuristic(text?: string | null): string | null {
     if (!text) return null;
     const normalized = this.normalizeText(text);
-    const spanishSignals = [' el ', ' la ', ' los ', ' las ', ' de ', ' del ', ' se ', ' con ', ' para ', ' revision ', ' cambio ', ' lavado ', ' motor ', ' aceite ', ' filtro ', ' servicio ', ' realizado '];
-    const englishSignals = [' the ', ' and ', ' with ', ' for ', ' service ', ' engine ', ' oil ', ' filter ', ' replaced ', ' checked ', ' completed '];
+    const spanishSignals = [
+      ' el ',
+      ' la ',
+      ' los ',
+      ' las ',
+      ' de ',
+      ' del ',
+      ' se ',
+      ' con ',
+      ' para ',
+      ' revision ',
+      ' cambio ',
+      ' lavado ',
+      ' motor ',
+      ' aceite ',
+      ' filtro ',
+      ' servicio ',
+      ' realizado ',
+    ];
+    const englishSignals = [
+      ' the ',
+      ' and ',
+      ' with ',
+      ' for ',
+      ' service ',
+      ' engine ',
+      ' oil ',
+      ' filter ',
+      ' replaced ',
+      ' checked ',
+      ' completed ',
+    ];
     const padded = ` ${normalized} `;
-    const spanishScore = spanishSignals.filter((signal) => padded.includes(signal)).length;
-    const englishScore = englishSignals.filter((signal) => padded.includes(signal)).length;
+    const spanishScore = spanishSignals.filter((signal) =>
+      padded.includes(signal),
+    ).length;
+    const englishScore = englishSignals.filter((signal) =>
+      padded.includes(signal),
+    ).length;
 
     if (/[ñáéíóúü¿¡]/i.test(text) || spanishScore > englishScore) return 'es';
     if (englishScore > spanishScore) return 'en';
@@ -190,7 +302,9 @@ export class TranslationService {
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI error ${response.status}: ${(await response.text()).slice(0, 200)}`);
+      throw new Error(
+        `OpenAI error ${response.status}: ${(await response.text()).slice(0, 200)}`,
+      );
     }
 
     const payload: any = await response.json();
@@ -208,7 +322,8 @@ export class TranslationService {
       return payload.output_text;
     }
 
-    const parts = payload.output?.flatMap((item: any) => item.content ?? []) ?? [];
+    const parts =
+      payload.output?.flatMap((item: any) => item.content ?? []) ?? [];
     return parts
       .map((part: any) => part.text ?? '')
       .filter(Boolean)
@@ -241,8 +356,15 @@ export class TranslationService {
     const normalized = this.normalizeText(text);
     const words = normalized.split(/\s+/).filter(Boolean);
     const hasRepeatedCharacters = /(.)\1{4,}/.test(normalized);
-    const hasSkipTerm = SKIP_TERMS.some((term) => normalized === term || normalized.includes(term));
-    return normalized.length >= 20 && words.length >= 3 && !hasRepeatedCharacters && !hasSkipTerm;
+    const hasSkipTerm = SKIP_TERMS.some(
+      (term) => normalized === term || normalized.includes(term),
+    );
+    return (
+      normalized.length >= 20 &&
+      words.length >= 3 &&
+      !hasRepeatedCharacters &&
+      !hasSkipTerm
+    );
   }
 
   private normalizeText(text: string): string {
@@ -257,7 +379,11 @@ export class TranslationService {
     return createHash('sha256').update(text).digest('hex');
   }
 
-  private async persistDetectedLanguage(serviceId: string, language?: string | null, currentLanguage?: string | null) {
+  private async persistDetectedLanguage(
+    serviceId: string,
+    language?: string | null,
+    currentLanguage?: string | null,
+  ) {
     if (!language || currentLanguage) {
       return;
     }

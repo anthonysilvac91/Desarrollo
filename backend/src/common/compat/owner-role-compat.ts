@@ -12,12 +12,16 @@ export function isExternalRole(role?: string | null) {
   return role === EXTERNAL_ROLE;
 }
 
-export function toDbRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
-  return role as T | 'EXTERNAL';
+export function toDbRole<T extends string | null | undefined>(
+  role: T,
+): T | 'EXTERNAL' {
+  return role;
 }
 
-export function toApiRole<T extends string | null | undefined>(role: T): T | 'EXTERNAL' {
-  return role as T | 'EXTERNAL';
+export function toApiRole<T extends string | null | undefined>(
+  role: T,
+): T | 'EXTERNAL' {
+  return role;
 }
 
 export function hasLegacyOwnerAliases(input: OwnerInput) {

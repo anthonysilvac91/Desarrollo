@@ -8,6 +8,8 @@ import { ToastProvider } from "@/lib/ToastContext";
 import { DynamicBranding } from "@/components/layout/DynamicBranding";
 import PWARegistration from "@/components/PWARegistration";
 import { RealtimeQueryInvalidator } from "@/lib/RealtimeQueryInvalidator";
+import { UploadQueueProvider } from "@/providers/UploadQueueProvider";
+import { GlobalUploadIndicator } from "@/components/uploads/GlobalUploadIndicator";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -28,10 +30,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <LanguageProvider>
           <ToastProvider>
-            <RealtimeQueryInvalidator />
-            <DynamicBranding />
-            <PWARegistration />
-            {children}
+            <UploadQueueProvider>
+              <RealtimeQueryInvalidator />
+              <DynamicBranding />
+              <PWARegistration />
+              {children}
+              <GlobalUploadIndicator />
+            </UploadQueueProvider>
           </ToastProvider>
         </LanguageProvider>
       </AuthProvider>

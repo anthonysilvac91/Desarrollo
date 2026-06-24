@@ -1,4 +1,11 @@
-import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Optional,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role, StoredFileKind } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -8,7 +15,10 @@ import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
-import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import {
+  ensureNoManualFileUrl,
+  validateImageFile,
+} from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildUserAvatarPath } from '../common/files/storage-paths';
 import {
@@ -29,13 +39,19 @@ export class UsersService {
     @Optional() private realtimeService?: RealtimeService,
   ) {}
 
-  private mapUserRelations<T extends Record<string, any>>(user: T): T & { owner_id: string | null; owner: any } {
+  private mapUserRelations<T extends Record<string, any>>(
+    user: T,
+  ): T & { owner_id: string | null; owner: any } {
     return withOwner(user);
   }
 
   private async resolveUserFileUrls<T extends Record<string, any>>(user: T) {
     const resolvedUser = { ...user } as any;
-    resolvedUser.avatar_url = await this.storedFilesService.resolveFileUrlForOrg(resolvedUser.avatar_file_id, resolvedUser.organization_id);
+    resolvedUser.avatar_url =
+      await this.storedFilesService.resolveFileUrlForOrg(
+        resolvedUser.avatar_file_id,
+        resolvedUser.organization_id,
+      );
     return resolvedUser;
   }
 
@@ -46,18 +62,25 @@ export class UsersService {
     });
 
     if (!organization || !organization.is_active) {
-      throw new BadRequestException('La organización indicada no existe o está inactiva');
+      throw new BadRequestException(
+        'La organización indicada no existe o está inactiva',
+      );
     }
   }
 
-  private async ensureOwnerBelongsToOrganization(ownerId: string, organizationId: string) {
+  private async ensureOwnerBelongsToOrganization(
+    ownerId: string,
+    organizationId: string,
+  ) {
     const owner = await this.prisma.owner.findFirst({
       where: { id: ownerId, organization_id: organizationId, is_active: true },
       select: { id: true },
     });
 
     if (!owner) {
-      throw new BadRequestException('El propietario indicado no pertenece a la organización');
+      throw new BadRequestException(
+        'El propietario indicado no pertenece a la organización',
+      );
     }
   }
 
@@ -66,7 +89,9 @@ export class UsersService {
 
     if (currentUser.role !== Role.SUPER_ADMIN) {
       if (!currentUser.orgId) {
-        throw new ForbiddenException('El usuario no pertenece a ninguna organizacion');
+        throw new ForbiddenException(
+          'El usuario no pertenece a ninguna organizacion',
+        );
       }
 
       where.organization_id = currentUser.orgId;
@@ -77,8 +102,13 @@ export class UsersService {
   }
 
   async getStats(currentUser: { id: string; role: Role; orgId?: string }) {
-    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
-      throw new ForbiddenException('No tienes permiso para ver estadisticas de usuarios');
+    if (
+      currentUser.role !== Role.SUPER_ADMIN &&
+      currentUser.role !== Role.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'No tienes permiso para ver estadisticas de usuarios',
+      );
     }
 
     const where = this.buildStatsWhere(currentUser);
@@ -91,15 +121,18 @@ export class UsersService {
       }),
     ]);
 
-    const countsByRole = groupedRoles.reduce<Record<Role, number>>((acc, item) => {
-      acc[item.role] = item._count.role;
-      return acc;
-    }, {
-      [Role.SUPER_ADMIN]: 0,
-      [Role.ADMIN]: 0,
-      [Role.WORKER]: 0,
-      [Role.EXTERNAL]: 0,
-    });
+    const countsByRole = groupedRoles.reduce<Record<Role, number>>(
+      (acc, item) => {
+        acc[item.role] = item._count.role;
+        return acc;
+      },
+      {
+        [Role.SUPER_ADMIN]: 0,
+        [Role.ADMIN]: 0,
+        [Role.WORKER]: 0,
+        [Role.EXTERNAL]: 0,
+      },
+    );
 
     return {
       total_users: total,
@@ -110,14 +143,29 @@ export class UsersService {
     };
   }
 
-  async findAll(query: { role?: Role | 'EXTERNAL'; organizationId?: string; search?: string; isActive?: string; page?: number; limit?: number }, currentUser: { id: string; role: Role; orgId?: string }) {
-    // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios. 
+  async findAll(
+    query: {
+      role?: Role | 'EXTERNAL';
+      organizationId?: string;
+      search?: string;
+      isActive?: string;
+      page?: number;
+      limit?: number;
+    },
+    currentUser: { id: string; role: Role; orgId?: string },
+  ) {
+    // Solo SUPER_ADMIN y ADMIN pueden gestionar usuarios.
     // WORKER puede listar pero solo si es para buscar owners externos.
-    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
+    if (
+      currentUser.role !== Role.SUPER_ADMIN &&
+      currentUser.role !== Role.ADMIN
+    ) {
       if (currentUser.role === Role.WORKER) {
         query.role = Role.EXTERNAL; // Forzamos que solo vea usuarios externos
       } else {
-        throw new ForbiddenException('No tienes permiso para gestionar usuarios');
+        throw new ForbiddenException(
+          'No tienes permiso para gestionar usuarios',
+        );
       }
     }
 
@@ -141,7 +189,9 @@ export class UsersService {
     } else {
       // Si es ADMIN, forzar su propia organización
       if (!currentUser.orgId) {
-        throw new ForbiddenException('El usuario no pertenece a ninguna organizacion');
+        throw new ForbiddenException(
+          'El usuario no pertenece a ninguna organizacion',
+        );
       }
       where.organization_id = currentUser.orgId;
     }
@@ -169,7 +219,9 @@ export class UsersService {
       created_at: true,
       updated_at: true,
       organization: { select: { id: true, name: true, slug: true } },
-      owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+      owner: {
+        select: { id: true, name: true, deleted_at: true, purged_at: true },
+      },
     };
 
     if (query.page && query.limit) {
@@ -181,17 +233,19 @@ export class UsersService {
           orderBy: [{ is_active: 'desc' }, { updated_at: 'desc' }],
           select: selectFields,
           skip: (page - 1) * limit,
-          take: limit
+          take: limit,
         }),
-        this.prisma.user.count({ where })
+        this.prisma.user.count({ where }),
       ]);
       const mappedData = await Promise.all(
-        data.map(async (item: any) => this.resolveUserFileUrls(this.mapUserRelations(item)))
+        data.map(async (item: any) =>
+          this.resolveUserFileUrls(this.mapUserRelations(item)),
+        ),
       );
 
       return {
         data: mappedData,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }
 
@@ -202,13 +256,23 @@ export class UsersService {
     });
 
     return Promise.all(
-      users.map(async (item: any) => this.resolveUserFileUrls(this.mapUserRelations(item)))
+      users.map(async (item: any) =>
+        this.resolveUserFileUrls(this.mapUserRelations(item)),
+      ),
     );
   }
 
-  async findOne(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
-    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.ADMIN) {
-      throw new ForbiddenException('No tienes permiso para ver detalles de usuarios');
+  async findOne(
+    id: string,
+    currentUser: { id: string; role: Role; orgId?: string },
+  ) {
+    if (
+      currentUser.role !== Role.SUPER_ADMIN &&
+      currentUser.role !== Role.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'No tienes permiso para ver detalles de usuarios',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -223,7 +287,9 @@ export class UsersService {
         avatar_file_id: true,
         owner_id: true,
         organization: { select: { id: true, name: true, slug: true } },
-        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+        owner: {
+          select: { id: true, name: true, deleted_at: true, purged_at: true },
+        },
         is_active: true,
         last_login_at: true,
         created_at: true,
@@ -236,16 +302,24 @@ export class UsersService {
     }
 
     // Validación de pertenencia a tenant para ADMIN
-    if (currentUser.role === Role.ADMIN && user.organization_id !== currentUser.orgId) {
-      throw new ForbiddenException('No tienes acceso a usuarios de otra organización');
+    if (
+      currentUser.role === Role.ADMIN &&
+      user.organization_id !== currentUser.orgId
+    ) {
+      throw new ForbiddenException(
+        'No tienes acceso a usuarios de otra organización',
+      );
     }
 
     return this.resolveUserFileUrls(this.mapUserRelations(user));
   }
 
-  async create(dto: CreateUserDto, currentUser: { id: string; role: Role; orgId?: string }) {
+  async create(
+    dto: CreateUserDto,
+    currentUser: { id: string; role: Role; orgId?: string },
+  ) {
     const requestedRole = dto.role;
-    const dbRole = toDbRole(requestedRole) as Role;
+    const dbRole = toDbRole(requestedRole);
     if (hasLegacyOwnerAliases(dto)) {
       throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
@@ -254,7 +328,9 @@ export class UsersService {
     if (currentUser.role === Role.ADMIN) {
       // Un admin no puede crear un SuperAdmin
       if (dbRole === Role.SUPER_ADMIN) {
-        throw new ForbiddenException('Un administrador no puede crear un Super Administrador');
+        throw new ForbiddenException(
+          'Un administrador no puede crear un Super Administrador',
+        );
       }
       // Forzar organización del admin
       dto.organization_id = currentUser.orgId;
@@ -264,11 +340,15 @@ export class UsersService {
 
     if (dbRole === Role.SUPER_ADMIN) {
       if (dto.organization_id || ownerId) {
-        throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organización o owner');
+        throw new BadRequestException(
+          'Un SUPER_ADMIN no puede asociarse a una organización o owner',
+        );
       }
     } else {
       if (!dto.organization_id) {
-        throw new BadRequestException('Los usuarios no SUPER_ADMIN deben pertenecer a una organización');
+        throw new BadRequestException(
+          'Los usuarios no SUPER_ADMIN deben pertenecer a una organización',
+        );
       }
 
       await this.ensureOrganizationExists(dto.organization_id);
@@ -276,14 +356,21 @@ export class UsersService {
 
     if (ownerId) {
       if (!isExternalRole(requestedRole)) {
-        throw new BadRequestException('Solo un usuario externo puede asociarse a un owner');
+        throw new BadRequestException(
+          'Solo un usuario externo puede asociarse a un owner',
+        );
       }
 
-      await this.ensureOwnerBelongsToOrganization(ownerId, dto.organization_id!);
+      await this.ensureOwnerBelongsToOrganization(
+        ownerId,
+        dto.organization_id!,
+      );
     }
 
     if (isExternalRole(requestedRole) && !ownerId) {
-      throw new BadRequestException('Un usuario externo debe asociarse a un owner');
+      throw new BadRequestException(
+        'Un usuario externo debe asociarse a un owner',
+      );
     }
 
     // 2. Verificar email duplicado globalmente (User.email es @unique en toda la plataforma)
@@ -318,7 +405,7 @@ export class UsersService {
         owner_id: true,
         is_active: true,
         created_at: true,
-      }
+      },
     });
 
     const mappedUser = this.mapUserRelations(user);
@@ -336,7 +423,7 @@ export class UsersService {
   async update(
     id: string,
     dto: UpdateUserDto,
-    currentUser: { id: string; role: Role; orgId?: string }
+    currentUser: { id: string; role: Role; orgId?: string },
   ) {
     const currentUserRecord = await this.prisma.user.findUnique({
       where: { id },
@@ -352,8 +439,13 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    if (currentUser.role === Role.ADMIN && currentUserRecord.organization_id !== currentUser.orgId) {
-      throw new ForbiddenException('No tienes acceso a usuarios de otra organizaciÃ³n');
+    if (
+      currentUser.role === Role.ADMIN &&
+      currentUserRecord.organization_id !== currentUser.orgId
+    ) {
+      throw new ForbiddenException(
+        'No tienes acceso a usuarios de otra organizaciÃ³n',
+      );
     }
 
     ensureNoManualFileUrl(dto.avatar_url, 'Avatar de usuario');
@@ -364,26 +456,32 @@ export class UsersService {
     const organizationChanged =
       dto.organization_id !== undefined &&
       dto.organization_id !== currentUserRecord.organization_id;
-    const targetOrganizationId = dto.organization_id ?? currentUserRecord.organization_id;
+    const targetOrganizationId =
+      dto.organization_id ?? currentUserRecord.organization_id;
 
     if (dto.organization_id !== undefined) {
       if (currentUser.role !== Role.SUPER_ADMIN) {
-        throw new ForbiddenException('Solo SUPER_ADMIN puede cambiar la organizacion de un usuario');
+        throw new ForbiddenException(
+          'Solo SUPER_ADMIN puede cambiar la organizacion de un usuario',
+        );
       }
 
       if (currentUserRecord.role === Role.SUPER_ADMIN) {
-        throw new BadRequestException('Un SUPER_ADMIN no puede asociarse a una organizacion');
+        throw new BadRequestException(
+          'Un SUPER_ADMIN no puede asociarse a una organizacion',
+        );
       }
 
       await this.ensureOrganizationExists(dto.organization_id);
     }
 
     if (currentUserRecord.role !== Role.SUPER_ADMIN && !targetOrganizationId) {
-      throw new BadRequestException('Los usuarios no SUPER_ADMIN deben pertenecer a una organizacion');
+      throw new BadRequestException(
+        'Los usuarios no SUPER_ADMIN deben pertenecer a una organizacion',
+      );
     }
 
-    const ownerProvided =
-      dto.owner_id !== undefined;
+    const ownerProvided = dto.owner_id !== undefined;
     if (hasLegacyOwnerAliases(dto)) {
       throw new BadRequestException(LEGACY_OWNER_ALIAS_MESSAGE);
     }
@@ -391,14 +489,21 @@ export class UsersService {
 
     if (ownerProvided) {
       if (!isExternalRole(currentUserRecord.role)) {
-        throw new BadRequestException('Solo un usuario externo puede asociarse a un owner');
+        throw new BadRequestException(
+          'Solo un usuario externo puede asociarse a un owner',
+        );
       }
 
       if (!ownerId) {
-        throw new BadRequestException('Un usuario externo debe asociarse a un owner');
+        throw new BadRequestException(
+          'Un usuario externo debe asociarse a un owner',
+        );
       }
 
-      await this.ensureOwnerBelongsToOrganization(ownerId, targetOrganizationId!);
+      await this.ensureOwnerBelongsToOrganization(
+        ownerId,
+        targetOrganizationId!,
+      );
       data.owner_id = ownerId;
     } else if (organizationChanged && currentUserRecord.owner_id) {
       data.owner_id = null;
@@ -407,7 +512,9 @@ export class UsersService {
     const targetOwnerId =
       data.owner_id !== undefined ? data.owner_id : currentUserRecord.owner_id;
     if (isExternalRole(currentUserRecord.role) && !targetOwnerId) {
-      throw new BadRequestException('Un usuario externo debe asociarse a un owner');
+      throw new BadRequestException(
+        'Un usuario externo debe asociarse a un owner',
+      );
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -424,8 +531,10 @@ export class UsersService {
         avatar_file_id: true,
         is_active: true,
         organization: { select: { id: true, name: true, slug: true } },
-        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
-      }
+        owner: {
+          select: { id: true, name: true, deleted_at: true, purged_at: true },
+        },
+      },
     });
 
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
@@ -434,7 +543,7 @@ export class UsersService {
   async updateOwnProfile(
     currentUser: { id: string; role: Role; orgId?: string },
     dto: UpdateOwnProfileDto,
-    avatarFile?: Express.Multer.File
+    avatarFile?: Express.Multer.File,
   ) {
     const currentUserRecord = await this.prisma.user.findUnique({
       where: { id: currentUser.id },
@@ -507,7 +616,9 @@ export class UsersService {
     if (avatarFile) {
       const organizationId = currentUserRecord.organization_id;
       if (!organizationId) {
-        throw new BadRequestException('No se puede subir avatar para usuarios sin organizacion');
+        throw new BadRequestException(
+          'No se puede subir avatar para usuarios sin organizacion',
+        );
       }
 
       const imageInfo = validateImageFile(avatarFile, {
@@ -527,7 +638,9 @@ export class UsersService {
       await this.storageGovernance.assertCanStore(
         organizationId,
         avatarFile.size,
-        currentUserRecord.avatar_file_id ? [currentUserRecord.avatar_file_id] : [],
+        currentUserRecord.avatar_file_id
+          ? [currentUserRecord.avatar_file_id]
+          : [],
       );
 
       const avatarUrl = await this.storageService.uploadFile(avatarFile, {
@@ -568,17 +681,26 @@ export class UsersService {
           avatar_file_id: true,
           is_active: true,
           organization: { select: { id: true, name: true, slug: true } },
-          owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+          owner: {
+            select: { id: true, name: true, deleted_at: true, purged_at: true },
+          },
         },
       });
     } catch (error) {
-      if (avatarFile && avatarFileId && avatarFileId !== currentUserRecord.avatar_file_id) {
+      if (
+        avatarFile &&
+        avatarFileId &&
+        avatarFileId !== currentUserRecord.avatar_file_id
+      ) {
         await this.storedFilesService.deleteStoredFileAndBlob(avatarFileId);
       }
       throw error;
     }
 
-    if ((avatarFile || dto.remove_avatar === 'true') && currentUserRecord.avatar_file_id) {
+    if (
+      (avatarFile || dto.remove_avatar === 'true') &&
+      currentUserRecord.avatar_file_id
+    ) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         currentUserRecord.avatar_file_id,
       );
@@ -587,9 +709,14 @@ export class UsersService {
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
   }
 
-  async toggleStatus(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
+  async toggleStatus(
+    id: string,
+    currentUser: { id: string; role: Role; orgId?: string },
+  ) {
     if (id === currentUser.id) {
-      throw new ForbiddenException('No puedes cambiar el estado de tu propio usuario');
+      throw new ForbiddenException(
+        'No puedes cambiar el estado de tu propio usuario',
+      );
     }
 
     const user = await this.findOne(id, currentUser);
@@ -601,13 +728,16 @@ export class UsersService {
         id: true,
         email: true,
         is_active: true,
-      }
+      },
     });
 
     return updatedUser;
   }
 
-  async softDelete(id: string, currentUser: { id: string; role: Role; orgId?: string }) {
+  async softDelete(
+    id: string,
+    currentUser: { id: string; role: Role; orgId?: string },
+  ) {
     if (id === currentUser.id) {
       throw new ForbiddenException('No puedes eliminar tu propio usuario');
     }
@@ -616,7 +746,11 @@ export class UsersService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
-      data: { is_active: false, deleted_at: new Date(), deleted_by_id: currentUser.id },
+      data: {
+        is_active: false,
+        deleted_at: new Date(),
+        deleted_by_id: currentUser.id,
+      },
     });
 
     return updatedUser;

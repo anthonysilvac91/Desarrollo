@@ -1,12 +1,34 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Delete, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import { AuthRequestContext, AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { DisableTwoFactorDto, LoginTwoFactorDto, VerifyTwoFactorSetupDto, RequestTwoFactorEmailDto, LoginTwoFactorEmailDto, VerifyTwoFactorEmailSetupDto, DisableTwoFactorEmailDto } from './dto/two-factor.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  DisableTwoFactorDto,
+  LoginTwoFactorDto,
+  VerifyTwoFactorSetupDto,
+  RequestTwoFactorEmailDto,
+  LoginTwoFactorEmailDto,
+  VerifyTwoFactorEmailSetupDto,
+  DisableTwoFactorEmailDto,
+} from './dto/two-factor.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthGuard } from './auth.guard';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 
@@ -26,10 +48,20 @@ export class AuthController {
 
     return {
       userAgent: this.firstHeader(req.headers?.['user-agent']),
-      ipAddress: ipFromForwarded || this.firstHeader(req.headers?.['x-real-ip']) || req.ip || req.socket?.remoteAddress,
-      country: this.firstHeader(req.headers?.['x-vercel-ip-country']) || this.firstHeader(req.headers?.['cf-ipcountry']),
-      region: this.firstHeader(req.headers?.['x-vercel-ip-country-region']) || this.firstHeader(req.headers?.['x-vercel-ip-region']),
-      city: this.firstHeader(req.headers?.['x-vercel-ip-city']) || this.firstHeader(req.headers?.['cf-ipcity']),
+      ipAddress:
+        ipFromForwarded ||
+        this.firstHeader(req.headers?.['x-real-ip']) ||
+        req.ip ||
+        req.socket?.remoteAddress,
+      country:
+        this.firstHeader(req.headers?.['x-vercel-ip-country']) ||
+        this.firstHeader(req.headers?.['cf-ipcountry']),
+      region:
+        this.firstHeader(req.headers?.['x-vercel-ip-country-region']) ||
+        this.firstHeader(req.headers?.['x-vercel-ip-region']),
+      city:
+        this.firstHeader(req.headers?.['x-vercel-ip-city']) ||
+        this.firstHeader(req.headers?.['cf-ipcity']),
     };
   }
 
@@ -50,9 +82,14 @@ export class AuthController {
 
   @Post('register-organization')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Crear una organizacion nueva y su administrador inicial' })
+  @ApiOperation({
+    summary: 'Crear una organizacion nueva y su administrador inicial',
+  })
   registerOrganization(@Body() dto: RegisterOrganizationDto, @Request() req) {
-    return this.authService.registerOrganization(dto, this.getRequestContext(req));
+    return this.authService.registerOrganization(
+      dto,
+      this.getRequestContext(req),
+    );
   }
 
   @Post('forgot-password')
@@ -73,7 +110,11 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Completar login con 2FA' })
   loginWithTwoFactor(@Body() dto: LoginTwoFactorDto, @Request() req) {
-    return this.authService.loginWithTwoFactor(dto.temporary_token, dto.code, this.getRequestContext(req));
+    return this.authService.loginWithTwoFactor(
+      dto.temporary_token,
+      dto.code,
+      this.getRequestContext(req),
+    );
   }
 
   @Get('sessions')
@@ -89,15 +130,24 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar una sesion activa del usuario actual' })
   revokeSession(@Request() req, @Param('id') sessionId: string) {
-    return this.authService.revokeSession(req.user.id, sessionId, req.user.session_id);
+    return this.authService.revokeSession(
+      req.user.id,
+      sessionId,
+      req.user.session_id,
+    );
   }
 
   @Post('sessions/revoke-others')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cerrar todas las demas sesiones del usuario actual' })
+  @ApiOperation({
+    summary: 'Cerrar todas las demas sesiones del usuario actual',
+  })
   revokeOtherSessions(@Request() req) {
-    return this.authService.revokeOtherSessions(req.user.id, req.user.session_id);
+    return this.authService.revokeOtherSessions(
+      req.user.id,
+      req.user.session_id,
+    );
   }
 
   @Post('logout')
@@ -119,7 +169,9 @@ export class AuthController {
   @Post('2fa/setup')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Iniciar configuracion TOTP para app autenticadora' })
+  @ApiOperation({
+    summary: 'Iniciar configuracion TOTP para app autenticadora',
+  })
   setupTwoFactor(@Request() req) {
     return this.authService.setupTwoFactor(req.user.id);
   }
@@ -129,7 +181,11 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Confirmar configuracion TOTP y activar 2FA' })
   verifyTwoFactorSetup(@Request() req, @Body() dto: VerifyTwoFactorSetupDto) {
-    return this.authService.verifyTwoFactorSetup(req.user.id, dto.setup_token, dto.code);
+    return this.authService.verifyTwoFactorSetup(
+      req.user.id,
+      dto.setup_token,
+      dto.code,
+    );
   }
 
   @Post('2fa/disable')
@@ -144,7 +200,9 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Enviar codigo 2FA al correo del usuario autenticado' })
+  @ApiOperation({
+    summary: 'Enviar codigo 2FA al correo del usuario autenticado',
+  })
   sendTwoFactorEmailCode(@Request() req) {
     return this.authService.sendTwoFactorEmailCode(req.user.id);
   }
@@ -154,7 +212,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verificar codigo y activar 2FA por correo' })
-  verifyTwoFactorEmailSetup(@Request() req, @Body() dto: VerifyTwoFactorEmailSetupDto) {
+  verifyTwoFactorEmailSetup(
+    @Request() req,
+    @Body() dto: VerifyTwoFactorEmailSetupDto,
+  ) {
     return this.authService.verifyTwoFactorEmailSetup(req.user.id, dto.code);
   }
 
@@ -178,7 +239,11 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Completar login con codigo 2FA por correo' })
   loginWithEmailCode(@Body() dto: LoginTwoFactorEmailDto, @Request() req) {
-    return this.authService.loginWithEmailCode(dto.temporary_token, dto.code, this.getRequestContext(req));
+    return this.authService.loginWithEmailCode(
+      dto.temporary_token,
+      dto.code,
+      this.getRequestContext(req),
+    );
   }
 
   @Get('me')
@@ -186,7 +251,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener perfil del usuario actual' })
-  @ApiResponse({ status: 200, description: 'Retorna los datos del usuario autenticado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna los datos del usuario autenticado',
+  })
   getMe(@Request() req) {
     return this.authService.getMe(req.user.id);
   }

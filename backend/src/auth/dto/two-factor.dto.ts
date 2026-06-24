@@ -14,26 +14,36 @@ export class VerifyTwoFactorSetupDto {
 }
 
 export class LoginTwoFactorDto {
-  @ApiProperty({ description: 'Token temporal emitido por /auth/login cuando 2FA esta activo.' })
+  @ApiProperty({
+    description:
+      'Token temporal emitido por /auth/login cuando 2FA esta activo.',
+  })
   @IsString()
   @IsNotEmpty()
   temporary_token: string;
 
-  @ApiProperty({ description: 'Codigo TOTP de 6 digitos o codigo de recuperacion.' })
+  @ApiProperty({
+    description: 'Codigo TOTP de 6 digitos o codigo de recuperacion.',
+  })
   @IsString()
   @IsNotEmpty()
   code: string;
 }
 
 export class DisableTwoFactorDto {
-  @ApiPropertyOptional({ description: 'Codigo TOTP o backup code. Requerido si 2FA esta activo.' })
+  @ApiPropertyOptional({
+    description: 'Codigo TOTP o backup code. Requerido si 2FA esta activo.',
+  })
   @IsString()
   @IsOptional()
   code?: string;
 }
 
 export class RequestTwoFactorEmailDto {
-  @ApiProperty({ description: 'Token temporal emitido por /auth/login cuando 2FA esta activo.' })
+  @ApiProperty({
+    description:
+      'Token temporal emitido por /auth/login cuando 2FA esta activo.',
+  })
   @IsString()
   @IsNotEmpty()
   temporary_token: string;

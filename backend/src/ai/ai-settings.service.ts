@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOpenAiSettingsDto } from './ai-settings.dto';
 
@@ -19,7 +24,10 @@ export class AiSettingsService {
     return this.toPublicSettings(settings);
   }
 
-  async updateOpenAiSettings(dto: UpdateOpenAiSettingsDto, configuredByUserId: string) {
+  async updateOpenAiSettings(
+    dto: UpdateOpenAiSettingsDto,
+    configuredByUserId: string,
+  ) {
     const data: any = {
       model: dto.model?.trim() || DEFAULT_MODEL,
       configured_by_user_id: configuredByUserId,
@@ -30,9 +38,10 @@ export class AiSettingsService {
     }
 
     if (dto.translate_services_created_after !== undefined) {
-      data.translate_services_created_after = dto.translate_services_created_after
-        ? new Date(dto.translate_services_created_after)
-        : null;
+      data.translate_services_created_after =
+        dto.translate_services_created_after
+          ? new Date(dto.translate_services_created_after)
+          : null;
     }
 
     if (dto.api_key !== undefined && dto.api_key.trim()) {
@@ -80,7 +89,9 @@ export class AiSettingsService {
   async testOpenAiConnection() {
     const runtime = await this.getOpenAiRuntimeConfig();
     if (!runtime) {
-      throw new BadRequestException('OpenAI no esta configurado o la traduccion esta desactivada');
+      throw new BadRequestException(
+        'OpenAI no esta configurado o la traduccion esta desactivada',
+      );
     }
 
     const response = await fetch('https://api.openai.com/v1/responses', {
@@ -98,7 +109,9 @@ export class AiSettingsService {
 
     if (!response.ok) {
       const details = await response.text();
-      throw new BadRequestException(`OpenAI respondio con error ${response.status}: ${details.slice(0, 200)}`);
+      throw new BadRequestException(
+        `OpenAI respondio con error ${response.status}: ${details.slice(0, 200)}`,
+      );
     }
 
     return { ok: true };
@@ -109,7 +122,9 @@ export class AiSettingsService {
       where: { provider: OPENAI_PROVIDER },
       create: {
         provider: OPENAI_PROVIDER,
-        model: this.configService.get<string>('OPENAI_TRANSLATION_MODEL') || DEFAULT_MODEL,
+        model:
+          this.configService.get<string>('OPENAI_TRANSLATION_MODEL') ||
+          DEFAULT_MODEL,
         translations_enabled: false,
       },
       update: {},
@@ -121,9 +136,17 @@ export class AiSettingsService {
       provider: settings.provider,
       model: settings.model,
       translations_enabled: settings.translations_enabled,
-      translate_services_created_after: settings.translate_services_created_after,
-      api_key_configured: Boolean(settings.encrypted_api_key || this.configService.get<string>('OPENAI_API_KEY')),
-      api_key_hint: settings.api_key_hint ?? (this.configService.get<string>('OPENAI_API_KEY') ? 'env configured' : null),
+      translate_services_created_after:
+        settings.translate_services_created_after,
+      api_key_configured: Boolean(
+        settings.encrypted_api_key ||
+        this.configService.get<string>('OPENAI_API_KEY'),
+      ),
+      api_key_hint:
+        settings.api_key_hint ??
+        (this.configService.get<string>('OPENAI_API_KEY')
+          ? 'env configured'
+          : null),
       updated_at: settings.updated_at,
     };
   }
@@ -134,7 +157,9 @@ export class AiSettingsService {
       this.configService.get<string>('JWT_SECRET');
 
     if (!secret) {
-      throw new BadRequestException('INTEGRATION_SECRET_KEY o JWT_SECRET es requerido para cifrar integraciones');
+      throw new BadRequestException(
+        'INTEGRATION_SECRET_KEY o JWT_SECRET es requerido para cifrar integraciones',
+      );
     }
 
     return createHash('sha256').update(secret).digest();
@@ -143,7 +168,10 @@ export class AiSettingsService {
   private encrypt(value: string) {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
-    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    const encrypted = Buffer.concat([
+      cipher.update(value, 'utf8'),
+      cipher.final(),
+    ]);
     const authTag = cipher.getAuthTag();
     return `${iv.toString('base64')}.${authTag.toString('base64')}.${encrypted.toString('base64')}`;
   }
@@ -151,10 +179,16 @@ export class AiSettingsService {
   private decrypt(value: string) {
     const [ivValue, authTagValue, encryptedValue] = value.split('.');
     if (!ivValue || !authTagValue || !encryptedValue) {
-      throw new BadRequestException('La API key cifrada no tiene un formato valido');
+      throw new BadRequestException(
+        'La API key cifrada no tiene un formato valido',
+      );
     }
 
-    const decipher = createDecipheriv('aes-256-gcm', this.getEncryptionKey(), Buffer.from(ivValue, 'base64'));
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.getEncryptionKey(),
+      Buffer.from(ivValue, 'base64'),
+    );
     decipher.setAuthTag(Buffer.from(authTagValue, 'base64'));
     const decrypted = Buffer.concat([
       decipher.update(Buffer.from(encryptedValue, 'base64')),

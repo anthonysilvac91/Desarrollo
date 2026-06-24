@@ -10,15 +10,23 @@ export class ServiceSharesController {
 
   @Get(':token')
   @ApiOperation({ summary: 'Obtener vista publica de un servicio compartido' })
-  getPublicSharedService(@Param('token') token: string, @Query('lang') lang?: string) {
+  getPublicSharedService(
+    @Param('token') token: string,
+    @Query('lang') lang?: string,
+  ) {
     return this.servicesService.getPublicSharedService(token, lang);
   }
 
   @Get(':token/photos.zip')
   @ApiOperation({ summary: 'Descargar fotos de un servicio compartido en ZIP' })
-  async downloadPhotosZip(@Param('token') token: string, @Req() req: Request, @Res() res: Response) {
+  async downloadPhotosZip(
+    @Param('token') token: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const { fileName, buffer } = await this.servicesService.generateSharedServicePhotosZip(token, baseUrl);
+    const { fileName, buffer } =
+      await this.servicesService.generateSharedServicePhotosZip(token, baseUrl);
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(buffer);
@@ -27,7 +35,8 @@ export class ServiceSharesController {
   @Get(':token/report.pdf')
   @ApiOperation({ summary: 'Descargar reporte PDF de un servicio compartido' })
   async downloadReportPdf(@Param('token') token: string, @Res() res: Response) {
-    const { fileName, buffer } = await this.servicesService.generateSharedServiceReportPdf(token);
+    const { fileName, buffer } =
+      await this.servicesService.generateSharedServiceReportPdf(token);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(buffer);

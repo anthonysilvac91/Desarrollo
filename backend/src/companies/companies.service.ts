@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateOwnerDto } from './dto/create-company.dto';
 import { UpdateOwnerDto } from './dto/update-company.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,7 +10,10 @@ import { OwnerQueryDto } from './dto/owner-query.dto';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
-import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import {
+  ensureNoManualFileUrl,
+  validateImageFile,
+} from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildOwnerLogoPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
@@ -22,7 +29,9 @@ export class OwnersService {
     private storedFilesService: StoredFilesService,
   ) {}
 
-  private mapOwnerRelations<T extends Record<string, any>>(owner: T): T & { owner_users?: any[]; owner_assets?: any[] } {
+  private mapOwnerRelations<T extends Record<string, any>>(
+    owner: T,
+  ): T & { owner_users?: any[]; owner_assets?: any[] } {
     return {
       ...withOwner(owner),
       owner_id: owner.id,
@@ -31,24 +40,36 @@ export class OwnersService {
     };
   }
 
-  private async resolveOwnerFileUrls<T extends Record<string, any>>(owner: T, organizationId: string) {
+  private async resolveOwnerFileUrls<T extends Record<string, any>>(
+    owner: T,
+    organizationId: string,
+  ) {
     const resolvedOwner = { ...owner } as any;
 
     if (Array.isArray(resolvedOwner.assets)) {
       resolvedOwner.assets = await Promise.all(
         resolvedOwner.assets.map(async (asset: any) => ({
           ...asset,
-          thumbnail_url: await this.storedFilesService.resolveFileUrlForOrg(asset.thumbnail_file_id, organizationId),
-        }))
+          thumbnail_url: await this.storedFilesService.resolveFileUrlForOrg(
+            asset.thumbnail_file_id,
+            organizationId,
+          ),
+        })),
       );
     }
 
-    resolvedOwner.logo_url = await this.storedFilesService.resolveFileUrlForOrg(resolvedOwner.logo_file_id, organizationId);
+    resolvedOwner.logo_url = await this.storedFilesService.resolveFileUrlForOrg(
+      resolvedOwner.logo_file_id,
+      organizationId,
+    );
 
     return resolvedOwner;
   }
 
-  private async attachOwnerUsageCounts<T extends Record<string, any>>(orgId: string, owners: T[]) {
+  private async attachOwnerUsageCounts<T extends Record<string, any>>(
+    orgId: string,
+    owners: T[],
+  ) {
     if (owners.length === 0) return owners;
 
     const ownerIds = owners.map((owner) => owner.id);
@@ -80,7 +101,9 @@ export class OwnersService {
     });
 
     const ownerServiceCounts = new Map<string, number>();
-    const assetOwnerMap = new Map(assets.map((asset) => [asset.id, asset.owner_id]));
+    const assetOwnerMap = new Map(
+      assets.map((asset) => [asset.id, asset.owner_id]),
+    );
 
     for (const serviceGroup of servicesByOwner) {
       const ownerId = assetOwnerMap.get(serviceGroup.asset_id);
@@ -101,7 +124,11 @@ export class OwnersService {
     });
   }
 
-  async create(createOwnerDto: CreateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
+  async create(
+    createOwnerDto: CreateOwnerDto,
+    orgId: string,
+    logoFile?: Express.Multer.File,
+  ) {
     ensureNoManualFileUrl(createOwnerDto.logo_url, 'Logo de owner');
     const { logo_url: _logoUrl, ...ownerData } = createOwnerDto;
     const ownerName = ownerData.name?.trim();
@@ -183,7 +210,11 @@ export class OwnersService {
   }
 
   async findAll(orgId: string, query?: OwnerQueryDto) {
-    const where: any = { organization_id: orgId, deleted_at: null, purged_at: null };
+    const where: any = {
+      organization_id: orgId,
+      deleted_at: null,
+      purged_at: null,
+    };
 
     if (query?.search) {
       where.name = { contains: query.search, mode: 'insensitive' };
@@ -193,7 +224,10 @@ export class OwnersService {
       where.is_active = query.is_active === 'true';
     }
 
-    const orderBy = [{ is_active: 'desc' as const }, { created_at: 'desc' as const }];
+    const orderBy = [
+      { is_active: 'desc' as const },
+      { created_at: 'desc' as const },
+    ];
 
     if (query?.page && query?.limit) {
       const page = Number(query.page);
@@ -204,20 +238,26 @@ export class OwnersService {
           include: {
             _count: {
               select: {
-                assets: { where: { is_active: true, deleted_at: null, purged_at: null } },
+                assets: {
+                  where: { is_active: true, deleted_at: null, purged_at: null },
+                },
               },
             },
           },
           orderBy,
           skip: (page - 1) * limit,
-          take: limit
+          take: limit,
         }),
-        this.prisma.owner.count({ where })
+        this.prisma.owner.count({ where }),
       ]);
       const dataWithCounts = await this.attachOwnerUsageCounts(orgId, data);
       return {
-        data: await Promise.all(dataWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId))),
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+        data: await Promise.all(
+          dataWithCounts.map((item: any) =>
+            this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId),
+          ),
+        ),
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }
 
@@ -226,21 +266,30 @@ export class OwnersService {
       include: {
         _count: {
           select: {
-            assets: { where: { is_active: true, deleted_at: null, purged_at: null } },
+            assets: {
+              where: { is_active: true, deleted_at: null, purged_at: null },
+            },
           },
         },
       },
-      orderBy
+      orderBy,
     });
     const ownersWithCounts = await this.attachOwnerUsageCounts(orgId, owners);
-    return Promise.all(ownersWithCounts.map((item: any) => this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId)));
+    return Promise.all(
+      ownersWithCounts.map((item: any) =>
+        this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId),
+      ),
+    );
   }
 
   async findOne(id: string, orgId: string) {
     const owner = await this.prisma.owner.findUnique({
       where: { id },
       include: {
-        users: { where: { is_active: true }, select: { id: true, name: true, email: true, role: true } },
+        users: {
+          where: { is_active: true },
+          select: { id: true, name: true, email: true, role: true },
+        },
         assets: {
           where: { is_active: true, deleted_at: null, purged_at: null },
           select: {
@@ -251,22 +300,43 @@ export class OwnersService {
             is_active: true,
             thumbnail_file_id: true,
           },
-        }
-      }
+        },
+      },
     });
-    if (!owner || owner.organization_id !== orgId || owner.deleted_at || (owner as any).purged_at) {
+    if (
+      !owner ||
+      owner.organization_id !== orgId ||
+      owner.deleted_at ||
+      (owner as any).purged_at
+    ) {
       throw new NotFoundException('Owner no encontrado');
     }
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
-  async update(id: string, updateOwnerDto: UpdateOwnerDto, orgId: string, logoFile?: Express.Multer.File) {
+  async update(
+    id: string,
+    updateOwnerDto: UpdateOwnerDto,
+    orgId: string,
+    logoFile?: Express.Multer.File,
+  ) {
     const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, logo_file_id: true, deleted_at: true, purged_at: true },
+      select: {
+        id: true,
+        organization_id: true,
+        logo_file_id: true,
+        deleted_at: true,
+        purged_at: true,
+      },
     });
 
-    if (!existingOwner || existingOwner.organization_id !== orgId || existingOwner.deleted_at || existingOwner.purged_at) {
+    if (
+      !existingOwner ||
+      existingOwner.organization_id !== orgId ||
+      existingOwner.deleted_at ||
+      existingOwner.purged_at
+    ) {
       throw new NotFoundException('Owner no encontrado');
     }
 
@@ -344,10 +414,20 @@ export class OwnersService {
   async deactivate(id: string, orgId: string) {
     const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, deleted_at: true, purged_at: true },
+      select: {
+        id: true,
+        organization_id: true,
+        deleted_at: true,
+        purged_at: true,
+      },
     });
 
-    if (!existingOwner || existingOwner.organization_id !== orgId || existingOwner.deleted_at || existingOwner.purged_at) {
+    if (
+      !existingOwner ||
+      existingOwner.organization_id !== orgId ||
+      existingOwner.deleted_at ||
+      existingOwner.purged_at
+    ) {
       throw new NotFoundException('Owner no encontrado');
     }
 
@@ -366,10 +446,13 @@ export class OwnersService {
       }),
     ]);
 
-    return this.resolveOwnerFileUrls({
-      ...this.mapOwnerRelations(owner),
-      deactivated_assets_count: assetsResult.count,
-    }, orgId);
+    return this.resolveOwnerFileUrls(
+      {
+        ...this.mapOwnerRelations(owner),
+        deactivated_assets_count: assetsResult.count,
+      },
+      orgId,
+    );
   }
 
   async remove(
@@ -380,14 +463,25 @@ export class OwnersService {
   ) {
     const existingOwner = await this.prisma.owner.findUnique({
       where: { id },
-      select: { id: true, organization_id: true, deleted_at: true, purged_at: true },
+      select: {
+        id: true,
+        organization_id: true,
+        deleted_at: true,
+        purged_at: true,
+      },
     });
 
-    if (!existingOwner || existingOwner.organization_id !== orgId || existingOwner.deleted_at || existingOwner.purged_at) {
+    if (
+      !existingOwner ||
+      existingOwner.organization_id !== orgId ||
+      existingOwner.deleted_at ||
+      existingOwner.purged_at
+    ) {
       throw new NotFoundException('Owner no encontrado');
     }
 
-    const deleteAssets = options?.deleteAssets === true || options?.deleteServices === true;
+    const deleteAssets =
+      options?.deleteAssets === true || options?.deleteServices === true;
     const deleteServices = options?.deleteServices === true;
     const deletedAt = new Date();
     const ownerAssetIds = await this.prisma.asset.findMany({
@@ -404,7 +498,11 @@ export class OwnersService {
     const [owner] = await this.prisma.$transaction([
       this.prisma.owner.update({
         where: { id },
-        data: { is_active: false, deleted_at: deletedAt, deleted_by_id: deletedById ?? null },
+        data: {
+          is_active: false,
+          deleted_at: deletedAt,
+          deleted_by_id: deletedById ?? null,
+        },
       }),
       ...(deleteAssets
         ? [
@@ -415,7 +513,11 @@ export class OwnersService {
                 deleted_at: null,
                 purged_at: null,
               },
-              data: { is_active: false, deleted_at: deletedAt, deleted_by_id: deletedById ?? null },
+              data: {
+                is_active: false,
+                deleted_at: deletedAt,
+                deleted_by_id: deletedById ?? null,
+              },
             }),
           ]
         : []),
@@ -428,7 +530,10 @@ export class OwnersService {
                 deleted_at: null,
                 purged_at: null,
               },
-              data: { deleted_at: deletedAt, deleted_by_id: deletedById ?? null },
+              data: {
+                deleted_at: deletedAt,
+                deleted_by_id: deletedById ?? null,
+              },
             }),
           ]
         : []),

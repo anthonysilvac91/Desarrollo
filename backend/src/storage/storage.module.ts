@@ -16,7 +16,7 @@ import { StoredFilesBackfillService } from './stored-files-backfill.service';
       provide: StorageService,
       useFactory: (configService: ConfigService) => {
         const type = configService.get<string>('STORAGE_TYPE', 'local');
-        return type === 'supabase' 
+        return type === 'supabase'
           ? new SupabaseStorageService(configService)
           : new LocalStorageService(configService);
       },
@@ -26,6 +26,11 @@ import { StoredFilesBackfillService } from './stored-files-backfill.service';
     StoredFilesService,
     StoredFilesBackfillService,
   ],
-  exports: [StorageService, StorageGovernanceService, StoredFilesService, StoredFilesBackfillService],
+  exports: [
+    StorageService,
+    StorageGovernanceService,
+    StoredFilesService,
+    StoredFilesBackfillService,
+  ],
 })
 export class StorageModule {}

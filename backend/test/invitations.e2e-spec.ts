@@ -38,7 +38,11 @@ describe('Invitations (e2e)', () => {
   describe('POST /invitations', () => {
     it('deberia denegar si es WORKER', async () => {
       const org = await testUtils.createTestOrganization();
-      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@test.com', org.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@test.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(worker);
 
       const res = await request(app.getHttpServer())
@@ -51,7 +55,11 @@ describe('Invitations (e2e)', () => {
 
     it('ADMIN puede invitar internamente a su propia organizacion con fuerza', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
@@ -61,13 +69,19 @@ describe('Invitations (e2e)', () => {
 
       expect(res.status).toBe(201);
 
-      const invBD = await prisma.invitation.findFirst({ where: { email: 'worker@test.com' } });
+      const invBD = await prisma.invitation.findFirst({
+        where: { email: 'worker@test.com' },
+      });
       expect(invBD?.organization_id).toBe(org.id);
     });
 
     it('bloquea temporalmente invitacion EXTERNAL', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
@@ -76,12 +90,18 @@ describe('Invitations (e2e)', () => {
         .send({ email: 'external@test.com', role: Role.EXTERNAL });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('External invitations are not available yet');
+      expect(res.body.message).toBe(
+        'External invitations are not available yet',
+      );
     });
 
     it('bloquea temporalmente invitacion EXTERNAL', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
@@ -90,12 +110,18 @@ describe('Invitations (e2e)', () => {
         .send({ email: 'external@test.com', role: 'EXTERNAL' });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toBe('External invitations are not available yet');
+      expect(res.body.message).toBe(
+        'External invitations are not available yet',
+      );
     });
 
     it('ADMIN no puede invitar a un SUPER_ADMIN (Forbidden)', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
@@ -108,13 +134,20 @@ describe('Invitations (e2e)', () => {
 
     it('SUPER_ADMIN puede invitar dictando el organization_id destino', async () => {
       const org = await testUtils.createTestOrganization('Destino');
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
       const token = testUtils.getBearerToken(superAdmin);
 
       const res = await request(app.getHttpServer())
         .post('/invitations')
         .set('Authorization', `Bearer ${token}`)
-        .send({ email: 'worker@destino.com', role: Role.WORKER, organization_id: org.id });
+        .send({
+          email: 'worker@destino.com',
+          role: Role.WORKER,
+          organization_id: org.id,
+        });
 
       expect(res.status).toBe(201);
       expect(res.body.organization_id).toBe(org.id);
@@ -124,8 +157,17 @@ describe('Invitations (e2e)', () => {
   describe('POST /invitations/validate', () => {
     it('deberia retornar datos si el token es valido y no expirado', async () => {
       const org = await testUtils.createTestOrganization();
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@test.com', org.id);
-      const inv = await testUtils.seedTestInvitation(org.id, 'check@check.com', Role.EXTERNAL, admin.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@test.com',
+        org.id,
+      );
+      const inv = await testUtils.seedTestInvitation(
+        org.id,
+        'check@check.com',
+        Role.EXTERNAL,
+        admin.id,
+      );
 
       const res = await request(app.getHttpServer())
         .post('/invitations/validate')

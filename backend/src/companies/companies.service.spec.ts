@@ -29,7 +29,10 @@ describe('OwnersService', () => {
         OwnersService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: { uploadFile: jest.fn() } },
-        { provide: StorageGovernanceService, useValue: { assertCanStore: jest.fn() } },
+        {
+          provide: StorageGovernanceService,
+          useValue: { assertCanStore: jest.fn() },
+        },
         {
           provide: StoredFilesService,
           useValue: {
@@ -47,9 +50,13 @@ describe('OwnersService', () => {
 
   describe('create()', () => {
     it('rechaza nombre duplicado dentro de la misma organizacion', async () => {
-      jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue({ id: 'owner-existing' } as any);
+      jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue({ id: 'owner-existing' } as any);
 
-      await expect(service.create({ name: 'Marina Norte' }, 'org-1')).rejects.toThrow(BadRequestException);
+      await expect(
+        service.create({ name: 'Marina Norte' }, 'org-1'),
+      ).rejects.toThrow(BadRequestException);
 
       expect(prisma.owner.findFirst).toHaveBeenCalledWith({
         where: {
@@ -62,18 +69,27 @@ describe('OwnersService', () => {
     });
 
     it('normaliza espacios del nombre al crear owner', async () => {
-      const owner = { id: 'owner-1', name: 'Marina Norte', organization_id: 'org-1' };
+      const owner = {
+        id: 'owner-1',
+        name: 'Marina Norte',
+        organization_id: 'org-1',
+      };
       jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue(null);
       jest.spyOn(prisma.owner, 'create').mockResolvedValue(owner as any);
 
-      const result = await service.create({ name: '  Marina Norte  ' }, 'org-1');
+      const result = await service.create(
+        { name: '  Marina Norte  ' },
+        'org-1',
+      );
 
-      expect(prisma.owner.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({
-          name: 'Marina Norte',
-          organization_id: 'org-1',
+      expect(prisma.owner.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'Marina Norte',
+            organization_id: 'org-1',
+          }),
         }),
-      }));
+      );
       expect(result).toHaveProperty('name', 'Marina Norte');
     });
   });

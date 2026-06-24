@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": {
+    "backend": {
+      "startCommand": "npm run start:prod"
+    },
+    "upload-maintenance": {
+      "rootDirectory": "backend",
+      "startCommand": "npm run uploads:maintenance",
+      "cronSchedule": "0 * * * *"
+    }
+  }
+}

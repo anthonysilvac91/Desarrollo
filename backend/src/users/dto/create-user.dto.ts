@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ApiHideProperty } from '@nestjs/swagger';
-import { IsEmail, IsEmpty, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEmpty,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+} from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
@@ -20,12 +29,21 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'El nombre es requerido' })
   name: string;
 
-  @ApiProperty({ enum: ['SUPER_ADMIN', 'ADMIN', 'WORKER', 'EXTERNAL'], description: 'Rol del usuario. EXTERNAL es el rol canónico para usuarios externos.' })
-  @IsIn(['SUPER_ADMIN', 'ADMIN', 'WORKER', 'EXTERNAL'], { message: 'Rol invalido' })
+  @ApiProperty({
+    enum: ['SUPER_ADMIN', 'ADMIN', 'WORKER', 'EXTERNAL'],
+    description:
+      'Rol del usuario. EXTERNAL es el rol canónico para usuarios externos.',
+  })
+  @IsIn(['SUPER_ADMIN', 'ADMIN', 'WORKER', 'EXTERNAL'], {
+    message: 'Rol invalido',
+  })
   @IsNotEmpty({ message: 'El rol es requerido' })
   role: Role;
 
-  @ApiProperty({ required: false, description: 'ID de la organizacion (Opcional para SUPER_ADMIN)' })
+  @ApiProperty({
+    required: false,
+    description: 'ID de la organizacion (Opcional para SUPER_ADMIN)',
+  })
   @IsOptional()
   @IsUUID('4', { message: 'ID de organizacion invalido' })
   organization_id?: string;
@@ -34,7 +52,10 @@ export class CreateUserDto {
   @IsEmpty({ message: 'company_id is no longer accepted; use owner_id' })
   company_id?: string;
 
-  @ApiProperty({ required: false, description: 'ID canonico del owner asociado' })
+  @ApiProperty({
+    required: false,
+    description: 'ID canonico del owner asociado',
+  })
   @IsOptional()
   @IsUUID('4', { message: 'ID de owner invalido' })
   owner_id?: string;

@@ -16,7 +16,9 @@ export class RegisterOrganizationDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ description: 'Contrasena del administrador inicial (minimo 6 caracteres).' })
+  @ApiProperty({
+    description: 'Contrasena del administrador inicial (minimo 6 caracteres).',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(6, { message: 'La contrasena requiere min. 6 caracteres' })

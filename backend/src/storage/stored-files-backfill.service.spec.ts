@@ -72,6 +72,8 @@ describe('validateEntityTypeIntegrity', () => {
     const service = await buildService(prisma);
     const result = await service.validateEntityTypeIntegrity();
 
-    expect(result.invalidValues).toEqual([{ entity_type: 'COMPANY', count: 3 }]);
+    expect(result.invalidValues).toEqual([
+      { entity_type: 'COMPANY', count: 3 },
+    ]);
   });
 });

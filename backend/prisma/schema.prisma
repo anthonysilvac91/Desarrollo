@@ -403,6 +403,9 @@ model ServiceAttachment {
   height           Int?
   sort_order       Int                 @default(0)
 
+  cf_image_id      String?
+  cf_image_variant String?
+
   created_at DateTime @default(now())
 
   service Service     @relation(fields: [service_id], references: [id])
@@ -436,6 +439,13 @@ model FileUpload {
   expires_at          DateTime
   failure_reason      String?
   local_progress      Int          @default(0)
+
+  cf_stream_uid              String?
+  cf_stream_upload_url       String?
+  cf_stream_status           String?
+  cf_stream_ready_to_stream  Boolean  @default(false)
+  cf_stream_duration         Float?
+  cf_stream_thumbnail        String?
 
   created_at          DateTime     @default(now())
   updated_at          DateTime     @updatedAt

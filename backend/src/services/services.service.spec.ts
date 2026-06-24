@@ -44,7 +44,14 @@ describe('ServicesService', () => {
       organization: { findUnique: jest.fn() },
       asset: { findFirst: jest.fn(), findMany: jest.fn() },
       user: { findMany: jest.fn() },
-      service: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
+      service: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+        groupBy: jest.fn(),
+      },
     };
     storageService = {
       uploadFile: jest.fn(),
@@ -77,9 +84,15 @@ describe('ServicesService', () => {
 
   describe('create()', () => {
     it('is_public = true si auto_publish_services = true', async () => {
-      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: true } as any);
-      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+      jest
+        .spyOn(prisma.asset, 'findFirst')
+        .mockResolvedValue({ id: 'asset-1' } as any);
+      jest
+        .spyOn(prisma.organization, 'findUnique')
+        .mockResolvedValue({ auto_publish_services: true } as any);
+      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation(
+        (args: any) => Promise.resolve(args.data),
+      );
 
       const result = await service.create(
         { asset_id: 'asset-1', title: 'Test' },
@@ -87,15 +100,23 @@ describe('ServicesService', () => {
       );
 
       expect(result.is_public).toBe(true);
-      expect(prisma.service.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ is_public: true }),
-      }));
+      expect(prisma.service.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ is_public: true }),
+        }),
+      );
     });
 
     it('is_public = false si auto_publish_services = false', async () => {
-      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-2' } as any);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: false } as any);
-      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+      jest
+        .spyOn(prisma.asset, 'findFirst')
+        .mockResolvedValue({ id: 'asset-2' } as any);
+      jest
+        .spyOn(prisma.organization, 'findUnique')
+        .mockResolvedValue({ auto_publish_services: false } as any);
+      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation(
+        (args: any) => Promise.resolve(args.data),
+      );
 
       const result = await service.create(
         { asset_id: 'asset-2', title: 'Test 2' },
@@ -107,22 +128,33 @@ describe('ServicesService', () => {
 
     it('SUPER_ADMIN: usa organization_id del asset, no user.orgId', async () => {
       jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({
-        id: 'asset-sa', organization_id: 'org-target',
+        id: 'asset-sa',
+        organization_id: 'org-target',
       } as any);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: false } as any);
-      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) => Promise.resolve(args.data));
+      jest
+        .spyOn(prisma.organization, 'findUnique')
+        .mockResolvedValue({ auto_publish_services: false } as any);
+      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation(
+        (args: any) => Promise.resolve(args.data),
+      );
 
       const result = await service.create(
         { asset_id: 'asset-sa', title: 'SA Service' },
         { id: 'super-1', orgId: null, role: 'SUPER_ADMIN' },
       );
 
-      expect(prisma.asset.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.not.objectContaining({ organization_id: expect.anything() }),
-      }));
-      expect(prisma.organization.findUnique).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: 'org-target' },
-      }));
+      expect(prisma.asset.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.not.objectContaining({
+            organization_id: expect.anything(),
+          }),
+        }),
+      );
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'org-target' },
+        }),
+      );
       expect(result.organization_id).toBe('org-target');
     });
 
@@ -156,11 +188,19 @@ describe('ServicesService', () => {
         size: 5 * 1024 * 1024,
       } as Express.Multer.File;
 
-      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: true } as any);
-      storageService.uploadFile.mockResolvedValue('private://bucket/org/org-1/services/service-1/attachments/file.webp');
-      storedFilesService.registerUploadedFile.mockResolvedValue({ id: 'stored-file-1' });
-      jest.spyOn(prisma.service, 'create').mockImplementation((args: any) =>
+      jest
+        .spyOn(prisma.asset, 'findFirst')
+        .mockResolvedValue({ id: 'asset-1' } as any);
+      jest
+        .spyOn(prisma.organization, 'findUnique')
+        .mockResolvedValue({ auto_publish_services: true } as any);
+      storageService.uploadFile.mockResolvedValue(
+        'private://bucket/org/org-1/services/service-1/attachments/file.webp',
+      );
+      storedFilesService.registerUploadedFile.mockResolvedValue({
+        id: 'stored-file-1',
+      });
+      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation((args: any) =>
         Promise.resolve({
           ...args.data,
           attachments: args.data.attachments.create,
@@ -173,39 +213,54 @@ describe('ServicesService', () => {
         [originalFile],
       );
 
-      expect(validateImageFile).toHaveBeenCalledWith(originalFile, expect.objectContaining({
-        maxBytes: 10 * 1024 * 1024,
-        maxWidth: 6000,
-        maxHeight: 6000,
-        maxPixels: 24 * 1024 * 1024,
-      }));
+      expect(validateImageFile).toHaveBeenCalledWith(
+        originalFile,
+        expect.objectContaining({
+          maxBytes: 10 * 1024 * 1024,
+          maxWidth: 6000,
+          maxHeight: 6000,
+          maxPixels: 24 * 1024 * 1024,
+        }),
+      );
       expect(processUploadedImage).toHaveBeenCalledWith(originalFile, {
         maxWidth: 2000,
         maxHeight: 2000,
         format: 'webp',
         quality: 82,
       });
-      expect(storageGovernance.assertCanStore).toHaveBeenCalledWith('org-1', Buffer.from('processed-webp').length);
-      expect(storageService.uploadFile).toHaveBeenCalledWith(expect.objectContaining({
-        mimetype: 'image/webp',
-        size: Buffer.from('processed-webp').length,
-      }), expect.objectContaining({ visibility: 'private' }));
-      expect(storedFilesService.registerUploadedFile).toHaveBeenCalledWith(expect.objectContaining({
-        originalName: 'evidencia-original.jpg',
-        mimeType: 'image/webp',
-        sizeBytes: Buffer.from('processed-webp').length,
-      }));
-      expect(prisma.service.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({
-          attachments: {
-            create: [expect.objectContaining({
-              file_type: 'image/webp',
-              file_name: 'evidencia-original.jpg',
-              file_size_bytes: Buffer.from('processed-webp').length,
-            })],
-          },
+      expect(storageGovernance.assertCanStore).toHaveBeenCalledWith(
+        'org-1',
+        Buffer.from('processed-webp').length,
+      );
+      expect(storageService.uploadFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mimetype: 'image/webp',
+          size: Buffer.from('processed-webp').length,
         }),
-      }));
+        expect.objectContaining({ visibility: 'private' }),
+      );
+      expect(storedFilesService.registerUploadedFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          originalName: 'evidencia-original.jpg',
+          mimeType: 'image/webp',
+          sizeBytes: Buffer.from('processed-webp').length,
+        }),
+      );
+      expect(prisma.service.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            attachments: {
+              create: [
+                expect.objectContaining({
+                  file_type: 'image/webp',
+                  file_name: 'evidencia-original.jpg',
+                  file_size_bytes: Buffer.from('processed-webp').length,
+                }),
+              ],
+            },
+          }),
+        }),
+      );
     });
 
     it('rechaza adjuntos si el total original excede el limite por servicio', async () => {
@@ -216,8 +271,12 @@ describe('ServicesService', () => {
         size: 9 * 1024 * 1024,
       })) as Express.Multer.File[];
 
-      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({ id: 'asset-1' } as any);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({ auto_publish_services: true } as any);
+      jest
+        .spyOn(prisma.asset, 'findFirst')
+        .mockResolvedValue({ id: 'asset-1' } as any);
+      jest
+        .spyOn(prisma.organization, 'findUnique')
+        .mockResolvedValue({ auto_publish_services: true } as any);
 
       await expect(
         service.create(
@@ -237,17 +296,28 @@ describe('ServicesService', () => {
     it('no-SUPER_ADMIN: filtra siempre por organization_id (tenant isolation)', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
 
-      await service.findAll({}, { id: 'worker-1', orgId: 'org-abc', role: 'WORKER' });
+      await service.findAll(
+        {},
+        { id: 'worker-1', orgId: 'org-abc', role: 'WORKER' },
+      );
 
-      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ organization_id: 'org-abc', worker_id: 'worker-1' }),
-      }));
+      expect(prisma.service.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organization_id: 'org-abc',
+            worker_id: 'worker-1',
+          }),
+        }),
+      );
     });
 
     it('WORKER: no aplica filtro WorkerAssetAccess (MVP)', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
 
-      await service.findAll({}, { id: 'worker-1', orgId: 'org-1', role: 'WORKER' });
+      await service.findAll(
+        {},
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+      );
 
       const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
       expect(JSON.stringify(call.where)).not.toContain('worker_access');
@@ -261,9 +331,11 @@ describe('ServicesService', () => {
         { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
       );
 
-      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ worker_id: 'worker-1' }),
-      }));
+      expect(prisma.service.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ worker_id: 'worker-1' }),
+        }),
+      );
     });
 
     it('EXTERNAL: filtra por is_public, status COMPLETED y owner_id del asset', async () => {
@@ -271,16 +343,23 @@ describe('ServicesService', () => {
 
       await service.findAll(
         {},
-        { id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL', owner_id: 'owner-123' },
+        {
+          id: 'ext-1',
+          orgId: 'org-1',
+          role: 'EXTERNAL',
+          owner_id: 'owner-123',
+        },
       );
 
-      expect(prisma.service.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          is_public: true,
-          status: 'COMPLETED',
-          asset: { owner_id: 'owner-123' },
+      expect(prisma.service.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            is_public: true,
+            status: 'COMPLETED',
+            asset: { owner_id: 'owner-123' },
+          }),
         }),
-      }));
+      );
     });
 
     it('EXTERNAL sin owner_id retorna vacío sin consultar DB', async () => {
@@ -296,7 +375,10 @@ describe('ServicesService', () => {
     it('SUPER_ADMIN: no filtra por organization_id', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
 
-      await service.findAll({}, { id: 'super-1', orgId: null, role: 'SUPER_ADMIN' });
+      await service.findAll(
+        {},
+        { id: 'super-1', orgId: null, role: 'SUPER_ADMIN' },
+      );
 
       const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
       expect(call.where).not.toHaveProperty('organization_id');
@@ -305,10 +387,18 @@ describe('ServicesService', () => {
 
   describe('getFilterOptions()', () => {
     it('retorna workers/assets con shape liviano', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([{ id: 'worker-1', name: 'Worker One' }] as any);
-      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([{ id: 'asset-1', name: 'Asset One' }] as any);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([{ id: 'worker-1', name: 'Worker One' }] as any);
+      jest
+        .spyOn(prisma.asset, 'findMany')
+        .mockResolvedValue([{ id: 'asset-1', name: 'Asset One' }] as any);
 
-      const result = await service.getFilterOptions({ id: 'admin-1', orgId: 'org-1', role: 'ADMIN' });
+      const result = await service.getFilterOptions({
+        id: 'admin-1',
+        orgId: 'org-1',
+        role: 'ADMIN',
+      });
 
       expect(result).toEqual({
         workers: [{ id: 'worker-1', name: 'Worker One' }],
@@ -316,57 +406,86 @@ describe('ServicesService', () => {
       });
       expect(result).not.toHaveProperty('attachments');
       expect(result).not.toHaveProperty('file_url');
-      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        select: { id: true, name: true },
-      }));
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        select: { id: true, name: true },
-      }));
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: { id: true, name: true },
+        }),
+      );
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: { id: true, name: true },
+        }),
+      );
     });
 
     it('no-SUPER_ADMIN: respeta organization_id en servicios visibles', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([] as any);
-      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
 
-      await service.getFilterOptions({ id: 'worker-1', orgId: 'org-abc', role: 'WORKER' });
+      await service.getFilterOptions({
+        id: 'worker-1',
+        orgId: 'org-abc',
+        role: 'WORKER',
+      });
 
-      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          services_created: { some: expect.objectContaining({ organization_id: 'org-abc', worker_id: 'worker-1' }) },
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            services_created: {
+              some: expect.objectContaining({
+                organization_id: 'org-abc',
+                worker_id: 'worker-1',
+              }),
+            },
+          }),
         }),
-      }));
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          services: { some: expect.objectContaining({ organization_id: 'org-abc', worker_id: 'worker-1' }) },
+      );
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            services: {
+              some: expect.objectContaining({
+                organization_id: 'org-abc',
+                worker_id: 'worker-1',
+              }),
+            },
+          }),
         }),
-      }));
+      );
     });
 
     it('EXTERNAL: aplica visibilidad publica y owner_id', async () => {
-      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([] as any);
-      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([] as any);
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
 
-      await service.getFilterOptions({ id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL', owner_id: 'owner-1' });
+      await service.getFilterOptions({
+        id: 'ext-1',
+        orgId: 'org-1',
+        role: 'EXTERNAL',
+        owner_id: 'owner-1',
+      });
 
-      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          services_created: {
-            some: expect.objectContaining({
-              organization_id: 'org-1',
-              is_public: true,
-              status: 'COMPLETED',
-              asset: { owner_id: 'owner-1' },
-            }),
-          },
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            services_created: {
+              some: expect.objectContaining({
+                organization_id: 'org-1',
+                is_public: true,
+                status: 'COMPLETED',
+                asset: { owner_id: 'owner-1' },
+              }),
+            },
+          }),
         }),
-      }));
+      );
     });
   });
 
   describe('getStats()', () => {
     beforeEach(() => {
       jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
-      jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([] as any);
+      jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
     });
 
     it('aplica filtros visibles de asset y worker en los KPIs', async () => {
@@ -382,13 +501,15 @@ describe('ServicesService', () => {
           worker_id: 'worker-2',
         }),
       });
-      expect(prisma.service.groupBy).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          organization_id: 'org-1',
-          asset_id: 'asset-1',
-          worker_id: 'worker-2',
+      expect(prisma.service.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organization_id: 'org-1',
+            asset_id: 'asset-1',
+            worker_id: 'worker-2',
+          }),
         }),
-      }));
+      );
     });
 
     it('WORKER ignora worker_id de query y usa el usuario actual', async () => {
@@ -424,14 +545,26 @@ describe('ServicesService', () => {
 
   describe('update()', () => {
     it('ADMIN puede actualizar un servicio y setea admin_intervened = true', async () => {
-      jest.spyOn(prisma.service, 'findUnique').mockResolvedValue({ id: 'svc-1', organization_id: 'org-1' } as any);
+      jest
+        .spyOn(prisma.service, 'findUnique')
+        .mockResolvedValue({ id: 'svc-1', organization_id: 'org-1' } as any);
       jest.spyOn(prisma.service, 'update').mockResolvedValue({} as any);
 
-      await service.update('svc-1', { title: 'Nuevo', status: 'ARCHIVED' }, 'org-1');
+      await service.update(
+        'svc-1',
+        { title: 'Nuevo', status: 'ARCHIVED' },
+        'org-1',
+      );
 
-      expect(prisma.service.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ title: 'Nuevo', status: 'ARCHIVED', admin_intervened: true }),
-      }));
+      expect(prisma.service.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            title: 'Nuevo',
+            status: 'ARCHIVED',
+            admin_intervened: true,
+          }),
+        }),
+      );
     });
   });
 });

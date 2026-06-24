@@ -82,7 +82,10 @@ export class StoredFilesService {
     return this.storageService.resolveFileUrl(storedFile.storage_ref);
   }
 
-  async resolveFileUrlOrRef(storedFileId?: string | null, legacyStorageRef?: string | null): Promise<string | null> {
+  async resolveFileUrlOrRef(
+    storedFileId?: string | null,
+    legacyStorageRef?: string | null,
+  ): Promise<string | null> {
     const resolvedStoredFileUrl = await this.resolveFileUrl(storedFileId);
     if (resolvedStoredFileUrl) {
       return resolvedStoredFileUrl;

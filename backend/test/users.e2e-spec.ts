@@ -38,7 +38,10 @@ describe('Users Management (e2e)', () => {
   describe('POST /users', () => {
     it('SUPER_ADMIN puede crear manualmente el ADMIN inicial asociado a una organizacion', async () => {
       const org = await testUtils.createTestOrganization('ManualAdmin');
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
       const token = testUtils.getBearerToken(superAdmin);
 
       const response = await request(app.getHttpServer())
@@ -73,7 +76,11 @@ describe('Users Management (e2e)', () => {
     it('ADMIN no puede crear usuarios fuera de su organizacion aunque envie otro organization_id', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
       const org2 = await testUtils.createTestOrganization('Org2');
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org1.com', org1.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org1.com',
+        org1.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const response = await request(app.getHttpServer())
@@ -91,7 +98,9 @@ describe('Users Management (e2e)', () => {
       expect(response.body.role).toBe(Role.WORKER);
       expect(response.body.organization_id).toBe(org1.id);
 
-      const persisted = await prisma.user.findUnique({ where: { id: response.body.id } });
+      const persisted = await prisma.user.findUnique({
+        where: { id: response.body.id },
+      });
       expect(persisted?.organization_id).toBe(org1.id);
       expect(persisted?.organization_id).not.toBe(org2.id);
     });
@@ -99,7 +108,10 @@ describe('Users Management (e2e)', () => {
     it('rechaza owner_id para ADMIN y WORKER', async () => {
       const org = await testUtils.createTestOrganization('Org');
       const owner = await testUtils.createTestOwner('Owner A', org.id);
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
       const token = testUtils.getBearerToken(superAdmin);
 
       for (const role of [Role.ADMIN, Role.WORKER]) {
@@ -116,14 +128,20 @@ describe('Users Management (e2e)', () => {
           });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe('Solo un usuario con Rol EXTERNAL puede asociarse a un owner');
+        expect(response.body.message).toBe(
+          'Solo un usuario con Rol EXTERNAL puede asociarse a un owner',
+        );
       }
     });
 
     it('permite owner_id para EXTERNAL si el owner pertenece a la misma organizacion', async () => {
       const org = await testUtils.createTestOrganization('Org');
       const owner = await testUtils.createTestOwner('Owner A', org.id);
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const response = await request(app.getHttpServer())
@@ -145,7 +163,11 @@ describe('Users Management (e2e)', () => {
 
     it('rechaza EXTERNAL sin owner_id', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const response = await request(app.getHttpServer())
@@ -159,12 +181,17 @@ describe('Users Management (e2e)', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.message).toBe('Un usuario externo debe asociarse a un owner');
+      expect(response.body.message).toBe(
+        'Un usuario externo debe asociarse a un owner',
+      );
     });
 
     it('valida email, password minimo y role', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
       const token = testUtils.getBearerToken(superAdmin);
 
       const response = await request(app.getHttpServer())
@@ -180,11 +207,13 @@ describe('Users Management (e2e)', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toEqual(expect.any(Array));
-      expect(response.body.message).toEqual(expect.arrayContaining([
-        expect.stringContaining('Email'),
-        expect.stringContaining('8 caracteres'),
-        expect.stringContaining('Rol'),
-      ]));
+      expect(response.body.message).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Email'),
+          expect.stringContaining('8 caracteres'),
+          expect.stringContaining('Rol'),
+        ]),
+      );
     });
   });
 
@@ -192,8 +221,12 @@ describe('Users Management (e2e)', () => {
     it('ADMIN debería ver solo los usuarios de su propia organización', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
       const org2 = await testUtils.createTestOrganization('Org2');
-      
-      const admin1 = await testUtils.createTestUser(Role.ADMIN, 'admin1@org1.com', org1.id);
+
+      const admin1 = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin1@org1.com',
+        org1.id,
+      );
       await testUtils.createTestUser(Role.WORKER, 'worker1@org1.com', org1.id);
       await testUtils.createTestUser(Role.ADMIN, 'admin2@org2.com', org2.id);
 
@@ -205,17 +238,22 @@ describe('Users Management (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.length).toBe(2);
-      expect(response.body.every(u => u.organization_id === org1.id)).toBe(true);
+      expect(response.body.every((u) => u.organization_id === org1.id)).toBe(
+        true,
+      );
       expect(response.body[0].password_hash).toBeUndefined();
     });
 
     it('SUPER_ADMIN debería ver todos los usuarios del sistema por defecto', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
       const org2 = await testUtils.createTestOrganization('Org2');
-      
+
       await testUtils.createTestUser(Role.ADMIN, 'admin1@org1.com', org1.id);
       await testUtils.createTestUser(Role.ADMIN, 'admin2@org2.com', org2.id);
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
 
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -230,10 +268,13 @@ describe('Users Management (e2e)', () => {
     it('SUPER_ADMIN puede filtrar por organization_id', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
       const org2 = await testUtils.createTestOrganization('Org2');
-      
+
       await testUtils.createTestUser(Role.ADMIN, 'admin1@org1.com', org1.id);
       await testUtils.createTestUser(Role.ADMIN, 'admin2@org2.com', org2.id);
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
 
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -248,7 +289,11 @@ describe('Users Management (e2e)', () => {
 
     it('Cualquier rol puede filtrar por role', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
       await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
       await testUtils.createTestUser(Role.EXTERNAL, 'external@org.com', org.id);
 
@@ -266,8 +311,17 @@ describe('Users Management (e2e)', () => {
     it('mapea filtro role=EXTERNAL a EXTERNAL como rol canonico', async () => {
       const org = await testUtils.createTestOrganization('Org');
       const owner = await testUtils.createTestOwner('Owner A', org.id);
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
-      await testUtils.createTestUser(Role.EXTERNAL, 'external@org.com', org.id, owner.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
+      await testUtils.createTestUser(
+        Role.EXTERNAL,
+        'external@org.com',
+        org.id,
+        owner.id,
+      );
       await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
 
       const token = testUtils.getBearerToken(admin);
@@ -284,7 +338,11 @@ describe('Users Management (e2e)', () => {
 
     it('WORKER debería recibir 403 Forbidden', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@org.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(worker);
 
       const response = await request(app.getHttpServer())
@@ -297,7 +355,10 @@ describe('Users Management (e2e)', () => {
     it('ADMIN sin organization_id no debe listar usuarios globales', async () => {
       const org = await testUtils.createTestOrganization('Org');
       await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
-      const invalidAdmin = await testUtils.createTestUser(Role.ADMIN, 'invalid-admin@recall.com');
+      const invalidAdmin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'invalid-admin@recall.com',
+      );
       const token = testUtils.getBearerToken(invalidAdmin);
 
       const response = await request(app.getHttpServer())
@@ -311,9 +372,17 @@ describe('Users Management (e2e)', () => {
   describe('GET /users/:id', () => {
     it('ADMIN puede ver detalle de un usuario de su organización', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
-      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
-      
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@org.com',
+        org.id,
+      );
+
       const token = testUtils.getBearerToken(admin);
 
       const response = await request(app.getHttpServer())
@@ -328,10 +397,18 @@ describe('Users Management (e2e)', () => {
     it('ADMIN debería recibir 403 al intentar ver detalle de usuario de otra org', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
       const org2 = await testUtils.createTestOrganization('Org2');
-      
-      const admin1 = await testUtils.createTestUser(Role.ADMIN, 'admin1@org1.com', org1.id);
-      const admin2 = await testUtils.createTestUser(Role.ADMIN, 'admin2@org2.com', org2.id);
-      
+
+      const admin1 = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin1@org1.com',
+        org1.id,
+      );
+      const admin2 = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin2@org2.com',
+        org2.id,
+      );
+
       const token = testUtils.getBearerToken(admin1);
 
       const response = await request(app.getHttpServer())
@@ -343,8 +420,15 @@ describe('Users Management (e2e)', () => {
 
     it('SUPER_ADMIN puede ver cualquier usuario', async () => {
       const org1 = await testUtils.createTestOrganization('Org1');
-      const admin1 = await testUtils.createTestUser(Role.ADMIN, 'admin1@org1.com', org1.id);
-      const superAdmin = await testUtils.createTestUser(Role.SUPER_ADMIN, 'super@recall.com');
+      const admin1 = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin1@org1.com',
+        org1.id,
+      );
+      const superAdmin = await testUtils.createTestUser(
+        Role.SUPER_ADMIN,
+        'super@recall.com',
+      );
 
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -360,7 +444,11 @@ describe('Users Management (e2e)', () => {
   describe('PATCH /users/:id/status', () => {
     it('ADMIN no puede desactivarse a si mismo', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const response = await request(app.getHttpServer())
@@ -368,16 +456,28 @@ describe('Users Management (e2e)', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.message).toBe('No puedes cambiar el estado de tu propio usuario');
+      expect(response.body.message).toBe(
+        'No puedes cambiar el estado de tu propio usuario',
+      );
 
-      const persisted = await prisma.user.findUnique({ where: { id: admin.id } });
+      const persisted = await prisma.user.findUnique({
+        where: { id: admin.id },
+      });
       expect(persisted?.is_active).toBe(true);
     });
 
     it('ADMIN puede desactivar a otro usuario de su organizacion', async () => {
       const org = await testUtils.createTestOrganization('Org');
-      const admin = await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
-      const worker = await testUtils.createTestUser(Role.WORKER, 'worker@org.com', org.id);
+      const admin = await testUtils.createTestUser(
+        Role.ADMIN,
+        'admin@org.com',
+        org.id,
+      );
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@org.com',
+        org.id,
+      );
       const token = testUtils.getBearerToken(admin);
 
       const response = await request(app.getHttpServer())

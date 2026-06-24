@@ -52,7 +52,7 @@ export class DashboardStatsDto {
   last_service: string | null;
   @ApiProperty()
   active_operators: number;
-  
+
   @ApiProperty({ type: [RecentServiceDto] })
   recent_services: RecentServiceDto[];
 

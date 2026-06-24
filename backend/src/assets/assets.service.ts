@@ -1,11 +1,20 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
-import { ensureNoManualFileUrl, validateImageFile } from '../common/files/image-validation';
+import {
+  ensureNoManualFileUrl,
+  validateImageFile,
+} from '../common/files/image-validation';
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildAssetThumbnailPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
@@ -29,26 +38,36 @@ export class AssetsService {
     @Optional() private realtimeService?: RealtimeService,
   ) {}
 
-  private mapAssetRelations<T extends Record<string, any>>(asset: T): T & { owner_id: string | null; owner: any } {
+  private mapAssetRelations<T extends Record<string, any>>(
+    asset: T,
+  ): T & { owner_id: string | null; owner: any } {
     return withOwner(asset);
   }
 
-  private withLastService<T extends Record<string, any>>(asset: T): T & { last_service: { date: any } | null } {
+  private withLastService<T extends Record<string, any>>(
+    asset: T,
+  ): T & { last_service: { date: any } | null } {
     const services = Array.isArray(asset.services) ? asset.services : [];
 
     return {
       ...asset,
-      last_service: services[0]?.created_at ? { date: services[0].created_at } : null,
+      last_service: services[0]?.created_at
+        ? { date: services[0].created_at }
+        : null,
     };
   }
 
-  private async resolveAssetFileUrls<T extends Record<string, any>>(asset: T, organizationId: string) {
+  private async resolveAssetFileUrls<T extends Record<string, any>>(
+    asset: T,
+    organizationId: string,
+  ) {
     const resolvedAsset = { ...asset } as any;
 
-    resolvedAsset.thumbnail_url = await this.storedFilesService.resolveFileUrlForOrg(
-      resolvedAsset.thumbnail_file_id,
-      organizationId,
-    );
+    resolvedAsset.thumbnail_url =
+      await this.storedFilesService.resolveFileUrlForOrg(
+        resolvedAsset.thumbnail_file_id,
+        organizationId,
+      );
 
     if (Array.isArray(resolvedAsset.services)) {
       resolvedAsset.services = await Promise.all(
@@ -58,11 +77,14 @@ export class AssetsService {
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
                   ...attachment,
-                  file_url: await this.storedFilesService.resolveFileUrlForOrg(attachment.file_id, organizationId),
-                }))
+                  file_url: await this.storedFilesService.resolveFileUrlForOrg(
+                    attachment.file_id,
+                    organizationId,
+                  ),
+                })),
               )
             : service.attachments,
-        }))
+        })),
       );
     }
 
@@ -76,11 +98,17 @@ export class AssetsService {
     });
 
     if (!owner) {
-      throw new BadRequestException('El propietario indicado no pertenece a tu organización');
+      throw new BadRequestException(
+        'El propietario indicado no pertenece a tu organización',
+      );
     }
   }
 
-  async create(createAssetDto: CreateAssetDto, orgId: string, photo?: Express.Multer.File) {
+  async create(
+    createAssetDto: CreateAssetDto,
+    orgId: string,
+    photo?: Express.Multer.File,
+  ) {
     const {
       owner_id: _ownerId,
       organization_id: dtoOrgId,
@@ -92,7 +120,9 @@ export class AssetsService {
     }
     const ownerId = createAssetDto.owner_id ?? null;
     if (orgId && dtoOrgId && dtoOrgId !== orgId) {
-      throw new BadRequestException('No puedes crear un activo en otra organización');
+      throw new BadRequestException(
+        'No puedes crear un activo en otra organización',
+      );
     }
     const targetOrgId = orgId || dtoOrgId;
     const assetId = randomUUID();
@@ -101,7 +131,9 @@ export class AssetsService {
     ensureNoManualFileUrl(createAssetDto.thumbnail_url, 'Thumbnail del activo');
 
     if (!targetOrgId) {
-      throw new BadRequestException('Es necesario especificar una organización para el activo');
+      throw new BadRequestException(
+        'Es necesario especificar una organización para el activo',
+      );
     }
 
     if (!ownerId) {
@@ -170,7 +202,9 @@ export class AssetsService {
       where: { id: newAsset.id },
       include: {
         organization: { select: { name: true } },
-        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+        owner: {
+          select: { id: true, name: true, deleted_at: true, purged_at: true },
+        },
       },
     });
 
@@ -178,7 +212,10 @@ export class AssetsService {
       return asset;
     }
 
-    const resolvedAsset = await this.resolveAssetFileUrls(this.mapAssetRelations(asset), asset.organization_id);
+    const resolvedAsset = await this.resolveAssetFileUrls(
+      this.mapAssetRelations(asset),
+      asset.organization_id,
+    );
     this.realtimeService?.emit({
       module: 'assets',
       action: 'created',
@@ -192,7 +229,9 @@ export class AssetsService {
   async findAll(query: any, orgId: string, role: string, ownerId?: string) {
     const include = {
       organization: { select: { name: true } },
-      owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+      owner: {
+        select: { id: true, name: true, deleted_at: true, purged_at: true },
+      },
       _count: { select: { services: true } },
       services: {
         select: { created_at: true },
@@ -229,11 +268,19 @@ export class AssetsService {
       baseWhere.owner_id = query.owner_id;
     }
 
-    if ((role === 'ADMIN' || role === 'SUPER_ADMIN') && query.is_active !== undefined && query.is_active !== '') {
-      baseWhere.is_active = query.is_active === 'true' || query.is_active === true;
+    if (
+      (role === 'ADMIN' || role === 'SUPER_ADMIN') &&
+      query.is_active !== undefined &&
+      query.is_active !== ''
+    ) {
+      baseWhere.is_active =
+        query.is_active === 'true' || query.is_active === true;
     }
 
-    const orderBy = [{ is_active: 'desc' as const }, { updated_at: 'desc' as const }];
+    const orderBy = [
+      { is_active: 'desc' as const },
+      { updated_at: 'desc' as const },
+    ];
 
     if (query.page && query.limit) {
       const page = Number(query.page);
@@ -254,8 +301,8 @@ export class AssetsService {
           this.resolveAssetFileUrls(
             this.mapAssetRelations(this.withLastService(asset)),
             asset.organization_id,
-          )
-        )
+          ),
+        ),
       );
 
       return {
@@ -264,14 +311,18 @@ export class AssetsService {
       };
     }
 
-    const assets = await this.prisma.asset.findMany({ where: baseWhere, include, orderBy });
+    const assets = await this.prisma.asset.findMany({
+      where: baseWhere,
+      include,
+      orderBy,
+    });
     return Promise.all(
       assets.map(async (asset: any) =>
         this.resolveAssetFileUrls(
           this.mapAssetRelations(this.withLastService(asset)),
           asset.organization_id,
-        )
-      )
+        ),
+      ),
     );
   }
 
@@ -286,7 +337,12 @@ export class AssetsService {
     }
     if (isExternalRole(role)) {
       if (!ownerId) {
-        return { total_assets: 0, active_assets: 0, inactive_assets: 0, assets_with_services: 0 };
+        return {
+          total_assets: 0,
+          active_assets: 0,
+          inactive_assets: 0,
+          assets_with_services: 0,
+        };
       }
       baseWhere.owner_id = ownerId;
       baseWhere.is_active = true;
@@ -295,7 +351,9 @@ export class AssetsService {
     const [total, active, withServices] = await Promise.all([
       this.prisma.asset.count({ where: baseWhere }),
       this.prisma.asset.count({ where: { ...baseWhere, is_active: true } }),
-      this.prisma.asset.count({ where: { ...baseWhere, services: { some: {} } } }),
+      this.prisma.asset.count({
+        where: { ...baseWhere, services: { some: {} } },
+      }),
     ]);
 
     return {
@@ -346,12 +404,23 @@ export class AssetsService {
       include: {
         services: {
           include: {
-            worker: { select: { name: true, id: true, deleted_at: true, purged_at: true } },
-            attachments: { select: { id: true, file_id: true, file_type: true } },
+            worker: {
+              select: {
+                name: true,
+                id: true,
+                deleted_at: true,
+                purged_at: true,
+              },
+            },
+            attachments: {
+              select: { id: true, file_id: true, file_type: true },
+            },
           },
           orderBy: { created_at: 'desc' },
         },
-        owner: { select: { id: true, name: true, deleted_at: true, purged_at: true } },
+        owner: {
+          select: { id: true, name: true, deleted_at: true, purged_at: true },
+        },
       },
     });
 
@@ -367,15 +436,24 @@ export class AssetsService {
       asset.services = asset.services.filter((service) => service.is_public);
     }
 
-    return this.resolveAssetFileUrls(this.mapAssetRelations(this.withLastService(asset)), asset.organization_id);
+    return this.resolveAssetFileUrls(
+      this.mapAssetRelations(this.withLastService(asset)),
+      asset.organization_id,
+    );
   }
 
   async assignOwner(assetId: string, ownerId: string, orgId: string) {
-    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
-    const owner = await this.prisma.owner.findFirst({ where: { id: ownerId, organization_id: orgId } });
+    const asset = await this.prisma.asset.findFirst({
+      where: { id: assetId, organization_id: orgId },
+    });
+    const owner = await this.prisma.owner.findFirst({
+      where: { id: ownerId, organization_id: orgId },
+    });
 
     if (!asset || !owner) {
-      throw new NotFoundException('Activo o propietario no existe en su organización');
+      throw new NotFoundException(
+        'Activo o propietario no existe en su organización',
+      );
     }
 
     const updatedAsset = await this.prisma.asset.update({
@@ -387,7 +465,9 @@ export class AssetsService {
   }
 
   async removeOwner(assetId: string, ownerId: string, orgId: string) {
-    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, organization_id: orgId } });
+    const asset = await this.prisma.asset.findFirst({
+      where: { id: assetId, organization_id: orgId },
+    });
     if (!asset) {
       throw new NotFoundException('Activo no encontrado');
     }
@@ -420,7 +500,11 @@ export class AssetsService {
     const [updatedAsset] = await this.prisma.$transaction([
       this.prisma.asset.update({
         where: { id },
-        data: { is_active: false, deleted_at: deletedAt, deleted_by_id: user.id },
+        data: {
+          is_active: false,
+          deleted_at: deletedAt,
+          deleted_by_id: user.id,
+        },
       }),
       ...(options?.deleteServices
         ? [
@@ -447,7 +531,13 @@ export class AssetsService {
     return updatedAsset;
   }
 
-  async update(id: string, updateDto: UpdateAssetDto, orgId: string, role: string, photo?: Express.Multer.File) {
+  async update(
+    id: string,
+    updateDto: UpdateAssetDto,
+    orgId: string,
+    role: string,
+    photo?: Express.Multer.File,
+  ) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset || asset.deleted_at || (asset as any).purged_at) {
       throw new NotFoundException('Activo no encontrado');
@@ -459,7 +549,9 @@ export class AssetsService {
 
     if (role === 'WORKER') {
       if (!photo) {
-        throw new ForbiddenException('Solo puedes actualizar la foto del activo');
+        throw new ForbiddenException(
+          'Solo puedes actualizar la foto del activo',
+        );
       }
       updateDto = {};
     }
@@ -500,7 +592,9 @@ export class AssetsService {
       await this.storageGovernance.assertCanStore(
         asset.organization_id,
         photo.size,
-        (asset as any).thumbnail_file_id ? [(asset as any).thumbnail_file_id] : [],
+        (asset as any).thumbnail_file_id
+          ? [(asset as any).thumbnail_file_id]
+          : [],
       );
       thumbnail_url = await this.storageService.uploadFile(photo, {
         folder: buildAssetThumbnailPath(asset.organization_id, asset.id),
@@ -541,19 +635,29 @@ export class AssetsService {
         data: updatePayload,
       });
     } catch (error) {
-      if (photo && thumbnailFileId && thumbnailFileId !== (asset as any).thumbnail_file_id) {
+      if (
+        photo &&
+        thumbnailFileId &&
+        thumbnailFileId !== (asset as any).thumbnail_file_id
+      ) {
         await this.storedFilesService.deleteStoredFileAndBlob(thumbnailFileId);
       }
       throw error;
     }
 
-    if ((photo || updateDto.remove_photo === 'true') && (asset as any).thumbnail_file_id) {
+    if (
+      (photo || updateDto.remove_photo === 'true') &&
+      (asset as any).thumbnail_file_id
+    ) {
       await this.storedFilesService.deleteStoredFileAndBlob(
         (asset as any).thumbnail_file_id ?? null,
       );
     }
 
-    const resolvedAsset = await this.resolveAssetFileUrls(this.mapAssetRelations(updatedAsset), asset.organization_id);
+    const resolvedAsset = await this.resolveAssetFileUrls(
+      this.mapAssetRelations(updatedAsset),
+      asset.organization_id,
+    );
     this.realtimeService?.emit({
       module: 'assets',
       action: 'updated',

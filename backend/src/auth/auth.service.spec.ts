@@ -14,24 +14,50 @@ describe('AuthService', () => {
   let jwt: JwtService;
 
   const prismaMock = {
-    user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
+    user: {
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+    },
     organization: { findUnique: jest.fn(), create: jest.fn() },
-    userSession: { create: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    userSession: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
     invitation: { findUnique: jest.fn(), update: jest.fn() },
-    emailToken: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    emailToken: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const jwtMock = { sign: jest.fn().mockReturnValue('mocked-token') };
-  const configMock = { get: jest.fn().mockReturnValue('http://localhost:3000') };
-  const emailMock = { sendPasswordReset: jest.fn(), sendEmailVerification: jest.fn() };
+  const configMock = {
+    get: jest.fn().mockReturnValue('http://localhost:3000'),
+  };
+  const emailMock = {
+    sendPasswordReset: jest.fn(),
+    sendEmailVerification: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     jwtMock.sign.mockReturnValue('mocked-token');
     prismaMock.organization.findUnique.mockResolvedValue(null);
     prismaMock.userSession.findFirst.mockResolvedValue(null);
-    prismaMock.userSession.create.mockResolvedValue({ id: 'session-1', token_jti: 'jti-1' });
-    prismaMock.$transaction.mockImplementation(async (callback) => callback(prismaMock));
+    prismaMock.userSession.create.mockResolvedValue({
+      id: 'session-1',
+      token_jti: 'jti-1',
+    });
+    prismaMock.$transaction.mockImplementation(async (callback) =>
+      callback(prismaMock),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -39,7 +65,10 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: JwtService, useValue: jwtMock },
         { provide: ConfigService, useValue: configMock },
-        { provide: StoredFilesService, useValue: { resolveFileUrl: jest.fn() } },
+        {
+          provide: StoredFilesService,
+          useValue: { resolveFileUrl: jest.fn() },
+        },
         { provide: EmailService, useValue: emailMock },
       ],
     }).compile();
@@ -80,39 +109,55 @@ describe('AuthService', () => {
   describe('login()', () => {
     it('email inexistente falla con Unauthorized', async () => {
       prismaMock.user.findFirst.mockResolvedValue(null);
-      await expect(service.login({ email: 'no@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'no@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('password incorrecto falla con Unauthorized', async () => {
       const hash = await bcrypt.hash('correct', 10);
-      prismaMock.user.findFirst.mockResolvedValue(makeUser({ password_hash: hash }));
-      await expect(service.login({ email: 'user@test.com', password: 'wrong' })).rejects.toThrow(
-        UnauthorizedException,
+      prismaMock.user.findFirst.mockResolvedValue(
+        makeUser({ password_hash: hash }),
       );
+      await expect(
+        service.login({ email: 'user@test.com', password: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('usuario inactivo falla con Unauthorized', async () => {
       const hash = await bcrypt.hash('pass', 10);
-      prismaMock.user.findFirst.mockResolvedValue(makeUser({ password_hash: hash, is_active: false }));
-      await expect(service.login({ email: 'user@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
+      prismaMock.user.findFirst.mockResolvedValue(
+        makeUser({ password_hash: hash, is_active: false }),
       );
+      await expect(
+        service.login({ email: 'user@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('SUPER_ADMIN login con email + password funciona', async () => {
       const hash = await bcrypt.hash('pass', 10);
-      prismaMock.user.findFirst.mockResolvedValue(makeSuperAdmin({ password_hash: hash }));
+      prismaMock.user.findFirst.mockResolvedValue(
+        makeSuperAdmin({ password_hash: hash }),
+      );
 
-    const result = await service.login({ email: 'sa@test.com', password: 'pass' });
+      const result = await service.login({
+        email: 'sa@test.com',
+        password: 'pass',
+      });
 
       expect(result.access_token).toBe('mocked-token');
       expect(prismaMock.user.update).toHaveBeenCalledWith({
         where: { id: 'u-super' },
         data: { last_login_at: expect.any(Date) },
       });
-      expect(jwt.sign).toHaveBeenCalledWith({ sub: 'u-super', orgId: null, role: 'SUPER_ADMIN', owner_id: null, sid: 'session-1', jti: 'jti-1' });
+      expect(jwt.sign).toHaveBeenCalledWith({
+        sub: 'u-super',
+        orgId: null,
+        role: 'SUPER_ADMIN',
+        owner_id: null,
+        sid: 'session-1',
+        jti: 'jti-1',
+      });
     });
 
     it('SUPER_ADMIN con organization_id no null no entra', async () => {
@@ -120,46 +165,72 @@ describe('AuthService', () => {
       prismaMock.user.findFirst.mockResolvedValue(
         makeSuperAdmin({ password_hash: hash, organization_id: 'org-1' }),
       );
-      await expect(service.login({ email: 'sa@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'sa@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('ADMIN login con email + password funciona y token usa organization_id real de DB', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'ADMIN', password_hash: hash, organization_id: 'org-real' }),
+        makeUser({
+          role: 'ADMIN',
+          password_hash: hash,
+          organization_id: 'org-real',
+        }),
       );
 
-      const result = await service.login({ email: 'admin@test.com', password: 'pass' });
+      const result = await service.login({
+        email: 'admin@test.com',
+        password: 'pass',
+      });
 
       expect(result.access_token).toBe('mocked-token');
       expect(prismaMock.user.update).toHaveBeenCalledWith({
         where: { id: 'u-1' },
         data: { last_login_at: expect.any(Date) },
       });
-      expect(jwt.sign).toHaveBeenCalledWith(expect.objectContaining({ orgId: 'org-real', role: 'ADMIN' }));
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ orgId: 'org-real', role: 'ADMIN' }),
+      );
     });
 
     it('WORKER login con email + password funciona y token usa organization_id real de DB', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'WORKER', password_hash: hash, organization_id: 'org-real' }),
+        makeUser({
+          role: 'WORKER',
+          password_hash: hash,
+          organization_id: 'org-real',
+        }),
       );
 
-      const result = await service.login({ email: 'worker@test.com', password: 'pass' });
+      const result = await service.login({
+        email: 'worker@test.com',
+        password: 'pass',
+      });
 
       expect(result.access_token).toBe('mocked-token');
-      expect(jwt.sign).toHaveBeenCalledWith(expect.objectContaining({ orgId: 'org-real', role: 'WORKER' }));
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ orgId: 'org-real', role: 'WORKER' }),
+      );
     });
 
     it('EXTERNAL login con email + password funciona y token usa organization_id/owner_id reales de DB', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'EXTERNAL', password_hash: hash, organization_id: 'org-real', owner_id: 'owner-db' }),
+        makeUser({
+          role: 'EXTERNAL',
+          password_hash: hash,
+          organization_id: 'org-real',
+          owner_id: 'owner-db',
+        }),
       );
 
-      const result = await service.login({ email: 'ext@test.com', password: 'pass' });
+      const result = await service.login({
+        email: 'ext@test.com',
+        password: 'pass',
+      });
 
       expect(result.access_token).toBe('mocked-token');
       expect(jwt.sign).toHaveBeenCalledWith({
@@ -175,21 +246,31 @@ describe('AuthService', () => {
     it('ADMIN sin organization_id en DB no entra', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'ADMIN', password_hash: hash, organization_id: null, organization: null }),
+        makeUser({
+          role: 'ADMIN',
+          password_hash: hash,
+          organization_id: null,
+          organization: null,
+        }),
       );
-      await expect(service.login({ email: 'admin@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'admin@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('WORKER sin organization_id en DB no entra', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'WORKER', password_hash: hash, organization_id: null, organization: null }),
+        makeUser({
+          role: 'WORKER',
+          password_hash: hash,
+          organization_id: null,
+          organization: null,
+        }),
       );
-      await expect(service.login({ email: 'worker@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'worker@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('EXTERNAL sin organization_id en DB no entra', async () => {
@@ -203,29 +284,37 @@ describe('AuthService', () => {
           owner_id: 'owner-1',
         }),
       );
-      await expect(service.login({ email: 'ext@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'ext@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('Organization inactiva bloquea ADMIN', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'ADMIN', password_hash: hash, organization: { id: 'org-1', is_active: false } }),
+        makeUser({
+          role: 'ADMIN',
+          password_hash: hash,
+          organization: { id: 'org-1', is_active: false },
+        }),
       );
-      await expect(service.login({ email: 'admin@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'admin@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('Organization inactiva bloquea WORKER', async () => {
       const hash = await bcrypt.hash('pass', 10);
       prismaMock.user.findFirst.mockResolvedValue(
-        makeUser({ role: 'WORKER', password_hash: hash, organization: { id: 'org-1', is_active: false } }),
+        makeUser({
+          role: 'WORKER',
+          password_hash: hash,
+          organization: { id: 'org-1', is_active: false },
+        }),
       );
-      await expect(service.login({ email: 'worker@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'worker@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('Organization inactiva bloquea EXTERNAL', async () => {
@@ -238,9 +327,9 @@ describe('AuthService', () => {
           organization: { id: 'org-1', is_active: false },
         }),
       );
-      await expect(service.login({ email: 'ext@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'ext@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('EXTERNAL sin owner_id no entra', async () => {
@@ -248,19 +337,23 @@ describe('AuthService', () => {
       prismaMock.user.findFirst.mockResolvedValue(
         makeUser({ role: 'EXTERNAL', password_hash: hash, owner_id: null }),
       );
-      await expect(service.login({ email: 'ext@test.com', password: 'pass' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: 'ext@test.com', password: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('Login no usa slug — findFirst busca por email sin slug', async () => {
       prismaMock.user.findFirst.mockResolvedValue(null);
-      await service.login({ email: 'x@test.com', password: 'pass' }).catch(() => {});
+      await service
+        .login({ email: 'x@test.com', password: 'pass' })
+        .catch(() => {});
       expect(prismaMock.user.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { email: 'x@test.com' } }),
       );
       expect(prismaMock.user.findFirst).not.toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ slug: expect.anything() }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ slug: expect.anything() }),
+        }),
       );
     });
 
@@ -268,7 +361,9 @@ describe('AuthService', () => {
       // Verificación estática: LoginDto no tiene campo subdomain ni slug
       // El servicio solo llama findFirst con { email }
       prismaMock.user.findFirst.mockResolvedValue(null);
-      await service.login({ email: 'x@test.com', password: 'pass' }).catch(() => {});
+      await service
+        .login({ email: 'x@test.com', password: 'pass' })
+        .catch(() => {});
       const callArg = prismaMock.user.findFirst.mock.calls[0][0];
       expect(callArg.where).not.toHaveProperty('subdomain');
       expect(callArg.where).not.toHaveProperty('slug');
@@ -306,7 +401,11 @@ describe('AuthService', () => {
     it('POST /auth/register con token inválido devuelve BadRequestException', async () => {
       prismaMock.invitation.findUnique.mockResolvedValue(null);
       await expect(
-        service.register({ token: 'invalid-token', name: 'Test User', password: 'password123' }),
+        service.register({
+          token: 'invalid-token',
+          name: 'Test User',
+          password: 'password123',
+        }),
       ).rejects.toThrow('Token de invitación inválido o expirado');
     });
   });
@@ -370,7 +469,9 @@ describe('AuthService', () => {
     });
 
     it('rechaza emails ya registrados', async () => {
-      prismaMock.user.findUnique.mockResolvedValue(makeUser({ email: 'admin@acme.com' }));
+      prismaMock.user.findUnique.mockResolvedValue(
+        makeUser({ email: 'admin@acme.com' }),
+      );
 
       await expect(
         service.registerOrganization({
@@ -397,7 +498,9 @@ describe('AuthService', () => {
         avatar_file_id: null,
         organization: null,
       });
-      jest.spyOn((service as any).storedFilesService, 'resolveFileUrl').mockResolvedValue(null);
+      jest
+        .spyOn((service as any).storedFilesService, 'resolveFileUrl')
+        .mockResolvedValue(null);
 
       const result = await service.getMe('u-3');
 

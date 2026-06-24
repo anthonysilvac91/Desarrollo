@@ -1,8 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
 const SOF_MARKERS = new Set([
-  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7,
-  0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
 ]);
 
 const IMAGE_SIGNATURES = [
@@ -74,7 +73,10 @@ export function getExtensionForMime(mime: string): string {
   }
 }
 
-export function validateImageFile(file: Express.Multer.File, options: ImageValidationOptions): ValidatedImageInfo {
+export function validateImageFile(
+  file: Express.Multer.File,
+  options: ImageValidationOptions,
+): ValidatedImageInfo {
   if (!file) {
     throw new BadRequestException(`${options.label}: archivo requerido`);
   }
@@ -84,31 +86,45 @@ export function validateImageFile(file: Express.Multer.File, options: ImageValid
   }
 
   if (file.size > options.maxBytes) {
-    throw new BadRequestException(`${options.label}: excede el maximo permitido`);
+    throw new BadRequestException(
+      `${options.label}: excede el maximo permitido`,
+    );
   }
 
-  const detected = IMAGE_SIGNATURES.find((signature) => signature.matches(file.buffer));
+  const detected = IMAGE_SIGNATURES.find((signature) =>
+    signature.matches(file.buffer),
+  );
   if (!detected) {
-    throw new BadRequestException(`${options.label}: formato de imagen no permitido`);
+    throw new BadRequestException(
+      `${options.label}: formato de imagen no permitido`,
+    );
   }
 
   const dimensions = getImageDimensions(file.buffer, detected.mime);
   if (!dimensions) {
-    throw new BadRequestException(`${options.label}: no se pudieron leer las dimensiones de la imagen`);
+    throw new BadRequestException(
+      `${options.label}: no se pudieron leer las dimensiones de la imagen`,
+    );
   }
 
   const pixels = dimensions.width * dimensions.height;
 
   if (options.maxWidth && dimensions.width > options.maxWidth) {
-    throw new BadRequestException(`${options.label}: ancho excede el maximo permitido`);
+    throw new BadRequestException(
+      `${options.label}: ancho excede el maximo permitido`,
+    );
   }
 
   if (options.maxHeight && dimensions.height > options.maxHeight) {
-    throw new BadRequestException(`${options.label}: alto excede el maximo permitido`);
+    throw new BadRequestException(
+      `${options.label}: alto excede el maximo permitido`,
+    );
   }
 
   if (options.maxPixels && pixels > options.maxPixels) {
-    throw new BadRequestException(`${options.label}: resolucion excede el maximo permitido`);
+    throw new BadRequestException(
+      `${options.label}: resolucion excede el maximo permitido`,
+    );
   }
 
   return {
@@ -120,13 +136,21 @@ export function validateImageFile(file: Express.Multer.File, options: ImageValid
   };
 }
 
-export function ensureNoManualFileUrl(value: string | undefined, label: string) {
+export function ensureNoManualFileUrl(
+  value: string | undefined,
+  label: string,
+) {
   if (value && value.trim().length > 0) {
-    throw new BadRequestException(`${label}: debes subir el archivo, no enviar una URL manual`);
+    throw new BadRequestException(
+      `${label}: debes subir el archivo, no enviar una URL manual`,
+    );
   }
 }
 
-function getImageDimensions(buffer: Buffer, mime: string): { width: number; height: number } | null {
+function getImageDimensions(
+  buffer: Buffer,
+  mime: string,
+): { width: number; height: number } | null {
   switch (mime) {
     case 'image/png':
       return readPngDimensions(buffer);
@@ -141,7 +165,9 @@ function getImageDimensions(buffer: Buffer, mime: string): { width: number; heig
   }
 }
 
-function readPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+function readPngDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 24) {
     return null;
   }
@@ -152,7 +178,9 @@ function readPngDimensions(buffer: Buffer): { width: number; height: number } | 
   };
 }
 
-function readGifDimensions(buffer: Buffer): { width: number; height: number } | null {
+function readGifDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 10) {
     return null;
   }
@@ -163,7 +191,9 @@ function readGifDimensions(buffer: Buffer): { width: number; height: number } | 
   };
 }
 
-function readWebpDimensions(buffer: Buffer): { width: number; height: number } | null {
+function readWebpDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   if (buffer.length < 30) {
     return null;
   }
@@ -207,7 +237,9 @@ function readWebpDimensions(buffer: Buffer): { width: number; height: number } |
   return null;
 }
 
-function readJpegDimensions(buffer: Buffer): { width: number; height: number } | null {
+function readJpegDimensions(
+  buffer: Buffer,
+): { width: number; height: number } | null {
   let offset = 2;
 
   while (offset < buffer.length) {

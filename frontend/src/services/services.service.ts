@@ -31,7 +31,27 @@ export interface Service {
     file_type?: string;
     file_name?: string | null;
     file_size_bytes?: number | null;
+    media_type?: "IMAGE" | "VIDEO" | "DOCUMENT";
+    status?: string;
   }[];
+  attachmentUploadSummary?: {
+    status: "NONE" | "UPLOADING" | "PARTIALLY_READY" | "READY" | "FAILED";
+    expected: number;
+    ready: number;
+    uploading: number;
+    failed: number;
+    bytesTotal: string;
+    bytesReady: string;
+  };
+  pendingAttachments?: Array<{
+    uploadId: string;
+    name: string;
+    mediaType: "IMAGE" | "VIDEO" | "DOCUMENT";
+    status: string;
+    progress: number;
+    file_size_bytes: string;
+    failureCode?: string | null;
+  }>;
   organization?: {
     name: string;
     logo_url?: string | null;
@@ -66,8 +86,37 @@ export interface ServiceFilterOptions {
   assets: Array<{ id: string; name: string }>;
 }
 
+export interface ServiceListResponse {
+  data: Service[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface UploadIntentResponse {
+  clientId: string;
+  uploadId: string;
+  bucket: string;
+  objectPath: string;
+  signedUploadToken: string;
+  tusEndpoint: string;
+  expiresAt: string;
+}
+
+export interface UpdateServiceInput {
+  title?: string;
+  description?: string | null;
+  status?: string;
+  is_public?: boolean;
+  worker_id?: string;
+  asset_id?: string;
+}
+
 export const servicesService = {
-  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string; lang?: string }): Promise<any> => {
+  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string; lang?: string }): Promise<Service[] | ServiceListResponse> => {
     const res = await api.get("/services", { params });
     return res.data;
   },
@@ -98,8 +147,31 @@ export const servicesService = {
     });
     return res.data;
   },
-  update: async (id: string, data: any) => {
+  createWithUploadManifest: async (data: {
+    title: string;
+    description?: string;
+    asset_id: string;
+    expectedAttachments: Array<{
+      clientId: string;
+      name: string;
+      mimeType: string;
+      sizeBytes: string;
+      mediaType: "VIDEO";
+    }>;
+  }): Promise<{ service: Service; uploadIntents: UploadIntentResponse[] }> => {
+    const res = await api.post<{ service: Service; uploadIntents: UploadIntentResponse[] }>("/services/with-upload-manifest", data);
+    return res.data;
+  },
+  update: async (id: string, data: UpdateServiceInput) => {
     const res = await api.patch<Service>(`/services/${id}`, data);
+    return res.data;
+  },
+  getAttachmentDownloadUrl: async (serviceId: string, attachmentId: string): Promise<{ url: string; file_name: string | null; file_type: string | null }> => {
+    const res = await api.get(`/services/${serviceId}/attachments/${attachmentId}/download`);
+    return res.data;
+  },
+  getVideoPlaybackUrl: async (serviceId: string, attachmentId: string): Promise<{ url: string; expiresAt: string }> => {
+    const res = await api.post(`/services/${serviceId}/attachments/${attachmentId}/playback-url`);
     return res.data;
   },
   delete: async (id: string) => {

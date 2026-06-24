@@ -1,9 +1,18 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
-import { StorageService, UploadFileOptions } from './storage.service';
+import {
+  SignedUploadIntent,
+  StorageObjectMetadata,
+  StorageService,
+  UploadFileOptions,
+} from './storage.service';
 import { getExtensionForMime } from '../common/files/image-validation';
 
 const PRIVATE_REF_PREFIX = 'private://';
@@ -27,17 +36,30 @@ export class SupabaseStorageService extends StorageService {
   constructor(private configService: ConfigService) {
     super();
     const url = this.configService.get<string>('SUPABASE_URL');
-    const key = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ?? this.configService.get<string>('SUPABASE_KEY');
-    this.publicBucket = this.configService.get<string>('SUPABASE_PUBLIC_BUCKET') ?? '';
-    this.privateBucket = this.configService.get<string>('SUPABASE_PRIVATE_BUCKET') ?? '';
-    this.signedUrlTtlSeconds = Number(this.configService.get<string>('SIGNED_URL_TTL_SECONDS') ?? 3600);
+    const key =
+      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ??
+      this.configService.get<string>('SUPABASE_KEY');
+    this.publicBucket =
+      this.configService.get<string>('SUPABASE_PUBLIC_BUCKET') ?? '';
+    this.privateBucket =
+      this.configService.get<string>('SUPABASE_PRIVATE_BUCKET') ?? '';
+    this.signedUrlTtlSeconds = Number(
+      this.configService.get<string>('SIGNED_URL_TTL_SECONDS') ?? 3600,
+    );
 
     if (!url || !key || !this.publicBucket || !this.privateBucket) {
-      throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_PUBLIC_BUCKET and SUPABASE_PRIVATE_BUCKET must be defined for Supabase storage');
+      throw new Error(
+        'SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_PUBLIC_BUCKET and SUPABASE_PRIVATE_BUCKET must be defined for Supabase storage',
+      );
     }
 
-    if (!Number.isFinite(this.signedUrlTtlSeconds) || this.signedUrlTtlSeconds < 600) {
-      throw new Error('SIGNED_URL_TTL_SECONDS must be at least 600 seconds for Supabase storage');
+    if (
+      !Number.isFinite(this.signedUrlTtlSeconds) ||
+      this.signedUrlTtlSeconds < 600
+    ) {
+      throw new Error(
+        'SIGNED_URL_TTL_SECONDS must be at least 600 seconds for Supabase storage',
+      );
     }
 
     this.supabase = createClient(url, key);
@@ -49,7 +71,9 @@ export class SupabaseStorageService extends StorageService {
     return `${PRIVATE_REF_PREFIX}${this.privateBucket}/${filePath}`;
   }
 
-  private parsePrivateRef(fileRef: string): { bucket: string; filePath: string } | null {
+  private parsePrivateRef(
+    fileRef: string,
+  ): { bucket: string; filePath: string } | null {
     if (!fileRef.startsWith(PRIVATE_REF_PREFIX)) {
       return null;
     }
@@ -66,15 +90,21 @@ export class SupabaseStorageService extends StorageService {
     };
   }
 
-  private parsePublicUrl(fileRef: string): { bucket: string; filePath: string } | null {
+  private parsePublicUrl(
+    fileRef: string,
+  ): { bucket: string; filePath: string } | null {
     try {
       const publicUrl = new URL(fileRef);
-      const prefixIndex = publicUrl.pathname.indexOf(PUBLIC_STORAGE_PATH_PREFIX);
+      const prefixIndex = publicUrl.pathname.indexOf(
+        PUBLIC_STORAGE_PATH_PREFIX,
+      );
       if (prefixIndex === -1) {
         return null;
       }
 
-      const bucketPath = publicUrl.pathname.slice(prefixIndex + PUBLIC_STORAGE_PATH_PREFIX.length);
+      const bucketPath = publicUrl.pathname.slice(
+        prefixIndex + PUBLIC_STORAGE_PATH_PREFIX.length,
+      );
       const slashIndex = bucketPath.indexOf('/');
       if (slashIndex === -1) {
         return null;
@@ -90,14 +120,22 @@ export class SupabaseStorageService extends StorageService {
   }
 
   canHandleFileRef(fileRef: string): boolean {
-    return this.parsePrivateRef(fileRef) !== null || this.parsePublicUrl(fileRef) !== null;
+    return (
+      this.parsePrivateRef(fileRef) !== null ||
+      this.parsePublicUrl(fileRef) !== null
+    );
   }
 
-  async uploadFile(file: Express.Multer.File, options: UploadFileOptions = {}): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    options: UploadFileOptions = {},
+  ): Promise<string> {
     const folder = options.folder ?? '';
     const visibility = options.visibility ?? 'private';
-    const bucket = visibility === 'public' ? this.publicBucket : this.privateBucket;
-    const fileExt = getExtensionForMime(file.mimetype) || path.extname(file.originalname);
+    const bucket =
+      visibility === 'public' ? this.publicBucket : this.privateBucket;
+    const fileExt =
+      getExtensionForMime(file.mimetype) || path.extname(file.originalname);
     const fileName = `${randomUUID()}${fileExt}`;
     const filePath = folder ? `${folder}/${fileName}` : fileName;
 
@@ -109,17 +147,20 @@ export class SupabaseStorageService extends StorageService {
       });
 
     if (error) {
-      this.logger.error(`Error uploading to Supabase: ${error.message}`, error.stack);
-      throw new InternalServerErrorException(`Could not upload file: ${error.message}`);
+      this.logger.error(
+        `Error uploading to Supabase: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        `Could not upload file: ${error.message}`,
+      );
     }
 
     if (visibility === 'private') {
       return this.buildPrivateRef(filePath);
     }
 
-    const { data } = this.supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    const { data } = this.supabase.storage.from(bucket).getPublicUrl(filePath);
 
     return data.publicUrl;
   }
@@ -140,8 +181,12 @@ export class SupabaseStorageService extends StorageService {
       .createSignedUrl(privateRef.filePath, this.signedUrlTtlSeconds);
 
     if (error || !data?.signedUrl) {
-      this.logger.error(`Error creating signed URL: ${error?.message ?? 'unknown error'}`);
-      throw new InternalServerErrorException('Could not resolve private file URL');
+      this.logger.error(
+        `Error creating signed URL: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new InternalServerErrorException(
+        'Could not resolve private file URL',
+      );
     }
 
     this.signedUrlCache.set(fileRef, {
@@ -155,6 +200,132 @@ export class SupabaseStorageService extends StorageService {
     }
 
     return data.signedUrl;
+  }
+
+  async resolveFileUrlWithTtl(
+    fileRef: string,
+    ttlSeconds: number,
+  ): Promise<string> {
+    const privateRef = this.parsePrivateRef(fileRef);
+    if (!privateRef) {
+      return fileRef;
+    }
+
+    const { data, error } = await this.supabase.storage
+      .from(privateRef.bucket)
+      .createSignedUrl(privateRef.filePath, ttlSeconds);
+
+    if (error || !data?.signedUrl) {
+      this.logger.error(
+        `Error creating short signed URL: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new InternalServerErrorException(
+        'Could not resolve private file URL',
+      );
+    }
+
+    return data.signedUrl;
+  }
+
+  async createSignedUploadIntent(
+    objectPath: string,
+  ): Promise<SignedUploadIntent> {
+    const normalizedPath = objectPath.replace(/^\/+/, '');
+    const storage: any = this.supabase.storage.from(this.privateBucket);
+    const { data, error } = await storage.createSignedUploadUrl(
+      normalizedPath,
+      { upsert: false },
+    );
+
+    if (error || !data?.token) {
+      this.logger.error(
+        `Error creating signed upload URL: ${error?.message ?? 'unknown error'}`,
+      );
+      throw new InternalServerErrorException(
+        'Could not create signed upload URL',
+      );
+    }
+
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL') ?? '';
+    const storageUrl =
+      this.configService.get<string>('SUPABASE_STORAGE_URL') ?? supabaseUrl;
+
+    return {
+      bucket: this.privateBucket,
+      objectPath: normalizedPath,
+      storageRef: this.buildPrivateRef(normalizedPath),
+      signedUploadToken: data.token,
+      tusEndpoint: `${storageUrl.replace(/\/+$/, '')}/storage/v1/upload/resumable`,
+    };
+  }
+
+  async getObjectMetadata(
+    fileRef: string,
+  ): Promise<StorageObjectMetadata | null> {
+    const privateRef = this.parsePrivateRef(fileRef);
+    if (!privateRef) {
+      return null;
+    }
+
+    const normalizedFilePath = privateRef.filePath.replace(/^\/+/, '');
+    const lastSlashIndex = normalizedFilePath.lastIndexOf('/');
+    const directory =
+      lastSlashIndex === -1 ? '' : normalizedFilePath.slice(0, lastSlashIndex);
+    const fileName =
+      lastSlashIndex === -1
+        ? normalizedFilePath
+        : normalizedFilePath.slice(lastSlashIndex + 1);
+
+    const { data, error } = await this.supabase.storage
+      .from(privateRef.bucket)
+      .list(directory, { limit: 100, search: fileName });
+
+    if (error) {
+      this.logger.error(
+        `Error listing metadata for ${privateRef.bucket}/${privateRef.filePath}: ${error.message}`,
+        error.stack,
+      );
+      return null;
+    }
+
+    const exactMatch = data?.find((entry: any) => entry.name === fileName);
+    if (!exactMatch) {
+      return null;
+    }
+
+    return {
+      bucket: privateRef.bucket,
+      objectPath: privateRef.filePath,
+      sizeBytes:
+        typeof exactMatch.metadata?.size === 'number'
+          ? exactMatch.metadata.size
+          : null,
+      mimeType:
+        exactMatch.metadata?.mimetype ??
+        exactMatch.metadata?.contentType ??
+        null,
+    };
+  }
+
+  async readObjectRange(
+    fileRef: string,
+    start: number,
+    end: number,
+  ): Promise<Buffer> {
+    const signedUrl = await this.resolveFileUrlWithTtl(fileRef, 60);
+    const response = await fetch(signedUrl, {
+      headers: {
+        Range: `bytes=${start}-${end}`,
+      },
+    });
+
+    if (!response.ok && response.status !== 206) {
+      throw new InternalServerErrorException(
+        'Could not read storage object range',
+      );
+    }
+
+    return Buffer.from(await response.arrayBuffer());
   }
 
   override invalidateSignedUrlCache(fileRef: string): void {
@@ -178,7 +349,10 @@ export class SupabaseStorageService extends StorageService {
         .remove([privateRef.filePath]);
 
       if (error) {
-        this.logger.error(`Error deleting private file from Supabase: ${error.message}`, error.stack);
+        this.logger.error(
+          `Error deleting private file from Supabase: ${error.message}`,
+          error.stack,
+        );
       }
 
       return;
@@ -194,7 +368,10 @@ export class SupabaseStorageService extends StorageService {
       .remove([publicRef.filePath]);
 
     if (error) {
-      this.logger.error(`Error deleting public file from Supabase: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error deleting public file from Supabase: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -218,16 +395,31 @@ export class SupabaseStorageService extends StorageService {
 
   async listFileRefs(prefix = ''): Promise<string[]> {
     const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, '');
-    const publicRefs = await this.listBucketRefs(this.publicBucket, normalizedPrefix, 'public');
-    const privateRefs = await this.listBucketRefs(this.privateBucket, normalizedPrefix, 'private');
+    const publicRefs = await this.listBucketRefs(
+      this.publicBucket,
+      normalizedPrefix,
+      'public',
+    );
+    const privateRefs = await this.listBucketRefs(
+      this.privateBucket,
+      normalizedPrefix,
+      'private',
+    );
     return [...publicRefs, ...privateRefs];
   }
 
-  private async fetchObjectSize(bucket: string, filePath: string): Promise<number | null> {
+  private async fetchObjectSize(
+    bucket: string,
+    filePath: string,
+  ): Promise<number | null> {
     const normalizedFilePath = filePath.replace(/^\/+/, '');
     const lastSlashIndex = normalizedFilePath.lastIndexOf('/');
-    const directory = lastSlashIndex === -1 ? '' : normalizedFilePath.slice(0, lastSlashIndex);
-    const fileName = lastSlashIndex === -1 ? normalizedFilePath : normalizedFilePath.slice(lastSlashIndex + 1);
+    const directory =
+      lastSlashIndex === -1 ? '' : normalizedFilePath.slice(0, lastSlashIndex);
+    const fileName =
+      lastSlashIndex === -1
+        ? normalizedFilePath
+        : normalizedFilePath.slice(lastSlashIndex + 1);
 
     const { data, error } = await this.supabase.storage
       .from(bucket)
@@ -237,12 +429,17 @@ export class SupabaseStorageService extends StorageService {
       });
 
     if (error) {
-      this.logger.error(`Error listing Supabase object size for ${bucket}/${filePath}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error listing Supabase object size for ${bucket}/${filePath}: ${error.message}`,
+        error.stack,
+      );
       return null;
     }
 
     const exactMatch = data?.find((entry: any) => entry.name === fileName);
-    return typeof exactMatch?.metadata?.size === 'number' ? exactMatch.metadata.size : null;
+    return typeof exactMatch?.metadata?.size === 'number'
+      ? exactMatch.metadata.size
+      : null;
   }
 
   private async listBucketRefs(
@@ -259,7 +456,10 @@ export class SupabaseStorageService extends StorageService {
       });
 
     if (error) {
-      this.logger.error(`Error listing Supabase bucket ${bucket} at ${targetPath}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error listing Supabase bucket ${bucket} at ${targetPath}: ${error.message}`,
+        error.stack,
+      );
       return [];
     }
 
@@ -270,7 +470,9 @@ export class SupabaseStorageService extends StorageService {
       const isDirectory = !entry.metadata;
 
       if (isDirectory) {
-        refs.push(...await this.listBucketRefs(bucket, prefix, visibility, entryPath));
+        refs.push(
+          ...(await this.listBucketRefs(bucket, prefix, visibility, entryPath)),
+        );
         continue;
       }
 

@@ -2,7 +2,10 @@ import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAssetDto {
-  @ApiPropertyOptional({ example: 'Generador Alpha-1', description: 'Nombre del activo.' })
+  @ApiPropertyOptional({
+    example: 'Generador Alpha-1',
+    description: 'Nombre del activo.',
+  })
   @IsString()
   @IsOptional()
   name?: string;
@@ -32,14 +35,19 @@ export class UpdateAssetDto {
   @IsOptional()
   owner_id?: string;
 
-  @ApiPropertyOptional({ description: 'Si es "true", elimina la foto del activo.' })
+  @ApiPropertyOptional({
+    description: 'Si es "true", elimina la foto del activo.',
+  })
   @IsString()
   @IsOptional()
   remove_photo?: string;
 
   // Campos bloqueados (legado)
   @ApiHideProperty()
-  @IsEmpty({ message: 'thumbnail_url is no longer accepted; upload thumbnail file instead' })
+  @IsEmpty({
+    message:
+      'thumbnail_url is no longer accepted; upload thumbnail file instead',
+  })
   thumbnail_url?: string;
 
   @ApiHideProperty()

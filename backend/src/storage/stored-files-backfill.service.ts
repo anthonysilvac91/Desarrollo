@@ -35,8 +35,12 @@ export class StoredFilesBackfillService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async backfill(_options: StoredFilesBackfillOptions = {}): Promise<StoredFilesBackfillSummary> {
-    this.logger.warn('Legacy URL backfill is disabled because legacy URL columns were removed in Phase 7.4.');
+  async backfill(
+    _options: StoredFilesBackfillOptions = {},
+  ): Promise<StoredFilesBackfillSummary> {
+    this.logger.warn(
+      'Legacy URL backfill is disabled because legacy URL columns were removed in Phase 7.4.',
+    );
 
     return {
       scanned: 0,
@@ -50,14 +54,18 @@ export class StoredFilesBackfillService {
   }
 
   async validateEntityTypeIntegrity(): Promise<EntityTypeIntegrityResult> {
-    const [{ count: missingCount }] = await this.prisma.$queryRaw<[{ count: bigint }]>`
+    const [{ count: missingCount }] = await this.prisma.$queryRaw<
+      [{ count: bigint }]
+    >`
       SELECT COUNT(*)::bigint AS count
       FROM "StoredFile"
       WHERE entity_type IS NULL OR entity_id IS NULL
     `;
     const missing = Number(missingCount);
 
-    const invalid = await this.prisma.$queryRaw<Array<{ entity_type: string; count: bigint }>>`
+    const invalid = await this.prisma.$queryRaw<
+      Array<{ entity_type: string; count: bigint }>
+    >`
       SELECT entity_type, COUNT(*) as count
       FROM "StoredFile"
       WHERE entity_type IS NOT NULL
@@ -68,7 +76,10 @@ export class StoredFilesBackfillService {
 
     return {
       missing,
-      invalidValues: invalid.map((row) => ({ entity_type: row.entity_type, count: Number(row.count) })),
+      invalidValues: invalid.map((row) => ({
+        entity_type: row.entity_type,
+        count: Number(row.count),
+      })),
     };
   }
 }

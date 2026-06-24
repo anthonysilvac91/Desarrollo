@@ -15,22 +15,29 @@ export class LocalStorageService extends StorageService {
   constructor(private configService: ConfigService) {
     super();
     this.uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
-    this.baseUrl = this.configService.get<string>('BASE_URL', 'http://localhost:3000');
-    
+    this.baseUrl = this.configService.get<string>(
+      'BASE_URL',
+      'http://localhost:3000',
+    );
+
     // Asegurar que el directorio existe
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
   }
 
-  async uploadFile(file: Express.Multer.File, options: UploadFileOptions = {}): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    options: UploadFileOptions = {},
+  ): Promise<string> {
     const folder = options.folder ?? '';
     const targetDir = path.join(this.uploadDir, folder);
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    const fileExt = getExtensionForMime(file.mimetype) || path.extname(file.originalname);
+    const fileExt =
+      getExtensionForMime(file.mimetype) || path.extname(file.originalname);
     const fileName = `${randomUUID()}${fileExt}`;
     const filePath = path.join(targetDir, fileName);
 
@@ -92,7 +99,10 @@ export class LocalStorageService extends StorageService {
           continue;
         }
 
-        const relativePath = path.relative(this.uploadDir, absolutePath).split(path.sep).join('/');
+        const relativePath = path
+          .relative(this.uploadDir, absolutePath)
+          .split(path.sep)
+          .join('/');
         refs.push(`/uploads/${relativePath}`);
       }
     };

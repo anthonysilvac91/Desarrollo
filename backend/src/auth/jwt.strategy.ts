@@ -28,10 +28,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
-    const secret = configService.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
+    const secret =
+      configService.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
 
     if (!secret) {
-      throw new Error('CRITICAL ERROR: JWT_SECRET environment variable is missing.');
+      throw new Error(
+        'CRITICAL ERROR: JWT_SECRET environment variable is missing.',
+      );
     }
 
     super({
@@ -82,17 +85,39 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (user.role === 'SUPER_ADMIN') {
       if (user.organization_id !== null) throw new UnauthorizedException();
-      return { id: user.id, orgId: null, role: user.role, api_role: user.role, owner_id: null, session_id: payload.sid ?? null };
+      return {
+        id: user.id,
+        orgId: null,
+        role: user.role,
+        api_role: user.role,
+        owner_id: null,
+        session_id: payload.sid ?? null,
+      };
     }
 
     if (!user.organization_id) throw new UnauthorizedException();
-    if (!user.organization || !user.organization.is_active) throw new UnauthorizedException();
+    if (!user.organization || !user.organization.is_active)
+      throw new UnauthorizedException();
 
     if (user.role === 'EXTERNAL') {
       if (!user.owner_id) throw new UnauthorizedException();
-      return { id: user.id, orgId: user.organization_id, role: user.role, api_role: user.role, owner_id: user.owner_id, session_id: payload.sid ?? null };
+      return {
+        id: user.id,
+        orgId: user.organization_id,
+        role: user.role,
+        api_role: user.role,
+        owner_id: user.owner_id,
+        session_id: payload.sid ?? null,
+      };
     }
 
-    return { id: user.id, orgId: user.organization_id, role: user.role, api_role: user.role, owner_id: null, session_id: payload.sid ?? null };
+    return {
+      id: user.id,
+      orgId: user.organization_id,
+      role: user.role,
+      api_role: user.role,
+      owner_id: null,
+      session_id: payload.sid ?? null,
+    };
   }
 }

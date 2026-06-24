@@ -23,41 +23,71 @@ export class TrashService {
   async getFilterOptions(orgId: string) {
     const deletedBySelect = { id: true, name: true };
 
-    const [assetUsers, serviceUsers, usersUsers, ownerUsers] = await Promise.all([
-      this.prisma.asset.findMany({
-        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
-        select: { deleted_by: { select: deletedBySelect } },
-        distinct: ['deleted_by_id'],
-      }),
-      this.prisma.service.findMany({
-        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
-        select: { deleted_by: { select: deletedBySelect } },
-        distinct: ['deleted_by_id'],
-      }),
-      this.prisma.user.findMany({
-        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
-        select: { deleted_by: { select: deletedBySelect } },
-        distinct: ['deleted_by_id'],
-      }),
-      this.prisma.owner.findMany({
-        where: { organization_id: orgId, deleted_at: { not: null }, purged_at: null },
-        select: { deleted_by: { select: deletedBySelect } },
-        distinct: ['deleted_by_id'],
-      }),
-    ]);
+    const [assetUsers, serviceUsers, usersUsers, ownerUsers] =
+      await Promise.all([
+        this.prisma.asset.findMany({
+          where: {
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
+          select: { deleted_by: { select: deletedBySelect } },
+          distinct: ['deleted_by_id'],
+        }),
+        this.prisma.service.findMany({
+          where: {
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
+          select: { deleted_by: { select: deletedBySelect } },
+          distinct: ['deleted_by_id'],
+        }),
+        this.prisma.user.findMany({
+          where: {
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
+          select: { deleted_by: { select: deletedBySelect } },
+          distinct: ['deleted_by_id'],
+        }),
+        this.prisma.owner.findMany({
+          where: {
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
+          select: { deleted_by: { select: deletedBySelect } },
+          distinct: ['deleted_by_id'],
+        }),
+      ]);
 
     const users = new Map<string, { id: string; name: string }>();
-    [...assetUsers, ...serviceUsers, ...usersUsers, ...ownerUsers].forEach((item) => {
-      if (item.deleted_by) users.set(item.deleted_by.id, item.deleted_by);
-    });
+    [...assetUsers, ...serviceUsers, ...usersUsers, ...ownerUsers].forEach(
+      (item) => {
+        if (item.deleted_by) users.set(item.deleted_by.id, item.deleted_by);
+      },
+    );
 
     return {
       categories: ['asset', 'service', 'user', 'owner'],
-      users: Array.from(users.values()).sort((a, b) => a.name.localeCompare(b.name)),
+      users: Array.from(users.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      ),
     };
   }
 
-  async findAll(orgId: string, query?: { search?: string; entity_type?: string; deleted_by_id?: string; page?: number; limit?: number }) {
+  async findAll(
+    orgId: string,
+    query?: {
+      search?: string;
+      entity_type?: string;
+      deleted_by_id?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
     const items: TrashItem[] = [];
 
     const deletedBySelect = { id: true, name: true };
@@ -65,7 +95,9 @@ export class TrashService {
     const typeFilter = query?.entity_type;
     const deletedById = query?.deleted_by_id;
     const search = query?.search;
-    const searchFilter = search ? { contains: search, mode: 'insensitive' as const } : undefined;
+    const searchFilter = search
+      ? { contains: search, mode: 'insensitive' as const }
+      : undefined;
 
     const [assets, services, users, owners] = await Promise.all([
       !typeFilter || typeFilter === 'asset'
@@ -77,7 +109,10 @@ export class TrashService {
               ...(deletedById ? { deleted_by_id: deletedById } : {}),
               ...(searchFilter ? { name: searchFilter } : {}),
             },
-            include: { deleted_by: { select: deletedBySelect }, owner: { select: { name: true } } },
+            include: {
+              deleted_by: { select: deletedBySelect },
+              owner: { select: { name: true } },
+            },
             orderBy: { deleted_at: 'desc' },
           })
         : [],
@@ -90,7 +125,10 @@ export class TrashService {
               ...(deletedById ? { deleted_by_id: deletedById } : {}),
               ...(searchFilter ? { title: searchFilter } : {}),
             },
-            include: { deleted_by: { select: deletedBySelect }, asset: { select: { name: true } } },
+            include: {
+              deleted_by: { select: deletedBySelect },
+              asset: { select: { name: true } },
+            },
             orderBy: { deleted_at: 'desc' },
           })
         : [],
@@ -185,9 +223,15 @@ export class TrashService {
     switch (entityType) {
       case 'asset': {
         const asset = await this.prisma.asset.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!asset) throw new NotFoundException('Activo no encontrado en papelera');
+        if (!asset)
+          throw new NotFoundException('Activo no encontrado en papelera');
         return this.prisma.asset.update({
           where: { id },
           data: { deleted_at: null, deleted_by_id: null, is_active: true },
@@ -195,9 +239,15 @@ export class TrashService {
       }
       case 'service': {
         const service = await this.prisma.service.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!service) throw new NotFoundException('Servicio no encontrado en papelera');
+        if (!service)
+          throw new NotFoundException('Servicio no encontrado en papelera');
         return this.prisma.service.update({
           where: { id },
           data: { deleted_at: null, deleted_by_id: null },
@@ -205,9 +255,15 @@ export class TrashService {
       }
       case 'user': {
         const user = await this.prisma.user.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!user) throw new NotFoundException('Usuario no encontrado en papelera');
+        if (!user)
+          throw new NotFoundException('Usuario no encontrado en papelera');
         return this.prisma.user.update({
           where: { id },
           data: { deleted_at: null, deleted_by_id: null, is_active: true },
@@ -215,9 +271,15 @@ export class TrashService {
       }
       case 'owner': {
         const owner = await this.prisma.owner.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!owner) throw new NotFoundException('Owner no encontrado en papelera');
+        if (!owner)
+          throw new NotFoundException('Owner no encontrado en papelera');
         return this.prisma.owner.update({
           where: { id },
           data: { deleted_at: null, deleted_by_id: null, is_active: true },
@@ -228,16 +290,29 @@ export class TrashService {
     }
   }
 
-  async permanentDelete(entityType: string, id: string, orgId: string, actorUserId?: string) {
+  async permanentDelete(
+    entityType: string,
+    id: string,
+    orgId: string,
+    actorUserId?: string,
+  ) {
     switch (entityType) {
       case 'asset': {
         const asset = await this.prisma.asset.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!asset) throw new NotFoundException('Activo no encontrado en papelera');
+        if (!asset)
+          throw new NotFoundException('Activo no encontrado en papelera');
 
         const thumbnailFileId = (asset as any).thumbnail_file_id;
-        await this.prisma.workerAssetAccess.deleteMany({ where: { asset_id: id } });
+        await this.prisma.workerAssetAccess.deleteMany({
+          where: { asset_id: id },
+        });
         await this.prisma.asset.update({
           where: { id },
           data: {
@@ -253,28 +328,44 @@ export class TrashService {
           },
         });
         if (thumbnailFileId) {
-          await this.storedFilesService.deleteStoredFileAndBlob(thumbnailFileId);
+          await this.storedFilesService.deleteStoredFileAndBlob(
+            thumbnailFileId,
+          );
         }
         return { deleted: true };
       }
       case 'service': {
         const service = await this.prisma.service.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!service) throw new NotFoundException('Servicio no encontrado en papelera');
+        if (!service)
+          throw new NotFoundException('Servicio no encontrado en papelera');
 
         const attachments = await this.prisma.serviceAttachment.findMany({
           where: { service_id: id },
           select: { file_id: true },
         });
-        await this.prisma.serviceAttachment.deleteMany({ where: { service_id: id } });
-        await this.prisma.serviceShareLink.deleteMany({ where: { service_id: id } });
-        await this.prisma.serviceTranslation.deleteMany({ where: { service_id: id } });
+        await this.prisma.serviceAttachment.deleteMany({
+          where: { service_id: id },
+        });
+        await this.prisma.serviceShareLink.deleteMany({
+          where: { service_id: id },
+        });
+        await this.prisma.serviceTranslation.deleteMany({
+          where: { service_id: id },
+        });
         await Promise.all(
           attachments
             .map((a) => a.file_id)
             .filter((fileId): fileId is string => !!fileId)
-            .map((fileId) => this.storedFilesService.deleteStoredFileAndBlob(fileId)),
+            .map((fileId) =>
+              this.storedFilesService.deleteStoredFileAndBlob(fileId),
+            ),
         );
         await this.prisma.service.update({
           where: { id },
@@ -292,15 +383,26 @@ export class TrashService {
       }
       case 'user': {
         const user = await this.prisma.user.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!user) throw new NotFoundException('Usuario no encontrado en papelera');
+        if (!user)
+          throw new NotFoundException('Usuario no encontrado en papelera');
 
         const avatarFileId = (user as any).avatar_file_id;
         const purgedAt = new Date();
         const anonymizedEmail = `deleted-${id}@deleted.local`;
-        const unusablePasswordHash = await bcrypt.hash(`purged:${id}:${purgedAt.toISOString()}`, 10);
-        await this.prisma.workerAssetAccess.deleteMany({ where: { worker_id: id } });
+        const unusablePasswordHash = await bcrypt.hash(
+          `purged:${id}:${purgedAt.toISOString()}`,
+          10,
+        );
+        await this.prisma.workerAssetAccess.deleteMany({
+          where: { worker_id: id },
+        });
         await this.prisma.userSession.deleteMany({ where: { user_id: id } });
         await this.prisma.emailToken.deleteMany({ where: { user_id: id } });
         await this.prisma.user.update({
@@ -329,9 +431,15 @@ export class TrashService {
       }
       case 'owner': {
         const owner = await this.prisma.owner.findFirst({
-          where: { id, organization_id: orgId, deleted_at: { not: null }, purged_at: null },
+          where: {
+            id,
+            organization_id: orgId,
+            deleted_at: { not: null },
+            purged_at: null,
+          },
         });
-        if (!owner) throw new NotFoundException('Owner no encontrado en papelera');
+        if (!owner)
+          throw new NotFoundException('Owner no encontrado en papelera');
 
         const logoFileId = (owner as any).logo_file_id;
         await this.prisma.owner.update({

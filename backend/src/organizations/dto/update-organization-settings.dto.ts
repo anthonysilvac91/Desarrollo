@@ -1,4 +1,11 @@
-import { IsBoolean, IsEmpty, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmpty,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { WorkerEditPolicy } from '@prisma/client';
 import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -9,17 +16,27 @@ export class UpdateOrganizationSettingsDto {
   @IsOptional()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Indica si los Services creados se publican directamente al cliente.' })
+  @ApiPropertyOptional({
+    description:
+      'Indica si los Services creados se publican directamente al cliente.',
+  })
   @IsBoolean()
   @IsOptional()
   auto_publish_services?: boolean;
 
-  @ApiPropertyOptional({ enum: WorkerEditPolicy, description: 'Politica global para controlar si/cuando el Operario puede editar su Job.' })
+  @ApiPropertyOptional({
+    enum: WorkerEditPolicy,
+    description:
+      'Politica global para controlar si/cuando el Operario puede editar su Job.',
+  })
   @IsEnum(WorkerEditPolicy)
   @IsOptional()
   worker_edit_policy?: WorkerEditPolicy;
 
-  @ApiPropertyOptional({ description: 'Ventana en horas en caso de que utilice la policy respectiva.' })
+  @ApiPropertyOptional({
+    description:
+      'Ventana en horas en caso de que utilice la policy respectiva.',
+  })
   @IsNumber()
   @IsOptional()
   worker_edit_window_hours?: number;
@@ -30,20 +47,30 @@ export class UpdateOrganizationSettingsDto {
   brand_color?: string;
 
   @ApiHideProperty()
-  @IsEmpty({ message: 'logo_url is no longer accepted; upload logo file instead' })
+  @IsEmpty({
+    message: 'logo_url is no longer accepted; upload logo file instead',
+  })
   logo_url?: string;
 
-  @ApiPropertyOptional({ description: 'Si es true, los workers tendran acceso restringido configurado por un admin en lugar de ver todos los assets.' })
+  @ApiPropertyOptional({
+    description:
+      'Si es true, los workers tendran acceso restringido configurado por un admin en lugar de ver todos los assets.',
+  })
   @IsBoolean()
   @IsOptional()
   worker_restricted_access?: boolean;
 
-  @ApiPropertyOptional({ description: 'ID del icono por defecto para activos (yacht, car, etc.)' })
+  @ApiPropertyOptional({
+    description: 'ID del icono por defecto para activos (yacht, car, etc.)',
+  })
   @IsString()
   @IsOptional()
   default_asset_icon?: string;
 
-  @ApiPropertyOptional({ description: 'Si es true, muestra el nombre de la organización junto al logo en la UI.' })
+  @ApiPropertyOptional({
+    description:
+      'Si es true, muestra el nombre de la organización junto al logo en la UI.',
+  })
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   @IsOptional()
