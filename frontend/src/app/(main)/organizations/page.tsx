@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Plus, Building2, Globe, ToggleLeft, ToggleRight, Loader2, ChevronLeft, ChevronRight, Bell, Settings2 } from "lucide-react";
+import { Plus, Building2, Globe, ToggleLeft, ToggleRight, Loader2, ChevronLeft, ChevronRight, Bell } from "lucide-react";
 import FiltersBar from "@/components/ui/FiltersBar";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import Modal from "@/components/ui/Modal";
@@ -185,13 +185,6 @@ export default function OrganizationsPage() {
       cell: (org) => (
         <div className="flex items-center gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); openDrawer(org); }}
-            className={`p-2 rounded-xl transition-all ${org.sub ? "text-subtitle/40 hover:text-brand hover:bg-brand/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-50"}`}
-            title={org.sub ? "Gestionar plan" : "Asignar plan"}
-          >
-            <Settings2 className="w-5 h-5" />
-          </button>
-          <button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(org); }}
             className={`p-2 rounded-xl transition-all ${
               org.is_active
@@ -245,6 +238,7 @@ export default function OrganizationsPage() {
             data={pageData}
             columns={columns}
             keyExtractor={(org) => org.id}
+            onRowClick={(org) => openDrawer(org)}
             onSortChange={setActiveSortKey}
             resetSortTrigger={resetKey}
             footer={
