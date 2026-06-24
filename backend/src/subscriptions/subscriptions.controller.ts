@@ -92,6 +92,15 @@ export class SubscriptionsController {
     return this.subscriptionsService.approvePlanChange(orgId, dto.approved);
   }
 
+  @Post('backfill')
+  @ApiOperation({ summary: 'Crear suscripción DEMO para organizaciones que no tienen (SUPER_ADMIN)' })
+  backfillMissing(@Request() req) {
+    if (req.user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo SUPER_ADMIN puede ejecutar backfill');
+    }
+    return this.subscriptionsService.backfillMissing();
+  }
+
   @Patch(':orgId/status')
   @ApiOperation({ summary: 'Suspender o reactivar suscripción (SUPER_ADMIN)' })
   toggleStatus(

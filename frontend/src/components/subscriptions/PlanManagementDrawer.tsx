@@ -11,6 +11,7 @@ interface PlanManagementDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   data: SubscriptionWithUsage | null;
+  organization?: { id: string; name: string; slug: string; is_active: boolean } | null;
 }
 
 const PLAN_OPTIONS: { tier: PlanTier; name: string; price: string; color: string; icon: React.ElementType }[] = [
@@ -21,7 +22,7 @@ const PLAN_OPTIONS: { tier: PlanTier; name: string; price: string; color: string
   { tier: "ENTERPRISE", name: "Enterprise", price: "Custom", color: "bg-violet-100 text-violet-600 border-violet-200", icon: Crown },
 ];
 
-export default function PlanManagementDrawer({ isOpen, onClose, data }: PlanManagementDrawerProps) {
+export default function PlanManagementDrawer({ isOpen, onClose, data, organization }: PlanManagementDrawerProps) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPlan, setSelectedPlan] = useState<PlanTier | null>(null);
@@ -86,6 +87,125 @@ export default function PlanManagementDrawer({ isOpen, onClose, data }: PlanMana
     queryClient.invalidateQueries({ queryKey: ["subscriptions-all"] });
     queryClient.invalidateQueries({ queryKey: ["organizations"] });
   };
+
+  const initialAssignMutation = useMutation({
+    mutationFn: (plan: PlanTier) => {
+      if (!organization) return Promise.reject();
+      const overrides = plan === "ENTERPRISE"
+        ? { max_users: maxUsers, max_assets: maxAssets, max_storage_gb: maxStorageGb, max_video_hours: maxVideoHours }
+        : undefined;
+      return subscriptionsService.assignPlan(organization.id, {
+        plan,
+        overrides: overrides as any,
+        notes: notes || undefined,
+      });
+    },
+    onSuccess: () => {
+      showToast("Plan asignado correctamente", "success");
+      invalidateAll();
+      onClose();
+    },
+    onError: () => showToast("Error al asignar plan", "error"),
+  });
+
+  if (!data && organization) {
+    return (
+      <Drawer isOpen={isOpen} onClose={onClose}>
+        <div className="pt-20 px-6 pb-8 space-y-6">
+          <div className="space-y-1">
+            <h3 className="text-lg font-black text-title">{organization.name}</h3>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-amber-100 text-amber-700 border-amber-200">
+              Sin plan
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <p className="text-sm font-bold text-amber-700">Sin suscripción</p>
+            </div>
+            <p className="text-sm text-amber-600">Esta organización no tiene un plan asignado. Selecciona uno para activarla.</p>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-black uppercase tracking-wider text-subtitle/40">Asignar plan</p>
+            <div className="grid grid-cols-1 gap-2">
+              {PLAN_OPTIONS.map((plan) => {
+                const isSelected = plan.tier === selectedPlan;
+                const Icon = plan.icon;
+                return (
+                  <button
+                    key={plan.tier}
+                    onClick={() => setSelectedPlan(isSelected ? null : plan.tier)}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                      isSelected
+                        ? "border-brand shadow-sm"
+                        : "border-border-theme/30 hover:border-border-theme/60"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${plan.color}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-title">{plan.name}</p>
+                      <p className="text-[11px] text-subtitle/50">{plan.price}/mes</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedPlan === "ENTERPRISE" && (
+              <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4 space-y-3">
+                <p className="text-xs font-black uppercase tracking-wider text-violet-500">Límites personalizados</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Max usuarios", value: maxUsers, set: setMaxUsers },
+                    { label: "Max activos", value: maxAssets, set: setMaxAssets },
+                    { label: "Storage (GB)", value: maxStorageGb, set: setMaxStorageGb },
+                    { label: "Video (hs)", value: maxVideoHours, set: setMaxVideoHours },
+                  ].map((f) => (
+                    <div key={f.label} className="space-y-1">
+                      <label className="text-[10px] font-semibold text-subtitle/50">{f.label}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={f.value}
+                        onChange={(e) => f.set(Number(e.target.value))}
+                        className="w-full px-3 py-2 border border-border-theme/50 rounded-lg text-sm font-semibold text-title outline-none focus:border-brand"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedPlan && (
+              <button
+                onClick={() => initialAssignMutation.mutate(selectedPlan)}
+                disabled={initialAssignMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-brand text-white text-sm font-bold hover:bg-brand/90 transition-all disabled:opacity-50"
+              >
+                {initialAssignMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Asignar {selectedPlan}
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-black uppercase tracking-wider text-subtitle/40">Notas internas</p>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Solo visible para SUPER_ADMIN..."
+              className="w-full px-4 py-3 border-2 border-border-theme/40 rounded-xl text-sm text-title outline-none focus:border-brand resize-none placeholder:text-subtitle/30"
+            />
+          </div>
+        </div>
+      </Drawer>
+    );
+  }
 
   if (!data) return <Drawer isOpen={isOpen} onClose={onClose}><div /></Drawer>;
 

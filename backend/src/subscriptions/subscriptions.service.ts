@@ -156,9 +156,10 @@ export class SubscriptionsService {
 
     if (notes !== undefined) data.notes = notes;
 
-    const subscription = await this.prisma.subscription.update({
+    const subscription = await this.prisma.subscription.upsert({
       where: { organization_id: orgId },
-      data,
+      update: data,
+      create: { organization_id: orgId, ...data },
     });
 
     await this.prisma.organization.update({
@@ -287,6 +288,25 @@ export class SubscriptionsService {
 
     this.logger.log(`Subscription status for org ${orgId}: ${status}`);
     return subscription;
+  }
+
+  async backfillMissing(): Promise<{ created: number; orgIds: string[] }> {
+    const orgsWithout = await this.prisma.organization.findMany({
+      where: { subscription: null },
+      select: { id: true },
+    });
+
+    const createdIds: string[] = [];
+    for (const org of orgsWithout) {
+      await this.createForOrganization(org.id, 'DEMO');
+      createdIds.push(org.id);
+    }
+
+    if (createdIds.length > 0) {
+      this.logger.log(`Backfilled ${createdIds.length} subscription(s): ${createdIds.join(', ')}`);
+    }
+
+    return { created: createdIds.length, orgIds: createdIds };
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)

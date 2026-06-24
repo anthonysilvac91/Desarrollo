@@ -47,6 +47,7 @@ export default function OrganizationsPage() {
   const [resetKey, setResetKey] = useState(0);
   const [activeSortKey, setActiveSortKey] = useState<string | null>(null);
   const [drawerData, setDrawerData] = useState<SubscriptionWithUsage | null>(null);
+  const [drawerOrg, setDrawerOrg] = useState<{ id: string; name: string; slug: string; is_active: boolean } | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const { data: organizations = [], isLoading, refetch } = useQuery({
@@ -96,10 +97,9 @@ export default function OrganizationsPage() {
   };
 
   const openDrawer = (org: OrgWithSub) => {
-    if (org.sub) {
-      setDrawerData(org.sub);
-      setIsDrawerOpen(true);
-    }
+    setDrawerData(org.sub ?? null);
+    setDrawerOrg({ id: org.id, name: org.name, slug: org.slug ?? "", is_active: org.is_active });
+    setIsDrawerOpen(true);
   };
 
   const columns: ColumnDef<OrgWithSub>[] = [
@@ -184,15 +184,13 @@ export default function OrganizationsPage() {
       align: "right",
       cell: (org) => (
         <div className="flex items-center gap-1">
-          {org.sub && (
-            <button
-              onClick={(e) => { e.stopPropagation(); openDrawer(org); }}
-              className="p-2 rounded-xl text-subtitle/40 hover:text-brand hover:bg-brand/10 transition-all"
-              title="Gestionar plan"
-            >
-              <Settings2 className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); openDrawer(org); }}
+            className={`p-2 rounded-xl transition-all ${org.sub ? "text-subtitle/40 hover:text-brand hover:bg-brand/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-50"}`}
+            title={org.sub ? "Gestionar plan" : "Asignar plan"}
+          >
+            <Settings2 className="w-5 h-5" />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(org); }}
             className={`p-2 rounded-xl transition-all ${
@@ -305,6 +303,7 @@ export default function OrganizationsPage() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         data={drawerData}
+        organization={drawerOrg}
       />
     </div>
   );

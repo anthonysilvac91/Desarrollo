@@ -77,4 +77,9 @@ export const subscriptionsService = {
     const response = await api.patch<Subscription>(`/subscriptions/${orgId}/status`, { status });
     return response.data;
   },
+
+  async backfill(): Promise<{ created: number; orgIds: string[] }> {
+    const response = await api.post<{ created: number; orgIds: string[] }>("/subscriptions/backfill");
+    return response.data;
+  },
 };
