@@ -960,6 +960,18 @@ export class UploadsService {
     const reservedBytes = reservedSum.declared_size_bytes ?? 0n;
     const projectedBytes = readyBytes + reservedBytes + incomingBytes;
     if (policy.quotaBytes > 0n && projectedBytes > policy.quotaBytes) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'storage_quota_exceeded',
+          context: 'assertQuotaAndReserve',
+          organizationId,
+          incomingBytes: String(incomingBytes),
+          readyBytes: String(readyBytes),
+          reservedBytes: String(reservedBytes),
+          projectedBytes: String(projectedBytes),
+          quotaBytes: String(policy.quotaBytes),
+        }),
+      );
       throw new BadRequestException(
         'No hay almacenamiento disponible para este archivo',
       );

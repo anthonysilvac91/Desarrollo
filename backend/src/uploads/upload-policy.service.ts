@@ -2,11 +2,13 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { extensionMatchesVideoMime } from '../common/files/video-signature-validation';
+import { resolveStorageQuotaBytes } from '../storage/resolve-storage-quota';
 
 export interface AttachmentPolicy {
   videoUploadsEnabled: boolean;
@@ -22,6 +24,8 @@ export interface AttachmentPolicy {
 
 @Injectable()
 export class UploadPolicyService {
+  private readonly logger = new Logger(UploadPolicyService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -63,16 +67,24 @@ export class UploadPolicyService {
       throw new ForbiddenException('Organizacion no disponible');
     }
 
-    const globalQuota = BigInt(
-      this.configService.get<string>(
-        'ORG_STORAGE_QUOTA_BYTES',
-        String(100 * 1024 * 1024),
+    if (!subscription) {
+      throw new ForbiddenException({
+        error: 'SUBSCRIPTION_REQUIRED',
+        message:
+          'La organizacion no tiene una suscripcion activa. Contacte al administrador.',
+      });
+    }
+
+    const quotaBytes = resolveStorageQuotaBytes({
+      orgStorageQuotaBytes: org.storage_quota_bytes,
+      subscriptionMaxStorageGb: subscription.max_storage_gb,
+      envFallbackBytes: BigInt(
+        this.configService.get<string>(
+          'ORG_STORAGE_QUOTA_BYTES',
+          String(100 * 1024 * 1024),
+        ),
       ),
-    );
-    const planQuota = subscription?.max_storage_gb
-      ? BigInt(subscription.max_storage_gb) * 1024n * 1024n * 1024n
-      : null;
-    const quotaBytes = org.storage_quota_bytes ?? planQuota ?? globalQuota;
+    });
     const maxVideoFileBytes =
       org.max_video_file_bytes ??
       BigInt(
@@ -162,6 +174,18 @@ export class UploadPolicyService {
       );
     }
     if (policy.quotaBytes > 0n && sizeBytes > policy.availableBytes) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'storage_quota_exceeded',
+          context: 'validateVideoIntent',
+          file: originalName,
+          requestedBytes: String(sizeBytes),
+          availableBytes: String(policy.availableBytes),
+          quotaBytes: String(policy.quotaBytes),
+          readyBytes: String(policy.readyBytes),
+          reservedBytes: String(policy.reservedBytes),
+        }),
+      );
       throw new PayloadTooLargeException(
         'No hay almacenamiento disponible para este archivo',
       );

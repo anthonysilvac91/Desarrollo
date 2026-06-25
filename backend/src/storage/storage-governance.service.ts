@@ -1,7 +1,13 @@
-import { Injectable, Logger, PayloadTooLargeException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  PayloadTooLargeException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
+import { resolveStorageQuotaBytes } from './resolve-storage-quota';
 
 export interface OrganizationStorageUsage {
   organizationId: string;
@@ -23,17 +29,43 @@ export interface OrganizationStorageReconcileResult {
 @Injectable()
 export class StorageGovernanceService {
   private readonly logger = new Logger(StorageGovernanceService.name);
-  private readonly quotaBytes: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
-  ) {
-    this.quotaBytes = this.configService.get<number>(
-      'ORG_STORAGE_QUOTA_BYTES',
-      100 * 1024 * 1024,
-    );
+  ) {}
+
+  private async resolveQuotaForOrg(organizationId: string): Promise<bigint> {
+    const [org, subscription] = await Promise.all([
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { storage_quota_bytes: true },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { organization_id: organizationId },
+        select: { max_storage_gb: true },
+      }),
+    ]);
+
+    if (!subscription) {
+      throw new ForbiddenException({
+        error: 'SUBSCRIPTION_REQUIRED',
+        message:
+          'La organizacion no tiene una suscripcion activa. Contacte al administrador.',
+      });
+    }
+
+    return resolveStorageQuotaBytes({
+      orgStorageQuotaBytes: org?.storage_quota_bytes ?? null,
+      subscriptionMaxStorageGb: subscription.max_storage_gb,
+      envFallbackBytes: BigInt(
+        this.configService.get<string>(
+          'ORG_STORAGE_QUOTA_BYTES',
+          String(100 * 1024 * 1024),
+        ),
+      ),
+    });
   }
 
   async getOrganizationUsage(
@@ -47,7 +79,9 @@ export class StorageGovernanceService {
       (total, size) => total + (size ?? 0),
       0,
     );
-    const quotaBytes = this.quotaBytes > 0 ? this.quotaBytes : null;
+
+    const quotaBigInt = await this.resolveQuotaForOrg(organizationId);
+    const quotaBytes = quotaBigInt > 0n ? Number(quotaBigInt) : null;
 
     return {
       organizationId,
@@ -65,7 +99,12 @@ export class StorageGovernanceService {
     incomingBytes: number,
     replacedFileIds: string[] = [],
   ): Promise<void> {
-    if (!organizationId || this.quotaBytes <= 0 || incomingBytes <= 0) {
+    if (!organizationId || incomingBytes <= 0) {
+      return;
+    }
+
+    const quotaBytes = await this.resolveQuotaForOrg(organizationId);
+    if (quotaBytes <= 0n) {
       return;
     }
 
@@ -76,22 +115,35 @@ export class StorageGovernanceService {
       },
       _sum: { size_bytes: true },
     });
-    const currentUsageBytes = usageSum.size_bytes ?? 0;
+    const currentUsageBytes = BigInt(usageSum.size_bytes ?? 0);
 
-    let bytesToReplace = 0;
+    let bytesToReplace = 0n;
     if (replacedFileIds.length > 0) {
       const { _sum: replacedSum } = await this.prisma.storedFile.aggregate({
         where: { id: { in: replacedFileIds } },
         _sum: { size_bytes: true },
       });
-      bytesToReplace = replacedSum.size_bytes ?? 0;
+      bytesToReplace = BigInt(replacedSum.size_bytes ?? 0);
     }
 
-    const projectedBytes = currentUsageBytes - bytesToReplace + incomingBytes;
+    const projectedBytes =
+      currentUsageBytes - bytesToReplace + BigInt(incomingBytes);
 
-    if (projectedBytes > this.quotaBytes) {
+    if (projectedBytes > quotaBytes) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'storage_quota_exceeded',
+          context: 'assertCanStore',
+          organizationId,
+          incomingBytes,
+          currentUsageBytes: String(currentUsageBytes),
+          bytesToReplace: String(bytesToReplace),
+          projectedBytes: String(projectedBytes),
+          quotaBytes: String(quotaBytes),
+        }),
+      );
       throw new PayloadTooLargeException(
-        `La organizacion superaria su cuota de storage (${this.quotaBytes} bytes)`,
+        `La organizacion superaria su cuota de storage (${quotaBytes} bytes)`,
       );
     }
   }
