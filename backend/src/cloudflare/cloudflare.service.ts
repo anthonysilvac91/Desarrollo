@@ -19,6 +19,17 @@ interface ImageUploadResponse {
   variants: string[];
 }
 
+function encodeTusMetadataValue(value: string): string {
+  return Buffer.from(value, 'utf-8').toString('base64');
+}
+
+function buildTusMetadata(meta: Record<string, string>): string {
+  return Object.entries(meta)
+    .filter(([, v]) => v !== '')
+    .map(([key, value]) => `${key} ${encodeTusMetadataValue(value)}`)
+    .join(',');
+}
+
 @Injectable()
 export class CloudflareService {
   private readonly logger = new Logger(CloudflareService.name);
@@ -45,6 +56,7 @@ export class CloudflareService {
 
   async createStreamDirectUpload(opts: {
     maxDurationSeconds: number;
+    uploadLengthBytes: number;
     organizationId: string;
     serviceId: string;
     uploadId: string;
@@ -53,34 +65,59 @@ export class CloudflareService {
       this.configService.get<string>('CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS', '3600'),
     );
     const expiry = new Date(Date.now() + ttl * 1000).toISOString();
+    const requireSigned =
+      this.configService.get('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
 
-    const res = await fetch(`${this.baseUrl}/stream/direct_upload`, {
+    const metadata = buildTusMetadata({
+      name: opts.uploadId,
+      maxDurationSeconds: String(opts.maxDurationSeconds),
+      expiry,
+      requiresignedurls: requireSigned ? 'true' : '',
+    });
+
+    const res = await fetch(`${this.baseUrl}/stream?direct_user=true`, {
       method: 'POST',
       headers: {
         ...this.headers(),
-        'Content-Type': 'application/json',
+        'Tus-Resumable': '1.0.0',
+        'Upload-Length': String(opts.uploadLengthBytes),
+        'Upload-Metadata': metadata,
       },
-      body: JSON.stringify({
-        maxDurationSeconds: opts.maxDurationSeconds,
-        expiry,
-        meta: {
-          organizationId: opts.organizationId,
-          serviceId: opts.serviceId,
-          uploadId: opts.uploadId,
-        },
-        requireSignedURLs: this.configService.get('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true',
-      }),
     });
 
-    const data = await res.json();
-    if (!data.success) {
-      this.logger.error(`CF Stream direct_upload failed: ${JSON.stringify(data.errors)}`);
-      throw new Error(`Cloudflare Stream error: ${data.errors?.[0]?.message ?? 'unknown'}`);
+    if (res.status !== 201) {
+      const body = await res.text();
+      this.logger.error(
+        JSON.stringify({
+          event: 'cf_tus_creation_failed',
+          status: res.status,
+          body: body.substring(0, 500),
+        }),
+      );
+      throw new Error(`Cloudflare TUS creation failed: HTTP ${res.status}`);
     }
 
+    const location = res.headers.get('location');
+    const streamMediaId = res.headers.get('stream-media-id');
+
+    if (!location || !streamMediaId) {
+      throw new Error(
+        'Cloudflare TUS creation response missing Location or stream-media-id header',
+      );
+    }
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'cf_tus_session_created',
+        uid: streamMediaId,
+        uploadId: opts.uploadId,
+        uploadLengthBytes: opts.uploadLengthBytes,
+      }),
+    );
+
     return {
-      uid: data.result.uid,
-      uploadUrl: data.result.uploadURL,
+      uid: streamMediaId,
+      uploadUrl: location,
       expiresAt: expiry,
     };
   }

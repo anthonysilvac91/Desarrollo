@@ -7,6 +7,8 @@ export interface TusUploadHandlers {
   onError: (error: Error) => void;
 }
 
+const CF_STREAM_MIN_CHUNK_BYTES = 5_242_880; // 5 MiB — Cloudflare minimum
+
 export function createTusUpload(file: File, intent: UploadIntent, handlers: TusUploadHandlers) {
   if (intent.cfStreamUploadUrl) {
     return createCfStreamTusUpload(file, intent.cfStreamUploadUrl, intent.chunkSizeBytes, handlers);
@@ -35,20 +37,19 @@ export function createTusUpload(file: File, intent: UploadIntent, handlers: TusU
 
 function createCfStreamTusUpload(
   file: File,
-  uploadUrl: string,
+  tusSessionUrl: string,
   chunkSize: number,
   handlers: TusUploadHandlers,
 ) {
+  const effectiveChunk = file.size <= CF_STREAM_MIN_CHUNK_BYTES
+    ? file.size
+    : Math.max(chunkSize, CF_STREAM_MIN_CHUNK_BYTES);
+
   return new tus.Upload(file, {
-    endpoint: uploadUrl,
-    uploadUrl,
-    chunkSize,
+    uploadUrl: tusSessionUrl,
+    chunkSize: effectiveChunk,
     retryDelays: [0, 3000, 5000, 10000],
     removeFingerprintOnSuccess: true,
-    metadata: {
-      name: file.name,
-      type: file.type,
-    },
     onProgress: handlers.onProgress,
     onSuccess: handlers.onSuccess,
     onError: handlers.onError,

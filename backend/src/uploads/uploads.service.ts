@@ -99,6 +99,7 @@ export class UploadsService {
     if (useCfStream) {
       const streamUpload = await this.cloudflareService.createStreamDirectUpload({
         maxDurationSeconds: 600,
+        uploadLengthBytes: Number(declaredSize),
         organizationId: service.organization_id,
         serviceId,
         uploadId,
@@ -532,17 +533,41 @@ export class UploadsService {
       ? body.status
       : undefined;
 
-    await this.prisma.fileUpload.update({
-      where: { id: uploadId },
-      data: {
-        local_progress: Math.round(progress),
-        ...(status ? { status } : {}),
-        ...(status === 'UPLOADED' ? { upload_completed_at: new Date() } : {}),
-        ...(status === 'FAILED'
-          ? { failure_reason: body?.failureReason ?? 'upload_failed' }
-          : {}),
-      },
-    });
+    if (
+      status === 'FAILED' &&
+      ACTIVE_UPLOAD_STATUSES.includes(upload.status as any)
+    ) {
+      await this.prisma.$transaction(
+        async (tx) => {
+          await tx.fileUpload.update({
+            where: { id: uploadId },
+            data: {
+              status: 'FAILED',
+              local_progress: Math.round(progress),
+              failure_reason: body?.failureReason ?? 'upload_failed',
+            },
+          });
+          await this.releaseReservation(
+            tx,
+            upload.organization_id,
+            upload.declared_size_bytes,
+            1,
+          );
+        },
+        { isolationLevel: 'Serializable' },
+      );
+    } else {
+      await this.prisma.fileUpload.update({
+        where: { id: uploadId },
+        data: {
+          local_progress: Math.round(progress),
+          ...(status ? { status } : {}),
+          ...(status === 'UPLOADED'
+            ? { upload_completed_at: new Date() }
+            : {}),
+        },
+      });
+    }
     await this.refreshServiceAttachmentSnapshot(serviceId);
     this.emitAttachmentsUpdated(serviceId, upload.organization_id, user.id);
     return { ok: true };
@@ -565,6 +590,7 @@ export class UploadsService {
 
       const streamUpload = await this.cloudflareService.createStreamDirectUpload({
         maxDurationSeconds: 600,
+        uploadLengthBytes: Number(upload.declared_size_bytes),
         organizationId: service.organization_id,
         serviceId,
         uploadId,
