@@ -13,6 +13,7 @@ import {
 import { processUploadedImage } from '../common/files/image-processing';
 import { buildOrganizationLogoPath } from '../common/files/storage-paths';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { PLAN_LIMITS } from '../subscriptions/plan-limits';
 
 @Injectable()
 export class OrganizationsService {
@@ -87,12 +88,43 @@ export class OrganizationsService {
 
   async create(dto: CreateOrganizationDto) {
     const slug = this.buildSlug(dto.name);
+    const limits = PLAN_LIMITS.DEMO;
 
-    const org = await this.prisma.organization.create({
-      data: { name: dto.name, slug },
+    const org = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.organization.create({
+        data: { name: dto.name, slug },
+      });
+
+      await tx.subscription.create({
+        data: {
+          organization_id: created.id,
+          plan: 'DEMO',
+          status: 'TRIALING',
+          max_users: limits.max_users,
+          max_assets: limits.max_assets,
+          max_storage_gb: limits.max_storage_gb,
+          max_video_hours: limits.max_video_hours,
+          allow_external: limits.allow_external,
+          allow_branding: limits.allow_branding,
+          allow_ai_translation: limits.allow_ai_translation,
+          demo_expires_at: new Date(
+            Date.now() + limits.demo_duration_days! * 24 * 60 * 60 * 1000,
+          ),
+        },
+      });
+
+      await tx.organizationStorageUsage.create({
+        data: {
+          organization_id: created.id,
+          ready_bytes: 0,
+          reserved_bytes: 0,
+          ready_file_count: 0,
+          pending_upload_count: 0,
+        },
+      });
+
+      return created;
     });
-
-    await this.subscriptionsService.createForOrganization(org.id, 'DEMO');
 
     this.logger.log(`Organization created: ${org.name}`);
     return { organization: org };
