@@ -73,6 +73,15 @@ export class AssetsService {
       resolvedAsset.services = await Promise.all(
         resolvedAsset.services.map(async (service: any) => ({
           ...service,
+          // BigInt fields no se pueden serializar a JSON — convertir a string
+          attachment_bytes_total:
+            service.attachment_bytes_total != null
+              ? String(service.attachment_bytes_total)
+              : null,
+          attachment_bytes_ready:
+            service.attachment_bytes_ready != null
+              ? String(service.attachment_bytes_ready)
+              : null,
           attachments: Array.isArray(service.attachments)
             ? await Promise.all(
                 service.attachments.map(async (attachment: any) => ({
