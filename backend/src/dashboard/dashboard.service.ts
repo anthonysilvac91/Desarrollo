@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import {
   DashboardStatsDto,
   RankingItemDto,
@@ -74,30 +74,23 @@ export class DashboardService {
       }
     }
 
-    const defaultEvolutionStart = new Date();
-    defaultEvolutionStart.setDate(defaultEvolutionStart.getDate() - 6);
-    defaultEvolutionStart.setHours(0, 0, 0, 0);
-    const evolutionWhere = selectedDateRange
-      ? statsWhere
-      : {
-          ...statsWhere,
-          created_at: { gte: defaultEvolutionStart },
-        };
+    // Evolution date range (resolved once — shared by SQL query and label generation)
+    const { start: evolutionStart, end: evolutionEnd } =
+      this.resolveEvolutionDates(selectedDateRange);
+    const evolutionMode = this.getEvolutionMode(evolutionStart, evolutionEnd);
 
     const [
       assetsCount,
       servicesCount,
-      publicServices,
-      privateServices,
+      publicPrivateCounts,
       workersCount,
       ownersCount,
       adminsCount,
       recentServices,
-      evolutionData,
+      evolutionCounts,
       assetRanking,
       workerRanking,
-      assetsServicedGroups,
-      activeOperatorsGroups,
+      distinctCounts,
     ] = await Promise.all([
       // Assets Count
       isExternal
@@ -106,10 +99,15 @@ export class DashboardService {
           })
         : this.prisma.asset.count({ where: { ...baseWhere, is_active: true } }),
 
-      // Services Count
+      // Services Count (total)
       this.prisma.service.count({ where: statsWhere }),
-      this.prisma.service.count({ where: { ...statsWhere, is_public: true } }),
-      this.prisma.service.count({ where: { ...statsWhere, is_public: false } }),
+
+      // Public / Private counts — single groupBy instead of two count() calls
+      this.prisma.service.groupBy({
+        by: ['is_public'],
+        where: statsWhere,
+        _count: { id: true },
+      }),
 
       // User Counts
       isWorker || isExternal
@@ -137,11 +135,15 @@ export class DashboardService {
         },
       }),
 
-      // Evolution (Last 7 days)
-      this.prisma.service.findMany({
-        where: evolutionWhere,
-        select: { created_at: true },
-        orderBy: { created_at: 'asc' },
+      // Evolution — GROUP BY in SQL; returns only M grouped rows, not N raw rows
+      this.getEvolutionCountsRaw({
+        organizationId: baseWhere.organization_id,
+        workerId: isWorker ? currentUser.id : undefined,
+        ownerId: isExternal ? (currentOwnerId ?? undefined) : undefined,
+        isPublic: isExternal ? true : undefined,
+        startDate: evolutionStart,
+        endDate: evolutionEnd,
+        mode: evolutionMode,
       }),
 
       // Top Assets (Rankings)
@@ -164,24 +166,24 @@ export class DashboardService {
             take: 5,
           }),
 
-      // Assets Serviced (distinct assets with at least one service in period)
-      this.prisma.service.groupBy({
-        by: ['asset_id'],
-        where: statsWhere,
+      // Assets serviced + active operators — COUNT DISTINCT in one SQL round-trip
+      this.getDistinctCountsRaw({
+        organizationId: baseWhere.organization_id,
+        workerId: isWorker ? currentUser.id : undefined,
+        ownerId: isExternal ? (currentOwnerId ?? undefined) : undefined,
+        isPublic: isExternal ? true : undefined,
+        includeOperators: !isWorker && !isExternal,
+        createdAt: statsWhere.created_at,
       }),
-
-      // Active Operators (distinct workers with services in period)
-      isWorker || isExternal
-        ? []
-        : this.prisma.service.groupBy({
-            by: ['worker_id'],
-            where: statsWhere,
-          }),
     ]);
 
-    // Procesar Evolución
+    const publicServices =
+      publicPrivateCounts.find((g) => g.is_public === true)?._count?.id ?? 0;
+    const privateServices =
+      publicPrivateCounts.find((g) => g.is_public === false)?._count?.id ?? 0;
+
     const evolution: EvolutionPointDto[] = this.processEvolution(
-      evolutionData,
+      evolutionCounts,
       selectedDateRange,
     );
 
@@ -209,9 +211,9 @@ export class DashboardService {
       total_admins: adminsCount,
       public_services: publicServices,
       private_services: privateServices,
-      assets_serviced: assetsServicedGroups.length,
+      assets_serviced: distinctCounts.assetsServiced,
       last_service: recentServices[0]?.created_at?.toISOString() ?? null,
-      active_operators: activeOperatorsGroups.length,
+      active_operators: distinctCounts.activeOperators,
       recent_services: recentServices.map((s) => ({
         id: s.id,
         title: s.title,
@@ -239,30 +241,139 @@ export class DashboardService {
       last_service: null,
       active_operators: 0,
       recent_services: [],
-      evolution: this.processEvolution([]),
+      evolution: this.processEvolution(new Map()),
       top_assets: [],
       top_workers: [],
       top_owners: [],
     };
   }
 
-  private processEvolution(
-    data: any[],
-    range?: { gte?: Date; lte?: Date },
-  ): EvolutionPointDto[] {
+  private resolveEvolutionDates(range?: { gte?: Date; lte?: Date }): {
+    start: Date;
+    end: Date;
+  } {
     const end = range?.lte ? new Date(range.lte) : new Date();
     const start = range?.gte ? new Date(range.gte) : new Date(end);
     if (!range?.gte) start.setDate(end.getDate() - 6);
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
 
+  private getEvolutionMode(start: Date, end: Date): 'daily' | 'monthly' {
     const dayMs = 24 * 60 * 60 * 1000;
+    // start is midnight, end is 23:59:59.999 → diff = (N-1).999 days → floor + 1 = N
     const actualDays = Math.max(
       1,
-      Math.ceil((end.getTime() - start.getTime()) / dayMs) + 1,
+      Math.floor((end.getTime() - start.getTime()) / dayMs) + 1,
+    );
+    return actualDays > 62 ? 'monthly' : 'daily';
+  }
+
+  private async getEvolutionCountsRaw(params: {
+    organizationId?: string;
+    workerId?: string;
+    ownerId?: string;
+    isPublic?: boolean;
+    startDate: Date;
+    endDate: Date;
+    mode: 'daily' | 'monthly';
+  }): Promise<Map<string, number>> {
+    const { organizationId, workerId, ownerId, isPublic, startDate, endDate, mode } =
+      params;
+
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`"deleted_at" IS NULL`,
+      Prisma.sql`"created_at" >= ${startDate}`,
+      Prisma.sql`"created_at" <= ${endDate}`,
+    ];
+    if (organizationId)
+      conditions.push(Prisma.sql`"organization_id" = ${organizationId}`);
+    if (workerId) conditions.push(Prisma.sql`"worker_id" = ${workerId}`);
+    if (isPublic !== undefined)
+      conditions.push(Prisma.sql`"is_public" = ${isPublic}`);
+    if (ownerId)
+      conditions.push(
+        Prisma.sql`"asset_id" IN (SELECT id FROM "Asset" WHERE "owner_id" = ${ownerId} AND "deleted_at" IS NULL)`,
+      );
+
+    const whereClause = Prisma.join(conditions, ' AND ');
+    // fmt is a hardcoded constant — not user-supplied, safe for Prisma.raw
+    const fmt = Prisma.raw(
+      mode === 'monthly' ? `'YYYY-MM'` : `'YYYY-MM-DD'`,
     );
 
-    if (actualDays > 62) {
+    const rows = await this.prisma.$queryRaw<{ day: string; count: bigint }[]>`
+      SELECT
+        to_char("created_at" AT TIME ZONE 'UTC', ${fmt}) AS day,
+        COUNT(*) AS count
+      FROM "Service"
+      WHERE ${whereClause}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      map.set(row.day, Number(row.count));
+    }
+    return map;
+  }
+
+  private async getDistinctCountsRaw(params: {
+    organizationId?: string;
+    workerId?: string;
+    ownerId?: string;
+    isPublic?: boolean;
+    includeOperators: boolean;
+    createdAt?: { gte?: Date; lte?: Date };
+  }): Promise<{ assetsServiced: number; activeOperators: number }> {
+    const { organizationId, workerId, ownerId, isPublic, includeOperators, createdAt } =
+      params;
+
+    const conditions: Prisma.Sql[] = [Prisma.sql`"deleted_at" IS NULL`];
+    if (organizationId)
+      conditions.push(Prisma.sql`"organization_id" = ${organizationId}`);
+    if (workerId) conditions.push(Prisma.sql`"worker_id" = ${workerId}`);
+    if (isPublic !== undefined)
+      conditions.push(Prisma.sql`"is_public" = ${isPublic}`);
+    if (ownerId)
+      conditions.push(
+        Prisma.sql`"asset_id" IN (SELECT id FROM "Asset" WHERE "owner_id" = ${ownerId} AND "deleted_at" IS NULL)`,
+      );
+    if (createdAt?.gte) conditions.push(Prisma.sql`"created_at" >= ${createdAt.gte}`);
+    if (createdAt?.lte) conditions.push(Prisma.sql`"created_at" <= ${createdAt.lte}`);
+
+    const whereClause = Prisma.join(conditions, ' AND ');
+    // operatorsExpr is a hardcoded SQL fragment — not user-supplied, safe for Prisma.raw
+    const operatorsExpr = includeOperators
+      ? Prisma.raw('COUNT(DISTINCT "worker_id")')
+      : Prisma.raw('0::bigint');
+
+    const rows = await this.prisma.$queryRaw<
+      { assets_serviced: bigint; active_operators: bigint }[]
+    >`
+      SELECT
+        COUNT(DISTINCT "asset_id") AS assets_serviced,
+        ${operatorsExpr} AS active_operators
+      FROM "Service"
+      WHERE ${whereClause}
+    `;
+
+    return {
+      assetsServiced: Number(rows[0]?.assets_serviced ?? 0n),
+      activeOperators: Number(rows[0]?.active_operators ?? 0n),
+    };
+  }
+
+  private processEvolution(
+    countsByKey: Map<string, number>,
+    range?: { gte?: Date; lte?: Date },
+  ): EvolutionPointDto[] {
+    const { start, end } = this.resolveEvolutionDates(range);
+
+    if (this.getEvolutionMode(start, end) === 'monthly') {
+      // Monthly buckets — SQL keys are 'YYYY-MM' (1-based, zero-padded)
       const buckets: Array<{ year: number; month: number; key: string }> = [];
       for (
         let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -270,44 +381,33 @@ export class DashboardService {
         cursor.setMonth(cursor.getMonth() + 1)
       ) {
         const year = cursor.getFullYear();
-        const month = cursor.getMonth();
-        buckets.push({ year, month, key: `${year}-${month}` });
+        const month = cursor.getMonth(); // 0-based for label
+        const mm = String(month + 1).padStart(2, '0'); // matches to_char 'YYYY-MM'
+        buckets.push({ year, month, key: `${year}-${mm}` });
       }
-
-      const counts = new Map(buckets.map((bucket) => [bucket.key, 0]));
-      data.forEach((item) => {
-        const createdAt = new Date(item.created_at);
-        const key = `${createdAt.getFullYear()}-${createdAt.getMonth()}`;
-        if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
-      });
-
       return buckets.map((bucket) => ({
         name: `${bucket.month + 1}/${String(bucket.year).slice(-2)}`,
-        value: counts.get(bucket.key) ?? 0,
+        value: countsByKey.get(bucket.key) ?? 0,
       }));
     }
 
-    const totalDays = actualDays;
-    const last7Days = [...Array(totalDays)].map((_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d.toISOString().split('T')[0];
-    });
-
-    const counts: Record<string, number> = {};
-    last7Days.forEach((day) => (counts[day] = 0));
-
-    data.forEach((item) => {
-      const day = item.created_at.toISOString().split('T')[0];
-      if (counts[day] !== undefined) counts[day]++;
+    // Daily buckets — SQL keys are 'YYYY-MM-DD' (UTC)
+    const dayMs = 24 * 60 * 60 * 1000;
+    const totalDays = Math.max(
+      1,
+      Math.floor((end.getTime() - start.getTime()) / dayMs) + 1,
+    );
+    const days = [...Array(totalDays)].map((_, i) => {
+      const d = new Date(start.getTime() + i * dayMs);
+      return d.toISOString().split('T')[0]; // UTC date string
     });
 
     const daysMap = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    return last7Days.map((day) => {
-      const date = new Date(day);
+    return days.map((day) => {
+      const date = new Date(day + 'T00:00:00Z');
       return {
-        name: `${daysMap[date.getDay()]} ${date.getDate()}/${date.getMonth() + 1}`,
-        value: counts[day],
+        name: `${daysMap[date.getUTCDay()]} ${date.getUTCDate()}/${date.getUTCMonth() + 1}`,
+        value: countsByKey.get(day) ?? 0,
       };
     });
   }
