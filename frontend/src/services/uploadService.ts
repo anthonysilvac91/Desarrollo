@@ -35,7 +35,7 @@ export const uploadService = {
     await api.delete(`/services/${serviceId}/attachments/uploads/${uploadId}`);
   },
   getPlaybackUrl: async (serviceId: string, attachmentId: string): Promise<PlaybackData> => {
-    const res = await api.get<PlaybackData>(`/services/${serviceId}/attachments/${attachmentId}/playback`);
+    const res = await api.post<PlaybackData>(`/services/${serviceId}/attachments/${attachmentId}/playback-url`);
     return res.data;
   },
   getMine: async (status?: "pending"): Promise<any[]> => {

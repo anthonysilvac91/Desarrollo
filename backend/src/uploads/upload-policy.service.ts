@@ -59,7 +59,7 @@ export class UploadPolicyService {
       }),
       this.prisma.subscription.findUnique({
         where: { organization_id: organizationId },
-        select: { max_storage_gb: true },
+        select: { max_storage_gb: true, max_video_hours: true },
       }),
     ]);
 
@@ -121,13 +121,24 @@ export class UploadPolicyService {
     const availableBytes =
       quotaBytes > 0n ? quotaBytes - readyBytes - reservedBytes : 0n;
 
+    const videoUploadsEnabled =
+      subscription.max_video_hours > 0 ||
+      org.video_uploads_enabled;
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'policy_resolved',
+        organizationId,
+        videoUploadsEnabled,
+        maxVideoHours: subscription.max_video_hours,
+        orgOverride: org.video_uploads_enabled,
+        quotaBytes: String(quotaBytes),
+        availableBytes: String(availableBytes > 0n ? availableBytes : 0n),
+      }),
+    );
+
     return {
-      videoUploadsEnabled:
-        org.video_uploads_enabled ||
-        this.configService.get<string>(
-          'SERVICE_VIDEO_UPLOADS_ENABLED',
-          'false',
-        ) === 'true',
+      videoUploadsEnabled,
       maxVideoFileBytes,
       maxBatchSize: Number(
         this.configService.get<string>('SERVICE_UPLOAD_MAX_BATCH_SIZE', '20'),

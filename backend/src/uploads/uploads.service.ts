@@ -131,6 +131,20 @@ export class UploadsService {
         { isolationLevel: 'Serializable' },
       );
 
+      this.logger.log(
+        JSON.stringify({
+          event: 'upload_intent_created',
+          uploadId,
+          serviceId,
+          organizationId: service.organization_id,
+          userId: user.id,
+          sizeBytes: String(declaredSize),
+          mimeType: dto.mimeType,
+          useCfStream: true,
+          cfStreamUid: streamUpload.uid,
+        }),
+      );
+
       await this.refreshServiceAttachmentSnapshot(serviceId);
       this.emitAttachmentsUpdated(serviceId, service.organization_id, user.id);
 
@@ -186,6 +200,19 @@ export class UploadsService {
       { isolationLevel: 'Serializable' },
     );
 
+    this.logger.log(
+      JSON.stringify({
+        event: 'upload_intent_created',
+        uploadId,
+        serviceId,
+        organizationId: service.organization_id,
+        userId: user.id,
+        sizeBytes: String(declaredSize),
+        mimeType: dto.mimeType,
+        useCfStream: false,
+      }),
+    );
+
     await this.refreshServiceAttachmentSnapshot(serviceId);
     this.emitAttachmentsUpdated(serviceId, service.organization_id, user.id);
 
@@ -209,6 +236,16 @@ export class UploadsService {
         where: { id: uploadId },
         data: { status: 'UPLOADING', upload_started_at: new Date() },
       });
+      this.logger.log(
+        JSON.stringify({
+          event: 'upload_started',
+          uploadId,
+          serviceId,
+          organizationId: upload.organization_id,
+          userId: user.id,
+          cfStreamUid: upload.cf_stream_uid ?? null,
+        }),
+      );
       await this.refreshServiceAttachmentSnapshot(serviceId);
       this.emitAttachmentsUpdated(serviceId, upload.organization_id, user.id);
     }
@@ -225,6 +262,18 @@ export class UploadsService {
     );
     if (existingAttachment) {
       return this.serializeAttachment(existingAttachment);
+    }
+
+    // Para CF Stream el webhook puede haber confirmado el upload antes de que el
+    // frontend llame a confirm(). StoredFile no se crea en ese path, así que
+    // findConfirmedAttachment no lo encuentra. Buscamos directamente por upload_id.
+    if (upload.cf_stream_uid) {
+      const existingCfAttachment = await this.prisma.serviceAttachment.findUnique({
+        where: { upload_id: uploadId },
+      });
+      if (existingCfAttachment) {
+        return this.serializeAttachment(existingCfAttachment);
+      }
     }
 
     if (!ACTIVE_UPLOAD_STATUSES.includes(upload.status as any)) {
@@ -336,6 +385,16 @@ export class UploadsService {
   ) {
     const streamStatus = await this.cloudflareService.getStreamStatus(upload.cf_stream_uid);
 
+    this.logger.log(
+      JSON.stringify({
+        event: 'cf_stream_status_polled',
+        uploadId,
+        uid: upload.cf_stream_uid,
+        status: streamStatus.status,
+        readyToStream: streamStatus.readyToStream,
+      }),
+    );
+
     if (!streamStatus.readyToStream) {
       await this.prisma.fileUpload.update({
         where: { id: uploadId },
@@ -349,39 +408,51 @@ export class UploadsService {
     }
 
     const actualSize = upload.declared_size_bytes;
-    const attachment = await this.prisma.$transaction(
-      async (tx) => {
-        const created = await tx.serviceAttachment.create({
-          data: {
-            service_id: serviceId,
-            upload_id: uploadId,
-            file_type: upload.declared_mime_type,
-            file_name: upload.original_name,
-            file_size_bytes: Number(actualSize),
-            media_type: 'VIDEO',
-            duration_seconds: streamStatus.duration ? Math.round(streamStatus.duration) : null,
-          },
-        });
+    let attachment: any;
+    try {
+      attachment = await this.prisma.$transaction(
+        async (tx) => {
+          const created = await tx.serviceAttachment.create({
+            data: {
+              service_id: serviceId,
+              upload_id: uploadId,
+              file_type: upload.declared_mime_type,
+              file_name: upload.original_name,
+              file_size_bytes: Number(actualSize),
+              media_type: 'VIDEO',
+              duration_seconds: streamStatus.duration ? Math.round(streamStatus.duration) : null,
+            },
+          });
 
-        await tx.fileUpload.update({
-          where: { id: uploadId },
-          data: {
-            status: 'CONFIRMED',
-            cf_stream_status: streamStatus.status,
-            cf_stream_ready_to_stream: true,
-            cf_stream_duration: streamStatus.duration,
-            cf_stream_thumbnail: streamStatus.thumbnail,
-            confirmed_at: new Date(),
-            upload_completed_at: new Date(),
-            local_progress: 100,
-          },
-        });
+          await tx.fileUpload.update({
+            where: { id: uploadId },
+            data: {
+              status: 'CONFIRMED',
+              cf_stream_status: streamStatus.status,
+              cf_stream_ready_to_stream: true,
+              cf_stream_duration: streamStatus.duration,
+              cf_stream_thumbnail: streamStatus.thumbnail,
+              confirmed_at: new Date(),
+              upload_completed_at: new Date(),
+              local_progress: 100,
+            },
+          });
 
-        await this.moveReservationToReady(tx, service.organization_id, actualSize, actualSize);
-        return created;
-      },
-      { isolationLevel: 'Serializable' },
-    );
+          await this.moveReservationToReady(tx, service.organization_id, actualSize, actualSize);
+          return created;
+        },
+        { isolationLevel: 'Serializable' },
+      );
+    } catch (error: any) {
+      // El webhook puede haber creado el ServiceAttachment concurrentemente.
+      if (error?.code === 'P2002') {
+        const existing = await this.prisma.serviceAttachment.findUnique({
+          where: { upload_id: uploadId },
+        });
+        if (existing) return this.serializeAttachment(existing);
+      }
+      throw error;
+    }
 
     await this.refreshServiceAttachmentSnapshot(serviceId);
     this.emitAttachmentsUpdated(serviceId, service.organization_id, user.id);

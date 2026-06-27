@@ -30,7 +30,9 @@ export class CloudflareWebhookController {
     @Headers('webhook-signature') signature: string,
   ) {
     const secret = this.configService.get<string>('CLOUDFLARE_STREAM_WEBHOOK_SECRET');
-    if (secret && signature) {
+    if (!secret) {
+      this.logger.warn('CF Stream webhook recibido sin CLOUDFLARE_STREAM_WEBHOOK_SECRET configurado — omitiendo verificacion HMAC');
+    } else if (signature) {
       this.verifySignature(signature, JSON.stringify(body), secret);
     }
 
@@ -38,18 +40,24 @@ export class CloudflareWebhookController {
     const state = body?.status?.state;
 
     if (!uid || !state) {
-      this.logger.warn('CF Stream webhook: missing uid or status.state');
+      this.logger.warn(
+        JSON.stringify({ event: 'cf_stream_webhook_invalid_payload', body }),
+      );
       return { ok: true };
     }
 
-    this.logger.log(`CF Stream webhook: uid=${uid} state=${state}`);
+    this.logger.log(
+      JSON.stringify({ event: 'cf_stream_webhook_received', uid, state }),
+    );
 
     const upload = await this.prisma.fileUpload.findFirst({
       where: { cf_stream_uid: uid },
     });
 
     if (!upload) {
-      this.logger.warn(`CF Stream webhook: no upload found for uid ${uid}`);
+      this.logger.warn(
+        JSON.stringify({ event: 'cf_stream_webhook_upload_not_found', uid, state }),
+      );
       return { ok: true };
     }
 
@@ -64,6 +72,16 @@ export class CloudflareWebhookController {
         'cloudflare_processing_error',
       );
     }
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'cf_stream_webhook_processed',
+        uid,
+        state,
+        uploadId: upload.id,
+        organizationId: upload.organization_id,
+      }),
+    );
 
     return { ok: true };
   }

@@ -86,6 +86,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
 
   const pollStreamConfirm = useCallback((localId: string, serviceId: string, uploadId: string, attempt = 0) => {
     if (attempt > 30) {
+      console.error("[upload] Timeout esperando procesamiento de CF Stream", { localId, uploadId, serviceId, attempts: attempt });
       patchItem(localId, { status: "failed", error: "El video tardó demasiado en procesarse." });
       return;
     }
@@ -99,7 +100,8 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
           await queryClient.invalidateQueries({ queryKey: ["services"] });
           await queryClient.invalidateQueries({ queryKey: ["service", serviceId] });
         }
-      } catch {
+      } catch (error: unknown) {
+        console.error("[upload] Error al confirmar video en polling", { localId, uploadId, serviceId, attempt, error });
         patchItem(localId, { status: "failed", error: "Error al confirmar el video procesado." });
       }
     }, 3000);
@@ -137,6 +139,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
             queryClient.invalidateQueries({ queryKey: ["service", item.serviceId] }),
           ]);
         } catch (error: unknown) {
+          console.error("[upload] Error al confirmar carga tras TUS success", { localId: item.localId, uploadId: item.uploadId, serviceId: item.serviceId, error });
           const message = error instanceof Error ? error.message : "No se pudo confirmar la carga.";
           patchItem(item.localId, {
             status: "failed",
@@ -145,6 +148,7 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
         }
       },
       onError: (error) => {
+        console.error("[upload] TUS error", { localId: item.localId, uploadId: item.uploadId, serviceId: item.serviceId, error: error.message, cause: error });
         uploadsRef.current.delete(item.localId);
         patchItem(item.localId, { status: "failed", error: error.message });
         if (item.uploadId) {
