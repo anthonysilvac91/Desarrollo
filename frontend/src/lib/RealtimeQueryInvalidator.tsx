@@ -64,18 +64,24 @@ export function RealtimeQueryInvalidator() {
     const abortController = new AbortController();
 
     const handleEvent = (event: RealtimeEvent) => {
-
-      if (event.module === "assets" && pathname.startsWith("/assets")) {
-        invalidatePrefixes(queryClient, ["asset", "assets", "assets-mobile", "assets-stats", "assets-owners-list"]);
+      if (event.module === "assets") {
+        if (pathname.startsWith("/assets")) {
+          invalidatePrefixes(queryClient, ["asset", "assets", "assets-mobile", "assets-stats", "assets-owners-list"]);
+        }
+        if (pathname.startsWith("/dashboard")) {
+          invalidatePrefixes(queryClient, ["dashboard-stats"]);
+        }
       }
 
       if (event.module === "services") {
         if (pathname.startsWith("/service")) {
           invalidatePrefixes(queryClient, ["services", "services-mobile", "services-stats", "services-workers-list"]);
         }
-
         if (pathname.startsWith("/assets")) {
           invalidatePrefixes(queryClient, ["assets", "assets-mobile", "assets-stats"]);
+        }
+        if (pathname.startsWith("/dashboard")) {
+          invalidatePrefixes(queryClient, ["dashboard-stats"]);
         }
       }
 
