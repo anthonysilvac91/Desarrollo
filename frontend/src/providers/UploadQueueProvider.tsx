@@ -27,18 +27,22 @@ interface UploadQueueContextValue {
 const UploadQueueContext = createContext<UploadQueueContextValue | null>(null);
 const STORAGE_KEY = "recall.uploadQueue.v1";
 
+const TERMINAL_STATUSES = new Set(["completed", "cancelled"]);
+
 function restorePersistedItems(): UploadQueueItem[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as UploadQueueItem[];
-    return parsed.map((item) => ({
-      ...item,
-      file: undefined,
-      status: item.status === "completed" ? "completed" : "needs_file",
-      error: item.status === "completed" ? undefined : "Selecciona nuevamente el archivo para continuar.",
-    }));
+    return parsed
+      .filter((item) => !TERMINAL_STATUSES.has(item.status))
+      .map((item) => ({
+        ...item,
+        file: undefined,
+        status: "needs_file" as const,
+        error: "Selecciona nuevamente el archivo para continuar.",
+      }));
   } catch {
     localStorage.removeItem(STORAGE_KEY);
     return [];
@@ -217,8 +221,8 @@ export function UploadQueueProvider({ children }: { children: React.ReactNode })
     if (item?.uploadId) {
       await uploadService.cancel(item.serviceId, item.uploadId).catch(() => undefined);
     }
-    patchItem(localId, { status: "cancelled" });
-  }, [items, patchItem]);
+    setItems((current) => current.filter((i) => i.localId !== localId));
+  }, [items, setItems]);
 
   const retryUpload = useCallback(async (localId: string) => {
     const item = items.find((candidate) => candidate.localId === localId);
