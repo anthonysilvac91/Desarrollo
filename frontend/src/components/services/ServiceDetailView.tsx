@@ -100,11 +100,9 @@ function AttachmentUploadSummary({ service }: { service: Service }) {
                 .replace("{expected}", String(summary.expected))}
             </p>
           </div>
-          {summary.status !== "READY" && (
-            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
-              {summary.status === "FAILED" ? t.mobile.upload_queue.status_failed : t.mobile.upload_queue.status_loading}
-            </span>
-          )}
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
+            {summary.status === "FAILED" ? t.mobile.upload_queue.status_failed : t.mobile.upload_queue.status_loading}
+          </span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-app-bg">
           <div className="h-full bg-brand" style={{ width: `${percent}%` }} />
