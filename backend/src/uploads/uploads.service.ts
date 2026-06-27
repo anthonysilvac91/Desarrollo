@@ -530,11 +530,21 @@ export class UploadsService {
       const ttl = Number(
         this.configService.get<string>('CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS', '3600'),
       );
+      const signedUrls = this.configService.get('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
 
-      if (this.configService.get('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true') {
+      this.logger.log(
+        JSON.stringify({
+          event: 'cf_stream_playback_url_built',
+          uid,
+          signedUrls,
+          attachmentId,
+        }),
+      );
+
+      if (signedUrls) {
         const token = await this.cloudflareService.getStreamSignedToken(uid, ttl);
         return {
-          embedUrl: this.cloudflareService.getStreamEmbedUrl(uid),
+          embedUrl: this.cloudflareService.getStreamEmbedUrl(token),
           hlsUrl: this.cloudflareService.getStreamHlsUrl(token),
           cfStreamUid: uid,
           duration: attachment.upload.cf_stream_duration,
