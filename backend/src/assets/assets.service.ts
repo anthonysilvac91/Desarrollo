@@ -434,53 +434,82 @@ export class AssetsService {
     return { owners };
   }
 
-  async findOne(id: string, user: any) {
-    const where: any = { id, deleted_at: null, purged_at: null };
+  async findOne(
+    id: string,
+    user: any,
+    pagination: { page: number; limit: number } = { page: 1, limit: 20 },
+  ) {
+    const { page } = pagination;
+    const limit = Math.min(pagination.limit, 50);
+
+    const assetWhere: any = { id, deleted_at: null, purged_at: null };
     if (user.role !== 'SUPER_ADMIN') {
-      where.organization_id = user.orgId;
+      assetWhere.organization_id = user.orgId;
     }
 
-    const asset = await this.prisma.asset.findFirst({
-      where,
-      include: {
-        services: {
-          include: {
-            worker: {
-              select: {
-                name: true,
-                id: true,
-                deleted_at: true,
-                purged_at: true,
+    // EXTERNAL filter moves to DB — avoids loading all services just to discard private ones
+    const servicesWhere: any = isExternalRole(user.role)
+      ? { is_public: true }
+      : {};
+
+    const servicesCountWhere: any = { asset_id: id, ...servicesWhere };
+    if (user.role !== 'SUPER_ADMIN') {
+      servicesCountWhere.organization_id = user.orgId;
+    }
+
+    const [asset, servicesTotal] = await Promise.all([
+      this.prisma.asset.findFirst({
+        where: assetWhere,
+        include: {
+          services: {
+            where: servicesWhere,
+            include: {
+              worker: {
+                select: {
+                  name: true,
+                  id: true,
+                  deleted_at: true,
+                  purged_at: true,
+                },
+              },
+              attachments: {
+                select: { id: true, file_id: true, file_type: true },
               },
             },
-            attachments: {
-              select: { id: true, file_id: true, file_type: true },
-            },
+            orderBy: { created_at: 'desc' },
+            take: limit,
+            skip: (page - 1) * limit,
           },
-          orderBy: { created_at: 'desc' },
+          owner: {
+            select: { id: true, name: true, deleted_at: true, purged_at: true },
+          },
         },
-        owner: {
-          select: { id: true, name: true, deleted_at: true, purged_at: true },
-        },
-      },
-    });
+      }),
+      this.prisma.service.count({ where: servicesCountWhere }),
+    ]);
 
     if (!asset) {
       throw new NotFoundException('Activo no encontrado');
     }
 
-    if (isExternalRole(user.role)) {
-      const currentOwnerId = user.owner_id;
-      if (asset.owner_id !== currentOwnerId) {
-        throw new NotFoundException('No tienes acceso a este activo');
-      }
-      asset.services = asset.services.filter((service) => service.is_public);
+    if (isExternalRole(user.role) && asset.owner_id !== user.owner_id) {
+      throw new NotFoundException('No tienes acceso a este activo');
     }
 
-    return this.resolveAssetFileUrls(
+    const resolved = await this.resolveAssetFileUrls(
       this.mapAssetRelations(this.withLastService(asset)),
       asset.organization_id,
     );
+
+    return {
+      ...resolved,
+      services_meta: {
+        total: servicesTotal,
+        page,
+        limit,
+        totalPages: Math.ceil(servicesTotal / limit),
+      },
+    };
   }
 
   async assignOwner(assetId: string, ownerId: string, orgId: string) {

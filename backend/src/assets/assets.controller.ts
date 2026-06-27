@@ -97,10 +97,18 @@ export class AssetsController {
   @ApiOperation({
     summary: 'Detalle de un activo',
     description:
-      'Incluye historial de servicios y acceso de companies. Filtra por tenant y permisos.',
+      'Incluye historial de servicios paginado. Usa ?servicePage y ?serviceLimit (max 50) para navegar.',
   })
-  findOne(@Param('id') id: string, @Request() req) {
-    return this.assetsService.findOne(id, req.user);
+  findOne(
+    @Param('id') id: string,
+    @Request() req,
+    @Query('servicePage') servicePage?: string,
+    @Query('serviceLimit') serviceLimit?: string,
+  ) {
+    return this.assetsService.findOne(id, req.user, {
+      page: servicePage ? Math.max(1, parseInt(servicePage, 10)) : 1,
+      limit: serviceLimit ? parseInt(serviceLimit, 10) : 20,
+    });
   }
 
   @Post(':id/owners/:ownerId')
