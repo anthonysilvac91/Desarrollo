@@ -43,14 +43,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    // Usar Warning para 4xx y Error para 5xx (incluyendo la traza del error en caso de 500)
     if (status >= 500) {
       this.logger.error(
-        `[${request.method}] ${request.url} - ${status} - Error: ${exception instanceof Error ? exception.stack : JSON.stringify(exception)}`,
+        `[${request.method}] ${request.url} - ${status} - ${exception instanceof Error ? exception.stack : JSON.stringify(exception)}`,
       );
-    } else {
-      // Opcional: Descomentar si se desea rastrear todos los 4xx (pueden ser algo ruidosos)
-      // this.logger.warn(`[${request.method}] ${request.url} - ${status} - ${errorResponse.message}`);
+    } else if (status === 401 || status === 403) {
+      // Auth failures are auditable signals worth tracking in production logs
+      this.logger.warn(
+        `[${request.method}] ${request.url} - ${status} - ${errorResponse.message}`,
+      );
     }
 
     response.status(status).json(errorResponse);

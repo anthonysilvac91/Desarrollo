@@ -133,5 +133,14 @@ async function bootstrap() {
 
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
+
+  const startupLogger = new Logger('Bootstrap');
+  const env = configService.get<string>('NODE_ENV') ?? 'development';
+  const storageType = configService.get<string>('STORAGE_TYPE') ?? 'local';
+  const cfStreamEnabled = configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true';
+  const cfSignedUrls = configService.get<string>('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
+
+  startupLogger.log(`Recall API listening on port ${port} [${env}]`);
+  startupLogger.log(`storage=${storageType} cf_stream=${cfStreamEnabled} signed_urls=${cfSignedUrls}`);
 }
 bootstrap();
