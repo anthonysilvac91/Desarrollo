@@ -1,5 +1,7 @@
-import { IsOptional, IsInt, Min } from 'class-validator';
+import { IsOptional, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export const MAX_PAGE_SIZE = 100;
 
 export class PaginationQueryDto {
   @IsOptional()
@@ -12,6 +14,7 @@ export class PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(MAX_PAGE_SIZE)
   limit?: number;
 
   @IsOptional()

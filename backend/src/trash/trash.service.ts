@@ -208,7 +208,7 @@ export class TrashService {
 
     if (query?.page && query?.limit) {
       const page = Number(query.page);
-      const limit = Number(query.limit);
+      const limit = Math.min(Number(query.limit), 100);
       const total = items.length;
       return {
         data: items.slice((page - 1) * limit, page * limit),

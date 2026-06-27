@@ -866,7 +866,7 @@ export class ServicesService {
               meta: {
                 total: 0,
                 page: Number(query.page),
-                limit: Number(query.limit),
+                limit: Math.min(Number(query.limit), 100),
                 totalPages: 0,
               },
             }
@@ -888,7 +888,7 @@ export class ServicesService {
 
     if (query.page && query.limit) {
       const page = Number(query.page);
-      const limit = Number(query.limit);
+      const limit = Math.min(Number(query.limit), 100);
       const [data, total] = await Promise.all([
         this.prisma.service.findMany({
           where: whereClause,

@@ -252,7 +252,7 @@ export class UsersService {
 
     if (query.page && query.limit) {
       const page = Number(query.page);
-      const limit = Number(query.limit);
+      const limit = Math.min(Number(query.limit), 100);
       const [data, total] = await Promise.all([
         this.prisma.user.findMany({
           where,
