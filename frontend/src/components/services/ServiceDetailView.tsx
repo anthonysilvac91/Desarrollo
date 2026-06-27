@@ -84,7 +84,7 @@ function AttachmentUploadSummary({ service }: { service: Service }) {
   const { t } = useLanguage();
   const summary = service.attachmentUploadSummary;
   const pending = service.pendingAttachments ?? [];
-  if (!summary || summary.status === "NONE") return null;
+  if (!summary || summary.status === "NONE" || summary.status === "READY") return null;
   const total = Math.max(summary.expected, 1);
   const percent = Math.round((summary.ready / total) * 100);
 
