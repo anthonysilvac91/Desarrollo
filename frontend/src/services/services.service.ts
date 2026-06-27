@@ -170,7 +170,15 @@ export const servicesService = {
     const res = await api.get(`/services/${serviceId}/attachments/${attachmentId}/download`);
     return res.data;
   },
-  getVideoPlaybackUrl: async (serviceId: string, attachmentId: string): Promise<{ url: string; expiresAt: string }> => {
+  getVideoPlaybackUrl: async (serviceId: string, attachmentId: string): Promise<{
+    url?: string;
+    embedUrl?: string;
+    hlsUrl?: string;
+    cfStreamUid?: string;
+    duration?: number | null;
+    thumbnail?: string | null;
+    expiresAt?: string;
+  }> => {
     const res = await api.post(`/services/${serviceId}/attachments/${attachmentId}/playback-url`);
     return res.data;
   },

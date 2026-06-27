@@ -151,7 +151,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
   const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const [videoPreview, setVideoPreview] = useState<{ url: string; name?: string | null } | null>(null);
+  const [videoPreview, setVideoPreview] = useState<{ url?: string; embedUrl?: string; name?: string | null } | null>(null);
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
 
   const { data: detail, isLoading } = useQuery({
@@ -287,8 +287,8 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
     if (!att.id || loadingVideoId) return;
     setLoadingVideoId(att.id);
     try {
-      const { url } = await servicesService.getVideoPlaybackUrl(currentService.id, att.id);
-      setVideoPreview({ url, name: att.file_name });
+      const data = await servicesService.getVideoPlaybackUrl(currentService.id, att.id);
+      setVideoPreview({ url: data.url, embedUrl: data.embedUrl, name: att.file_name });
     } catch {
       showToast(t.feedback.generic_error, "error");
     } finally {
@@ -689,6 +689,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
       {videoPreview && (
         <VideoPlayerModal
           url={videoPreview.url}
+          embedUrl={videoPreview.embedUrl}
           title={videoPreview.name}
           onClose={() => setVideoPreview(null)}
         />

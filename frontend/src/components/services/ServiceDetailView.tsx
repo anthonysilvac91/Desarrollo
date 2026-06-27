@@ -141,7 +141,7 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const [videoPreview, setVideoPreview] = useState<{ url: string; name?: string | null } | null>(null);
+  const [videoPreview, setVideoPreview] = useState<{ url?: string; embedUrl?: string; name?: string | null } | null>(null);
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
   const pinch = usePinchZoom();
 
@@ -300,8 +300,8 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
     if (!att.id || loadingVideoId) return;
     setLoadingVideoId(att.id);
     try {
-      const { url } = await servicesService.getVideoPlaybackUrl(current.id, att.id);
-      setVideoPreview({ url, name: att.file_name });
+      const data = await servicesService.getVideoPlaybackUrl(current.id, att.id);
+      setVideoPreview({ url: data.url, embedUrl: data.embedUrl, name: att.file_name });
     } catch {
       showToast(t.feedback.generic_error, "error");
     } finally {
@@ -706,6 +706,7 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
       {videoPreview && (
         <VideoPlayerModal
           url={videoPreview.url}
+          embedUrl={videoPreview.embedUrl}
           title={videoPreview.name}
           onClose={() => setVideoPreview(null)}
         />
