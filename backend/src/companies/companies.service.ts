@@ -44,26 +44,48 @@ export class OwnersService {
     owner: T,
     organizationId: string,
   ) {
-    const resolvedOwner = { ...owner } as any;
-
-    if (Array.isArray(resolvedOwner.assets)) {
-      resolvedOwner.assets = await Promise.all(
-        resolvedOwner.assets.map(async (asset: any) => ({
-          ...asset,
-          thumbnail_url: await this.storedFilesService.resolveFileUrlForOrg(
-            asset.thumbnail_file_id,
-            organizationId,
-          ),
-        })),
-      );
-    }
-
-    resolvedOwner.logo_url = await this.storedFilesService.resolveFileUrlForOrg(
-      resolvedOwner.logo_file_id,
+    const ids = this.collectOwnerFileIds(owner);
+    const urlMap = await this.storedFilesService.resolveFileUrlsForOrg(
+      ids,
       organizationId,
     );
+    return this.applyOwnerUrlMap(owner, urlMap);
+  }
 
+  private collectOwnerFileIds(owner: any): Array<string | null | undefined> {
+    const ids: Array<string | null | undefined> = [owner.logo_file_id];
+    if (Array.isArray(owner.assets)) {
+      for (const asset of owner.assets) ids.push(asset.thumbnail_file_id);
+    }
+    return ids;
+  }
+
+  private applyOwnerUrlMap<T extends Record<string, any>>(
+    owner: T,
+    urlMap: Map<string, string | null>,
+  ): T {
+    const resolvedOwner = { ...owner } as any;
+    resolvedOwner.logo_url = urlMap.get(resolvedOwner.logo_file_id) ?? null;
+    if (Array.isArray(resolvedOwner.assets)) {
+      resolvedOwner.assets = resolvedOwner.assets.map((asset: any) => ({
+        ...asset,
+        thumbnail_url: urlMap.get(asset.thumbnail_file_id) ?? null,
+      }));
+    }
     return resolvedOwner;
+  }
+
+  private async resolveOwnersFileUrls<T extends Record<string, any>>(
+    owners: T[],
+    organizationId: string,
+  ): Promise<T[]> {
+    if (owners.length === 0) return [];
+    const allIds = owners.flatMap((o) => this.collectOwnerFileIds(o));
+    const urlMap = await this.storedFilesService.resolveFileUrlsForOrg(
+      allIds,
+      organizationId,
+    );
+    return owners.map((o) => this.applyOwnerUrlMap(o, urlMap));
   }
 
   private async attachOwnerUsageCounts<T extends Record<string, any>>(
@@ -251,12 +273,11 @@ export class OwnersService {
         this.prisma.owner.count({ where }),
       ]);
       const dataWithCounts = await this.attachOwnerUsageCounts(orgId, data);
+      const mapped = dataWithCounts.map((item: any) =>
+        this.mapOwnerRelations(item),
+      );
       return {
-        data: await Promise.all(
-          dataWithCounts.map((item: any) =>
-            this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId),
-          ),
-        ),
+        data: await this.resolveOwnersFileUrls(mapped, orgId),
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
       };
     }
@@ -275,10 +296,9 @@ export class OwnersService {
       orderBy,
     });
     const ownersWithCounts = await this.attachOwnerUsageCounts(orgId, owners);
-    return Promise.all(
-      ownersWithCounts.map((item: any) =>
-        this.resolveOwnerFileUrls(this.mapOwnerRelations(item), orgId),
-      ),
+    return this.resolveOwnersFileUrls(
+      ownersWithCounts.map((item: any) => this.mapOwnerRelations(item)),
+      orgId,
     );
   }
 

@@ -275,38 +275,80 @@ export class ServicesService {
     service: T,
     organizationId: string,
   ): Promise<T> {
+    const fileIds = this.collectServiceFileIds(service);
+    const urlMap = await this.storedFilesService.resolveFileUrlsForOrg(
+      fileIds,
+      organizationId,
+    );
+    return this.applyServiceUrlMap(service, urlMap);
+  }
+
+  private collectServiceFileIds(service: any): Array<string | null | undefined> {
+    const ids: Array<string | null | undefined> = [];
+    if (service.asset?.thumbnail_file_id) {
+      ids.push(service.asset.thumbnail_file_id);
+    }
+    if (Array.isArray(service.attachments)) {
+      for (const att of service.attachments) {
+        const isVideo =
+          att.media_type === 'VIDEO' ||
+          String(att.file_type ?? '').toLowerCase().startsWith('video/');
+        if (!isVideo) ids.push(att.file_id);
+      }
+    }
+    return ids;
+  }
+
+  private applyServiceUrlMap<T extends Record<string, any>>(
+    service: T,
+    urlMap: Map<string, string | null>,
+  ): T {
     const resolvedService = { ...service } as any;
 
     if (resolvedService.asset) {
-      resolvedService.asset.thumbnail_url =
-        await this.storedFilesService.resolveFileUrlForOrg(
-          resolvedService.asset.thumbnail_file_id,
-          organizationId,
-        );
+      resolvedService.asset = {
+        ...resolvedService.asset,
+        thumbnail_url:
+          urlMap.get(resolvedService.asset.thumbnail_file_id) ?? null,
+      };
     }
 
     if (Array.isArray(resolvedService.attachments)) {
-      resolvedService.attachments = await Promise.all(
-        resolvedService.attachments.map(async (attachment: any) => {
+      resolvedService.attachments = resolvedService.attachments.map(
+        (attachment: any) => {
           const isVideo =
             attachment.media_type === 'VIDEO' ||
-            String(attachment.file_type ?? '')
-              .toLowerCase()
-              .startsWith('video/');
+            String(attachment.file_type ?? '').toLowerCase().startsWith('video/');
           return {
             ...attachment,
-            file_url: isVideo
-              ? null
-              : await this.storedFilesService.resolveFileUrlForOrg(
-                  attachment.file_id,
-                  organizationId,
-                ),
+            file_url: isVideo ? null : (urlMap.get(attachment.file_id) ?? null),
           };
-        }),
+        },
       );
     }
 
     return resolvedService;
+  }
+
+  private async buildServiceUrlMapForList(
+    items: any[],
+  ): Promise<Map<string, Map<string, string | null>>> {
+    const fileIdsByOrg = new Map<string, Array<string | null | undefined>>();
+    for (const item of items) {
+      const orgId: string = item.organization_id;
+      if (!fileIdsByOrg.has(orgId)) fileIdsByOrg.set(orgId, []);
+      fileIdsByOrg.get(orgId)!.push(...this.collectServiceFileIds(item));
+    }
+    const urlMapsByOrg = new Map<string, Map<string, string | null>>();
+    await Promise.all(
+      [...fileIdsByOrg.entries()].map(async ([orgId, ids]) => {
+        urlMapsByOrg.set(
+          orgId,
+          await this.storedFilesService.resolveFileUrlsForOrg(ids, orgId),
+        );
+      }),
+    );
+    return urlMapsByOrg;
   }
 
   private async applyDescriptionTranslation<T extends Record<string, any>>(
@@ -909,10 +951,17 @@ export class ServicesService {
         }),
         this.prisma.service.count({ where: whereClause }),
       ]);
+      const urlMapsByOrg = await this.buildServiceUrlMapForList(data);
       const mappedData = await Promise.all(
-        data.map(async (item: any) =>
-          this.prepareServiceResponse(item, item.organization_id, query.lang),
-        ),
+        data.map(async (item: any) => {
+          const urlMap = urlMapsByOrg.get(item.organization_id) ?? new Map();
+          const withUrls = this.applyServiceUrlMap(
+            this.mapServiceRelations(item),
+            urlMap,
+          );
+          const withUploadSummary = this.serializeAttachmentUploadState(withUrls);
+          return this.applyDescriptionTranslation(withUploadSummary, query.lang);
+        }),
       );
 
       return {
@@ -973,10 +1022,17 @@ export class ServicesService {
       },
       orderBy: { created_at: 'desc' },
     });
+    const urlMapsByOrg = await this.buildServiceUrlMapForList(services);
     return Promise.all(
-      services.map(async (item: any) =>
-        this.prepareServiceResponse(item, item.organization_id, query.lang),
-      ),
+      services.map(async (item: any) => {
+        const urlMap = urlMapsByOrg.get(item.organization_id) ?? new Map();
+        const withUrls = this.applyServiceUrlMap(
+          this.mapServiceRelations(item),
+          urlMap,
+        );
+        const withUploadSummary = this.serializeAttachmentUploadState(withUrls);
+        return this.applyDescriptionTranslation(withUploadSummary, query.lang);
+      }),
     );
   }
 

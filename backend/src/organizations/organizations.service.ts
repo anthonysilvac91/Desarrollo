@@ -32,14 +32,16 @@ export class OrganizationsService {
       orderBy: { created_at: 'desc' },
     });
 
+    // Each org is its own tenant: logo files are stored under organization.id.
+    // Batch per org (one DB call per distinct org, vs one per logo previously).
     return Promise.all(
       organizations.map(async (organization: any) => {
+        const urlMap = await this.storedFilesService.resolveFileUrlsForOrg(
+          [organization.logo_file_id],
+          organization.id,
+        );
         organization.logo_url =
-          await this.storedFilesService.resolveFileUrlForOrg(
-            organization.logo_file_id,
-            organization.id,
-          );
-
+          urlMap.get(organization.logo_file_id) ?? null;
         return organization;
       }),
     );

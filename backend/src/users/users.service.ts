@@ -55,6 +55,32 @@ export class UsersService {
     return resolvedUser;
   }
 
+  private async resolveUsersFileUrls<T extends Record<string, any>>(
+    users: T[],
+  ): Promise<T[]> {
+    if (users.length === 0) return [];
+    const fileIdsByOrg = new Map<string, Array<string | null | undefined>>();
+    for (const user of users) {
+      const orgId: string = (user as any).organization_id;
+      if (!fileIdsByOrg.has(orgId)) fileIdsByOrg.set(orgId, []);
+      fileIdsByOrg.get(orgId)!.push((user as any).avatar_file_id);
+    }
+    const urlMapsByOrg = new Map<string, Map<string, string | null>>();
+    await Promise.all(
+      [...fileIdsByOrg.entries()].map(async ([orgId, ids]) => {
+        urlMapsByOrg.set(
+          orgId,
+          await this.storedFilesService.resolveFileUrlsForOrg(ids, orgId),
+        );
+      }),
+    );
+    return users.map((user) => {
+      const u = user as any;
+      const urlMap = urlMapsByOrg.get(u.organization_id) ?? new Map();
+      return { ...u, avatar_url: urlMap.get(u.avatar_file_id) ?? null } as T;
+    });
+  }
+
   private async ensureOrganizationExists(organizationId: string) {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
@@ -237,11 +263,8 @@ export class UsersService {
         }),
         this.prisma.user.count({ where }),
       ]);
-      const mappedData = await Promise.all(
-        data.map(async (item: any) =>
-          this.resolveUserFileUrls(this.mapUserRelations(item)),
-        ),
-      );
+      const mapped = data.map((item: any) => this.mapUserRelations(item));
+      const mappedData = await this.resolveUsersFileUrls(mapped);
 
       return {
         data: mappedData,
@@ -255,11 +278,7 @@ export class UsersService {
       select: selectFields,
     });
 
-    return Promise.all(
-      users.map(async (item: any) =>
-        this.resolveUserFileUrls(this.mapUserRelations(item)),
-      ),
-    );
+    return this.resolveUsersFileUrls(users.map((item: any) => this.mapUserRelations(item)));
   }
 
   async findOne(

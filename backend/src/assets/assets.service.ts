@@ -57,47 +57,64 @@ export class AssetsService {
     };
   }
 
+  private collectAssetFileIds(
+    asset: any,
+  ): Array<string | null | undefined> {
+    const ids: Array<string | null | undefined> = [asset.thumbnail_file_id];
+    if (Array.isArray(asset.services)) {
+      for (const svc of asset.services) {
+        if (Array.isArray(svc.attachments)) {
+          for (const att of svc.attachments) {
+            ids.push(att.file_id);
+          }
+        }
+      }
+    }
+    return ids;
+  }
+
+  private applyAssetUrlMap<T extends Record<string, any>>(
+    asset: T,
+    urlMap: Map<string, string | null>,
+  ): T {
+    const resolvedAsset = { ...asset } as any;
+    resolvedAsset.thumbnail_url =
+      urlMap.get(resolvedAsset.thumbnail_file_id) ?? null;
+
+    if (Array.isArray(resolvedAsset.services)) {
+      resolvedAsset.services = resolvedAsset.services.map((service: any) => ({
+        ...service,
+        // BigInt fields cannot be JSON.stringify'd — convert to string
+        attachment_bytes_total:
+          service.attachment_bytes_total != null
+            ? String(service.attachment_bytes_total)
+            : null,
+        attachment_bytes_ready:
+          service.attachment_bytes_ready != null
+            ? String(service.attachment_bytes_ready)
+            : null,
+        attachments: Array.isArray(service.attachments)
+          ? service.attachments.map((attachment: any) => ({
+              ...attachment,
+              file_url: urlMap.get(attachment.file_id) ?? null,
+            }))
+          : service.attachments,
+      }));
+    }
+
+    return resolvedAsset;
+  }
+
   private async resolveAssetFileUrls<T extends Record<string, any>>(
     asset: T,
     organizationId: string,
   ) {
-    const resolvedAsset = { ...asset } as any;
-
-    resolvedAsset.thumbnail_url =
-      await this.storedFilesService.resolveFileUrlForOrg(
-        resolvedAsset.thumbnail_file_id,
-        organizationId,
-      );
-
-    if (Array.isArray(resolvedAsset.services)) {
-      resolvedAsset.services = await Promise.all(
-        resolvedAsset.services.map(async (service: any) => ({
-          ...service,
-          // BigInt fields no se pueden serializar a JSON — convertir a string
-          attachment_bytes_total:
-            service.attachment_bytes_total != null
-              ? String(service.attachment_bytes_total)
-              : null,
-          attachment_bytes_ready:
-            service.attachment_bytes_ready != null
-              ? String(service.attachment_bytes_ready)
-              : null,
-          attachments: Array.isArray(service.attachments)
-            ? await Promise.all(
-                service.attachments.map(async (attachment: any) => ({
-                  ...attachment,
-                  file_url: await this.storedFilesService.resolveFileUrlForOrg(
-                    attachment.file_id,
-                    organizationId,
-                  ),
-                })),
-              )
-            : service.attachments,
-        })),
-      );
-    }
-
-    return resolvedAsset;
+    const fileIds = this.collectAssetFileIds(asset);
+    const urlMap = await this.storedFilesService.resolveFileUrlsForOrg(
+      fileIds,
+      organizationId,
+    );
+    return this.applyAssetUrlMap(asset, urlMap);
   }
 
   private async ensureOwnerBelongsToOrg(ownerId: string, orgId: string) {
@@ -305,15 +322,7 @@ export class AssetsService {
         this.prisma.asset.count({ where: baseWhere }),
       ]);
 
-      const mappedData = await Promise.all(
-        data.map(async (asset: any) =>
-          this.resolveAssetFileUrls(
-            this.mapAssetRelations(this.withLastService(asset)),
-            asset.organization_id,
-          ),
-        ),
-      );
-
+      const mappedData = await this.resolveAssetListFileUrls(data);
       return {
         data: mappedData,
         meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -325,14 +334,37 @@ export class AssetsService {
       include,
       orderBy,
     });
-    return Promise.all(
-      assets.map(async (asset: any) =>
-        this.resolveAssetFileUrls(
-          this.mapAssetRelations(this.withLastService(asset)),
-          asset.organization_id,
-        ),
-      ),
+    return this.resolveAssetListFileUrls(assets);
+  }
+
+  private async resolveAssetListFileUrls(assets: any[]): Promise<any[]> {
+    if (assets.length === 0) return [];
+
+    const fileIdsByOrg = new Map<string, Array<string | null | undefined>>();
+    for (const asset of assets) {
+      const orgId: string = asset.organization_id;
+      if (!fileIdsByOrg.has(orgId)) fileIdsByOrg.set(orgId, []);
+      fileIdsByOrg
+        .get(orgId)!
+        .push(...this.collectAssetFileIds(this.withLastService(asset)));
+    }
+    const urlMapsByOrg = new Map<string, Map<string, string | null>>();
+    await Promise.all(
+      [...fileIdsByOrg.entries()].map(async ([orgId, ids]) => {
+        urlMapsByOrg.set(
+          orgId,
+          await this.storedFilesService.resolveFileUrlsForOrg(ids, orgId),
+        );
+      }),
     );
+
+    return assets.map((asset) => {
+      const urlMap = urlMapsByOrg.get(asset.organization_id) ?? new Map();
+      return this.applyAssetUrlMap(
+        this.mapAssetRelations(this.withLastService(asset)),
+        urlMap,
+      );
+    });
   }
 
   async getStats(orgId: string, role: string, ownerId?: string) {

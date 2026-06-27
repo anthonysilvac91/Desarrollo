@@ -335,21 +335,21 @@ export class DashboardService {
             select: { id: true, name: true, avatar_file_id: true },
           });
 
-    return Promise.all(
-      rankingData.map(async (r) => {
-        const item = items.find((i) => i.id === r[idKey]);
-        const avatarUrl = await this.storedFilesService.resolveFileUrlForOrg(
-          (item as any)?.avatar_file_id,
-          organizationId,
-        );
-
-        return {
-          id: r[idKey],
-          name: item?.name || 'Desconocido',
-          metric: r._count.id,
-          avatar_url: avatarUrl ?? undefined,
-        };
-      }),
+    const avatarFileIds = items.map((i) => (i as any).avatar_file_id);
+    const urlMap = await this.storedFilesService.resolveFileUrlsForOrg(
+      avatarFileIds,
+      organizationId,
     );
+
+    return rankingData.map((r) => {
+      const item = items.find((i) => i.id === r[idKey]);
+      const avatarFileId = (item as any)?.avatar_file_id;
+      return {
+        id: r[idKey],
+        name: item?.name || 'Desconocido',
+        metric: r._count.id,
+        avatar_url: (avatarFileId ? urlMap.get(avatarFileId) : null) ?? undefined,
+      };
+    });
   }
 }

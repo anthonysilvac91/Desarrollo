@@ -82,6 +82,38 @@ export class StoredFilesService {
     return this.storageService.resolveFileUrl(storedFile.storage_ref);
   }
 
+  /**
+   * Batch version of resolveFileUrlForOrg. Executes a single DB query for all
+   * provided IDs within the given organization. Returns a Map keyed by fileId;
+   * IDs not found, belonging to another org, or otherwise unresolvable map to
+   * null (absent from the Map — callers should use `map.get(id) ?? null`).
+   */
+  async resolveFileUrlsForOrg(
+    fileIds: Array<string | null | undefined>,
+    organizationId: string | null | undefined,
+  ): Promise<Map<string, string | null>> {
+    if (!organizationId) return new Map();
+
+    const uniqueIds = [
+      ...new Set(fileIds.filter((id): id is string => !!id && id.length > 0)),
+    ];
+    if (uniqueIds.length === 0) return new Map();
+
+    const storedFiles = await this.prisma.storedFile.findMany({
+      where: { id: { in: uniqueIds }, organization_id: organizationId },
+      select: { id: true, storage_ref: true },
+    });
+
+    const result = new Map<string, string | null>();
+    await Promise.all(
+      storedFiles.map(async (file) => {
+        const url = await this.storageService.resolveFileUrl(file.storage_ref);
+        result.set(file.id, url ?? null);
+      }),
+    );
+    return result;
+  }
+
   async resolveFileUrlOrRef(
     storedFileId?: string | null,
     legacyStorageRef?: string | null,
