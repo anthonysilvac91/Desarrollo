@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,7 +25,7 @@ interface UploadQueueContextValue {
 }
 
 const UploadQueueContext = createContext<UploadQueueContextValue | null>(null);
-const STORAGE_KEY = "recall.uploadQueue.v1";
+const STORAGE_KEY = "fentri.uploadQueue.v1";
 
 const TERMINAL_STATUSES = new Set(["completed", "cancelled"]);
 

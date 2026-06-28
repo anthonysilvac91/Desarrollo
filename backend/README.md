@@ -1,6 +1,6 @@
-# Recall Backend (NestJS)
+﻿# Fentri Backend (NestJS)
 
-Esta es la API central del sistema Recall.
+Esta es la API central del sistema Fentri.
 
 ## Documentacion Principal
 

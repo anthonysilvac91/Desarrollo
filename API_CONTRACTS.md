@@ -1,4 +1,4 @@
-# Contratos API: Recall MVP
+﻿# Contratos API: Fentri MVP
 
 Este documento detalla los endpoints del backend consumidos por el frontend.
 

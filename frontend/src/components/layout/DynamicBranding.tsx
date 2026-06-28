@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 
 const PALETTE_COLORS: Record<string, string> = {
-  recall: "#0D6EFD",  // Fentri primary blue
+  fentri: "#0D6EFD",  // Fentri primary blue
   ocean: "#06b6d4",   // cyan-500
   teal: "#14b8a6",    // teal-500
   forest: "#10b981",  // emerald-500

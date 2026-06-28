@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -1457,7 +1457,7 @@ export class ServicesService {
     const service = shared.service;
     const lines = [
       `Reporte de servicio: ${service.title}`,
-      `Organizacion: ${service.organization?.name ?? 'Recall'}`,
+      `Organizacion: ${service.organization?.name ?? 'Fentri'}`,
       `Fecha: ${service.created_at instanceof Date ? service.created_at.toISOString().slice(0, 10) : String(service.created_at).slice(0, 10)}`,
       `Activo: ${service.asset?.name ?? 'Sin activo'}`,
       `Responsable: ${service.worker?.name ?? 'No registrado'}`,

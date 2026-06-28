@@ -1,9 +1,9 @@
-# Arquitectura del MVP: Recall
+﻿# Arquitectura del MVP: Fentri
 
-Este documento describe la vision tecnica, los componentes y las reglas fundamentales del MVP de Recall.
+Este documento describe la vision tecnica, los componentes y las reglas fundamentales del MVP de Fentri.
 
 ## 1. Vision General
-Recall es una plataforma SaaS multitenant para la gestion de mantenimiento de activos. `Organization` es el tenant raiz. Cada organization administra su equipo interno y sus `Companies`, que representan empresas cliente a las que se asocian usuarios y activos.
+Fentri es una plataforma SaaS multitenant para la gestion de mantenimiento de activos. `Organization` es el tenant raiz. Cada organization administra su equipo interno y sus `Companies`, que representan empresas cliente a las que se asocian usuarios y activos.
 
 ## 2. Actores y Permisos
 El sistema usa un modelo RBAC con aislamiento por organization.
@@ -27,7 +27,7 @@ El sistema usa un modelo RBAC con aislamiento por organization.
   - **Backfill legacy**: existe un script idempotente `npm run storage:backfill:legacy` en `backend/` para crear registros `StoredFile` faltantes desde columnas legacy como `logo_url`, `avatar_url`, `thumbnail_url` y `file_url`, sin cambiar todavia la logica de lectura.
 
 ## 4. Multi-tenancy y Aislamiento
-Recall utiliza una arquitectura de base de datos compartida con esquema compartido. El aislamiento es logico mediante la columna `organization_id` en las tablas criticas.
+Fentri utiliza una arquitectura de base de datos compartida con esquema compartido. El aislamiento es logico mediante la columna `organization_id` en las tablas criticas.
 
 - **Filtro global**: el backend aplica guards y filtros para asegurar que un `ADMIN` o `WORKER` nunca acceda a datos de otra organization.
 - **Owners**: entidad que representa la empresa cliente dentro de una organization. Cada `Asset` pertenece a un `Owner`. API: `/owners`.

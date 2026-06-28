@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+﻿import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
@@ -119,9 +119,9 @@ async function bootstrap() {
 
   if (!isProduction) {
     const config = new DocumentBuilder()
-      .setTitle('Recall MVP API')
+      .setTitle('Fentri MVP API')
       .setDescription(
-        'API central del sistema Recall. La ruta oficial para owners es /owners.',
+        'API central del sistema Fentri. La ruta oficial para owners es /owners.',
       )
       .setVersion('1.0')
       .addBearerAuth()
@@ -140,7 +140,7 @@ async function bootstrap() {
   const cfStreamEnabled = configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true';
   const cfSignedUrls = configService.get<string>('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
 
-  startupLogger.log(`Recall API listening on port ${port} [${env}]`);
+  startupLogger.log(`Fentri API listening on port ${port} [${env}]`);
   startupLogger.log(`storage=${storageType} cf_stream=${cfStreamEnabled} signed_urls=${cfSignedUrls}`);
 }
 bootstrap();

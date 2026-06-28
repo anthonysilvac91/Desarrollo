@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import ReactDOM from "react-dom";
@@ -62,7 +62,7 @@ import PlanStatusCard from "@/components/subscriptions/PlanStatusCard";
 import { compressImageFile } from "@/lib/imageCompression";
 
 const BRAND_PALETTES = [
-  { id: "recall", name: "Recall Blue", base: "bg-blue-600", shades: ["bg-blue-400", "bg-blue-700", "bg-blue-900"] },
+  { id: "fentri", name: "Fentri Blue", base: "bg-blue-600", shades: ["bg-blue-400", "bg-blue-700", "bg-blue-900"] },
   { id: "ocean", name: "Ocean Breeze", base: "bg-cyan-500", shades: ["bg-cyan-300", "bg-cyan-600", "bg-cyan-800"] },
   { id: "teal", name: "Teal Green", base: "bg-teal-500", shades: ["bg-teal-300", "bg-teal-600", "bg-teal-800"] },
   { id: "forest", name: "Forest", base: "bg-emerald-600", shades: ["bg-emerald-400", "bg-emerald-700", "bg-emerald-900"] },
@@ -186,7 +186,7 @@ export default function SettingsPage() {
       if (org.logo_url) setLogoPreview(org.logo_url);
       if (org.brand_color) {
         const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
-        setSelectedPalette(found?.id || "recall");
+        setSelectedPalette(found?.id || "fentri");
       }
       if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
     }
@@ -681,7 +681,7 @@ export default function SettingsPage() {
                   setLogoPreview(org.logo_url || null);
                   setLogoFile(null);
                   const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
-                  setSelectedPalette(found?.id || "recall");
+                  setSelectedPalette(found?.id || "fentri");
                   if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
                 } else if (activeTab === "my_profile" && user) {
                   setProfileName(user.name || "");
@@ -911,7 +911,7 @@ export default function SettingsPage() {
                         setLogoPreview(org.logo_url || null);
                         setLogoFile(null);
                         const found = BRAND_PALETTES.find(p => p.id === org.brand_color || p.name === org.brand_color);
-                        setSelectedPalette(found?.id || "recall");
+                        setSelectedPalette(found?.id || "fentri");
                         if (org.default_asset_icon) setSelectedIcon(org.default_asset_icon);
                       }
                     }}

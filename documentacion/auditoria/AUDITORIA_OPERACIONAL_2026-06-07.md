@@ -1,4 +1,4 @@
-# Auditoría Operacional de Producción — Recall
+﻿# Auditoría Operacional de Producción — Fentri
 
 **Fecha:** 2026-06-07
 **Ejecutor:** Claude Code (análisis estático + revisión de código)

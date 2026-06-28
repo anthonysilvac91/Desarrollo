@@ -1,6 +1,6 @@
-# Recall MVP: Gestion de Activos y Mantenimiento
+﻿# Fentri MVP: Gestion de Activos y Mantenimiento
 
-Recall es una solucion SaaS multitenant para centralizar el historial de mantenimiento y servicios de activos fisicos, con una configuracion local oficial unica y consistente.
+Fentri es una solucion SaaS multitenant para centralizar el historial de mantenimiento y servicios de activos fisicos, con una configuracion local oficial unica y consistente.
 
 ## Documentacion Tecnica Central
 
@@ -73,7 +73,7 @@ Importante:
 
 Todas las cuentas creadas por `seed` usan la contrasena `password123`.
 
-- **Super Admin**: `sys@recall.app`
+- **Super Admin**: `sys@fentri.app`
 - **Admin (Oceanic)**: `admin@oceanic.app`
 - **Worker (Oceanic)**: `roberto@oceanic.app`
 - **Usuario Company Charter**: `gestor.charter@mail.com`

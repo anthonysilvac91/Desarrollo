@@ -1,4 +1,4 @@
-import { PrismaClient, Role, ServiceStatus, WorkerEditPolicy } from '@prisma/client';
+﻿import { PrismaClient, Role, ServiceStatus, WorkerEditPolicy } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -23,9 +23,9 @@ async function main() {
   await prisma.user.create({
     data: {
       role: Role.SUPER_ADMIN,
-      email: 'sys@recall.app',
+      email: 'sys@fentri.app',
       password_hash: hashedPwd,
-      name: 'Sistema Recall',
+      name: 'Sistema Fentri',
     },
   });
 
@@ -296,7 +296,7 @@ async function main() {
   console.log(' SEED COMPLETADO CON EXITO');
   console.log('=========================================');
   console.log('Password global: password123');
-  console.log(' [SUPER ADMIN]:          sys@recall.app');
+  console.log(' [SUPER ADMIN]:          sys@fentri.app');
   console.log(' ── Oceanic Yacht Management ──');
   console.log(' [ADMIN]:                admin@oceanic.app');
   console.log(' [WORKER]:               roberto@oceanic.app');

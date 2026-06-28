@@ -1,4 +1,4 @@
-export type Language = "en" | "es";
+﻿export type Language = "en" | "es";
 
 export const translations = {
   en: {
@@ -517,7 +517,7 @@ export const translations = {
         palette: "Primary Color",
         subtitle: "This color is used for buttons, links and platform highlights.",
         palettes: {
-          recall: "Fentri Blue",
+          fentri: "Fentri Blue",
           ocean: "Ocean",
           teal: "Teal",
           forest: "Forest",
@@ -670,7 +670,7 @@ export const translations = {
       upload_queue: {
         title: "Uploads",
         active_empty: "No active uploads",
-        continues_open: "Uploads continue while Recall remains open.",
+        continues_open: "Uploads continue while Fentri remains open.",
         select_same_file: "Select the same file again to continue.",
         select_file: "Select file",
         mismatch_file: "The selected file does not match the original upload.",
@@ -1361,7 +1361,7 @@ export const translations = {
         palette: "Color Principal",
         subtitle: "Este color se usa para botones, enlaces y aspectos destacados de la plataforma.",
         palettes: {
-          recall: "Azul Fentri",
+          fentri: "Azul Fentri",
           ocean: "Océano",
           teal: "Teal",
           forest: "Bosque",
@@ -1578,7 +1578,7 @@ export const translations = {
       upload_queue: {
         title: "Cargas",
         active_empty: "No hay cargas activas",
-        continues_open: "La carga continua mientras Recall permanezca abierto.",
+        continues_open: "La carga continua mientras Fentri permanezca abierto.",
         select_same_file: "Selecciona nuevamente el mismo archivo para continuar.",
         select_file: "Seleccionar archivo",
         mismatch_file: "El archivo seleccionado no coincide con la carga original.",

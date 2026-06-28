@@ -1,4 +1,4 @@
-# Guia de Inicio Local Oficial
+﻿# Guia de Inicio Local Oficial
 
 Esta guia define la unica configuracion local oficial del proyecto.
 
@@ -63,7 +63,7 @@ Con ambos servidores arriba, abre `http://localhost:3000/login` y valida:
 
 ### 1. Acceso Maestro
 
-- **Usuario**: `sys@recall.app`
+- **Usuario**: `sys@fentri.app`
 - **Pass**: `password123`
 - **Resultado esperado**: redireccion a `/master`
 

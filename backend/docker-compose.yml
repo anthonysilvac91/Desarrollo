@@ -1,16 +1,16 @@
-services:
+﻿services:
   postgres:
     image: postgres:16-alpine
-    container_name: recall-postgres
+    container_name: fentri-postgres
     restart: always
     environment:
-      POSTGRES_USER: recall_user
-      POSTGRES_PASSWORD: recall_password
-      POSTGRES_DB: recall_mvp
+      POSTGRES_USER: fentri_user
+      POSTGRES_PASSWORD: fentri_password
+      POSTGRES_DB: fentri_mvp
     ports:
       - "5433:5432"
     volumes:
-      - pgdata_recall_v2:/var/lib/postgresql/data
+      - pgdata_fentri_v2:/var/lib/postgresql/data
 
 volumes:
-  pgdata_recall_v2:
+  pgdata_fentri_v2:

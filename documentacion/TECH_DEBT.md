@@ -1,4 +1,4 @@
-# Technical Debt — Recall
+﻿# Technical Debt — Fentri
 
 **Última actualización:** 2026-06-07 (auditoría de imágenes — quick wins aplicados, deuda futura registrada)
 
@@ -125,7 +125,7 @@
 
 ### 7 — Email por tenant (reconsideración futura)
 
-**Decisión actual:** `User.email @unique` — un email = una cuenta en todo Recall. Un usuario pertenece a una sola organización.
+**Decisión actual:** `User.email @unique` — un email = una cuenta en todo Fentri. Un usuario pertenece a una sola organización.
 
 **Cuándo reconsiderar:**
 - Un usuario necesita pertenecer a múltiples organizaciones con el mismo email.

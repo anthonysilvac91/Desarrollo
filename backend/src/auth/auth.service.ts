@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -910,7 +910,7 @@ export class AuthService {
     return {
       secret,
       otpauth_url: buildOtpAuthUrl({
-        issuer: 'Recall',
+        issuer: 'Fentri',
         accountName: user.email,
         secret,
       }),

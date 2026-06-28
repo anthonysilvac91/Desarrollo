@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 const request = require('supertest');
 import { AppModule } from './../src/app.module';
@@ -118,7 +118,7 @@ describe('Dashboard (e2e)', () => {
 
     const superAdmin = await testUtils.createTestUser(
       Role.SUPER_ADMIN,
-      'super@recall.com',
+      'super@fentri.com',
     );
     const token = testUtils.getBearerToken(superAdmin);
 

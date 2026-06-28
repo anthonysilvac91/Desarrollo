@@ -1,4 +1,4 @@
-import { PrismaService } from '../../src/prisma/prisma.service';
+﻿import { PrismaService } from '../../src/prisma/prisma.service';
 import { Role, WorkerEditPolicy } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -105,7 +105,7 @@ export class TestUtils {
       owner_id: user.owner_id,
     };
     return this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET || 'RECALL_TEST_STRICT_SAFE_SECRET',
+      secret: process.env.JWT_SECRET || 'FENTRI_TEST_STRICT_SAFE_SECRET',
     });
   }
 

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   ForbiddenException,
   NotFoundException,
@@ -398,7 +398,7 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException('El correo ya está registrado en Recall');
+      throw new ConflictException('El correo ya está registrado en Fentri');
     }
 
     // 3. Hashear password

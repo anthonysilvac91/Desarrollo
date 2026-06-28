@@ -1,6 +1,6 @@
-# Recall Frontend (Next.js)
+﻿# Fentri Frontend (Next.js)
 
-Interfaz de usuario para Recall, incluyendo dashboard web y experiencia movil operativa.
+Interfaz de usuario para Fentri, incluyendo dashboard web y experiencia movil operativa.
 
 ## Documentacion Principal
 

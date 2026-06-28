@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 const request = require('supertest');
 import { AppModule } from './../src/app.module';
@@ -40,7 +40,7 @@ describe('Users Management (e2e)', () => {
       const org = await testUtils.createTestOrganization('ManualAdmin');
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -110,7 +110,7 @@ describe('Users Management (e2e)', () => {
       const owner = await testUtils.createTestOwner('Owner A', org.id);
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -190,7 +190,7 @@ describe('Users Management (e2e)', () => {
       const org = await testUtils.createTestOrganization('Org');
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -252,7 +252,7 @@ describe('Users Management (e2e)', () => {
       await testUtils.createTestUser(Role.ADMIN, 'admin2@org2.com', org2.id);
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
 
       const token = testUtils.getBearerToken(superAdmin);
@@ -273,7 +273,7 @@ describe('Users Management (e2e)', () => {
       await testUtils.createTestUser(Role.ADMIN, 'admin2@org2.com', org2.id);
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
 
       const token = testUtils.getBearerToken(superAdmin);
@@ -357,7 +357,7 @@ describe('Users Management (e2e)', () => {
       await testUtils.createTestUser(Role.ADMIN, 'admin@org.com', org.id);
       const invalidAdmin = await testUtils.createTestUser(
         Role.ADMIN,
-        'invalid-admin@recall.com',
+        'invalid-admin@fentri.com',
       );
       const token = testUtils.getBearerToken(invalidAdmin);
 
@@ -427,7 +427,7 @@ describe('Users Management (e2e)', () => {
       );
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
 
       const token = testUtils.getBearerToken(superAdmin);

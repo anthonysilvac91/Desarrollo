@@ -1,15 +1,15 @@
-async function runTests() {
+﻿async function runTests() {
   const API_URL = process.env.API_URL || 'http://localhost:3001';
   console.log('🚀 Iniciando Smoke Test de Backend (Fetch Nativo)...\n');
 
   try {
     // 1. TEST LOGIN
-    console.log('🔹 Probando Login de Super Admin (sys@recall.app)...');
+    console.log('🔹 Probando Login de Super Admin (sys@fentri.app)...');
     const loginRes = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'sys@recall.app',
+        email: 'sys@fentri.app',
         password: 'password123'
       })
     });

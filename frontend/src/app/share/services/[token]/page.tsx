@@ -90,7 +90,7 @@ export default function SharedServicePage() {
             )}
             <div className="min-w-0">
               <p className="text-xl font-black text-title truncate sm:text-3xl">
-                {service.organization?.name ?? "Recall"}
+                {service.organization?.name ?? "Fentri"}
               </p>
             </div>
           </div>

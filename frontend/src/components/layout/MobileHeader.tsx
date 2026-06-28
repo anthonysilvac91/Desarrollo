@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -38,7 +38,7 @@ export default function MobileHeader({ title, showBack = false, rightAction }: M
       {/* Title */}
       <div className="flex-1 text-center px-4 overflow-hidden">
         <h1 className="text-base font-bold text-title truncate tracking-tight">
-          {title || "Recall"}
+          {title || "Fentri"}
         </h1>
       </div>
 

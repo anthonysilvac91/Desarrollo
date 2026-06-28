@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 const request = require('supertest');
 import { AppModule } from './../src/app.module';
@@ -57,7 +57,7 @@ describe('Organizations (e2e)', () => {
       await testUtils.createTestOrganization('Gamma');
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -72,7 +72,7 @@ describe('Organizations (e2e)', () => {
     it('debería crear nueva organización e inicializar invitación como SUPER_ADMIN', async () => {
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
       const token = testUtils.getBearerToken(superAdmin);
 
@@ -100,7 +100,7 @@ describe('Organizations (e2e)', () => {
     it('debería suspender (desactivar) una organización como SUPER_ADMIN', async () => {
       const superAdmin = await testUtils.createTestUser(
         Role.SUPER_ADMIN,
-        'super@recall.com',
+        'super@fentri.com',
       );
       const org = await testUtils.createTestOrganization('ToSuspend');
       const token = testUtils.getBearerToken(superAdmin);

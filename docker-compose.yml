@@ -1,14 +1,14 @@
-# LEGACY: no usar este compose para el entorno local oficial.
+﻿# LEGACY: no usar este compose para el entorno local oficial.
 # El compose soportado es backend/docker-compose.yml con PostgreSQL en localhost:5433.
 services:
   db:
     image: postgres:15-alpine
-    container_name: recall-db-local
+    container_name: fentri-db-local
     restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=recall_local
+      - POSTGRES_DB=fentri_local
     ports:
       - "5432:5432"
     volumes:

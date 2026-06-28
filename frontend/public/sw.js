@@ -1,7 +1,7 @@
-// Service Worker for installability only.
+﻿// Service Worker for installability only.
 // It does not cache pages, navigations, API responses, or application shell HTML.
 
-const CACHE_NAME = "recall-pwa-v3";
+const CACHE_NAME = "fentri-pwa-v3";
 const ASSETS_TO_CACHE = [
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",

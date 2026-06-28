@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -98,7 +98,7 @@ export class InvitationsService {
     });
     if (existingUser) {
       throw new BadRequestException(
-        'Ya existe una cuenta con este correo en Recall',
+        'Ya existe una cuenta con este correo en Fentri',
       );
     }
 
