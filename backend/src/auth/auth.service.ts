@@ -11,7 +11,7 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { aesGcmDecrypt, aesGcmEncrypt, isAesGcmEncrypted } from '../common/crypto.util';
+import { aesGcmDecrypt, aesGcmEncrypt, isAesGcmEncrypted, sha256hex } from '../common/crypto.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
@@ -527,7 +527,7 @@ export class AuthService {
 
   async register(registerDto: RegisterDto, context?: AuthRequestContext) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { token: registerDto.token },
+      where: { token: sha256hex(registerDto.token) },
       include: {
         organization: { select: { id: true, name: true, is_active: true } },
       },
@@ -838,17 +838,17 @@ export class AuthService {
       data: { used_at: new Date() },
     });
 
-    const token = randomBytes(32).toString('hex');
+    const rawToken = randomBytes(32).toString('hex');
     await this.prisma.emailToken.create({
       data: {
         user_id: user.id,
         type: 'PASSWORD_RESET',
-        token,
+        token: sha256hex(rawToken),
         expires_at: new Date(Date.now() + 15 * 60 * 1000),
       },
     });
 
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
     await this.emailService.sendPasswordReset(user.email, user.name, resetUrl);
     this.logger.log('Password reset email sent');
 
@@ -860,7 +860,7 @@ export class AuthService {
     newPassword: string,
   ): Promise<{ message: string }> {
     const emailToken = await this.prisma.emailToken.findUnique({
-      where: { token },
+      where: { token: sha256hex(token) },
     });
 
     if (
@@ -1083,7 +1083,7 @@ export class AuthService {
         id: randomBytes(16).toString('hex'),
         user_id: userId,
         type: 'TWO_FACTOR_CODE',
-        token: code,
+        token: sha256hex(code),
         expires_at: expiresAt,
       },
     });
@@ -1111,7 +1111,7 @@ export class AuthService {
       orderBy: { created_at: 'desc' },
     });
 
-    if (!emailToken || emailToken.token !== code.trim()) {
+    if (!emailToken || emailToken.token !== sha256hex(code.trim())) {
       throw new BadRequestException('Codigo invalido o expirado');
     }
 
@@ -1170,7 +1170,7 @@ export class AuthService {
       },
       orderBy: { created_at: 'desc' },
     });
-    const validEmailCode = emailToken && emailToken.token === normalizedCode;
+    const validEmailCode = emailToken && emailToken.token === sha256hex(normalizedCode);
 
     if (!backupResult.valid && !validEmailCode) {
       throw new BadRequestException('Codigo invalido o expirado');
@@ -1239,7 +1239,7 @@ export class AuthService {
         id: randomBytes(16).toString('hex'),
         user_id: user.id,
         type: 'TWO_FACTOR_CODE',
-        token: code,
+        token: sha256hex(code),
         expires_at: expiresAt,
       },
     });
@@ -1317,7 +1317,7 @@ export class AuthService {
       orderBy: { created_at: 'desc' },
     });
 
-    if (!emailToken || emailToken.token !== normalizedCode) {
+    if (!emailToken || emailToken.token !== sha256hex(normalizedCode)) {
       throw new UnauthorizedException('Codigo 2FA invalido o expirado');
     }
 
