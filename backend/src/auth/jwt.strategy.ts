@@ -48,6 +48,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // Reject special-purpose tokens (2fa_login, 2fa_setup, etc.)
+    if (payload.purpose) {
+      throw new UnauthorizedException();
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -63,25 +68,28 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) throw new UnauthorizedException();
     if (!user.is_active) throw new UnauthorizedException();
 
-    if (payload.sid) {
-      const session = await this.prisma.userSession.findFirst({
-        where: {
-          id: payload.sid,
-          user_id: user.id,
-          token_jti: payload.jti,
-          revoked_at: null,
-          expires_at: { gt: new Date() },
-        },
-        select: { id: true },
-      });
-
-      if (!session) throw new UnauthorizedException();
-
-      await this.prisma.userSession.update({
-        where: { id: session.id },
-        data: { last_seen_at: new Date() },
-      });
+    // Require a bound session — tokens without sid are irrevocable and rejected
+    if (!payload.sid || !payload.jti) {
+      throw new UnauthorizedException();
     }
+
+    const session = await this.prisma.userSession.findFirst({
+      where: {
+        id: payload.sid,
+        user_id: user.id,
+        token_jti: payload.jti,
+        revoked_at: null,
+        expires_at: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+
+    if (!session) throw new UnauthorizedException();
+
+    await this.prisma.userSession.update({
+      where: { id: session.id },
+      data: { last_seen_at: new Date() },
+    });
 
     if (user.role === 'SUPER_ADMIN') {
       if (user.organization_id !== null) throw new UnauthorizedException();
@@ -91,7 +99,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: user.role,
         api_role: user.role,
         owner_id: null,
-        session_id: payload.sid ?? null,
+        session_id: payload.sid,
       };
     }
 
@@ -107,7 +115,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: user.role,
         api_role: user.role,
         owner_id: user.owner_id,
-        session_id: payload.sid ?? null,
+        session_id: payload.sid,
       };
     }
 
@@ -117,7 +125,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: user.role,
       api_role: user.role,
       owner_id: null,
-      session_id: payload.sid ?? null,
+      session_id: payload.sid,
     };
   }
 }

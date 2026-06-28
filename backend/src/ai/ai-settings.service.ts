@@ -1,13 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-} from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateOpenAiSettingsDto } from './ai-settings.dto';
+import { aesGcmDecrypt, aesGcmEncrypt } from '../common/crypto.util';
 
 const OPENAI_PROVIDER = 'openai';
 const DEFAULT_MODEL = 'gpt-5.4-nano';
@@ -151,50 +146,34 @@ export class AiSettingsService {
     };
   }
 
-  private getEncryptionKey() {
+  private encrypt(value: string) {
     const secret =
       this.configService.get<string>('INTEGRATION_SECRET_KEY') ||
       this.configService.get<string>('JWT_SECRET');
-
     if (!secret) {
       throw new BadRequestException(
         'INTEGRATION_SECRET_KEY o JWT_SECRET es requerido para cifrar integraciones',
       );
     }
-
-    return createHash('sha256').update(secret).digest();
-  }
-
-  private encrypt(value: string) {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
-    const encrypted = Buffer.concat([
-      cipher.update(value, 'utf8'),
-      cipher.final(),
-    ]);
-    const authTag = cipher.getAuthTag();
-    return `${iv.toString('base64')}.${authTag.toString('base64')}.${encrypted.toString('base64')}`;
+    return aesGcmEncrypt(value, secret);
   }
 
   private decrypt(value: string) {
-    const [ivValue, authTagValue, encryptedValue] = value.split('.');
-    if (!ivValue || !authTagValue || !encryptedValue) {
+    const secret =
+      this.configService.get<string>('INTEGRATION_SECRET_KEY') ||
+      this.configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new BadRequestException(
+        'INTEGRATION_SECRET_KEY o JWT_SECRET es requerido para cifrar integraciones',
+      );
+    }
+    try {
+      return aesGcmDecrypt(value, secret);
+    } catch {
       throw new BadRequestException(
         'La API key cifrada no tiene un formato valido',
       );
     }
-
-    const decipher = createDecipheriv(
-      'aes-256-gcm',
-      this.getEncryptionKey(),
-      Buffer.from(ivValue, 'base64'),
-    );
-    decipher.setAuthTag(Buffer.from(authTagValue, 'base64'));
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(encryptedValue, 'base64')),
-      decipher.final(),
-    ]);
-    return decrypted.toString('utf8');
   }
 
   private buildApiKeyHint(apiKey: string) {
