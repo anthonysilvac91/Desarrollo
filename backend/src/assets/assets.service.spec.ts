@@ -38,6 +38,7 @@ describe('AssetsService', () => {
           useValue: {
             resolveFileUrl: jest.fn().mockResolvedValue(null),
             resolveFileUrlForOrg: jest.fn().mockResolvedValue(null),
+            resolveFileUrlsForOrg: jest.fn().mockResolvedValue(new Map()),
             registerUploadedFile: jest.fn(),
             deleteStoredFileAndBlob: jest.fn(),
           },
@@ -167,6 +168,7 @@ describe('AssetsService', () => {
   describe('findAll()', () => {
     it('WORKER: no filtra por WorkerAssetAccess — ve todos los activos de su org', async () => {
       jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
 
       await service.findAll({}, 'org-1', 'WORKER');
 
@@ -181,6 +183,7 @@ describe('AssetsService', () => {
 
     it('WORKER: filtra por organization_id de su tenant', async () => {
       jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
 
       await service.findAll({}, 'org-tenant-1', 'WORKER');
 
@@ -193,6 +196,7 @@ describe('AssetsService', () => {
 
     it('EXTERNAL: solo ve activos de su owner', async () => {
       jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
 
       await service.findAll({}, 'org-1', 'EXTERNAL', 'owner-abc');
 
@@ -212,11 +216,70 @@ describe('AssetsService', () => {
 
     it('SUPER_ADMIN: no filtra por organization_id', async () => {
       jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
 
       await service.findAll({}, null as any, 'SUPER_ADMIN');
 
       const call = (prisma.asset.findMany as jest.Mock).mock.calls[0][0];
       expect(call.where).not.toHaveProperty('organization_id');
+    });
+
+    it('siempre retorna formato paginado { data, meta } aunque no se envíen page ni limit', async () => {
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(7);
+
+      const result = await service.findAll({}, 'org-1', 'ADMIN') as any;
+
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('meta');
+      expect(result.meta).toMatchObject({
+        total: 7,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
+    });
+
+    it('usa page=1 y limit=50 como defaults cuando no se proveen', async () => {
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
+
+      await service.findAll({}, 'org-1', 'ADMIN');
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 50 }),
+      );
+    });
+
+    it('limit mayor a 100 se recorta a 100', async () => {
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 500 }, 'org-1', 'ADMIN');
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      );
+    });
+
+    it('calcula correctamente skip en página 3 con limit 10', async () => {
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(30);
+
+      await service.findAll({ page: 3, limit: 10 }, 'org-1', 'ADMIN');
+
+      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 20, take: 10 }),
+      );
+    });
+
+    it('siempre ejecuta prisma.count en paralelo con findMany', async () => {
+      jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
+
+      await service.findAll({}, 'org-1', 'ADMIN');
+
+      expect(prisma.asset.count).toHaveBeenCalledTimes(1);
     });
   });
 

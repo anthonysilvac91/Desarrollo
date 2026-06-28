@@ -111,7 +111,7 @@ export class UsersService {
   }
 
   private buildStatsWhere(currentUser: { role: Role; orgId?: string }) {
-    const where: any = { deleted_at: null };
+    const where: any = { deleted_at: null, purged_at: null };
 
     if (currentUser.role !== Role.SUPER_ADMIN) {
       if (!currentUser.orgId) {
@@ -195,7 +195,7 @@ export class UsersService {
       }
     }
 
-    const where: any = { deleted_at: null };
+    const where: any = { deleted_at: null, purged_at: null };
 
     // Filtro por rol si se provee
     if (query.role) {
@@ -250,35 +250,25 @@ export class UsersService {
       },
     };
 
-    if (query.page && query.limit) {
-      const page = Number(query.page);
-      const limit = Math.min(Number(query.limit), 100);
-      const [data, total] = await Promise.all([
-        this.prisma.user.findMany({
-          where,
-          orderBy: [{ is_active: 'desc' }, { updated_at: 'desc' }],
-          select: selectFields,
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        this.prisma.user.count({ where }),
-      ]);
-      const mapped = data.map((item: any) => this.mapUserRelations(item));
-      const mappedData = await this.resolveUsersFileUrls(mapped);
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(Number(query.limit) || 50, 100);
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy: [{ is_active: 'desc' }, { updated_at: 'desc' }],
+        select: selectFields,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    const mapped = data.map((item: any) => this.mapUserRelations(item));
+    const mappedData = await this.resolveUsersFileUrls(mapped);
 
-      return {
-        data: mappedData,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-      };
-    }
-
-    const users = await this.prisma.user.findMany({
-      where,
-      orderBy: [{ is_active: 'desc' }, { updated_at: 'desc' }],
-      select: selectFields,
-    });
-
-    return this.resolveUsersFileUrls(users.map((item: any) => this.mapUserRelations(item)));
+    return {
+      data: mappedData,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(

@@ -860,17 +860,12 @@ export class ServicesService {
     if (isExternalRole(user.role)) {
       const currentOwnerId = user.owner_id ?? null;
       if (!currentOwnerId) {
-        return query.page && query.limit
-          ? {
-              data: [],
-              meta: {
-                total: 0,
-                page: Number(query.page),
-                limit: Math.min(Number(query.limit), 100),
-                totalPages: 0,
-              },
-            }
-          : [];
+        const page = Math.max(1, Number(query.page) || 1);
+        const limit = Math.min(Number(query.limit) || 50, 100);
+        return {
+          data: [],
+          meta: { total: 0, page, limit, totalPages: 0 },
+        };
       }
 
       whereClause.is_public = true;
@@ -886,145 +881,74 @@ export class ServicesService {
       ];
     }
 
-    if (query.page && query.limit) {
-      const page = Number(query.page);
-      const limit = Math.min(Number(query.limit), 100);
-      const [data, total] = await Promise.all([
-        this.prisma.service.findMany({
-          where: whereClause,
-          include: {
-            worker: {
-              select: {
-                id: true,
-                name: true,
-                deleted_at: true,
-                purged_at: true,
-              },
-            },
-            asset: {
-              select: {
-                id: true,
-                name: true,
-                location: true,
-                owner_id: true,
-                thumbnail_file_id: true,
-                deleted_at: true,
-                purged_at: true,
-                owner: {
-                  select: {
-                    id: true,
-                    name: true,
-                    deleted_at: true,
-                    purged_at: true,
-                  },
-                },
-              },
-            },
-            attachments: {
-              select: {
-                id: true,
-                file_id: true,
-                file_type: true,
-                file_name: true,
-                file_size_bytes: true,
-                media_type: true,
-              },
-              orderBy: { created_at: 'asc' },
-            },
-            file_uploads: {
-              select: {
-                id: true,
-                original_name: true,
-                media_type: true,
-                status: true,
-                local_progress: true,
-                declared_size_bytes: true,
-                actual_size_bytes: true,
-                failure_reason: true,
-              },
-              orderBy: { created_at: 'asc' },
-            },
-          },
-          orderBy: { created_at: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        this.prisma.service.count({ where: whereClause }),
-      ]);
-      const urlMapsByOrg = await this.buildServiceUrlMapForList(data);
-      const mappedData = await Promise.all(
-        data.map(async (item: any) => {
-          const urlMap = urlMapsByOrg.get(item.organization_id) ?? new Map();
-          const withUrls = this.applyServiceUrlMap(
-            this.mapServiceRelations(item),
-            urlMap,
-          );
-          const withUploadSummary = this.serializeAttachmentUploadState(withUrls);
-          return this.applyDescriptionTranslation(withUploadSummary, query.lang);
-        }),
-      );
-
-      return {
-        data: mappedData,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-      };
-    }
-
-    const services = await this.prisma.service.findMany({
-      where: whereClause,
-      include: {
-        worker: {
-          select: { id: true, name: true, deleted_at: true, purged_at: true },
-        },
-        asset: {
-          select: {
-            id: true,
-            name: true,
-            location: true,
-            owner_id: true,
-            thumbnail_file_id: true,
-            deleted_at: true,
-            purged_at: true,
-            owner: {
-              select: {
-                id: true,
-                name: true,
-                deleted_at: true,
-                purged_at: true,
-              },
-            },
-          },
-        },
-        attachments: {
-          select: {
-            id: true,
-            file_id: true,
-            file_type: true,
-            file_name: true,
-            file_size_bytes: true,
-            media_type: true,
-          },
-          orderBy: { created_at: 'asc' },
-        },
-        file_uploads: {
-          select: {
-            id: true,
-            original_name: true,
-            media_type: true,
-            status: true,
-            local_progress: true,
-            declared_size_bytes: true,
-            actual_size_bytes: true,
-            failure_reason: true,
-          },
-          orderBy: { created_at: 'asc' },
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(Number(query.limit) || 50, 100);
+    const include = {
+      worker: {
+        select: {
+          id: true,
+          name: true,
+          deleted_at: true,
+          purged_at: true,
         },
       },
-      orderBy: { created_at: 'desc' },
-    });
-    const urlMapsByOrg = await this.buildServiceUrlMapForList(services);
-    return Promise.all(
-      services.map(async (item: any) => {
+      asset: {
+        select: {
+          id: true,
+          name: true,
+          location: true,
+          owner_id: true,
+          thumbnail_file_id: true,
+          deleted_at: true,
+          purged_at: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              deleted_at: true,
+              purged_at: true,
+            },
+          },
+        },
+      },
+      attachments: {
+        select: {
+          id: true,
+          file_id: true,
+          file_type: true,
+          file_name: true,
+          file_size_bytes: true,
+          media_type: true,
+        },
+        orderBy: { created_at: 'asc' as const },
+      },
+      file_uploads: {
+        select: {
+          id: true,
+          original_name: true,
+          media_type: true,
+          status: true,
+          local_progress: true,
+          declared_size_bytes: true,
+          actual_size_bytes: true,
+          failure_reason: true,
+        },
+        orderBy: { created_at: 'asc' as const },
+      },
+    };
+    const [data, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where: whereClause,
+        include,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.service.count({ where: whereClause }),
+    ]);
+    const urlMapsByOrg = await this.buildServiceUrlMapForList(data);
+    const mappedData = await Promise.all(
+      data.map(async (item: any) => {
         const urlMap = urlMapsByOrg.get(item.organization_id) ?? new Map();
         const withUrls = this.applyServiceUrlMap(
           this.mapServiceRelations(item),
@@ -1034,6 +958,11 @@ export class ServicesService {
         return this.applyDescriptionTranslation(withUploadSummary, query.lang);
       }),
     );
+
+    return {
+      data: mappedData,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getStats(query: ServiceStatsQueryDto, user: any) {

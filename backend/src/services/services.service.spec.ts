@@ -35,6 +35,7 @@ describe('ServicesService', () => {
   let storedFilesService: {
     resolveFileUrl: jest.Mock;
     resolveFileUrlForOrg: jest.Mock;
+    resolveFileUrlsForOrg: jest.Mock;
     registerUploadedFile: jest.Mock;
     deleteStoredFileAndBlob: jest.Mock;
   };
@@ -63,6 +64,7 @@ describe('ServicesService', () => {
     storedFilesService = {
       resolveFileUrl: jest.fn(),
       resolveFileUrlForOrg: jest.fn().mockResolvedValue(null),
+      resolveFileUrlsForOrg: jest.fn().mockResolvedValue(new Map()),
       registerUploadedFile: jest.fn(),
       deleteStoredFileAndBlob: jest.fn(),
     };
@@ -362,18 +364,22 @@ describe('ServicesService', () => {
       );
     });
 
-    it('EXTERNAL sin owner_id retorna vacío sin consultar DB', async () => {
+    it('EXTERNAL sin owner_id retorna paginado vacío sin consultar DB', async () => {
       const result = await service.findAll(
         {},
         { id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL' },
-      );
+      ) as any;
 
-      expect(result).toEqual([]);
+      expect(result).toHaveProperty('data');
+      expect(result.data).toEqual([]);
+      expect(result).toHaveProperty('meta');
+      expect(result.meta.total).toBe(0);
       expect(prisma.service.findMany).not.toHaveBeenCalled();
     });
 
     it('SUPER_ADMIN: no filtra por organization_id', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
 
       await service.findAll(
         {},
@@ -382,6 +388,67 @@ describe('ServicesService', () => {
 
       const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
       expect(call.where).not.toHaveProperty('organization_id');
+    });
+
+    it('siempre retorna formato paginado { data, meta } aunque no se envíen page ni limit', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(12);
+
+      const result = await service.findAll(
+        {},
+        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+      ) as any;
+
+      expect(result).toHaveProperty('data');
+      expect(result).toHaveProperty('meta');
+      expect(result.meta).toMatchObject({
+        total: 12,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
+    });
+
+    it('usa page=1 y limit=50 como defaults', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
+
+      await service.findAll(
+        {},
+        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+      );
+
+      expect(prisma.service.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 50 }),
+      );
+    });
+
+    it('limit mayor a 100 se recorta a 100', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
+
+      await service.findAll(
+        { page: 1, limit: 999 } as any,
+        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+      );
+
+      expect(prisma.service.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 100 }),
+      );
+    });
+
+    it('calcula correctamente skip en página 3 con limit 10', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(30);
+
+      await service.findAll(
+        { page: 3, limit: 10 } as any,
+        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+      );
+
+      expect(prisma.service.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 20, take: 10 }),
+      );
     });
   });
 

@@ -410,4 +410,60 @@ describe('DashboardService tenant scoping', () => {
       },
     });
   });
+
+  describe('purged_at en raw SQL', () => {
+    it('getEvolutionCountsRaw incluye purged_at IS NULL en la consulta', async () => {
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      await service.getStats({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        orgId: 'org-1',
+      });
+
+      const rawCalls = (prisma.$queryRaw as jest.Mock).mock.calls;
+      expect(rawCalls.length).toBeGreaterThan(0);
+
+      const allSqlParts = rawCalls
+        .flatMap((callArgs: any[]) => callArgs)
+        .map((arg: any) =>
+          Array.isArray(arg?.strings)
+            ? arg.strings.join(' ')
+            : String(arg ?? ''),
+        )
+        .join(' ');
+
+      expect(allSqlParts).toMatch(/"purged_at" IS NULL/);
+    });
+
+    it('getDistinctCountsRaw incluye purged_at IS NULL en la consulta', async () => {
+      jest.spyOn(prisma.asset, 'count').mockResolvedValue(5);
+      jest.spyOn(prisma.service, 'count').mockResolvedValue(3);
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ assets_serviced: 0n, active_operators: 0n }]);
+
+      await service.getStats({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        orgId: 'org-1',
+      });
+
+      const rawCalls = (prisma.$queryRaw as jest.Mock).mock.calls;
+      const allSqlParts = rawCalls
+        .flatMap((callArgs: any[]) => callArgs)
+        .map((arg: any) =>
+          Array.isArray(arg?.strings)
+            ? arg.strings.join(' ')
+            : String(arg ?? ''),
+        )
+        .join(' ');
+
+      expect(allSqlParts).toMatch(/"purged_at" IS NULL/);
+    });
+  });
 });

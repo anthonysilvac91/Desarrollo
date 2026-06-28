@@ -284,6 +284,7 @@ export class DashboardService {
 
     const conditions: Prisma.Sql[] = [
       Prisma.sql`"deleted_at" IS NULL`,
+      Prisma.sql`"purged_at" IS NULL`,
       Prisma.sql`"created_at" >= ${startDate}`,
       Prisma.sql`"created_at" <= ${endDate}`,
     ];
@@ -294,7 +295,7 @@ export class DashboardService {
       conditions.push(Prisma.sql`"is_public" = ${isPublic}`);
     if (ownerId)
       conditions.push(
-        Prisma.sql`"asset_id" IN (SELECT id FROM "Asset" WHERE "owner_id" = ${ownerId} AND "deleted_at" IS NULL)`,
+        Prisma.sql`"asset_id" IN (SELECT id FROM "Asset" WHERE "owner_id" = ${ownerId} AND "deleted_at" IS NULL AND "purged_at" IS NULL)`,
       );
 
     const whereClause = Prisma.join(conditions, ' AND ');
@@ -331,7 +332,10 @@ export class DashboardService {
     const { organizationId, workerId, ownerId, isPublic, includeOperators, createdAt } =
       params;
 
-    const conditions: Prisma.Sql[] = [Prisma.sql`"deleted_at" IS NULL`];
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`"deleted_at" IS NULL`,
+      Prisma.sql`"purged_at" IS NULL`,
+    ];
     if (organizationId)
       conditions.push(Prisma.sql`"organization_id" = ${organizationId}`);
     if (workerId) conditions.push(Prisma.sql`"worker_id" = ${workerId}`);
@@ -339,7 +343,7 @@ export class DashboardService {
       conditions.push(Prisma.sql`"is_public" = ${isPublic}`);
     if (ownerId)
       conditions.push(
-        Prisma.sql`"asset_id" IN (SELECT id FROM "Asset" WHERE "owner_id" = ${ownerId} AND "deleted_at" IS NULL)`,
+        Prisma.sql`"asset_id" IN (SELECT id FROM "Asset" WHERE "owner_id" = ${ownerId} AND "deleted_at" IS NULL AND "purged_at" IS NULL)`,
       );
     if (createdAt?.gte) conditions.push(Prisma.sql`"created_at" >= ${createdAt.gte}`);
     if (createdAt?.lte) conditions.push(Prisma.sql`"created_at" <= ${createdAt.lte}`);

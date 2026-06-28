@@ -37,6 +37,7 @@ describe('OwnersService', () => {
           provide: StoredFilesService,
           useValue: {
             resolveFileUrlForOrg: jest.fn().mockResolvedValue(null),
+            resolveFileUrlsForOrg: jest.fn().mockResolvedValue(new Map()),
             registerUploadedFile: jest.fn(),
             deleteStoredFileAndBlob: jest.fn(),
           },
