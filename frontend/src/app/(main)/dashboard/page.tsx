@@ -22,9 +22,10 @@ import AssetCoverageCard from "@/components/dashboard/AssetCoverageCard";
 import OperatorActivityCard from "@/components/dashboard/OperatorActivityCard";
 import SystemSummaryCard from "@/components/dashboard/SystemSummaryCard";
 import AssetIcon from "@/components/ui/AssetIcon";
-import { Loader2, AlertCircle, Inbox, Wrench, Clock, Plus, ArrowRight, UploadCloud, CalendarDays, HardHat } from "lucide-react";
+import { Loader2, AlertCircle, Inbox, Wrench, Clock, Plus, ArrowRight, UploadCloud, CalendarDays, HardHat, Building2, Users, Package, Bell, CheckCircle2 } from "lucide-react";
 import { formatDate, formatRelativeTime } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
+import { subscriptionsService } from "@/services/subscriptions.service";
 
 const getTodayRange = () => {
   const start = new Date();
@@ -296,12 +297,204 @@ function ChartDateFilter({
   );
 }
 
+// ── Super Admin Dashboard ────────────────────────────────────────────────────
+
+const PLAN_STYLES: Record<string, { pill: string; bar: string }> = {
+  DEMO:       { pill: "bg-slate-50 text-slate-600 border-slate-200",    bar: "bg-slate-300" },
+  STARTER:    { pill: "bg-blue-50 text-blue-600 border-blue-200",       bar: "bg-blue-400" },
+  PRO:        { pill: "bg-violet-50 text-violet-600 border-violet-200", bar: "bg-violet-500" },
+  BUSINESS:   { pill: "bg-amber-50 text-amber-600 border-amber-200",    bar: "bg-amber-400" },
+  ENTERPRISE: { pill: "bg-emerald-50 text-emerald-600 border-emerald-200", bar: "bg-emerald-400" },
+};
+
+const STATUS_META: Record<string, { dot: string; label: string }> = {
+  ACTIVE:    { dot: "bg-emerald-400", label: "Activa" },
+  TRIALING:  { dot: "bg-blue-400",    label: "Trial" },
+  SUSPENDED: { dot: "bg-amber-400",   label: "Suspendida" },
+  CANCELLED: { dot: "bg-red-400",     label: "Cancelada" },
+};
+
+const PLAN_ORDER = ["DEMO", "STARTER", "PRO", "BUSINESS", "ENTERPRISE"];
+
+function SuperAdminDashboard() {
+  const { data: subs, isLoading } = useQuery({
+    queryKey: ["subscriptions-all"],
+    queryFn: () => subscriptionsService.listAll(),
+    refetchInterval: AUTO_REFETCH_INTERVALS.dashboard,
+    ...AUTO_REFETCH_OPTIONS,
+  });
+
+  const totalOrgs   = subs?.length ?? 0;
+  const activeOrgs  = subs?.filter(s => s.organization.is_active && s.subscription.status === "ACTIVE").length ?? 0;
+  const totalUsers  = subs?.reduce((acc, s) => acc + s.usage.users,  0) ?? 0;
+  const totalAssets = subs?.reduce((acc, s) => acc + s.usage.assets, 0) ?? 0;
+
+  const planCounts: Record<string, number> = {};
+  subs?.forEach(s => {
+    const p = s.subscription.plan;
+    planCounts[p] = (planCounts[p] ?? 0) + 1;
+  });
+
+  const pendingChanges = subs?.filter(s => s.subscription.pending_plan) ?? [];
+
+  const topClients = [...(subs ?? [])]
+    .sort((a, b) => b.usage.users - a.usage.users || b.usage.assets - a.usage.assets)
+    .slice(0, 8);
+
+  if (isLoading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-40 animate-pulse">
+        <Loader2 className="w-10 h-10 text-brand animate-spin mb-4" />
+        <p className="font-black text-subtitle/40 tracking-wider text-xs uppercase">Cargando plataforma...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <KPICard
+          title="Total clientes"
+          value={totalOrgs}
+          subtitle="Organizaciones registradas"
+          icon={Building2}
+          iconBg="bg-violet-50"
+          iconColor="text-violet-500"
+          roundedClass="rounded-2xl"
+        />
+        <KPICard
+          title="Clientes activos"
+          value={activeOrgs}
+          subtitle="Con suscripción activa"
+          icon={CheckCircle2}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-500"
+          roundedClass="rounded-2xl"
+        />
+        <KPICard
+          title="Usuarios totales"
+          value={totalUsers}
+          subtitle="En toda la plataforma"
+          icon={Users}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-500"
+          roundedClass="rounded-2xl"
+        />
+        <KPICard
+          title="Activos totales"
+          value={totalAssets}
+          subtitle="Gestionados en plataforma"
+          icon={Package}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-500"
+          roundedClass="rounded-2xl"
+        />
+      </div>
+
+      {/* Pending changes banner */}
+      {pendingChanges.length > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+          <Bell className="w-4 h-4 text-amber-500 shrink-0" />
+          <p className="text-sm font-bold text-amber-700 flex-1">
+            {pendingChanges.length} organización{pendingChanges.length > 1 ? "es" : ""} con solicitud de cambio de plan pendiente
+          </p>
+          <Link href="/organizations" className="text-xs font-black text-amber-600 underline underline-offset-2">
+            Revisar
+          </Link>
+        </div>
+      )}
+
+      {/* Plan distribution + Clients */}
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
+
+        {/* Plan distribution */}
+        <ModuleContainer roundedClass="rounded-2xl">
+          <div className="p-5 flex flex-col gap-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-subtitle/40">Por plan</p>
+            <div className="flex flex-col gap-3.5">
+              {PLAN_ORDER.map(plan => {
+                const count = planCounts[plan] ?? 0;
+                if (count === 0) return null;
+                const styles = PLAN_STYLES[plan];
+                const pct = totalOrgs > 0 ? Math.round((count / totalOrgs) * 100) : 0;
+                return (
+                  <div key={plan} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${styles.pill}`}>
+                        {plan}
+                      </span>
+                      <span className="text-sm font-black text-title">{count}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-border-theme/20 overflow-hidden">
+                      <div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {totalOrgs === 0 && (
+                <p className="text-sm font-bold text-subtitle/30 text-center py-4">Sin datos</p>
+              )}
+            </div>
+          </div>
+        </ModuleContainer>
+
+        {/* Clients table */}
+        <ModuleContainer roundedClass="rounded-2xl">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border-theme/20">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-subtitle/40">Clientes</p>
+            <Link href="/organizations" className="flex items-center gap-1 text-[11px] font-black text-brand hover:opacity-70 transition-opacity">
+              Ver todos <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="divide-y divide-border-theme/15">
+            {topClients.length === 0 ? (
+              <div className="py-12 text-center text-sm font-bold text-subtitle/30">Sin organizaciones</div>
+            ) : topClients.map(item => {
+              const plan   = item.subscription.plan;
+              const status = item.subscription.status;
+              const ps     = PLAN_STYLES[plan] ?? { pill: "", bar: "" };
+              const ss     = STATUS_META[status] ?? { dot: "bg-subtitle/30", label: status };
+              return (
+                <div key={item.organization.id} className="flex items-center gap-3 sm:gap-4 px-5 py-3 hover:bg-app-bg/60 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-title truncate">{item.organization.name}</p>
+                    <p className="text-[10px] font-medium text-subtitle/35 truncate">{item.organization.slug}</p>
+                  </div>
+                  <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${ps.pill}`}>
+                    {plan}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${ss.dot}`} />
+                    <span className="text-[11px] font-bold text-subtitle/45 hidden sm:block">{ss.label}</span>
+                  </div>
+                  <div className="text-right shrink-0 w-12">
+                    <p className="text-sm font-black text-title">{item.usage.users}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-subtitle/30">users</p>
+                  </div>
+                  <div className="text-right shrink-0 w-12">
+                    <p className="text-sm font-black text-title">{item.usage.assets}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-subtitle/30">assets</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ModuleContainer>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard principal ──────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [dateRange, setDateRange] = useState<{ start?: string; end?: string }>(() => getLastDaysRange(30));
   const [activePreset, setActivePreset] = useState("Mes");
   const [workerDefaultApplied, setWorkerDefaultApplied] = useState(false);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const isWorker = user?.role === "WORKER";
   const isExternal = user?.role === "EXTERNAL";
   const assetIconId = user?.organization?.default_asset_icon;
@@ -330,6 +523,7 @@ export default function DashboardPage() {
       startDate: dateRange.start,
       endDate: dateRange.end
     }),
+    enabled: !isSuperAdmin,
     refetchInterval: AUTO_REFETCH_INTERVALS.dashboard,
     ...AUTO_REFETCH_OPTIONS,
   });
@@ -362,6 +556,8 @@ export default function DashboardPage() {
   };
 
 
+
+  if (isSuperAdmin) return <SuperAdminDashboard />;
 
   if (isLoading) {
     return (

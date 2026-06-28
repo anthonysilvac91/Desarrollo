@@ -132,13 +132,14 @@ export default function OrganizationsPage() {
     {
       key: "plan",
       header: "PLAN",
+      align: "center",
       sortable: true,
       sortValue: (org) => org.sub?.subscription.plan ?? "",
       cell: (org) => {
         const plan = org.sub?.subscription.plan;
         if (!plan) return <span className="text-xs text-subtitle/30">—</span>;
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${PLAN_BADGE[plan] ?? ""}`}>
               {plan}
             </span>
@@ -154,6 +155,7 @@ export default function OrganizationsPage() {
     {
       key: "sub_status",
       header: "ESTADO",
+      align: "center",
       sortable: true,
       sortValue: (org) => org.sub?.subscription.status ?? "",
       cell: (org) => {
@@ -165,7 +167,7 @@ export default function OrganizationsPage() {
         const daysLeft = demoExpires ? Math.ceil((demoExpires.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
 
         return (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col items-center gap-1">
             <span className={`inline-flex w-fit px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${STATUS_BADGE[status] ?? ""}`}>
               {status}
             </span>

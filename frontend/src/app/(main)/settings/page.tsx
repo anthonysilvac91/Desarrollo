@@ -296,7 +296,7 @@ export default function SettingsPage() {
     ...(canManageOrgSettings ? [{ id: "profile", label: t.settings.tabs.profile, icon: Building2 }] : []),
     ...(canManageAiSettings ? [{ id: "ai", label: t.settings.tabs.ai, icon: Bot }] : []),
     { id: "my_profile",      label: t.settings.tabs.my_profile,    icon: UserIcon    },
-    { id: "plans",           label: t.settings.tabs.plans,          icon: CreditCard  },
+    ...(!canManageAiSettings ? [{ id: "plans", label: t.settings.tabs.plans, icon: CreditCard }] : []),
     { id: "security",        label: t.settings.tabs.security,       icon: ShieldCheck },
     { id: "notifications",   label: t.settings.tabs.notifications,  icon: Bell        },
   ];
