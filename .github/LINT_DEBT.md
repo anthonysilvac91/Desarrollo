@@ -22,13 +22,29 @@ backend de 2090 → 2053 (−37).
 
 ## Cómo funciona
 
-El script `.github/scripts/lint-check.sh`:
+El script `.github/scripts/lint-check.sh` es **fail-closed**: cualquier condición
+de error inesperada falla el CI en lugar de asumir éxito.
 
-1. Ejecuta lint completo y transmite **toda la salida** a los logs de CI.
-2. Parsea la línea de resumen (`N problems (E errors, W warnings)`).
-3. Compara contra `lint-baseline.json`.
-4. Falla con `exit 1` si `actual_errors > max_errors` **o** `actual_warnings > max_warnings`.
-5. No usa `|| true`, `continue-on-error`, ni desactiva reglas ESLint.
+Flujo de ejecución:
+
+1. Valida que `lint-baseline.json` sea JSON válido y que el área solicitada exista.
+2. Valida que `max_errors` y `max_warnings` sean enteros no negativos.
+3. Ejecuta lint completo y transmite **toda la salida** a los logs de CI.
+4. Si el tool de lint termina con **exit code ≥ 2** (config inválida, dependencia
+   faltante, crash, patrón inexistente) → falla inmediatamente mostrando las
+   últimas 20 líneas del log. No convierte un crash en éxito.
+5. Si lint termina con **exit code 1** pero no se encuentra una línea de resumen
+   `[0-9]+ problem` → **falla closed**: muestra las últimas 20 líneas y termina
+   con exit 1. No asume 0 errores.
+6. Si lint termina con **exit code 0** sin resumen → ejecución limpia (0 problemas).
+7. Si el resumen es encontrado pero los conteos no son extraíbles como enteros →
+   falla con mensaje descriptivo.
+8. Compara los conteos extraídos contra `lint-baseline.json`.
+9. Falla con `exit 1` si `actual_errors > max_errors` **o** `actual_warnings > max_warnings`.
+10. No usa `|| true`, `continue-on-error`, ni desactiva reglas ESLint.
+
+El script incluye pruebas automatizadas en `.github/scripts/test-lint-check.sh`
+que cubren los 13 escenarios de fallo documentados arriba.
 
 ---
 

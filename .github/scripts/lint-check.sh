@@ -36,11 +36,35 @@ if [ ! -f "$BASELINE_FILE" ]; then
   exit 1
 fi
 
+# Validate baseline file is valid JSON before attempting to parse it
+if ! jq empty "$BASELINE_FILE" 2>/dev/null; then
+  echo "Error: ${BASELINE_FILE} contains invalid JSON" >&2
+  exit 1
+fi
+
+# Validate the target area exists in the baseline
+if ! jq -e ".${TARGET}" "$BASELINE_FILE" > /dev/null 2>&1; then
+  echo "Error: area '${TARGET}' not found in ${BASELINE_FILE}" >&2
+  echo "Available areas: $(jq -r 'keys | map(select(startswith("_") | not)) | join(", ")' "$BASELINE_FILE")" >&2
+  exit 1
+fi
+
 MAX_ERRORS=$(jq -r ".${TARGET}.max_errors" "$BASELINE_FILE")
 MAX_WARNINGS=$(jq -r ".${TARGET}.max_warnings" "$BASELINE_FILE")
 
 if [ "$MAX_ERRORS" = "null" ] || [ "$MAX_WARNINGS" = "null" ]; then
-  echo "Error: target '$TARGET' not found in $BASELINE_FILE" >&2
+  echo "Error: 'max_errors' or 'max_warnings' missing for '${TARGET}' in ${BASELINE_FILE}" >&2
+  exit 1
+fi
+
+# Validate that max_errors and max_warnings are non-negative integers
+if ! [[ "$MAX_ERRORS" =~ ^[0-9]+$ ]]; then
+  echo "Error: max_errors for '${TARGET}' must be a non-negative integer, got: '${MAX_ERRORS}'" >&2
+  exit 1
+fi
+
+if ! [[ "$MAX_WARNINGS" =~ ^[0-9]+$ ]]; then
+  echo "Error: max_warnings for '${TARGET}' must be a non-negative integer, got: '${MAX_WARNINGS}'" >&2
   exit 1
 fi
 
@@ -57,14 +81,17 @@ echo ""
 # Run lint and capture output for parsing while streaming to stdout.
 # Lint exits 1 when findings exist — that is expected and handled below.
 LINT_TMP=$(mktemp)
+LINT_DID_RUN=0
 
 set +e  # Disable exit-on-error so lint failure does not abort the script
 if [ "$TARGET" = "backend" ]; then
   npx eslint "{src,apps,libs,test}/**/*.ts" 2>&1 | tee "$LINT_TMP"
   LINT_EXIT="${PIPESTATUS[0]}"
+  LINT_DID_RUN=1
 else
   npm run lint 2>&1 | tee "$LINT_TMP"
   LINT_EXIT="${PIPESTATUS[0]}"
+  LINT_DID_RUN=1
 fi
 set -e
 
@@ -72,11 +99,20 @@ echo ""
 echo "--- Baseline evaluation ---"
 echo ""
 
-# Exit code 2+ means a tool/config error, not lint findings.
+# Guard: ensure the lint command was actually dispatched
+if [ "$LINT_DID_RUN" -eq 0 ]; then
+  echo "ERROR: Lint command was not dispatched — unknown target '${TARGET}'." >&2
+  rm -f "$LINT_TMP"
+  exit 1
+fi
+
+# Exit code 2+ means a tool/config/crash error, not lint findings.
 # Surface immediately so it is not silently swallowed.
 if [ "$LINT_EXIT" -ge 2 ]; then
-  echo "ERROR: Lint tool exited with unexpected code $LINT_EXIT." >&2
-  echo "This indicates a tool or configuration error, not lint findings." >&2
+  echo "ERROR: Lint tool exited with unexpected code ${LINT_EXIT}." >&2
+  echo "This indicates a configuration error, missing dependency, or crash — not lint findings." >&2
+  echo "Last 20 lines of lint output:" >&2
+  tail -20 "$LINT_TMP" >&2
   rm -f "$LINT_TMP"
   exit "$LINT_EXIT"
 fi
@@ -85,17 +121,50 @@ fi
 #   "✖ N problems (E errors, W warnings)"
 # Works for "error"/"errors" and "warning"/"warnings" (singular and plural).
 SUMMARY=$(grep -E '[0-9]+ problem' "$LINT_TMP" | tail -1 || true)
-rm -f "$LINT_TMP"
 
 if [ -z "$SUMMARY" ]; then
-  ACTUAL_ERRORS=0
-  ACTUAL_WARNINGS=0
-  echo "No lint problems found."
+  if [ "$LINT_EXIT" -eq 0 ]; then
+    # Lint completed with exit 0 and no summary — the run was clean (0 problems).
+    ACTUAL_ERRORS=0
+    ACTUAL_WARNINGS=0
+    echo "No lint problems found."
+  else
+    # FAIL CLOSED: lint exited non-zero but no recognizable ESLint summary was found.
+    # Do NOT assume 0 errors — this most likely indicates a crash, a missing
+    # file/pattern, an invalid config, or a broken output format.
+    echo "ERROR: Lint exited with code ${LINT_EXIT} but no valid ESLint summary line was found." >&2
+    echo "Expected a line matching '[0-9]+ problem(s)' in the output." >&2
+    echo "This may indicate a crash, invalid config, missing dependency, or unexpected format." >&2
+    echo "Last 20 lines of lint output:" >&2
+    tail -20 "$LINT_TMP" >&2
+    rm -f "$LINT_TMP"
+    exit 1
+  fi
 else
   echo "Summary : $SUMMARY"
-  ACTUAL_ERRORS=$(echo "$SUMMARY" | grep -oP '\d+(?= error)' || echo "0")
-  ACTUAL_WARNINGS=$(echo "$SUMMARY" | grep -oP '\d+(?= warning)' || echo "0")
+  ACTUAL_ERRORS=$(echo "$SUMMARY" | grep -oP '\d+(?= error)' || true)
+  ACTUAL_WARNINGS=$(echo "$SUMMARY" | grep -oP '\d+(?= warning)' || true)
+
+  # Validate extracted counts are non-negative integers — fail if the summary
+  # was found but the numeric fields could not be parsed (malformed output).
+  if ! [[ "$ACTUAL_ERRORS" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: Could not extract a valid error count from ESLint summary." >&2
+    echo "Summary line : '${SUMMARY}'" >&2
+    echo "Extracted    : '${ACTUAL_ERRORS}'" >&2
+    rm -f "$LINT_TMP"
+    exit 1
+  fi
+
+  if ! [[ "$ACTUAL_WARNINGS" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: Could not extract a valid warning count from ESLint summary." >&2
+    echo "Summary line : '${SUMMARY}'" >&2
+    echo "Extracted    : '${ACTUAL_WARNINGS}'" >&2
+    rm -f "$LINT_TMP"
+    exit 1
+  fi
 fi
+
+rm -f "$LINT_TMP"
 
 echo ""
 echo "Actual   : $ACTUAL_ERRORS errors, $ACTUAL_WARNINGS warnings"
