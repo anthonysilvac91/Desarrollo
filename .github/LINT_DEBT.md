@@ -9,14 +9,15 @@
 
 ## Baseline actual
 
-| Área     | Errores (max) | Warnings (max) | Medido en              |
-|----------|:-------------:|:--------------:|------------------------|
-| backend  | 2053          | 254            | commit `ec9d8b4` — 2026-06-29 |
-| frontend | 100           | 87             | commit `ec9d8b4` — 2026-06-29 |
+| Área     | Errores (max) | Warnings (max) | Medido en                                                |
+|----------|:-------------:|:--------------:|----------------------------------------------------------|
+| backend  | 2177          | 255            | GitHub Actions run `28379853436` — Node v20.20.2 — 2026-06-29 |
+| frontend | 100           | 87             | GitHub Actions run `28379853436` — Node v20.20.2 — 2026-06-29 |
 
-Estos valores representan la deuda preexistente **antes** de este PR, no deuda
-introducida por él. El PR `fix/pr1-followup-corrections` redujo los errores de
-backend de 2090 → 2053 (−37).
+> **Nota de calibración:** el baseline de backend fue recalibrado con el runner
+> de GitHub Actions (Node v20.20.2 / npm 10.8.2) como fuente autoritativa.
+> La medición local previa (2053 errores) fue tomada con Node v24 sobre el
+> working-tree, que difiere del árbol commiteado que ejecuta CI.
 
 ---
 
