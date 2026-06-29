@@ -197,7 +197,10 @@ describe('DashboardService tenant scoping', () => {
       const result = await service.getStats(
         { id: 'admin-1', role: Role.ADMIN, orgId: 'org-1' },
         undefined,
-        { startDate: '2026-06-01T00:00:00.000Z', endDate: '2026-06-07T23:59:59.999Z' },
+        {
+          startDate: '2026-06-01T00:00:00.000Z',
+          endDate: '2026-06-07T23:59:59.999Z',
+        },
       );
 
       expect(result.evolution).toHaveLength(7);
@@ -210,7 +213,11 @@ describe('DashboardService tenant scoping', () => {
 
     it('no llama a findMany con select:{created_at} — la evolución viene de $queryRaw', async () => {
       baseSetup();
-      await service.getStats({ id: 'admin-1', role: Role.ADMIN, orgId: 'org-1' });
+      await service.getStats({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        orgId: 'org-1',
+      });
       expect(prisma.service.findMany).not.toHaveBeenCalledWith(
         expect.objectContaining({ select: { created_at: true } }),
       );
@@ -220,13 +227,19 @@ describe('DashboardService tenant scoping', () => {
     it('rango > 62 días produce buckets mensuales', async () => {
       baseSetup();
       (prisma.$queryRaw as jest.Mock)
-        .mockResolvedValueOnce([{ day: '2026-03', count: 5n }, { day: '2026-04', count: 10n }])
+        .mockResolvedValueOnce([
+          { day: '2026-03', count: 5n },
+          { day: '2026-04', count: 10n },
+        ])
         .mockResolvedValueOnce([]);
 
       const result = await service.getStats(
         { id: 'admin-1', role: Role.ADMIN, orgId: 'org-1' },
         undefined,
-        { startDate: '2026-01-01T00:00:00.000Z', endDate: '2026-06-30T23:59:59.999Z' },
+        {
+          startDate: '2026-01-01T00:00:00.000Z',
+          endDate: '2026-06-30T23:59:59.999Z',
+        },
       );
 
       // 6 meses = 6 puntos
@@ -250,9 +263,15 @@ describe('DashboardService tenant scoping', () => {
       baseSetup();
       (prisma.$queryRaw as jest.Mock)
         .mockResolvedValueOnce([]) // evolution
-        .mockResolvedValueOnce([{ assets_serviced: 12n, active_operators: 4n }]); // distinct
+        .mockResolvedValueOnce([
+          { assets_serviced: 12n, active_operators: 4n },
+        ]); // distinct
 
-      const result = await service.getStats({ id: 'admin-1', role: Role.ADMIN, orgId: 'org-1' });
+      const result = await service.getStats({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        orgId: 'org-1',
+      });
 
       expect(result.assets_serviced).toBe(12);
       expect(result.active_operators).toBe(4);
@@ -264,7 +283,11 @@ describe('DashboardService tenant scoping', () => {
         .mockResolvedValueOnce([]) // evolution
         .mockResolvedValueOnce([{ assets_serviced: 3n, active_operators: 0n }]);
 
-      const result = await service.getStats({ id: 'worker-1', role: Role.WORKER, orgId: 'org-1' });
+      const result = await service.getStats({
+        id: 'worker-1',
+        role: Role.WORKER,
+        orgId: 'org-1',
+      });
 
       expect(result.active_operators).toBe(0);
       expect(result.assets_serviced).toBe(3);
@@ -288,7 +311,11 @@ describe('DashboardService tenant scoping', () => {
 
     it('no usa groupBy de asset_id/worker_id sin take (patrón .length eliminado)', async () => {
       baseSetup();
-      await service.getStats({ id: 'admin-1', role: Role.ADMIN, orgId: 'org-1' });
+      await service.getStats({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        orgId: 'org-1',
+      });
 
       const groupByCalls = (prisma.service.groupBy as jest.Mock).mock.calls;
       // El groupBy de asset_id o worker_id sin take era el patrón N+1 para .length
@@ -321,7 +348,11 @@ describe('DashboardService tenant scoping', () => {
         return Promise.resolve([]) as any;
       });
 
-      const result = await service.getStats({ id: 'admin-1', role: Role.ADMIN, orgId: 'org-1' });
+      const result = await service.getStats({
+        id: 'admin-1',
+        role: Role.ADMIN,
+        orgId: 'org-1',
+      });
 
       expect(result.public_services).toBe(8);
       expect(result.private_services).toBe(3);
@@ -338,7 +369,9 @@ describe('DashboardService tenant scoping', () => {
       jest.spyOn(prisma.service, 'groupBy').mockImplementation((args: any) => {
         if (args?.by?.includes('is_public')) {
           // EXTERNAL statsWhere ya tiene is_public:true → solo un grupo
-          return Promise.resolve([{ is_public: true, _count: { id: 5 } }]) as any;
+          return Promise.resolve([
+            { is_public: true, _count: { id: 5 } },
+          ]) as any;
         }
         return Promise.resolve([]) as any;
       });
@@ -367,10 +400,15 @@ describe('DashboardService tenant scoping', () => {
 
     it('SUPER_ADMIN con organizationId filtra por esa org', async () => {
       baseSetup();
-      await service.getStats({ id: 'sa-1', role: Role.SUPER_ADMIN }, 'org-specific');
+      await service.getStats(
+        { id: 'sa-1', role: Role.SUPER_ADMIN },
+        'org-specific',
+      );
 
       expect(prisma.asset.count).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ organization_id: 'org-specific' }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ organization_id: 'org-specific' }),
+        }),
       );
     });
 
@@ -412,6 +450,18 @@ describe('DashboardService tenant scoping', () => {
   });
 
   describe('purged_at en raw SQL', () => {
+    function extractRawSql(rawCalls: unknown[][]): string {
+      return rawCalls
+        .flatMap((callArgs) => callArgs)
+        .map((arg) => {
+          if (arg !== null && typeof arg === 'object' && 'strings' in arg) {
+            return (arg as { strings: string[] }).strings.join(' ');
+          }
+          return String(arg ?? '');
+        })
+        .join(' ');
+    }
+
     it('getEvolutionCountsRaw incluye purged_at IS NULL en la consulta', async () => {
       jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
       jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
@@ -425,19 +475,10 @@ describe('DashboardService tenant scoping', () => {
         orgId: 'org-1',
       });
 
-      const rawCalls = (prisma.$queryRaw as jest.Mock).mock.calls;
+      const rawCalls = (prisma.$queryRaw as jest.Mock).mock
+        .calls as unknown[][];
       expect(rawCalls.length).toBeGreaterThan(0);
-
-      const allSqlParts = rawCalls
-        .flatMap((callArgs: any[]) => callArgs)
-        .map((arg: any) =>
-          Array.isArray(arg?.strings)
-            ? arg.strings.join(' ')
-            : String(arg ?? ''),
-        )
-        .join(' ');
-
-      expect(allSqlParts).toMatch(/"purged_at" IS NULL/);
+      expect(extractRawSql(rawCalls)).toMatch(/"purged_at" IS NULL/);
     });
 
     it('getDistinctCountsRaw incluye purged_at IS NULL en la consulta', async () => {
@@ -445,7 +486,9 @@ describe('DashboardService tenant scoping', () => {
       jest.spyOn(prisma.service, 'count').mockResolvedValue(3);
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
-      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ assets_serviced: 0n, active_operators: 0n }]);
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        { assets_serviced: 0n, active_operators: 0n },
+      ]);
 
       await service.getStats({
         id: 'admin-1',
@@ -453,17 +496,9 @@ describe('DashboardService tenant scoping', () => {
         orgId: 'org-1',
       });
 
-      const rawCalls = (prisma.$queryRaw as jest.Mock).mock.calls;
-      const allSqlParts = rawCalls
-        .flatMap((callArgs: any[]) => callArgs)
-        .map((arg: any) =>
-          Array.isArray(arg?.strings)
-            ? arg.strings.join(' ')
-            : String(arg ?? ''),
-        )
-        .join(' ');
-
-      expect(allSqlParts).toMatch(/"purged_at" IS NULL/);
+      const rawCalls = (prisma.$queryRaw as jest.Mock).mock
+        .calls as unknown[][];
+      expect(extractRawSql(rawCalls)).toMatch(/"purged_at" IS NULL/);
     });
   });
 });

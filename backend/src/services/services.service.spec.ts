@@ -92,9 +92,9 @@ describe('ServicesService', () => {
       jest
         .spyOn(prisma.organization, 'findUnique')
         .mockResolvedValue({ auto_publish_services: true } as any);
-      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation(
-        (args: any) => Promise.resolve(args.data),
-      );
+      (
+        jest.spyOn(prisma.service, 'create') as unknown as jest.Mock
+      ).mockImplementation((args: any) => Promise.resolve(args.data));
 
       const result = await service.create(
         { asset_id: 'asset-1', title: 'Test' },
@@ -116,9 +116,9 @@ describe('ServicesService', () => {
       jest
         .spyOn(prisma.organization, 'findUnique')
         .mockResolvedValue({ auto_publish_services: false } as any);
-      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation(
-        (args: any) => Promise.resolve(args.data),
-      );
+      (
+        jest.spyOn(prisma.service, 'create') as unknown as jest.Mock
+      ).mockImplementation((args: any) => Promise.resolve(args.data));
 
       const result = await service.create(
         { asset_id: 'asset-2', title: 'Test 2' },
@@ -136,9 +136,9 @@ describe('ServicesService', () => {
       jest
         .spyOn(prisma.organization, 'findUnique')
         .mockResolvedValue({ auto_publish_services: false } as any);
-      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation(
-        (args: any) => Promise.resolve(args.data),
-      );
+      (
+        jest.spyOn(prisma.service, 'create') as unknown as jest.Mock
+      ).mockImplementation((args: any) => Promise.resolve(args.data));
 
       const result = await service.create(
         { asset_id: 'asset-sa', title: 'SA Service' },
@@ -202,7 +202,9 @@ describe('ServicesService', () => {
       storedFilesService.registerUploadedFile.mockResolvedValue({
         id: 'stored-file-1',
       });
-      (jest.spyOn(prisma.service, 'create') as unknown as jest.Mock).mockImplementation((args: any) =>
+      (
+        jest.spyOn(prisma.service, 'create') as unknown as jest.Mock
+      ).mockImplementation((args: any) =>
         Promise.resolve({
           ...args.data,
           attachments: args.data.attachments.create,
@@ -321,8 +323,9 @@ describe('ServicesService', () => {
         { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
       );
 
-      const call = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
-      expect(JSON.stringify(call.where)).not.toContain('worker_access');
+      const [callArg] = (prisma.service.findMany as jest.Mock).mock
+        .calls[0] as [{ where: Record<string, unknown> }];
+      expect(JSON.stringify(callArg.where)).not.toContain('worker_access');
     });
 
     it('WORKER: lista solo servicios creados por el usuario actual', async () => {
@@ -365,16 +368,26 @@ describe('ServicesService', () => {
     });
 
     it('EXTERNAL sin owner_id retorna paginado vacío sin consultar DB', async () => {
-      const result = await service.findAll(
+      const findManySpy = jest.spyOn(prisma.service, 'findMany');
+      const rawResult: unknown = await service.findAll(
         {},
         { id: 'ext-1', orgId: 'org-1', role: 'EXTERNAL' },
-      ) as any;
+      );
+      const result = rawResult as {
+        data: unknown[];
+        meta: {
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        };
+      };
 
       expect(result).toHaveProperty('data');
       expect(result.data).toEqual([]);
       expect(result).toHaveProperty('meta');
       expect(result.meta.total).toBe(0);
-      expect(prisma.service.findMany).not.toHaveBeenCalled();
+      expect(findManySpy).not.toHaveBeenCalled();
     });
 
     it('SUPER_ADMIN: no filtra por organization_id', async () => {
@@ -394,10 +407,19 @@ describe('ServicesService', () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.service, 'count').mockResolvedValue(12);
 
-      const result = await service.findAll(
+      const rawResult: unknown = await service.findAll(
         {},
         { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
-      ) as any;
+      );
+      const result = rawResult as {
+        data: unknown[];
+        meta: {
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        };
+      };
 
       expect(result).toHaveProperty('data');
       expect(result).toHaveProperty('meta');
@@ -428,8 +450,12 @@ describe('ServicesService', () => {
       jest.spyOn(prisma.service, 'count').mockResolvedValue(0);
 
       await service.findAll(
-        { page: 1, limit: 999 } as any,
-        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+        { page: 1, limit: 999 },
+        {
+          id: 'admin-1',
+          orgId: 'org-1',
+          role: 'ADMIN',
+        },
       );
 
       expect(prisma.service.findMany).toHaveBeenCalledWith(
@@ -442,8 +468,12 @@ describe('ServicesService', () => {
       jest.spyOn(prisma.service, 'count').mockResolvedValue(30);
 
       await service.findAll(
-        { page: 3, limit: 10 } as any,
-        { id: 'admin-1', orgId: 'org-1', role: 'ADMIN' },
+        { page: 3, limit: 10 },
+        {
+          id: 'admin-1',
+          orgId: 'org-1',
+          role: 'ADMIN',
+        },
       );
 
       expect(prisma.service.findMany).toHaveBeenCalledWith(
