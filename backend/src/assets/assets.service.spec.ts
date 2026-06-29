@@ -220,15 +220,26 @@ describe('AssetsService', () => {
 
       await service.findAll({}, null as any, 'SUPER_ADMIN');
 
-      const call = (prisma.asset.findMany as jest.Mock).mock.calls[0][0];
-      expect(call.where).not.toHaveProperty('organization_id');
+      const [callArg] = (prisma.asset.findMany as jest.Mock).mock.calls[0] as [
+        { where: Record<string, unknown> },
+      ];
+      expect(callArg.where).not.toHaveProperty('organization_id');
     });
 
     it('siempre retorna formato paginado { data, meta } aunque no se envíen page ni limit', async () => {
       jest.spyOn(prisma.asset, 'findMany').mockResolvedValue([]);
       jest.spyOn(prisma.asset, 'count').mockResolvedValue(7);
 
-      const result = await service.findAll({}, 'org-1', 'ADMIN') as any;
+      const rawResult: unknown = await service.findAll({}, 'org-1', 'ADMIN');
+      const result = rawResult as {
+        data: unknown[];
+        meta: {
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        };
+      };
 
       expect(result).toHaveProperty('data');
       expect(result).toHaveProperty('meta');
@@ -246,7 +257,7 @@ describe('AssetsService', () => {
 
       await service.findAll({}, 'org-1', 'ADMIN');
 
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect(prisma.asset.findMany as jest.Mock).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, take: 50 }),
       );
     });
@@ -257,7 +268,7 @@ describe('AssetsService', () => {
 
       await service.findAll({ page: 1, limit: 500 }, 'org-1', 'ADMIN');
 
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect(prisma.asset.findMany as jest.Mock).toHaveBeenCalledWith(
         expect.objectContaining({ take: 100 }),
       );
     });
@@ -268,7 +279,7 @@ describe('AssetsService', () => {
 
       await service.findAll({ page: 3, limit: 10 }, 'org-1', 'ADMIN');
 
-      expect(prisma.asset.findMany).toHaveBeenCalledWith(
+      expect(prisma.asset.findMany as jest.Mock).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 20, take: 10 }),
       );
     });
@@ -279,7 +290,7 @@ describe('AssetsService', () => {
 
       await service.findAll({}, 'org-1', 'ADMIN');
 
-      expect(prisma.asset.count).toHaveBeenCalledTimes(1);
+      expect(prisma.asset.count as jest.Mock).toHaveBeenCalledTimes(1);
     });
   });
 
