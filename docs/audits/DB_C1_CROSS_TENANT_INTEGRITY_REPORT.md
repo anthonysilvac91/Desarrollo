@@ -291,6 +291,29 @@ Resultado:
 
 El baseline de lint existente sigue fallando ampliamente. No se hizo limpieza general. `npm run lint` usa `--fix`; los cambios automáticos en archivos fuera de DB-C1 fueron revertidos.
 
+Actualización CI lint PR3, 2026-06-29:
+
+- CI reportó regresión: `Actual: 2184 errores, 261 warnings`; `Baseline: 2177 errores, 255 warnings`; delta `+7 errores, +6 warnings`.
+- Causa: los tests nuevos de DB-C1 añadieron mocks Prisma/Jest con valores `any`, asserts directos sobre métodos Prisma que activaban `@typescript-eslint/unbound-method`, y verificaciones duplicadas de rechazos que aumentaban hallazgos en líneas nuevas.
+- Archivos corregidos:
+  - `backend/src/assets/assets.service.spec.ts`
+  - `backend/src/services/services.service.spec.ts`
+- Corrección aplicada: helpers tipados con modelos Prisma para datos mock, asserts sobre referencias de `spyOn`, inspección tipada de argumentos de mocks y eliminación de verificaciones duplicadas cubiertas por el mensaje genérico exacto.
+
+Resultado de `npm run lint` ejecutado durante la corrección:
+
+```text
+✖ 2307 problems (2053 errors, 254 warnings)
+```
+
+Medición final sin autofix sobre el working tree corregido:
+
+```text
+Final ESLint JSON count: 2173 errors, 255 warnings
+```
+
+Conclusión lint: dentro de baseline (`errors <= 2177`, `warnings <= 255`). No se modificó `.github/lint-baseline.json`.
+
 ## 18. Resultados de typecheck
 
 Comando:
@@ -300,6 +323,12 @@ npx tsc --noEmit
 ```
 
 Resultado:
+
+```text
+sin output, exit 0
+```
+
+Revalidación CI lint PR3:
 
 ```text
 sin output, exit 0
@@ -334,7 +363,7 @@ Resultado final:
 Test Suites: 30 passed, 30 total
 Tests:       248 passed, 248 total
 Snapshots:   0 total
-Time:        18.529 s
+Time:        11.366 s, estimated 18 s
 Ran all test suites.
 ```
 
@@ -352,8 +381,9 @@ Resultado:
 > backend@0.0.1 build
 > prisma generate && nest build
 
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
 Prisma schema loaded from prisma/schema.prisma
-✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 354ms
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 421ms
 ```
 
 Exit 0.
@@ -377,14 +407,28 @@ Formatted prisma/schema.prisma in 104ms
 `npx prisma validate`:
 
 ```text
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
 Prisma schema loaded from prisma/schema.prisma
-The schema at prisma/schema.prisma is valid
+Error: Prisma schema validation - (get-config wasm)
+Error code: P1012
+error: Environment variable not found: DIRECT_URL.
+  -->  prisma/schema.prisma:4
+```
+
+`npx prisma validate` con `DATABASE_URL` y `DIRECT_URL` sintácticamente válidos solo para validación:
+
+```text
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+Prisma schema loaded from prisma/schema.prisma
+The schema at prisma/schema.prisma is valid 🚀
 ```
 
 `npx prisma generate`:
 
 ```text
-✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 495ms
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+Prisma schema loaded from prisma/schema.prisma
+✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 436ms
 ```
 
 `npx prisma migrate status` sin DB local real:
