@@ -17,6 +17,7 @@ describe('AssetsService', () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
+        update: jest.fn(),
       },
       owner: {
         findFirst: jest.fn(),
@@ -124,7 +125,19 @@ describe('AssetsService', () => {
 
       await expect(
         service.create({ name: 'Barco', owner_id: 'owner-otra-org' }, 'org-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(prisma.owner.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'owner-otra-org',
+          organization_id: 'org-1',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+      await expect(
+        service.create({ name: 'Barco', owner_id: 'owner-otra-org' }, 'org-1'),
+      ).rejects.not.toThrow(/organización|organizacion|tenant|otra/i);
     });
 
     it('SUPER_ADMIN: usa dtoOrgId cuando su orgId es null/undefined', async () => {
@@ -351,6 +364,80 @@ describe('AssetsService', () => {
           },
         }),
       );
+    });
+  });
+
+  describe('update()', () => {
+    it('rechaza reasignar un activo a owner de otra organización sin filtrar tenant', async () => {
+      jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue({
+        id: 'asset-1',
+        organization_id: 'org-1',
+        owner_id: 'owner-1',
+        thumbnail_file_id: null,
+      } as any);
+      jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue(null);
+
+      await expect(
+        service.update(
+          'asset-1',
+          { owner_id: 'owner-otra-org' },
+          'org-1',
+          'ADMIN',
+        ),
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(prisma.owner.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'owner-otra-org',
+          organization_id: 'org-1',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+      expect(prisma.asset.update).not.toHaveBeenCalled();
+      await expect(
+        service.update(
+          'asset-1',
+          { owner_id: 'owner-otra-org' },
+          'org-1',
+          'ADMIN',
+        ),
+      ).rejects.not.toThrow(/organización|organizacion|tenant|otra/i);
+    });
+
+    it('permite reasignar un activo a owner de la misma organización', async () => {
+      const currentAsset = {
+        id: 'asset-1',
+        organization_id: 'org-1',
+        owner_id: 'owner-1',
+        thumbnail_file_id: null,
+      };
+      const updatedAsset = {
+        ...currentAsset,
+        owner_id: 'owner-2',
+      };
+      jest
+        .spyOn(prisma.asset, 'findUnique')
+        .mockResolvedValue(currentAsset as any);
+      jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue({ id: 'owner-2' } as any);
+      jest.spyOn(prisma.asset, 'update').mockResolvedValue(updatedAsset as any);
+
+      const result = await service.update(
+        'asset-1',
+        { owner_id: 'owner-2' },
+        'org-1',
+        'ADMIN',
+      );
+
+      expect(prisma.asset.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'asset-1' },
+          data: expect.objectContaining({ owner_id: 'owner-2' }),
+        }),
+      );
+      expect(result).toHaveProperty('owner_id', 'owner-2');
     });
   });
 });

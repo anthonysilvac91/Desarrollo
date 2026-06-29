@@ -283,7 +283,9 @@ export class ServicesService {
     return this.applyServiceUrlMap(service, urlMap);
   }
 
-  private collectServiceFileIds(service: any): Array<string | null | undefined> {
+  private collectServiceFileIds(
+    service: any,
+  ): Array<string | null | undefined> {
     const ids: Array<string | null | undefined> = [];
     if (service.asset?.thumbnail_file_id) {
       ids.push(service.asset.thumbnail_file_id);
@@ -292,7 +294,9 @@ export class ServicesService {
       for (const att of service.attachments) {
         const isVideo =
           att.media_type === 'VIDEO' ||
-          String(att.file_type ?? '').toLowerCase().startsWith('video/');
+          String(att.file_type ?? '')
+            .toLowerCase()
+            .startsWith('video/');
         if (!isVideo) ids.push(att.file_id);
       }
     }
@@ -318,7 +322,9 @@ export class ServicesService {
         (attachment: any) => {
           const isVideo =
             attachment.media_type === 'VIDEO' ||
-            String(attachment.file_type ?? '').toLowerCase().startsWith('video/');
+            String(attachment.file_type ?? '')
+              .toLowerCase()
+              .startsWith('video/');
           return {
             ...attachment,
             file_url: isVideo ? null : (urlMap.get(attachment.file_id) ?? null),
@@ -453,7 +459,9 @@ export class ServicesService {
         where: { id: createServiceDto.asset_id, is_active: true },
         select: { id: true, organization_id: true },
       });
-      if (!asset) throw new BadRequestException('El activo indicado no existe');
+      if (!asset) {
+        throw new BadRequestException('Recurso relacionado no encontrado');
+      }
       serviceOrgId = asset.organization_id;
     } else {
       const asset = await this.prisma.asset.findFirst({
@@ -464,10 +472,9 @@ export class ServicesService {
         },
         select: { id: true },
       });
-      if (!asset)
-        throw new BadRequestException(
-          'El activo indicado no pertenece a tu organización',
-        );
+      if (!asset) {
+        throw new BadRequestException('Recurso relacionado no encontrado');
+      }
       serviceOrgId = user.orgId;
     }
 
@@ -640,7 +647,9 @@ export class ServicesService {
         where: { id: dto.asset_id, is_active: true },
         select: { organization_id: true },
       });
-      if (!asset) throw new BadRequestException('El activo indicado no existe');
+      if (!asset) {
+        throw new BadRequestException('Recurso relacionado no encontrado');
+      }
       serviceOrgId = asset.organization_id;
     } else {
       const asset = await this.prisma.asset.findFirst({
@@ -651,10 +660,9 @@ export class ServicesService {
         },
         select: { id: true },
       });
-      if (!asset)
-        throw new BadRequestException(
-          'El activo indicado no pertenece a tu organizacion',
-        );
+      if (!asset) {
+        throw new BadRequestException('Recurso relacionado no encontrado');
+      }
       serviceOrgId = user.orgId;
     }
 

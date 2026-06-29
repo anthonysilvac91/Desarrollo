@@ -179,7 +179,69 @@ describe('ServicesService', () => {
           { asset_id: 'asset-otro', title: 'X' },
           { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(prisma.asset.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'asset-otro',
+          organization_id: 'org-1',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+      await expect(
+        service.create(
+          { asset_id: 'asset-otro', title: 'X' },
+          { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+        ),
+      ).rejects.not.toThrow(/organización|organizacion|tenant|otra/i);
+    });
+
+    it('ADMIN: rechaza crear servicio con asset de otro tenant usando error genérico', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue(null);
+
+      await expect(
+        service.create(
+          { asset_id: 'asset-tenant-b', title: 'Servicio inválido' },
+          { id: 'admin-1', orgId: 'org-a', role: 'ADMIN' },
+        ),
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(prisma.asset.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'asset-tenant-b',
+          organization_id: 'org-a',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+    });
+
+    it('SUPER_ADMIN: deriva organization_id desde el asset para evitar referencias cruzadas accidentales', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue({
+        id: 'asset-org-b',
+        organization_id: 'org-b',
+      } as any);
+      jest
+        .spyOn(prisma.organization, 'findUnique')
+        .mockResolvedValue({ auto_publish_services: true } as any);
+      (
+        jest.spyOn(prisma.service, 'create') as unknown as jest.Mock
+      ).mockImplementation((args: any) => Promise.resolve(args.data));
+
+      await service.create(
+        { asset_id: 'asset-org-b', title: 'Servicio super admin' },
+        { id: 'super-1', orgId: 'org-a', role: 'SUPER_ADMIN' },
+      );
+
+      expect(prisma.service.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            asset_id: 'asset-org-b',
+            organization_id: 'org-b',
+          }),
+        }),
+      );
     });
 
     it('procesa adjuntos de servicio a WebP antes de subir y registra metadata final', async () => {

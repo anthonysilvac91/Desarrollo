@@ -57,9 +57,7 @@ export class AssetsService {
     };
   }
 
-  private collectAssetFileIds(
-    asset: any,
-  ): Array<string | null | undefined> {
+  private collectAssetFileIds(asset: any): Array<string | null | undefined> {
     const ids: Array<string | null | undefined> = [asset.thumbnail_file_id];
     if (Array.isArray(asset.services)) {
       for (const svc of asset.services) {
@@ -124,9 +122,7 @@ export class AssetsService {
     });
 
     if (!owner) {
-      throw new BadRequestException(
-        'El propietario indicado no pertenece a tu organización',
-      );
+      throw new BadRequestException('Recurso relacionado no encontrado');
     }
   }
 
@@ -512,9 +508,7 @@ export class AssetsService {
     });
 
     if (!asset || !owner) {
-      throw new NotFoundException(
-        'Activo o propietario no existe en su organización',
-      );
+      throw new NotFoundException('Recurso relacionado no encontrado');
     }
 
     const updatedAsset = await this.prisma.asset.update({
