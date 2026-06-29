@@ -7,6 +7,79 @@ import { StorageGovernanceService } from '../storage/storage-governance.service'
 import { StoredFilesService } from '../storage/stored-files.service';
 import { processUploadedImage } from '../common/files/image-processing';
 import { validateImageFile } from '../common/files/image-validation';
+import type { Asset, Organization, Service } from '@prisma/client';
+
+const testDate = new Date('2026-06-29T00:00:00.000Z');
+
+const buildAsset = (overrides: Partial<Asset> = {}): Asset => ({
+  id: 'asset-1',
+  organization_id: 'org-1',
+  name: 'Activo',
+  description: null,
+  category: null,
+  location: null,
+  thumbnail_file_id: null,
+  serial_number: null,
+  owner_id: 'owner-1',
+  is_active: true,
+  deleted_at: null,
+  deleted_by_id: null,
+  purged_at: null,
+  purged_by_id: null,
+  created_at: testDate,
+  updated_at: testDate,
+  ...overrides,
+});
+
+const buildOrganization = (
+  overrides: Partial<Organization> = {},
+): Organization => ({
+  id: 'org-1',
+  name: 'Organization',
+  slug: 'organization',
+  is_active: true,
+  logo_file_id: null,
+  brand_color: null,
+  default_asset_icon: null,
+  auto_publish_services: true,
+  worker_edit_policy: 'TIME_WINDOW',
+  worker_edit_window_hours: null,
+  worker_restricted_access: false,
+  show_org_name: false,
+  video_uploads_enabled: false,
+  storage_quota_bytes: null,
+  max_video_file_bytes: null,
+  upload_concurrency_limit: 2,
+  created_at: testDate,
+  updated_at: testDate,
+  ...overrides,
+});
+
+const buildService = (overrides: Partial<Service> = {}): Service => ({
+  id: 'service-1',
+  organization_id: 'org-1',
+  asset_id: 'asset-1',
+  worker_id: 'worker-1',
+  title: 'Servicio',
+  description: null,
+  description_language: null,
+  status: 'COMPLETED',
+  is_public: false,
+  admin_intervened: false,
+  attachment_upload_status: 'NONE',
+  pending_attachment_count: 0,
+  failed_attachment_count: 0,
+  ready_attachment_count: 0,
+  attachment_bytes_total: 0n,
+  attachment_bytes_ready: 0n,
+  deleted_at: null,
+  deleted_by_id: null,
+  purged_at: null,
+  purged_by_id: null,
+  created_at: testDate,
+  updated_at: testDate,
+  ...overrides,
+});
 
 jest.mock('../common/files/image-validation', () => ({
   validateImageFile: jest.fn(() => ({
@@ -172,14 +245,83 @@ describe('ServicesService', () => {
     });
 
     it('WORKER: lanza BadRequestException si el asset no pertenece a su org', async () => {
-      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue(null);
+      const assetFindFirstMock = jest
+        .spyOn(prisma.asset, 'findFirst')
+        .mockResolvedValue(null);
 
       await expect(
         service.create(
           { asset_id: 'asset-otro', title: 'X' },
           { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(assetFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: 'asset-otro',
+          organization_id: 'org-1',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+    });
+
+    it('ADMIN: rechaza crear servicio con asset de otro tenant usando error genérico', async () => {
+      const assetFindFirstMock = jest
+        .spyOn(prisma.asset, 'findFirst')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.create(
+          { asset_id: 'asset-tenant-b', title: 'Servicio inválido' },
+          { id: 'admin-1', orgId: 'org-a', role: 'ADMIN' },
+        ),
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(assetFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: 'asset-tenant-b',
+          organization_id: 'org-a',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+    });
+
+    it('SUPER_ADMIN: deriva organization_id desde el asset para evitar referencias cruzadas accidentales', async () => {
+      jest.spyOn(prisma.asset, 'findFirst').mockResolvedValue(
+        buildAsset({
+          id: 'asset-org-b',
+          organization_id: 'org-b',
+        }),
+      );
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue(
+        buildOrganization({
+          id: 'org-b',
+          auto_publish_services: true,
+        }),
+      );
+      const serviceCreateMock = jest
+        .spyOn(prisma.service, 'create')
+        .mockResolvedValue(
+          buildService({
+            asset_id: 'asset-org-b',
+            title: 'Servicio super admin',
+            is_public: true,
+            organization_id: 'org-b',
+          }),
+        );
+
+      await service.create(
+        { asset_id: 'asset-org-b', title: 'Servicio super admin' },
+        { id: 'super-1', orgId: 'org-a', role: 'SUPER_ADMIN' },
+      );
+
+      const createArgs = serviceCreateMock.mock.calls[0]?.[0];
+      expect(createArgs?.data).toMatchObject({
+        asset_id: 'asset-org-b',
+        organization_id: 'org-b',
+      });
     });
 
     it('procesa adjuntos de servicio a WebP antes de subir y registra metadata final', async () => {

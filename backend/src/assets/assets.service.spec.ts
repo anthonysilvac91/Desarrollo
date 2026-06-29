@@ -5,6 +5,44 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
+import type { Asset, Owner } from '@prisma/client';
+
+const testDate = new Date('2026-06-29T00:00:00.000Z');
+
+const buildAsset = (overrides: Partial<Asset> = {}): Asset => ({
+  id: 'asset-1',
+  organization_id: 'org-1',
+  name: 'Activo',
+  description: null,
+  category: null,
+  location: null,
+  thumbnail_file_id: null,
+  serial_number: null,
+  owner_id: 'owner-1',
+  is_active: true,
+  deleted_at: null,
+  deleted_by_id: null,
+  purged_at: null,
+  purged_by_id: null,
+  created_at: testDate,
+  updated_at: testDate,
+  ...overrides,
+});
+
+const buildOwner = (overrides: Partial<Owner> = {}): Owner => ({
+  id: 'owner-1',
+  organization_id: 'org-1',
+  name: 'Owner',
+  logo_file_id: null,
+  is_active: true,
+  deleted_at: null,
+  deleted_by_id: null,
+  purged_at: null,
+  purged_by_id: null,
+  created_at: testDate,
+  updated_at: testDate,
+  ...overrides,
+});
 
 describe('AssetsService', () => {
   let service: AssetsService;
@@ -17,6 +55,7 @@ describe('AssetsService', () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
+        update: jest.fn(),
       },
       owner: {
         findFirst: jest.fn(),
@@ -120,11 +159,22 @@ describe('AssetsService', () => {
     });
 
     it('owner_id de otra organización se rechaza al crear activo', async () => {
-      jest.spyOn(prisma.owner, 'findFirst').mockResolvedValue(null);
+      const ownerFindFirstMock = jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue(null);
 
       await expect(
         service.create({ name: 'Barco', owner_id: 'owner-otra-org' }, 'org-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(ownerFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: 'owner-otra-org',
+          organization_id: 'org-1',
+          is_active: true,
+        },
+        select: { id: true },
+      });
     });
 
     it('SUPER_ADMIN: usa dtoOrgId cuando su orgId es null/undefined', async () => {
@@ -351,6 +401,61 @@ describe('AssetsService', () => {
           },
         }),
       );
+    });
+  });
+
+  describe('update()', () => {
+    it('rechaza reasignar un activo a owner de otra organización sin filtrar tenant', async () => {
+      jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(buildAsset());
+      const assetUpdateMock = jest.spyOn(prisma.asset, 'update');
+      const ownerFindFirstMock = jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.update(
+          'asset-1',
+          { owner_id: 'owner-otra-org' },
+          'org-1',
+          'ADMIN',
+        ),
+      ).rejects.toThrow('Recurso relacionado no encontrado');
+
+      expect(ownerFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          id: 'owner-otra-org',
+          organization_id: 'org-1',
+          is_active: true,
+        },
+        select: { id: true },
+      });
+      expect(assetUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('permite reasignar un activo a owner de la misma organización', async () => {
+      const currentAsset = buildAsset();
+      const updatedAsset = buildAsset({
+        owner_id: 'owner-2',
+      });
+      const assetUpdateMock = jest
+        .spyOn(prisma.asset, 'update')
+        .mockResolvedValue(updatedAsset);
+      jest.spyOn(prisma.asset, 'findUnique').mockResolvedValue(currentAsset);
+      jest
+        .spyOn(prisma.owner, 'findFirst')
+        .mockResolvedValue(buildOwner({ id: 'owner-2' }));
+
+      await expect(
+        service.update('asset-1', { owner_id: 'owner-2' }, 'org-1', 'ADMIN'),
+      ).resolves.toHaveProperty('owner_id', 'owner-2');
+
+      const updateArgs = assetUpdateMock.mock.calls[0]?.[0];
+      expect(updateArgs).toMatchObject({
+        where: { id: 'asset-1' },
+      });
+      expect(updateArgs?.data).toMatchObject({
+        owner_id: 'owner-2',
+      });
     });
   });
 });
