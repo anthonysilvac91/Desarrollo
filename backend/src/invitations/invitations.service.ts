@@ -10,6 +10,7 @@ import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { CreateInvitationDto } from './dto/invitations.dto';
 import { Role } from '@prisma/client';
+import { sha256hex } from '../common/crypto.util';
 
 @Injectable()
 export class InvitationsService {
@@ -102,7 +103,8 @@ export class InvitationsService {
       );
     }
 
-    const token = randomBytes(32).toString('hex');
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = sha256hex(rawToken);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const invitation = await this.prisma.invitation.create({
@@ -110,7 +112,7 @@ export class InvitationsService {
         organization_id: organizationId,
         email: dto.email,
         role: dto.role,
-        token,
+        token: tokenHash,
         invited_by_id: actor.id,
         owner_id: dto.owner_id ?? null,
         expires_at: expiresAt,
@@ -121,7 +123,7 @@ export class InvitationsService {
       where: { id: actor.id },
       select: { name: true },
     });
-    const inviteUrl = `${frontendUrl}/register?token=${token}`;
+    const inviteUrl = `${frontendUrl}/register?token=${rawToken}`;
 
     await this.emailService.sendInvitation(
       dto.email,
@@ -138,7 +140,7 @@ export class InvitationsService {
 
   async validate(token: string) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { token },
+      where: { token: sha256hex(token) },
       include: { organization: { select: { name: true, brand_color: true } } },
     });
 

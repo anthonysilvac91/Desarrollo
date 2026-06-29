@@ -308,33 +308,24 @@ export class AssetsService {
       { updated_at: 'desc' as const },
     ];
 
-    if (query.page && query.limit) {
-      const page = Number(query.page);
-      const limit = Math.min(Number(query.limit), 100);
-      const [data, total] = await Promise.all([
-        this.prisma.asset.findMany({
-          where: baseWhere,
-          include,
-          orderBy,
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-        this.prisma.asset.count({ where: baseWhere }),
-      ]);
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(Number(query.limit) || 50, 100);
+    const [data, total] = await Promise.all([
+      this.prisma.asset.findMany({
+        where: baseWhere,
+        include,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.asset.count({ where: baseWhere }),
+    ]);
 
-      const mappedData = await this.resolveAssetListFileUrls(data);
-      return {
-        data: mappedData,
-        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-      };
-    }
-
-    const assets = await this.prisma.asset.findMany({
-      where: baseWhere,
-      include,
-      orderBy,
-    });
-    return this.resolveAssetListFileUrls(assets);
+    const mappedData = await this.resolveAssetListFileUrls(data);
+    return {
+      data: mappedData,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   private async resolveAssetListFileUrls(assets: any[]): Promise<any[]> {

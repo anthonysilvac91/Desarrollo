@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { aesGcmDecrypt, aesGcmEncrypt, isAesGcmEncrypted, sha256hex } from '../common/crypto.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
@@ -328,11 +329,29 @@ export class AuthService {
     );
   }
 
-  private signTwoFactorSetupToken(userId: string, secret: string) {
+  private signTwoFactorSetupToken(userId: string) {
     return this.jwtService.sign(
-      { sub: userId, purpose: '2fa_setup', secret },
+      { sub: userId, purpose: '2fa_setup' },
       { expiresIn: '10m' },
     );
+  }
+
+  private getTotpEncryptionKey(): string {
+    const key =
+      this.config.get<string>('INTEGRATION_SECRET_KEY') ||
+      this.config.get<string>('JWT_SECRET');
+    if (!key) {
+      throw new Error('INTEGRATION_SECRET_KEY or JWT_SECRET required for TOTP encryption');
+    }
+    return key;
+  }
+
+  private encryptTotpSecret(secret: string): string {
+    return aesGcmEncrypt(secret, this.getTotpEncryptionKey());
+  }
+
+  private decryptTotpSecret(encrypted: string): string {
+    return aesGcmDecrypt(encrypted, this.getTotpEncryptionKey());
   }
 
   private normalizeSlugBase(name: string): string {
@@ -479,7 +498,14 @@ export class AuthService {
       ? (user.two_factor_backup_codes as string[])
       : [];
     const backupResult = await this.verifyBackupCode(code, backupCodes);
-    const validTotp = verifyTotpCode(user.two_factor_secret, code);
+
+    let validTotp = false;
+    if (user.two_factor_secret) {
+      const totpSecret = isAesGcmEncrypted(user.two_factor_secret)
+        ? this.decryptTotpSecret(user.two_factor_secret)
+        : user.two_factor_secret;
+      validTotp = verifyTotpCode(totpSecret, code);
+    }
 
     if (!validTotp && !backupResult.valid) {
       throw new UnauthorizedException('Codigo 2FA invalido');
@@ -501,7 +527,7 @@ export class AuthService {
 
   async register(registerDto: RegisterDto, context?: AuthRequestContext) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { token: registerDto.token },
+      where: { token: sha256hex(registerDto.token) },
       include: {
         organization: { select: { id: true, name: true, is_active: true } },
       },
@@ -812,17 +838,17 @@ export class AuthService {
       data: { used_at: new Date() },
     });
 
-    const token = randomBytes(32).toString('hex');
+    const rawToken = randomBytes(32).toString('hex');
     await this.prisma.emailToken.create({
       data: {
         user_id: user.id,
         type: 'PASSWORD_RESET',
-        token,
+        token: sha256hex(rawToken),
         expires_at: new Date(Date.now() + 15 * 60 * 1000),
       },
     });
 
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
     await this.emailService.sendPasswordReset(user.email, user.name, resetUrl);
     this.logger.log('Password reset email sent');
 
@@ -834,7 +860,7 @@ export class AuthService {
     newPassword: string,
   ): Promise<{ message: string }> {
     const emailToken = await this.prisma.emailToken.findUnique({
-      where: { token },
+      where: { token: sha256hex(token) },
     });
 
     if (
@@ -907,6 +933,22 @@ export class AuthService {
     }
 
     const secret = generateTotpSecret();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.pendingTotpSetup.upsert({
+      where: { user_id: userId },
+      create: {
+        user_id: userId,
+        encrypted_secret: this.encryptTotpSecret(secret),
+        expires_at: expiresAt,
+      },
+      update: {
+        encrypted_secret: this.encryptTotpSecret(secret),
+        expires_at: expiresAt,
+        consumed_at: null,
+      },
+    });
+
     return {
       secret,
       otpauth_url: buildOtpAuthUrl({
@@ -914,7 +956,7 @@ export class AuthService {
         accountName: user.email,
         secret,
       }),
-      setup_token: this.signTwoFactorSetupToken(user.id, secret),
+      setup_token: this.signTwoFactorSetupToken(user.id),
     };
   }
 
@@ -926,15 +968,25 @@ export class AuthService {
       throw new BadRequestException('Setup 2FA invalido o expirado');
     }
 
-    if (
-      payload?.purpose !== '2fa_setup' ||
-      payload.sub !== userId ||
-      !payload.secret
-    ) {
+    if (payload?.purpose !== '2fa_setup' || payload.sub !== userId) {
       throw new BadRequestException('Setup 2FA invalido');
     }
 
-    if (!verifyTotpCode(payload.secret, code)) {
+    const pending = await this.prisma.pendingTotpSetup.findUnique({
+      where: { user_id: userId },
+    });
+
+    if (
+      !pending ||
+      pending.consumed_at !== null ||
+      pending.expires_at < new Date()
+    ) {
+      throw new BadRequestException('Setup 2FA invalido o expirado');
+    }
+
+    const secret = this.decryptTotpSecret(pending.encrypted_secret);
+
+    if (!verifyTotpCode(secret, code)) {
       throw new BadRequestException('Codigo 2FA invalido');
     }
 
@@ -943,14 +995,20 @@ export class AuthService {
       backupCodes.map((backupCode) => bcrypt.hash(backupCode, 10)),
     );
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        two_factor_enabled: true,
-        two_factor_secret: payload.secret,
-        two_factor_backup_codes: backupHashes,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          two_factor_enabled: true,
+          two_factor_secret: this.encryptTotpSecret(secret),
+          two_factor_backup_codes: backupHashes,
+        },
+      }),
+      this.prisma.pendingTotpSetup.update({
+        where: { user_id: userId },
+        data: { consumed_at: new Date() },
+      }),
+    ]);
 
     return {
       enabled: true,
@@ -981,9 +1039,14 @@ export class AuthService {
         ? (user.two_factor_backup_codes as string[])
         : [];
       const backupResult = await this.verifyBackupCode(code, backupCodes);
-      const validTotp =
-        !!user.two_factor_secret &&
-        verifyTotpCode(user.two_factor_secret, code);
+
+      let validTotp = false;
+      if (user.two_factor_secret) {
+        const totpSecret = isAesGcmEncrypted(user.two_factor_secret)
+          ? this.decryptTotpSecret(user.two_factor_secret)
+          : user.two_factor_secret;
+        validTotp = verifyTotpCode(totpSecret, code);
+      }
 
       if (!validTotp && !backupResult.valid) {
         throw new BadRequestException('Codigo 2FA invalido');
@@ -1020,7 +1083,7 @@ export class AuthService {
         id: randomBytes(16).toString('hex'),
         user_id: userId,
         type: 'TWO_FACTOR_CODE',
-        token: code,
+        token: sha256hex(code),
         expires_at: expiresAt,
       },
     });
@@ -1048,7 +1111,7 @@ export class AuthService {
       orderBy: { created_at: 'desc' },
     });
 
-    if (!emailToken || emailToken.token !== code.trim()) {
+    if (!emailToken || emailToken.token !== sha256hex(code.trim())) {
       throw new BadRequestException('Codigo invalido o expirado');
     }
 
@@ -1107,7 +1170,7 @@ export class AuthService {
       },
       orderBy: { created_at: 'desc' },
     });
-    const validEmailCode = emailToken && emailToken.token === normalizedCode;
+    const validEmailCode = emailToken && emailToken.token === sha256hex(normalizedCode);
 
     if (!backupResult.valid && !validEmailCode) {
       throw new BadRequestException('Codigo invalido o expirado');
@@ -1176,7 +1239,7 @@ export class AuthService {
         id: randomBytes(16).toString('hex'),
         user_id: user.id,
         type: 'TWO_FACTOR_CODE',
-        token: code,
+        token: sha256hex(code),
         expires_at: expiresAt,
       },
     });
@@ -1254,7 +1317,7 @@ export class AuthService {
       orderBy: { created_at: 'desc' },
     });
 
-    if (!emailToken || emailToken.token !== normalizedCode) {
+    if (!emailToken || emailToken.token !== sha256hex(normalizedCode)) {
       throw new UnauthorizedException('Codigo 2FA invalido o expirado');
     }
 

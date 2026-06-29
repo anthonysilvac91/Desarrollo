@@ -208,6 +208,7 @@ model User {
   file_uploads_created  FileUpload[]         @relation("FileUploadCreatedBy")
   email_tokens          EmailToken[]
   sessions              UserSession[]
+  pending_totp_setup    PendingTotpSetup?
   users_deleted         User[]              @relation("UserDeletedBy")
   assets_deleted        Asset[]             @relation("AssetDeletedBy")
   services_deleted      Service[]           @relation("ServiceDeletedBy")
@@ -627,5 +628,19 @@ model EmailToken {
 
   @@index([user_id])
   @@index([token])
+  @@index([expires_at])
+}
+
+model PendingTotpSetup {
+  id               String    @id @default(uuid())
+  user_id          String    @unique
+  encrypted_secret String
+  expires_at       DateTime
+  created_at       DateTime  @default(now())
+  consumed_at      DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
   @@index([expires_at])
 }
