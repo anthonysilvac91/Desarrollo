@@ -50,6 +50,24 @@ export class DashboardService {
       return this.emptyStats();
     }
 
+    let workerAccessFilter: any = {};
+    if (isWorker && baseWhere.organization_id) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: baseWhere.organization_id },
+        select: { worker_restricted_access: true },
+      });
+      if (org?.worker_restricted_access) {
+        workerAccessFilter = {
+          worker_access: {
+            some: {
+              worker_id: currentUser.id,
+              organization_id: baseWhere.organization_id,
+            },
+          },
+        };
+      }
+    }
+
     const statsWhere: any = { ...baseWhere };
     if (isWorker) {
       statsWhere.worker_id = currentUser.id;
@@ -97,7 +115,9 @@ export class DashboardService {
         ? this.prisma.asset.count({
             where: { ...baseWhere, owner_id: currentOwnerId, is_active: true },
           })
-        : this.prisma.asset.count({ where: { ...baseWhere, is_active: true } }),
+        : this.prisma.asset.count({
+            where: { ...baseWhere, is_active: true, ...workerAccessFilter },
+          }),
 
       // Services Count (total)
       this.prisma.service.count({ where: statsWhere }),

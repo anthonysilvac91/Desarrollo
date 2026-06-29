@@ -457,8 +457,11 @@ describe('ServicesService', () => {
       );
     });
 
-    it('WORKER: no aplica filtro WorkerAssetAccess (MVP)', async () => {
+    it('WORKER org no restringida: no aplica filtro WorkerAssetAccess', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+        worker_restricted_access: false,
+      } as any);
 
       await service.findAll(
         {},
@@ -468,6 +471,28 @@ describe('ServicesService', () => {
       const [callArg] = (prisma.service.findMany as jest.Mock).mock
         .calls[0] as [{ where: Record<string, unknown> }];
       expect(JSON.stringify(callArg.where)).not.toContain('worker_access');
+    });
+
+    it('WORKER org restringida: filtra por WorkerAssetAccess en asset', async () => {
+      jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+        worker_restricted_access: true,
+      } as any);
+
+      await service.findAll(
+        {},
+        { id: 'worker-1', orgId: 'org-1', role: 'WORKER' },
+      );
+
+      const [callArg] = (prisma.service.findMany as jest.Mock).mock
+        .calls[0] as [{ where: Record<string, unknown> }];
+      expect(callArg.where).toMatchObject({
+        asset: {
+          worker_access: {
+            some: { worker_id: 'worker-1', organization_id: 'org-1' },
+          },
+        },
+      });
     });
 
     it('WORKER: lista solo servicios creados por el usuario actual', async () => {

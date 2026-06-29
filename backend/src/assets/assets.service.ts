@@ -248,7 +248,13 @@ export class AssetsService {
     return resolvedAsset;
   }
 
-  async findAll(query: any, orgId: string, role: string, ownerId?: string) {
+  async findAll(
+    query: any,
+    orgId: string,
+    role: string,
+    ownerId?: string,
+    userId?: string,
+  ) {
     const include = {
       organization: { select: { name: true } },
       owner: {
@@ -270,6 +276,18 @@ export class AssetsService {
 
     if (role === 'WORKER' || isExternalRole(role)) {
       baseWhere.is_active = true;
+    }
+
+    if (role === 'WORKER' && userId && orgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { worker_restricted_access: true },
+      });
+      if (org?.worker_restricted_access) {
+        baseWhere.worker_access = {
+          some: { worker_id: userId, organization_id: orgId },
+        };
+      }
     }
 
     if (isExternalRole(role)) {
@@ -354,7 +372,12 @@ export class AssetsService {
     });
   }
 
-  async getStats(orgId: string, role: string, ownerId?: string) {
+  async getStats(
+    orgId: string,
+    role: string,
+    ownerId?: string,
+    userId?: string,
+  ) {
     const baseWhere: any = { deleted_at: null, purged_at: null };
 
     if (role !== 'SUPER_ADMIN') {
@@ -362,6 +385,17 @@ export class AssetsService {
     }
     if (role === 'WORKER') {
       baseWhere.is_active = true;
+      if (userId && orgId) {
+        const org = await this.prisma.organization.findUnique({
+          where: { id: orgId },
+          select: { worker_restricted_access: true },
+        });
+        if (org?.worker_restricted_access) {
+          baseWhere.worker_access = {
+            some: { worker_id: userId, organization_id: orgId },
+          };
+        }
+      }
     }
     if (isExternalRole(role)) {
       if (!ownerId) {
@@ -392,7 +426,12 @@ export class AssetsService {
     };
   }
 
-  async getFilterOptions(orgId: string, role: string, ownerId?: string) {
+  async getFilterOptions(
+    orgId: string,
+    role: string,
+    ownerId?: string,
+    userId?: string,
+  ) {
     const assetWhere: any = { deleted_at: null, purged_at: null };
 
     if (role !== 'SUPER_ADMIN') {
@@ -401,6 +440,18 @@ export class AssetsService {
 
     if (role === 'WORKER' || isExternalRole(role)) {
       assetWhere.is_active = true;
+    }
+
+    if (role === 'WORKER' && userId && orgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { worker_restricted_access: true },
+      });
+      if (org?.worker_restricted_access) {
+        assetWhere.worker_access = {
+          some: { worker_id: userId, organization_id: orgId },
+        };
+      }
     }
 
     if (isExternalRole(role)) {

@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
+import { JwtUser } from '../auth/jwt.strategy';
 import { PlanLimitGuard, CheckPlanLimit } from '../subscriptions/check-plan-limit.guard';
 import { AssetQueryDto } from './dto/asset-query.dto';
 import { AssetsService } from './assets.service';
@@ -64,32 +65,35 @@ export class AssetsController {
     description:
       'El backend filtra: Admin/Worker ven todo, EXTERNAL ve los activos vinculados a su owner.',
   })
-  findAll(@Query() query: AssetQueryDto, @Request() req) {
+  findAll(@Query() query: AssetQueryDto, @Request() req: { user: JwtUser }) {
     return this.assetsService.findAll(
       query,
-      req.user.orgId,
+      req.user.orgId ?? '',
       req.user.role,
       req.user.owner_id ?? undefined,
+      req.user.id,
     );
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Estadísticas generales de activos' })
-  getStats(@Request() req) {
+  getStats(@Request() req: { user: JwtUser }) {
     return this.assetsService.getStats(
-      req.user.orgId,
+      req.user.orgId ?? '',
       req.user.role,
       req.user.owner_id ?? undefined,
+      req.user.id,
     );
   }
 
   @Get('filter-options')
   @ApiOperation({ summary: 'Opciones livianas para filtros de activos' })
-  getFilterOptions(@Request() req) {
+  getFilterOptions(@Request() req: { user: JwtUser }) {
     return this.assetsService.getFilterOptions(
-      req.user.orgId,
+      req.user.orgId ?? '',
       req.user.role,
       req.user.owner_id ?? undefined,
+      req.user.id,
     );
   }
 

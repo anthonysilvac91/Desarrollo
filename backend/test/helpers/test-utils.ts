@@ -93,16 +93,30 @@ export class TestUtils {
   }
 
   /**
-   * Obtiene un Object literal válido como Token JWT para un usuario
+   * Crea una sesión real de prueba y firma el JWT con sid+jti para satisfacer
+   * el check de sesión en JwtStrategy.validate().
    */
-  getBearerToken(user: any) {
+  async getBearerToken(user: any): Promise<string> {
     if (!this.jwtService)
       throw new Error('Se requiere inyectar JwtService en TestUtils');
+    const jti = crypto.randomBytes(16).toString('hex');
+    const sid = crypto.randomBytes(16).toString('hex');
+    await this.prisma.userSession.create({
+      data: {
+        id: sid,
+        user_id: user.id,
+        organization_id: user.organization_id ?? null,
+        token_jti: jti,
+        expires_at: new Date(Date.now() + 3_600_000),
+      },
+    });
     const payload = {
       sub: user.id,
       orgId: user.organization_id,
       role: user.role,
       owner_id: user.owner_id,
+      sid,
+      jti,
     };
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET || 'FENTRI_TEST_STRICT_SAFE_SECRET',

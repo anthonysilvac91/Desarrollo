@@ -10,6 +10,7 @@ describe('DashboardService tenant scoping', () => {
 
   beforeEach(async () => {
     const prismaMock = {
+      organization: { findUnique: jest.fn() },
       asset: { count: jest.fn() },
       service: {
         count: jest.fn(),
@@ -90,7 +91,10 @@ describe('DashboardService tenant scoping', () => {
     });
   });
 
-  it('WORKER ve todos los assets de su org sin filtro WorkerAssetAccess (MVP)', async () => {
+  it('WORKER org no restringida: asset count sin filtro WorkerAssetAccess', async () => {
+    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+      worker_restricted_access: false,
+    } as any);
     jest.spyOn(prisma.asset, 'count').mockResolvedValue(5);
     jest.spyOn(prisma.service, 'count').mockResolvedValue(3);
     jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
@@ -102,11 +106,31 @@ describe('DashboardService tenant scoping', () => {
       orgId: 'org-1',
     });
 
-    expect(prisma.asset.count).toHaveBeenCalledWith({
-      where: { organization_id: 'org-1', is_active: true, deleted_at: null },
-    });
     const assetCountCall = (prisma.asset.count as jest.Mock).mock.calls[0][0];
     expect(JSON.stringify(assetCountCall.where)).not.toContain('worker_access');
+  });
+
+  it('WORKER org restringida: asset count incluye filtro WorkerAssetAccess', async () => {
+    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
+      worker_restricted_access: true,
+    } as any);
+    jest.spyOn(prisma.asset, 'count').mockResolvedValue(2);
+    jest.spyOn(prisma.service, 'count').mockResolvedValue(1);
+    jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
+    jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
+
+    await service.getStats({
+      id: 'worker-1',
+      role: Role.WORKER,
+      orgId: 'org-1',
+    });
+
+    const assetCountCall = (prisma.asset.count as jest.Mock).mock.calls[0][0];
+    expect(assetCountCall.where).toMatchObject({
+      worker_access: {
+        some: { worker_id: 'worker-1', organization_id: 'org-1' },
+      },
+    });
   });
 
   it('la evolucion usa el rango de fecha seleccionado — genera N puntos con valor 0 cuando no hay datos', async () => {

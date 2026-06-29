@@ -43,7 +43,7 @@ describe('Assets Visibility (e2e)', () => {
         'admin@org.com',
         org.id,
       );
-      const token = testUtils.getBearerToken(admin);
+      const token = await testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
         .post('/assets')
@@ -61,7 +61,7 @@ describe('Assets Visibility (e2e)', () => {
         'admin@org.com',
         org.id,
       );
-      const token = testUtils.getBearerToken(admin);
+      const token = await testUtils.getBearerToken(admin);
 
       const res = await request(app.getHttpServer())
         .post('/assets')
@@ -74,7 +74,7 @@ describe('Assets Visibility (e2e)', () => {
   });
 
   describe('GET /assets (Visibilidad Múltiple)', () => {
-    it('WORKER no restringido asimila todos los assets de su tenant.', async () => {
+    it('WORKER no restringido ve todos los assets de su tenant.', async () => {
       const org = await testUtils.createTestOrganization('Libre', false);
       const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(
@@ -90,13 +90,13 @@ describe('Assets Visibility (e2e)', () => {
         ],
       });
 
-      const token = testUtils.getBearerToken(worker);
+      const token = await testUtils.getBearerToken(worker);
       const res = await request(app.getHttpServer())
         .get('/assets')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.length).toBe(2);
+      expect(res.body.data.length).toBe(2);
     });
 
     it('WORKER restringido solo ve los assets asignados.', async () => {
@@ -115,7 +115,7 @@ describe('Assets Visibility (e2e)', () => {
           name: 'Bote Asignado',
         },
       });
-      const assetAislado = await prisma.asset.create({
+      await prisma.asset.create({
         data: {
           organization_id: org.id,
           owner_id: owner.id,
@@ -124,17 +124,66 @@ describe('Assets Visibility (e2e)', () => {
       });
 
       await prisma.workerAssetAccess.create({
-        data: { worker_id: worker.id, asset_id: assetVinculado.id },
+        data: {
+          worker_id: worker.id,
+          asset_id: assetVinculado.id,
+          organization_id: org.id,
+        },
       });
 
-      const token = testUtils.getBearerToken(worker);
+      const token = await testUtils.getBearerToken(worker);
       const res = await request(app.getHttpServer())
         .get('/assets')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.length).toBe(1);
-      expect(res.body[0].id).toBe(assetVinculado.id);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].id).toBe(assetVinculado.id);
+    });
+
+    it('WORKER restringido no ve assets de su org sin grant.', async () => {
+      const org = await testUtils.createTestOrganization('Estricta', true);
+      const owner = await testUtils.createTestOwner('Empresa A', org.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@estricta.com',
+        org.id,
+      );
+
+      await prisma.asset.create({
+        data: { organization_id: org.id, owner_id: owner.id, name: 'Sin Grant' },
+      });
+
+      const token = await testUtils.getBearerToken(worker);
+      const res = await request(app.getHttpServer())
+        .get('/assets')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBe(0);
+    });
+
+    it('WORKER nunca ve assets de otra organización.', async () => {
+      const orgA = await testUtils.createTestOrganization('OrgA', false);
+      const orgB = await testUtils.createTestOrganization('OrgB', false);
+      const ownerB = await testUtils.createTestOwner('Empresa B', orgB.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@orga.com',
+        orgA.id,
+      );
+
+      await prisma.asset.create({
+        data: { organization_id: orgB.id, owner_id: ownerB.id, name: 'Asset OrgB' },
+      });
+
+      const token = await testUtils.getBearerToken(worker);
+      const res = await request(app.getHttpServer())
+        .get('/assets')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBe(0);
     });
 
     it('EXTERNAL solo ve los assets vinculados a su owner.', async () => {
@@ -163,14 +212,77 @@ describe('Assets Visibility (e2e)', () => {
         },
       });
 
-      const token = testUtils.getBearerToken(external);
+      const token = await testUtils.getBearerToken(external);
       const res = await request(app.getHttpServer())
         .get('/assets')
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.length).toBe(1);
-      expect(res.body[0].id).toBe(assetVinculado.id);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].id).toBe(assetVinculado.id);
+    });
+  });
+
+  describe('WorkerAssetAccess — Integridad cross-tenant en PostgreSQL', () => {
+    it('permite grant con worker, asset y organization_id de la misma org.', async () => {
+      const org = await testUtils.createTestOrganization('OrgGrant');
+      const owner = await testUtils.createTestOwner('Owner', org.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@grant.com',
+        org.id,
+      );
+      const asset = await prisma.asset.create({
+        data: { organization_id: org.id, owner_id: owner.id, name: 'Asset Grant' },
+      });
+
+      await expect(
+        prisma.workerAssetAccess.create({
+          data: { worker_id: worker.id, asset_id: asset.id, organization_id: org.id },
+        }),
+      ).resolves.toMatchObject({ worker_id: worker.id, asset_id: asset.id });
+    });
+
+    it('rechaza grant con organization_id de la org del worker pero asset de otra org.', async () => {
+      const orgA = await testUtils.createTestOrganization('OrgFKA');
+      const orgB = await testUtils.createTestOrganization('OrgFKB');
+      const ownerB = await testUtils.createTestOwner('OwnerB', orgB.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@fka.com',
+        orgA.id,
+      );
+      const assetB = await prisma.asset.create({
+        data: { organization_id: orgB.id, owner_id: ownerB.id, name: 'Asset B' },
+      });
+
+      // organization_id = orgA, pero asset pertenece a orgB → FK asset_org_fkey debe rechazarlo
+      await expect(
+        prisma.workerAssetAccess.create({
+          data: { worker_id: worker.id, asset_id: assetB.id, organization_id: orgA.id },
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('rechaza grant con organization_id de la org del asset pero worker de otra org.', async () => {
+      const orgA = await testUtils.createTestOrganization('OrgFKC');
+      const orgB = await testUtils.createTestOrganization('OrgFKD');
+      const ownerB = await testUtils.createTestOwner('OwnerBD', orgB.id);
+      const worker = await testUtils.createTestUser(
+        Role.WORKER,
+        'worker@fkc.com',
+        orgA.id,
+      );
+      const assetB = await prisma.asset.create({
+        data: { organization_id: orgB.id, owner_id: ownerB.id, name: 'Asset BD' },
+      });
+
+      // organization_id = orgB, pero worker pertenece a orgA → FK worker_org_fkey debe rechazarlo
+      await expect(
+        prisma.workerAssetAccess.create({
+          data: { worker_id: worker.id, asset_id: assetB.id, organization_id: orgB.id },
+        }),
+      ).rejects.toThrow();
     });
   });
 
@@ -191,7 +303,7 @@ describe('Assets Visibility (e2e)', () => {
         },
       });
 
-      const token = testUtils.getBearerToken(admin);
+      const token = await testUtils.getBearerToken(admin);
       const res = await request(app.getHttpServer())
         .get(`/assets/${asset.id}`)
         .set('Authorization', `Bearer ${token}`);
@@ -219,7 +331,7 @@ describe('Assets Visibility (e2e)', () => {
         },
       });
 
-      const token = testUtils.getBearerToken(admin1);
+      const token = await testUtils.getBearerToken(admin1);
       const res = await request(app.getHttpServer())
         .get(`/assets/${asset2.id}`)
         .set('Authorization', `Bearer ${token}`);
