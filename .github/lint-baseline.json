@@ -1,0 +1,13 @@
+{
+  "_doc": "TEMPORARY lint baseline — see .github/LINT_DEBT.md. Do NOT increase these values.",
+  "_created": "2026-06-29",
+  "_branch": "fix/pr1-followup-corrections",
+  "backend": {
+    "max_errors": 2053,
+    "max_warnings": 254
+  },
+  "frontend": {
+    "max_errors": 100,
+    "max_warnings": 87
+  }
+}

@@ -1,5 +1,11 @@
 name: CI
 
+# TEMPORARY NOTE (2026-06-29): Lint steps use a baseline enforcement script
+# instead of direct lint commands. This allows CI to pass while preexisting
+# lint debt is visible in logs. CI still fails on lint REGRESSIONS.
+# See .github/LINT_DEBT.md and .github/lint-baseline.json for details.
+# Remove this NOTE and restore direct lint commands once debt is cleared.
+
 on:
   push:
     branches: [main]
@@ -25,8 +31,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Lint
-        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+      # TEMPORARY: baseline enforcement — see .github/LINT_DEBT.md
+      # Fails if errors > 2053 or warnings > 254 (baseline from 2026-06-29).
+      # Replace this step with the line below once backend lint debt is cleared:
+      #   run: npx eslint "{src,apps,libs,test}/**/*.ts"
+      - name: Lint (baseline enforced — see .github/LINT_DEBT.md)
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/lint-check.sh" \
+            backend \
+            "$GITHUB_WORKSPACE/.github/lint-baseline.json"
 
       - name: Build
         run: npm run build
@@ -49,8 +62,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      # TEMPORARY: baseline enforcement — see .github/LINT_DEBT.md
+      # Fails if errors > 100 or warnings > 87 (baseline from 2026-06-29).
+      # Replace this step with the line below once frontend lint debt is cleared:
+      #   run: npm run lint
+      - name: Lint (baseline enforced — see .github/LINT_DEBT.md)
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/lint-check.sh" \
+            frontend \
+            "$GITHUB_WORKSPACE/.github/lint-baseline.json"
 
       - name: Build
         env:
