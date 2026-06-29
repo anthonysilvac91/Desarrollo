@@ -5,6 +5,7 @@ import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
 import { useRouter, usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { isSafeInternalPath } from "@/lib/safe-path";
 
 import Cookies from "js-cookie";
 
@@ -130,6 +131,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (user) {
         if (isPublicPath) {
+          const pendingRedirect = sessionStorage.getItem("pendingRedirect");
+          if (pendingRedirect && isSafeInternalPath(pendingRedirect)) {
+            sessionStorage.removeItem("pendingRedirect");
+            router.push(pendingRedirect);
+            return;
+          }
           if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") router.push("/dashboard");
           else router.push("/assets");
           return;

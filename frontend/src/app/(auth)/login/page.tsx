@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { authService } from "@/services/auth.service";
+import { isSafeInternalPath } from "@/lib/safe-path";
 import { Loader2, Mail, Lock, Eye, EyeOff, Download, Share, PlusSquare } from "lucide-react";
 import { usePWA } from "@/hooks/usePWA";
 import Link from "next/link";
@@ -59,8 +60,11 @@ export default function LoginPage() {
         }
         return;
       }
+      const redirectTarget = new URLSearchParams(window.location.search).get('redirect');
+      if (redirectTarget && isSafeInternalPath(redirectTarget)) {
+        sessionStorage.setItem('pendingRedirect', redirectTarget);
+      }
       login(response.access_token);
-      // AuthContext handles redirection based on user role and device
     } catch (error: unknown) {
       console.error("Login Error:", error);
       const message =
@@ -90,6 +94,10 @@ export default function LoginPage() {
       const response = twoFactorMethod === 'email'
         ? await authService.loginWithEmailCode(temporaryToken, twoFactorCode)
         : await authService.loginWithTwoFactor(temporaryToken, twoFactorCode);
+      const redirectTarget = new URLSearchParams(window.location.search).get('redirect');
+      if (redirectTarget && isSafeInternalPath(redirectTarget)) {
+        sessionStorage.setItem('pendingRedirect', redirectTarget);
+      }
       login(response.access_token);
     } catch (error: unknown) {
       const message =

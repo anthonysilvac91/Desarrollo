@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isSafeInternalPath } from './lib/safe-path';
+
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/assets',
+  '/service',
+  '/owners',
+  '/users',
+  '/organizations',
+  '/settings',
+  '/trash',
+];
 
 export function proxy(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  const { pathname, search } = request.nextUrl;
   const token = request.cookies.get('access_token')?.value;
 
-  const isProtectedRoute =
-    pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/assets') ||
-    pathname.startsWith('/users') ||
-    pathname.startsWith('/settings') ||
-    pathname.startsWith('/service') ||
-    pathname.startsWith('/organizations');
+  const isProtected = PROTECTED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
-  if (isProtectedRoute && !token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  if (isProtected && !token) {
+    const loginUrl = new URL('/login', request.url);
+    const redirectTarget = `${pathname}${search}`;
+    if (isSafeInternalPath(redirectTarget)) {
+      loginUrl.searchParams.set('redirect', redirectTarget);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
@@ -28,6 +41,7 @@ export const config = {
     '/settings/:path*',
     '/service/:path*',
     '/organizations/:path*',
-    '/login',
+    '/owners/:path*',
+    '/trash/:path*',
   ],
 };
