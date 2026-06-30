@@ -856,6 +856,20 @@ export class ServicesService {
 
     if (user.role === 'WORKER') {
       whereClause.worker_id = user.id;
+      const worker = user as { id: string; orgId: string | null };
+      if (worker.orgId) {
+        const org = await this.prisma.organization.findUnique({
+          where: { id: worker.orgId },
+          select: { worker_restricted_access: true },
+        });
+        if (org?.worker_restricted_access) {
+          (whereClause as Record<string, unknown>)['asset'] = {
+            worker_access: {
+              some: { worker_id: worker.id, organization_id: worker.orgId },
+            },
+          };
+        }
+      }
     }
 
     const dateRange = resolveDateRange(

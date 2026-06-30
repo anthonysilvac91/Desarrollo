@@ -131,6 +131,7 @@ model Organization {
   storage_usage                 OrganizationStorageUsage?
   storage_reconciliation_issues StorageReconciliationIssue[]
   subscription                  Subscription?
+  worker_asset_access           WorkerAssetAccess[]
 
   @@index([is_active])
   @@index([created_at])
@@ -214,6 +215,7 @@ model User {
   services_deleted      Service[]           @relation("ServiceDeletedBy")
   owners_deleted        Owner[]             @relation("OwnerDeletedBy")
 
+  @@unique([id, organization_id])
   @@index([organization_id])
   @@index([organization_id, created_at])
   @@index([organization_id, role])
@@ -579,18 +581,21 @@ model StoredFile {
 }
 
 model WorkerAssetAccess {
-  worker_id     String
-  asset_id      String
-  granted_by_id String?
-  created_at    DateTime @default(now())
+  worker_id       String
+  asset_id        String
+  organization_id String
+  granted_by_id   String?
+  created_at      DateTime @default(now())
 
-  worker     User  @relation("GrantedToWorker", fields: [worker_id], references: [id])
-  asset      Asset @relation(fields: [asset_id], references: [id])
-  granted_by User? @relation("GrantedByAdminW", fields: [granted_by_id], references: [id])
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  worker       User         @relation("GrantedToWorker", fields: [worker_id, organization_id], references: [id, organization_id], onDelete: Restrict, onUpdate: Cascade, map: "WorkerAssetAccess_worker_org_fkey")
+  asset        Asset        @relation(fields: [asset_id, organization_id], references: [id, organization_id], onDelete: Restrict, onUpdate: Cascade, map: "WorkerAssetAccess_asset_org_fkey")
+  granted_by   User?        @relation("GrantedByAdminW", fields: [granted_by_id], references: [id])
 
   @@id([worker_id, asset_id])
   @@index([worker_id])
   @@index([asset_id])
+  @@index([organization_id])
 }
 
 model Invitation {

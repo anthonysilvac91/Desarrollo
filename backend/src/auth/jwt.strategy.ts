@@ -4,6 +4,15 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface JwtUser {
+  id: string;
+  orgId: string | null;
+  role: string;
+  api_role: string;
+  owner_id: string | null;
+  session_id: string;
+}
+
 function extractJwtFromCookie(req: any): string | null {
   const cookieHeader = req?.headers?.cookie;
   if (!cookieHeader || typeof cookieHeader !== 'string') {

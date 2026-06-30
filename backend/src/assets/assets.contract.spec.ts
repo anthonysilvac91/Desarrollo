@@ -77,7 +77,14 @@ describe('AssetsController public route contract', () => {
     } as any;
     const controller = new AssetsController(assetsService);
     const req = {
-      user: { role: 'WORKER', orgId: 'org-1', owner_id: undefined },
+      user: {
+        id: 'worker-1',
+        role: 'WORKER',
+        orgId: 'org-1',
+        api_role: 'WORKER',
+        owner_id: null,
+        session_id: 'session-1',
+      },
     };
 
     expect(controller.getFilterOptions(req)).toEqual({ owners: [] });
@@ -85,6 +92,7 @@ describe('AssetsController public route contract', () => {
       'org-1',
       'WORKER',
       undefined,
+      'worker-1',
     );
   });
 });
