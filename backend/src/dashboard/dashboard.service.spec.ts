@@ -95,7 +95,9 @@ describe('DashboardService tenant scoping', () => {
     jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
       worker_restricted_access: false,
     } as any);
-    jest.spyOn(prisma.asset, 'count').mockResolvedValue(5);
+    const assetCountSpy = jest
+      .spyOn(prisma.asset, 'count')
+      .mockResolvedValue(5);
     jest.spyOn(prisma.service, 'count').mockResolvedValue(3);
     jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
     jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
@@ -106,15 +108,20 @@ describe('DashboardService tenant scoping', () => {
       orgId: 'org-1',
     });
 
-    const assetCountCall = (prisma.asset.count as jest.Mock).mock.calls[0][0];
-    expect(JSON.stringify(assetCountCall.where)).not.toContain('worker_access');
+    expect(assetCountSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ worker_access: expect.anything() }),
+      }),
+    );
   });
 
   it('WORKER org restringida: asset count incluye filtro WorkerAssetAccess', async () => {
     jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
       worker_restricted_access: true,
     } as any);
-    jest.spyOn(prisma.asset, 'count').mockResolvedValue(2);
+    const assetCountSpy = jest
+      .spyOn(prisma.asset, 'count')
+      .mockResolvedValue(2);
     jest.spyOn(prisma.service, 'count').mockResolvedValue(1);
     jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
     jest.spyOn(prisma.service, 'groupBy').mockResolvedValue([]);
@@ -125,12 +132,15 @@ describe('DashboardService tenant scoping', () => {
       orgId: 'org-1',
     });
 
-    const assetCountCall = (prisma.asset.count as jest.Mock).mock.calls[0][0];
-    expect(assetCountCall.where).toMatchObject({
-      worker_access: {
-        some: { worker_id: 'worker-1', organization_id: 'org-1' },
-      },
-    });
+    expect(assetCountSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          worker_access: {
+            some: { worker_id: 'worker-1', organization_id: 'org-1' },
+          },
+        }),
+      }),
+    );
   });
 
   it('la evolucion usa el rango de fecha seleccionado — genera N puntos con valor 0 cuando no hay datos', async () => {

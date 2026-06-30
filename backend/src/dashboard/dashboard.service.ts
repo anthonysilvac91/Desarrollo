@@ -50,21 +50,23 @@ export class DashboardService {
       return this.emptyStats();
     }
 
-    let workerAccessFilter: any = {};
-    if (isWorker && baseWhere.organization_id) {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: baseWhere.organization_id },
-        select: { worker_restricted_access: true },
-      });
-      if (org?.worker_restricted_access) {
-        workerAccessFilter = {
-          worker_access: {
-            some: {
-              worker_id: currentUser.id,
-              organization_id: baseWhere.organization_id,
+    let workerAccessFilter: Record<string, unknown> = {};
+    if (isWorker) {
+      const baseWhereTyped = baseWhere as Record<string, unknown>;
+      const orgId = baseWhereTyped['organization_id'] as string | undefined;
+      const workerId = (currentUser as { id: string }).id;
+      if (orgId) {
+        const org = await this.prisma.organization.findUnique({
+          where: { id: orgId },
+          select: { worker_restricted_access: true },
+        });
+        if (org?.worker_restricted_access) {
+          workerAccessFilter = {
+            worker_access: {
+              some: { worker_id: workerId, organization_id: orgId },
             },
-          },
-        };
+          };
+        }
       }
     }
 

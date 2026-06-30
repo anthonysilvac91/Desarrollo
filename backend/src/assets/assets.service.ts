@@ -284,7 +284,7 @@ export class AssetsService {
         select: { worker_restricted_access: true },
       });
       if (org?.worker_restricted_access) {
-        baseWhere.worker_access = {
+        (baseWhere as Record<string, unknown>)['worker_access'] = {
           some: { worker_id: userId, organization_id: orgId },
         };
       }
@@ -391,7 +391,7 @@ export class AssetsService {
           select: { worker_restricted_access: true },
         });
         if (org?.worker_restricted_access) {
-          baseWhere.worker_access = {
+          (baseWhere as Record<string, unknown>)['worker_access'] = {
             some: { worker_id: userId, organization_id: orgId },
           };
         }
@@ -448,7 +448,7 @@ export class AssetsService {
         select: { worker_restricted_access: true },
       });
       if (org?.worker_restricted_access) {
-        assetWhere.worker_access = {
+        (assetWhere as Record<string, unknown>)['worker_access'] = {
           some: { worker_id: userId, organization_id: orgId },
         };
       }

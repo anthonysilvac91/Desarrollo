@@ -151,7 +151,11 @@ describe('Assets Visibility (e2e)', () => {
       );
 
       await prisma.asset.create({
-        data: { organization_id: org.id, owner_id: owner.id, name: 'Sin Grant' },
+        data: {
+          organization_id: org.id,
+          owner_id: owner.id,
+          name: 'Sin Grant',
+        },
       });
 
       const token = await testUtils.getBearerToken(worker);
@@ -174,7 +178,11 @@ describe('Assets Visibility (e2e)', () => {
       );
 
       await prisma.asset.create({
-        data: { organization_id: orgB.id, owner_id: ownerB.id, name: 'Asset OrgB' },
+        data: {
+          organization_id: orgB.id,
+          owner_id: ownerB.id,
+          name: 'Asset OrgB',
+        },
       });
 
       const token = await testUtils.getBearerToken(worker);
@@ -233,12 +241,20 @@ describe('Assets Visibility (e2e)', () => {
         org.id,
       );
       const asset = await prisma.asset.create({
-        data: { organization_id: org.id, owner_id: owner.id, name: 'Asset Grant' },
+        data: {
+          organization_id: org.id,
+          owner_id: owner.id,
+          name: 'Asset Grant',
+        },
       });
 
       await expect(
         prisma.workerAssetAccess.create({
-          data: { worker_id: worker.id, asset_id: asset.id, organization_id: org.id },
+          data: {
+            worker_id: worker.id,
+            asset_id: asset.id,
+            organization_id: org.id,
+          },
         }),
       ).resolves.toMatchObject({ worker_id: worker.id, asset_id: asset.id });
     });
@@ -253,13 +269,21 @@ describe('Assets Visibility (e2e)', () => {
         orgA.id,
       );
       const assetB = await prisma.asset.create({
-        data: { organization_id: orgB.id, owner_id: ownerB.id, name: 'Asset B' },
+        data: {
+          organization_id: orgB.id,
+          owner_id: ownerB.id,
+          name: 'Asset B',
+        },
       });
 
       // organization_id = orgA, pero asset pertenece a orgB → FK asset_org_fkey debe rechazarlo
       await expect(
         prisma.workerAssetAccess.create({
-          data: { worker_id: worker.id, asset_id: assetB.id, organization_id: orgA.id },
+          data: {
+            worker_id: worker.id,
+            asset_id: assetB.id,
+            organization_id: orgA.id,
+          },
         }),
       ).rejects.toThrow();
     });
@@ -274,13 +298,21 @@ describe('Assets Visibility (e2e)', () => {
         orgA.id,
       );
       const assetB = await prisma.asset.create({
-        data: { organization_id: orgB.id, owner_id: ownerB.id, name: 'Asset BD' },
+        data: {
+          organization_id: orgB.id,
+          owner_id: ownerB.id,
+          name: 'Asset BD',
+        },
       });
 
       // organization_id = orgB, pero worker pertenece a orgA → FK worker_org_fkey debe rechazarlo
       await expect(
         prisma.workerAssetAccess.create({
-          data: { worker_id: worker.id, asset_id: assetB.id, organization_id: orgB.id },
+          data: {
+            worker_id: worker.id,
+            asset_id: assetB.id,
+            organization_id: orgB.id,
+          },
         }),
       ).rejects.toThrow();
     });

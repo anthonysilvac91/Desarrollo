@@ -99,22 +99,28 @@ export class TestUtils {
   async getBearerToken(user: any): Promise<string> {
     if (!this.jwtService)
       throw new Error('Se requiere inyectar JwtService en TestUtils');
+    const u = user as {
+      id: string;
+      organization_id: string | null;
+      role: string;
+      owner_id: string | null;
+    };
     const jti = crypto.randomBytes(16).toString('hex');
     const sid = crypto.randomBytes(16).toString('hex');
     await this.prisma.userSession.create({
       data: {
         id: sid,
-        user_id: user.id,
-        organization_id: user.organization_id ?? null,
+        user_id: u.id,
+        organization_id: u.organization_id ?? null,
         token_jti: jti,
         expires_at: new Date(Date.now() + 3_600_000),
       },
     });
     const payload = {
-      sub: user.id,
-      orgId: user.organization_id,
-      role: user.role,
-      owner_id: user.owner_id,
+      sub: u.id,
+      orgId: u.organization_id,
+      role: u.role,
+      owner_id: u.owner_id,
       sid,
       jti,
     };
