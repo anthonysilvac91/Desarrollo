@@ -1,19 +1,24 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
-import { User } from "@/types/auth";
-import { authService } from "@/services/auth.service";
-import { useRouter, usePathname } from "next/navigation";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
+import { User } from "@/types/auth";
 import { isSafeInternalPath } from "@/lib/safe-path";
-
-import Cookies from "js-cookie";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (token: string) => void;
-  logout: () => void;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   canAccess: (path: string) => boolean;
 }
@@ -40,6 +45,24 @@ const isPublicRoute = (path: string): boolean =>
   path === "/signup" ||
   path.startsWith("/share/");
 
+const getServerMessage = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "data" in error.response &&
+    typeof error.response.data === "object" &&
+    error.response.data !== null &&
+    "message" in error.response.data
+  ) {
+    return String(error.response.data.message);
+  }
+
+  return error instanceof Error ? error.message : "Unknown error";
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,112 +70,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
 
-  const refreshUser = async () => {
+  const clearClientAuthState = useCallback(() => {
+    setUser(null);
+    queryClient.clear();
+  }, [queryClient]);
+
+  const refreshUser = useCallback(async () => {
     try {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        setUser(null);
-        Cookies.remove("access_token");
-        queryClient.clear();
-        setLoading(false);
-        return;
-      }
       const userData = await authService.getMe();
       setUser(userData);
     } catch (error: unknown) {
-      const serverMessage =
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        typeof error.response === "object" &&
-        error.response !== null &&
-        "data" in error.response &&
-        typeof error.response.data === "object" &&
-        error.response.data !== null &&
-        "message" in error.response.data
-          ? error.response.data.message
-          : error instanceof Error
-            ? error.message
-            : "Unknown error";
-      console.warn("Auth initialization error. User logged out. Details:", serverMessage);
-      setUser(null);
-      localStorage.removeItem("access_token");
-      Cookies.remove("access_token");
-      queryClient.clear();
+      console.warn(
+        "Auth initialization error. User logged out. Details:",
+        getServerMessage(error),
+      );
+      clearClientAuthState();
     } finally {
       setLoading(false);
     }
-  };
+  }, [clearClientAuthState]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const timer = window.setTimeout(() => {
+      void refreshUser();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshUser]);
 
-  const login = (token: string) => {
-    queryClient.clear();
-    localStorage.setItem("access_token", token);
-    Cookies.set("access_token", token, { expires: 7, secure: process.env.NODE_ENV === "production", sameSite: "Lax" }); // Sincronizado para middleware
-    refreshUser();
-  };
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearClientAuthState();
+    };
 
-  const logout = () => {
-    authService.logout().catch(() => undefined);
-    localStorage.removeItem("access_token");
-    Cookies.remove("access_token");
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    };
+  }, [clearClientAuthState]);
+
+  const login = useCallback(async () => {
     queryClient.clear();
-    setUser(null);
+    setLoading(true);
+    await refreshUser();
+  }, [queryClient, refreshUser]);
+
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // The server may already consider the session expired; local state still clears.
+    }
+    clearClientAuthState();
     router.push("/login");
-  };
+  }, [clearClientAuthState, router]);
 
-  /**
-   * Mapa de permisos por rol para el MVP
-   */
-  const canAccess = useCallback((path: string): boolean => {
-    if (!user) return false;
-    
-    // Si la ruta no está en el mapa, es pública o no restringida por rol (ej. /login)
-    const protectedPath = Object.keys(ROUTE_PERMISSIONS).find(p => path.startsWith(p));
-    if (!protectedPath) return true;
+  const canAccess = useCallback(
+    (path: string): boolean => {
+      if (!user) return false;
 
-    return ROUTE_PERMISSIONS[protectedPath].includes(user.role);
-  }, [user]);
+      const protectedPath = Object.keys(ROUTE_PERMISSIONS).find((route) =>
+        path.startsWith(route),
+      );
+      if (!protectedPath) return true;
 
-  // Proteger rutas (Auth + Roles)
+      return ROUTE_PERMISSIONS[protectedPath].includes(user.role);
+    },
+    [user],
+  );
+
   useEffect(() => {
-    if (!loading) {
-      const isPublicPath = isPublicRoute(pathname);
+    if (loading) return;
 
-      if (!user && !isPublicPath) {
-        router.push("/login");
+    const isPublicPath = isPublicRoute(pathname);
+
+    if (!user && !isPublicPath) {
+      router.push("/login");
+      return;
+    }
+
+    if (!user) return;
+
+    if (isPublicPath) {
+      const pendingRedirect = sessionStorage.getItem("pendingRedirect");
+      if (pendingRedirect && isSafeInternalPath(pendingRedirect)) {
+        sessionStorage.removeItem("pendingRedirect");
+        router.push(pendingRedirect);
         return;
       }
-
-      if (user) {
-        if (isPublicPath) {
-          const pendingRedirect = sessionStorage.getItem("pendingRedirect");
-          if (pendingRedirect && isSafeInternalPath(pendingRedirect)) {
-            sessionStorage.removeItem("pendingRedirect");
-            router.push(pendingRedirect);
-            return;
-          }
-          if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") router.push("/dashboard");
-          else router.push("/assets");
-          return;
-        }
-
-        if (!canAccess(pathname)) {
-          const fallback =
-            user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "/dashboard" : "/assets";
-          router.replace(fallback);
-        }
+      if (user.role === "SUPER_ADMIN" || user.role === "ADMIN") {
+        router.push("/dashboard");
+      } else {
+        router.push("/assets");
       }
+      return;
+    }
+
+    if (!canAccess(pathname)) {
+      const fallback =
+        user.role === "SUPER_ADMIN" || user.role === "ADMIN"
+          ? "/dashboard"
+          : "/assets";
+      router.replace(fallback);
     }
   }, [user, loading, pathname, router, canAccess]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, canAccess }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, logout, refreshUser, canAccess }}
+    >
       {children}
     </AuthContext.Provider>
   );

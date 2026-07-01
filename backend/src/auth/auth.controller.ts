@@ -7,7 +7,13 @@ import {
   Request,
   Delete,
   Param,
+  Res,
 } from '@nestjs/common';
+import type {
+  CookieOptions,
+  Request as ExpressRequest,
+  Response,
+} from 'express';
 import { AuthRequestContext, AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -32,17 +38,63 @@ import {
 import { AuthGuard } from './auth.guard';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 
+type AuthenticatedRequest = ExpressRequest & {
+  user: {
+    id: string;
+    session_id?: string;
+  };
+};
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  private static readonly authCookieName = 'access_token';
+  private static readonly accessTokenTtlMs = 12 * 60 * 60 * 1000;
+
   constructor(private authService: AuthService) {}
 
-  private firstHeader(value: any): string | undefined {
-    if (Array.isArray(value)) return value[0];
+  private getCookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: AuthController.accessTokenTtlMs,
+    };
+  }
+
+  private setSessionCookie(
+    res: Response,
+    result: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const token = result.access_token;
+    if (typeof token === 'string' && token.length > 0) {
+      res.cookie(AuthController.authCookieName, token, this.getCookieOptions());
+    }
+
+    const safeResult = { ...result };
+    delete safeResult.access_token;
+    return safeResult;
+  }
+
+  private clearSessionCookie(res: Response) {
+    res.clearCookie(AuthController.authCookieName, {
+      ...this.getCookieOptions(),
+      maxAge: undefined,
+    });
+  }
+
+  private firstHeader(value: unknown): string | undefined {
+    if (Array.isArray(value)) {
+      const [first] = value as unknown[];
+      return typeof first === 'string' && first.trim()
+        ? first.trim()
+        : undefined;
+    }
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
   }
 
-  private getRequestContext(req: any): AuthRequestContext {
+  private getRequestContext(req: ExpressRequest): AuthRequestContext {
     const forwardedFor = this.firstHeader(req.headers?.['x-forwarded-for']);
     const ipFromForwarded = forwardedFor?.split(',')[0]?.trim();
 
@@ -67,17 +119,33 @@ export class AuthController {
 
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Generar token por Tenant' })
-  @ApiResponse({ status: 201, description: 'Retorna JWT `access_token`' })
-  login(@Body() loginDto: LoginDto, @Request() req) {
-    return this.authService.login(loginDto, this.getRequestContext(req));
+  @ApiOperation({ summary: 'Iniciar sesion por Tenant' })
+  @ApiResponse({ status: 201, description: 'Establece cookie de sesion' })
+  async login(
+    @Body() loginDto: LoginDto,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(
+      loginDto,
+      this.getRequestContext(req),
+    );
+    return this.setSessionCookie(res, result);
   }
 
   @Post('register')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Registro mediante token de invitación' })
-  register(@Body() registerDto: RegisterDto, @Request() req) {
-    return this.authService.register(registerDto, this.getRequestContext(req));
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(
+      registerDto,
+      this.getRequestContext(req),
+    );
+    return this.setSessionCookie(res, result);
   }
 
   @Post('register-organization')
@@ -85,11 +153,16 @@ export class AuthController {
   @ApiOperation({
     summary: 'Crear una organizacion nueva y su administrador inicial',
   })
-  registerOrganization(@Body() dto: RegisterOrganizationDto, @Request() req) {
-    return this.authService.registerOrganization(
+  async registerOrganization(
+    @Body() dto: RegisterOrganizationDto,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.registerOrganization(
       dto,
       this.getRequestContext(req),
     );
+    return this.setSessionCookie(res, result);
   }
 
   @Post('forgot-password')
@@ -109,19 +182,24 @@ export class AuthController {
   @Post('2fa/login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Completar login con 2FA' })
-  loginWithTwoFactor(@Body() dto: LoginTwoFactorDto, @Request() req) {
-    return this.authService.loginWithTwoFactor(
+  async loginWithTwoFactor(
+    @Body() dto: LoginTwoFactorDto,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.loginWithTwoFactor(
       dto.temporary_token,
       dto.code,
       this.getRequestContext(req),
     );
+    return this.setSessionCookie(res, result);
   }
 
   @Get('sessions')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar sesiones activas del usuario actual' })
-  getSessions(@Request() req) {
+  getSessions(@Request() req: AuthenticatedRequest) {
     return this.authService.getSessions(req.user.id, req.user.session_id);
   }
 
@@ -129,7 +207,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar una sesion activa del usuario actual' })
-  revokeSession(@Request() req, @Param('id') sessionId: string) {
+  revokeSession(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') sessionId: string,
+  ) {
     return this.authService.revokeSession(
       req.user.id,
       sessionId,
@@ -143,7 +224,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Cerrar todas las demas sesiones del usuario actual',
   })
-  revokeOtherSessions(@Request() req) {
+  revokeOtherSessions(@Request() req: AuthenticatedRequest) {
     return this.authService.revokeOtherSessions(
       req.user.id,
       req.user.session_id,
@@ -154,15 +235,23 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar la sesion actual' })
-  logout(@Request() req) {
-    return this.authService.logout(req.user.id, req.user.session_id);
+  async logout(
+    @Request() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.logout(
+      req.user.id,
+      req.user.session_id,
+    );
+    this.clearSessionCookie(res);
+    return result;
   }
 
   @Get('2fa/status')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener estado 2FA del usuario actual' })
-  getTwoFactorStatus(@Request() req) {
+  getTwoFactorStatus(@Request() req: AuthenticatedRequest) {
     return this.authService.getTwoFactorStatus(req.user.id);
   }
 
@@ -172,7 +261,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Iniciar configuracion TOTP para app autenticadora',
   })
-  setupTwoFactor(@Request() req) {
+  setupTwoFactor(@Request() req: AuthenticatedRequest) {
     return this.authService.setupTwoFactor(req.user.id);
   }
 
@@ -180,7 +269,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Confirmar configuracion TOTP y activar 2FA' })
-  verifyTwoFactorSetup(@Request() req, @Body() dto: VerifyTwoFactorSetupDto) {
+  verifyTwoFactorSetup(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: VerifyTwoFactorSetupDto,
+  ) {
     return this.authService.verifyTwoFactorSetup(
       req.user.id,
       dto.setup_token,
@@ -192,7 +284,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Desactivar 2FA del usuario actual' })
-  disableTwoFactor(@Request() req, @Body() dto: DisableTwoFactorDto) {
+  disableTwoFactor(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: DisableTwoFactorDto,
+  ) {
     return this.authService.disableTwoFactor(req.user.id, dto.code);
   }
 
@@ -203,7 +298,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Enviar codigo 2FA al correo del usuario autenticado',
   })
-  sendTwoFactorEmailCode(@Request() req) {
+  sendTwoFactorEmailCode(@Request() req: AuthenticatedRequest) {
     return this.authService.sendTwoFactorEmailCode(req.user.id);
   }
 
@@ -213,7 +308,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verificar codigo y activar 2FA por correo' })
   verifyTwoFactorEmailSetup(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: VerifyTwoFactorEmailSetupDto,
   ) {
     return this.authService.verifyTwoFactorEmailSetup(req.user.id, dto.code);
@@ -224,7 +319,10 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Desactivar 2FA por correo del usuario actual' })
-  disableTwoFactorEmail(@Request() req, @Body() dto: DisableTwoFactorEmailDto) {
+  disableTwoFactorEmail(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: DisableTwoFactorEmailDto,
+  ) {
     return this.authService.disableTwoFactorEmail(req.user.id, dto.code);
   }
 
@@ -238,12 +336,17 @@ export class AuthController {
   @Post('2fa/email/login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Completar login con codigo 2FA por correo' })
-  loginWithEmailCode(@Body() dto: LoginTwoFactorEmailDto, @Request() req) {
-    return this.authService.loginWithEmailCode(
+  async loginWithEmailCode(
+    @Body() dto: LoginTwoFactorEmailDto,
+    @Request() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.loginWithEmailCode(
       dto.temporary_token,
       dto.code,
       this.getRequestContext(req),
     );
+    return this.setSessionCookie(res, result);
   }
 
   @Get('me')
@@ -255,7 +358,7 @@ export class AuthController {
     status: 200,
     description: 'Retorna los datos del usuario autenticado',
   })
-  getMe(@Request() req) {
+  getMe(@Request() req: AuthenticatedRequest) {
     return this.authService.getMe(req.user.id);
   }
 }

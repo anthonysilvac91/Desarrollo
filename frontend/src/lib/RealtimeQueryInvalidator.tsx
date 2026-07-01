@@ -29,7 +29,10 @@ const invalidatePrefixes = (
   });
 };
 
-const parseSseChunk = (buffer: string, onEvent: (event: RealtimeEvent) => void) => {
+const parseSseChunk = (
+  buffer: string,
+  onEvent: (event: RealtimeEvent) => void,
+) => {
   const messages = buffer.split("\n\n");
   const remainder = messages.pop() ?? "";
 
@@ -66,7 +69,13 @@ export function RealtimeQueryInvalidator() {
     const handleEvent = (event: RealtimeEvent) => {
       if (event.module === "assets") {
         if (pathname.startsWith("/assets")) {
-          invalidatePrefixes(queryClient, ["asset", "assets", "assets-mobile", "assets-stats", "assets-owners-list"]);
+          invalidatePrefixes(queryClient, [
+            "asset",
+            "assets",
+            "assets-mobile",
+            "assets-stats",
+            "assets-owners-list",
+          ]);
         }
         if (pathname.startsWith("/dashboard")) {
           invalidatePrefixes(queryClient, ["dashboard-stats"]);
@@ -75,10 +84,19 @@ export function RealtimeQueryInvalidator() {
 
       if (event.module === "services") {
         if (pathname.startsWith("/service")) {
-          invalidatePrefixes(queryClient, ["services", "services-mobile", "services-stats", "services-workers-list"]);
+          invalidatePrefixes(queryClient, [
+            "services",
+            "services-mobile",
+            "services-stats",
+            "services-workers-list",
+          ]);
         }
         if (pathname.startsWith("/assets")) {
-          invalidatePrefixes(queryClient, ["assets", "assets-mobile", "assets-stats"]);
+          invalidatePrefixes(queryClient, [
+            "assets",
+            "assets-mobile",
+            "assets-stats",
+          ]);
         }
         if (pathname.startsWith("/dashboard")) {
           invalidatePrefixes(queryClient, ["dashboard-stats"]);
@@ -91,21 +109,16 @@ export function RealtimeQueryInvalidator() {
     };
 
     const connect = async () => {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        return;
-      }
-
       try {
         const response = await fetch(`${apiBaseUrl}/realtime/events`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          credentials: "include",
           signal: abortController.signal,
         });
 
         if (!response.ok || !response.body) {
-          throw new Error(`Realtime stream failed with status ${response.status}`);
+          throw new Error(
+            `Realtime stream failed with status ${response.status}`,
+          );
         }
 
         const reader = response.body.getReader();
@@ -118,7 +131,10 @@ export function RealtimeQueryInvalidator() {
             break;
           }
 
-          buffer = parseSseChunk(buffer + decoder.decode(value, { stream: true }), handleEvent);
+          buffer = parseSseChunk(
+            buffer + decoder.decode(value, { stream: true }),
+            handleEvent,
+          );
         }
       } catch {
         if (!isActive || abortController.signal.aborted) {

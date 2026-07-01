@@ -1,7 +1,8 @@
 import axios from "axios";
-import Cookies from "js-cookie";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
+const apiBaseUrl =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
 
 if (!apiBaseUrl) {
   throw new Error("NEXT_PUBLIC_API_URL is required in production");
@@ -21,7 +22,10 @@ const normalizeMediaUrls = (value: unknown): unknown => {
 
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => [key, normalizeMediaUrls(nestedValue)])
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        normalizeMediaUrls(nestedValue),
+      ]),
     );
   }
 
@@ -30,6 +34,7 @@ const normalizeMediaUrls = (value: unknown): unknown => {
 
 const api = axios.create({
   baseURL: apiBaseUrl,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -47,17 +52,8 @@ const isPublicRequest = (url?: string): boolean => {
 };
 
 api.interceptors.request.use((config) => {
-  // Alineado con AuthContext que usa localStorage
-  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  // Soporte automático para Multipart (FormData)
-  if (config.data instanceof FormData) {
-    if (config.headers) {
-      delete config.headers["Content-Type"];
-    }
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers["Content-Type"];
   }
 
   return config;
@@ -77,9 +73,13 @@ api.interceptors.response.use(
         storage: "almacenamiento",
         video: "video",
       };
-      const msg = `Límite de ${names[resource] ?? resource} alcanzado (${limit}). Actualiza al plan ${upgrade_to} para continuar.`;
+      const msg = `Limite de ${names[resource] ?? resource} alcanzado (${limit}). Actualiza al plan ${upgrade_to} para continuar.`;
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("api-toast", { detail: { message: msg, type: "error" } }));
+        window.dispatchEvent(
+          new CustomEvent("api-toast", {
+            detail: { message: msg, type: "error" },
+          }),
+        );
       }
       return Promise.reject(error);
     }
@@ -88,27 +88,31 @@ api.interceptors.response.use(
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("api-toast", {
-            detail: { message: "Tu periodo de prueba ha expirado. Contacta con tu administrador.", type: "error" },
+            detail: {
+              message:
+                "Tu periodo de prueba ha expirado. Contacta con tu administrador.",
+              type: "error",
+            },
           }),
         );
       }
       return Promise.reject(error);
     }
 
-    // Si el error es 401 Unauthorized
-    if (error.response && error.response.status === 401 && !isPublicRequest(error.config?.url)) {
+    if (
+      error.response &&
+      error.response.status === 401 &&
+      !isPublicRequest(error.config?.url)
+    ) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        Cookies.remove("access_token");
-        
-        // Redirigimos a login si no estamos ya ahí
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
         if (window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

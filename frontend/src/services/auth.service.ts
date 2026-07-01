@@ -2,12 +2,12 @@ import api from "@/lib/api";
 import { LoginFormData } from "@/types/schemas";
 
 export type LoginResponse =
-  | { access_token: string; requires_2fa?: false }
-  | { requires_2fa: true; temporary_token: string; method: 'app' | 'email' };
+  | { requires_2fa?: false }
+  | { requires_2fa: true; temporary_token: string; method: "app" | "email" };
 
 export interface TwoFactorStatus {
   enabled: boolean;
-  method: 'app' | 'email';
+  method: "app" | "email";
   backup_codes_remaining: number;
 }
 
@@ -44,7 +44,7 @@ export const authService = {
     return res.data;
   },
   loginWithTwoFactor: async (temporaryToken: string, code: string) => {
-    const res = await api.post<{ access_token: string }>("/auth/2fa/login", {
+    const res = await api.post<Record<string, never>>("/auth/2fa/login", {
       temporary_token: temporaryToken,
       code,
     });
@@ -59,14 +59,19 @@ export const authService = {
     return res.data;
   },
   verifyTwoFactorSetup: async (setupToken: string, code: string) => {
-    const res = await api.post<{ enabled: boolean; backup_codes: string[] }>("/auth/2fa/verify-setup", {
-      setup_token: setupToken,
-      code,
-    });
+    const res = await api.post<{ enabled: boolean; backup_codes: string[] }>(
+      "/auth/2fa/verify-setup",
+      {
+        setup_token: setupToken,
+        code,
+      },
+    );
     return res.data;
   },
   disableTwoFactor: async (code: string) => {
-    const res = await api.post<{ enabled: boolean }>("/auth/2fa/disable", { code });
+    const res = await api.post<{ enabled: boolean }>("/auth/2fa/disable", {
+      code,
+    });
     return res.data;
   },
   sendTwoFactorEmailCode: async () => {
@@ -74,19 +79,27 @@ export const authService = {
     return res.data;
   },
   verifyTwoFactorEmailSetup: async (code: string) => {
-    const res = await api.post<{ enabled: boolean; backup_codes: string[] }>("/auth/2fa/email/verify-setup", { code });
+    const res = await api.post<{ enabled: boolean; backup_codes: string[] }>(
+      "/auth/2fa/email/verify-setup",
+      { code },
+    );
     return res.data;
   },
   disableTwoFactorEmail: async (code: string) => {
-    const res = await api.post<{ enabled: boolean }>("/auth/2fa/email/disable", { code });
+    const res = await api.post<{ enabled: boolean }>(
+      "/auth/2fa/email/disable",
+      { code },
+    );
     return res.data;
   },
   requestTwoFactorEmailCode: async (temporaryToken: string) => {
-    const res = await api.post<{ sent: boolean }>("/auth/2fa/email/request", { temporary_token: temporaryToken });
+    const res = await api.post<{ sent: boolean }>("/auth/2fa/email/request", {
+      temporary_token: temporaryToken,
+    });
     return res.data;
   },
   loginWithEmailCode: async (temporaryToken: string, code: string) => {
-    const res = await api.post<{ access_token: string }>("/auth/2fa/email/login", {
+    const res = await api.post<Record<string, never>>("/auth/2fa/email/login", {
       temporary_token: temporaryToken,
       code,
     });
@@ -97,11 +110,16 @@ export const authService = {
     return res.data;
   },
   forgotPassword: async (email: string) => {
-    const res = await api.post<{ message: string }>("/auth/forgot-password", { email });
+    const res = await api.post<{ message: string }>("/auth/forgot-password", {
+      email,
+    });
     return res.data;
   },
   resetPassword: async (token: string, password: string) => {
-    const res = await api.post<{ message: string }>("/auth/reset-password", { token, password });
+    const res = await api.post<{ message: string }>("/auth/reset-password", {
+      token,
+      password,
+    });
     return res.data;
   },
   getSessions: async () => {
@@ -109,11 +127,15 @@ export const authService = {
     return res.data;
   },
   revokeSession: async (sessionId: string) => {
-    const res = await api.delete<{ revoked: boolean }>(`/auth/sessions/${sessionId}`);
+    const res = await api.delete<{ revoked: boolean }>(
+      `/auth/sessions/${sessionId}`,
+    );
     return res.data;
   },
   revokeOtherSessions: async () => {
-    const res = await api.post<{ revoked: boolean }>("/auth/sessions/revoke-others");
+    const res = await api.post<{ revoked: boolean }>(
+      "/auth/sessions/revoke-others",
+    );
     return res.data;
   },
   logout: async () => {
@@ -121,18 +143,31 @@ export const authService = {
     return res.data;
   },
   register: async (token: string, name: string, password: string) => {
-    const res = await api.post<{ access_token: string }>("/auth/register", { token, name, password });
+    const res = await api.post<Record<string, never>>("/auth/register", {
+      token,
+      name,
+      password,
+    });
     return res.data;
   },
   registerOrganization: async (data: RegisterOrganizationData) => {
-    const res = await api.post<{ access_token: string; organization: { id: string; name: string; slug: string; is_active: boolean } }>(
-      "/auth/register-organization",
-      data,
-    );
+    const res = await api.post<{
+      organization: {
+        id: string;
+        name: string;
+        slug: string;
+        is_active: boolean;
+      };
+    }>("/auth/register-organization", data);
     return res.data;
   },
   validateInvitation: async (token: string) => {
-    const res = await api.post<{ email: string; role: string; organization_name: string; brand_color: string | null }>("/invitations/validate", { token });
+    const res = await api.post<{
+      email: string;
+      role: string;
+      organization_name: string;
+      brand_color: string | null;
+    }>("/invitations/validate", { token });
     return res.data;
   },
 };

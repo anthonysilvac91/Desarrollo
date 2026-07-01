@@ -10,7 +10,16 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
 import { authService } from "@/services/auth.service";
 import { isSafeInternalPath } from "@/lib/safe-path";
-import { Loader2, Mail, Lock, Eye, EyeOff, Download, Share, PlusSquare } from "lucide-react";
+import {
+  Loader2,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Download,
+  Share,
+  PlusSquare,
+} from "lucide-react";
 import { usePWA } from "@/hooks/usePWA";
 import Link from "next/link";
 
@@ -21,9 +30,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [temporaryToken, setTemporaryToken] = useState<string | null>(null);
-  const [twoFactorMethod, setTwoFactorMethod] = useState<'app' | 'email'>('app');
+  const [twoFactorMethod, setTwoFactorMethod] = useState<"app" | "email">(
+    "app",
+  );
   const [twoFactorCode, setTwoFactorCode] = useState("");
-  const { shouldShowInstallButton, shouldShowIOSInstructions, triggerInstall } = usePWA();
+  const { shouldShowInstallButton, shouldShowIOSInstructions, triggerInstall } =
+    usePWA();
   const loginSchema = z.object({
     email: z.string().email(t.auth.validation.invalid_email),
     password: z.string().min(6, t.auth.validation.password_min),
@@ -48,9 +60,11 @@ export default function LoginPage() {
       if ("requires_2fa" in response && response.requires_2fa) {
         setTemporaryToken(response.temporary_token);
         setTwoFactorMethod(response.method);
-        if (response.method === 'email') {
+        if (response.method === "email") {
           try {
-            await authService.requestTwoFactorEmailCode(response.temporary_token);
+            await authService.requestTwoFactorEmailCode(
+              response.temporary_token,
+            );
             showToast(t.auth.login.two_factor_email_required, "info");
           } catch {
             showToast(t.auth.login.two_factor_email_required, "info");
@@ -60,11 +74,13 @@ export default function LoginPage() {
         }
         return;
       }
-      const redirectTarget = new URLSearchParams(window.location.search).get('redirect');
+      const redirectTarget = new URLSearchParams(window.location.search).get(
+        "redirect",
+      );
       if (redirectTarget && isSafeInternalPath(redirectTarget)) {
-        sessionStorage.setItem('pendingRedirect', redirectTarget);
+        sessionStorage.setItem("pendingRedirect", redirectTarget);
       }
-      login(response.access_token);
+      await login();
     } catch (error: unknown) {
       console.error("Login Error:", error);
       const message =
@@ -91,14 +107,18 @@ export default function LoginPage() {
     if (!temporaryToken || !twoFactorCode.trim()) return;
     setIsSubmitting(true);
     try {
-      const response = twoFactorMethod === 'email'
-        ? await authService.loginWithEmailCode(temporaryToken, twoFactorCode)
-        : await authService.loginWithTwoFactor(temporaryToken, twoFactorCode);
-      const redirectTarget = new URLSearchParams(window.location.search).get('redirect');
-      if (redirectTarget && isSafeInternalPath(redirectTarget)) {
-        sessionStorage.setItem('pendingRedirect', redirectTarget);
+      if (twoFactorMethod === "email") {
+        await authService.loginWithEmailCode(temporaryToken, twoFactorCode);
+      } else {
+        await authService.loginWithTwoFactor(temporaryToken, twoFactorCode);
       }
-      login(response.access_token);
+      const redirectTarget = new URLSearchParams(window.location.search).get(
+        "redirect",
+      );
+      if (redirectTarget && isSafeInternalPath(redirectTarget)) {
+        sessionStorage.setItem("pendingRedirect", redirectTarget);
+      }
+      await login();
     } catch (error: unknown) {
       const message =
         typeof error === "object" &&
@@ -109,8 +129,8 @@ export default function LoginPage() {
         "data" in error.response &&
         typeof error.response.data === "object" &&
         error.response.data !== null &&
-          "message" in error.response.data &&
-          typeof error.response.data.message === "string"
+        "message" in error.response.data &&
+        typeof error.response.data.message === "string"
           ? error.response.data.message
           : t.auth.login.two_factor_invalid;
       showToast(message, "error");
@@ -135,7 +155,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-app-bg p-6">
       <div className="max-w-[440px] w-full animate-in fade-in zoom-in duration-500">
-        
         {/* Logo / Brand */}
         <div className="flex flex-col items-center mb-10 text-center">
           <img
@@ -173,7 +192,9 @@ export default function LoginPage() {
                   />
                 </div>
                 <p className="text-xs font-semibold text-subtitle/50 ml-1">
-                  {twoFactorMethod === 'email' ? t.auth.login.two_factor_email_help : t.auth.login.two_factor_help}
+                  {twoFactorMethod === "email"
+                    ? t.auth.login.two_factor_email_help
+                    : t.auth.login.two_factor_help}
                 </p>
               </div>
 
@@ -192,7 +213,7 @@ export default function LoginPage() {
                 )}
               </button>
 
-              {twoFactorMethod === 'email' && (
+              {twoFactorMethod === "email" && (
                 <button
                   type="button"
                   onClick={handleResendEmailCode}
@@ -215,112 +236,122 @@ export default function LoginPage() {
               </button>
             </form>
           ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            
-            {/* Email Field */}
-            <div className="space-y-2">
-              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest ml-1">
-                {t.auth.login.email_label}
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-subtitle/30 group-focus-within:text-brand transition-colors" />
-                </div>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <input
-                      {...field}
-                      value={field.value ?? ""}
-                      type="email"
-                      className={`block w-full pl-14 pr-4 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
-                        errors.email ? "border-error/40" : "border-border-theme/40"
-                      }`}
-                      placeholder={t.auth.login.email_placeholder}
-                      disabled={isSubmitting}
-                    />
-                  )}
-                />
-              </div>
-              {errors.email && (
-                <p className="text-[11px] font-bold text-error ml-1 animate-in fade-in slide-in-from-top-1">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between ml-1">
-                <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest">
-                  {t.auth.login.password_label}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Email Field */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest ml-1">
+                  {t.auth.login.email_label}
                 </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-[10px] font-black text-brand uppercase tracking-widest hover:opacity-70 transition-opacity"
-                >
-                  {t.auth.login.forgot_password}
-                </Link>
-              </div>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-subtitle/30 group-focus-within:text-brand transition-colors" />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-subtitle/30 group-focus-within:text-brand transition-colors" />
+                  </div>
+                  <Controller
+                    name="email"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        value={field.value ?? ""}
+                        type="email"
+                        className={`block w-full pl-14 pr-4 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
+                          errors.email
+                            ? "border-error/40"
+                            : "border-border-theme/40"
+                        }`}
+                        placeholder={t.auth.login.email_placeholder}
+                        disabled={isSubmitting}
+                      />
+                    )}
+                  />
                 </div>
-                <Controller
-                  name="password"
-                  control={control}
-                  render={({ field }) => (
-                    <input
-                      {...field}
-                      value={field.value ?? ""}
-                      type={showPassword ? "text" : "password"}
-                      className={`block w-full pl-14 pr-14 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
-                        errors.password ? "border-error/40" : "border-border-theme/40"
-                      }`}
-                      placeholder={t.auth.login.password_placeholder}
-                      disabled={isSubmitting}
-                    />
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-5 flex items-center text-subtitle/20 hover:text-brand transition-colors"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+                {errors.email && (
+                  <p className="text-[11px] font-bold text-error ml-1 animate-in fade-in slide-in-from-top-1">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
-              {errors.password && (
-                <p className="text-[11px] font-bold text-error ml-1 animate-in fade-in slide-in-from-top-1">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-brand text-white py-5 rounded-2xl font-black text-base shadow-xl shadow-brand/20 active:scale-95 transition-all flex items-center justify-center space-x-3 disabled:opacity-50 disabled:active:scale-100"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>{t.auth.login.signing_in}</span>
-                </>
-              ) : (
-                <span>{t.auth.login.submit}</span>
-              )}
-            </button>
-          </form>
+              {/* Password Field */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-widest">
+                    {t.auth.login.password_label}
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-[10px] font-black text-brand uppercase tracking-widest hover:opacity-70 transition-opacity"
+                  >
+                    {t.auth.login.forgot_password}
+                  </Link>
+                </div>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-subtitle/30 group-focus-within:text-brand transition-colors" />
+                  </div>
+                  <Controller
+                    name="password"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        value={field.value ?? ""}
+                        type={showPassword ? "text" : "password"}
+                        className={`block w-full pl-14 pr-14 py-4 border rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand/40 transition-all ${
+                          errors.password
+                            ? "border-error/40"
+                            : "border-border-theme/40"
+                        }`}
+                        placeholder={t.auth.login.password_placeholder}
+                        disabled={isSubmitting}
+                      />
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-5 flex items-center text-subtitle/20 hover:text-brand transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-[11px] font-bold text-error ml-1 animate-in fade-in slide-in-from-top-1">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-brand text-white py-5 rounded-2xl font-black text-base shadow-xl shadow-brand/20 active:scale-95 transition-all flex items-center justify-center space-x-3 disabled:opacity-50 disabled:active:scale-100"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>{t.auth.login.signing_in}</span>
+                  </>
+                ) : (
+                  <span>{t.auth.login.submit}</span>
+                )}
+              </button>
+            </form>
           )}
         </div>
 
         <div className="mt-6 text-center">
           <p className="text-[11px] font-black text-subtitle/40 uppercase tracking-widest">
             {t.auth.signup.login_prompt}{" "}
-            <Link href="/signup" className="text-brand hover:opacity-70 transition-opacity">
+            <Link
+              href="/signup"
+              className="text-brand hover:opacity-70 transition-opacity"
+            >
               {t.auth.signup.login_link}
             </Link>
           </p>
