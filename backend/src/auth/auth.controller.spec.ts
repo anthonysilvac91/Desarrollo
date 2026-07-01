@@ -80,7 +80,7 @@ describe('AuthController cookie session', () => {
     expect(res.cookie).toHaveBeenCalledWith(
       AUTH_COOKIE_NAME,
       'jwt-token',
-      expect.objectContaining({ secure: true, sameSite: 'lax' }),
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
     );
   });
 

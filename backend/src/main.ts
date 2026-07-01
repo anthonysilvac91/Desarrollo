@@ -24,7 +24,6 @@ function requireProductionEnv(configService: ConfigService) {
     'SUPABASE_PUBLIC_BUCKET',
     'SUPABASE_PRIVATE_BUCKET',
     'SIGNED_URL_TTL_SECONDS',
-    'CORS_ORIGIN',
   ];
   if (configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true') {
     requiredEnvVars.push(
@@ -36,9 +35,18 @@ function requireProductionEnv(configService: ConfigService) {
     );
   }
 
-  const missing = requiredEnvVars.filter(
-    (key) => !configService.get<string>(key),
-  );
+  const corsOrigin = configService.get<string>('CORS_ORIGIN');
+  const frontendUrl = configService.get<string>('FRONTEND_URL');
+  if (!corsOrigin && !frontendUrl) {
+    requiredEnvVars.push('CORS_ORIGIN or FRONTEND_URL');
+  }
+
+  const missing = requiredEnvVars.filter((key) => {
+    if (key === 'CORS_ORIGIN or FRONTEND_URL') {
+      return !corsOrigin && !frontendUrl;
+    }
+    return !configService.get<string>(key);
+  });
   if (missing.length > 0) {
     throw new Error(
       `Missing required production environment variables: ${missing.join(', ')}`,
@@ -51,14 +59,24 @@ function requireProductionEnv(configService: ConfigService) {
 }
 
 function parseCorsOrigins(configService: ConfigService): string[] {
-  return (
-    configService.get<string>('CORS_ORIGIN') ??
-    configService.get<string>('CORS_ORIGINS') ??
-    ''
-  )
-    .split(',')
+  const rawOrigins = [
+    configService.get<string>('FRONTEND_URL'),
+    configService.get<string>('CORS_ORIGIN'),
+    configService.get<string>('CORS_ORIGINS'),
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(','));
+
+  return rawOrigins
     .map((origin) => origin.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((origin) => {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        return origin;
+      }
+    });
 }
 
 async function bootstrap() {
