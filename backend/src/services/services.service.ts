@@ -1032,7 +1032,7 @@ export class ServicesService {
         this.prisma.service.groupBy({ by: ['asset_id'], where: periodWhere }),
         this.prisma.service.groupBy({
           by: ['worker_id'],
-          where: { ...periodWhere, worker_id: { not: null } },
+          where: periodWhere,
         }),
       ]);
 
