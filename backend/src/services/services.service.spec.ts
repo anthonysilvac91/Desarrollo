@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -105,6 +105,7 @@ describe('ServicesService', () => {
   let prisma: PrismaService;
   let storageService: { uploadFile: jest.Mock; deleteFile: jest.Mock };
   let storageGovernance: { assertCanStore: jest.Mock };
+  let serviceAttachmentFindFirst: jest.Mock;
   let storedFilesService: {
     resolveFileUrl: jest.Mock;
     resolveFileUrlForOrg: jest.Mock;
@@ -114,6 +115,7 @@ describe('ServicesService', () => {
   };
 
   beforeEach(async () => {
+    serviceAttachmentFindFirst = jest.fn();
     const prismaMock = {
       organization: { findUnique: jest.fn() },
       asset: { findFirst: jest.fn(), findMany: jest.fn() },
@@ -125,6 +127,10 @@ describe('ServicesService', () => {
         update: jest.fn(),
         count: jest.fn(),
         groupBy: jest.fn(),
+        findFirst: jest.fn(),
+      },
+      serviceAttachment: {
+        findFirst: serviceAttachmentFindFirst,
       },
     };
     storageService = {
@@ -829,6 +835,91 @@ describe('ServicesService', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('getAttachmentDownloadUrl()', () => {
+    it('permite usuario autorizado del mismo tenant', async () => {
+      jest.spyOn(prisma.service, 'findFirst').mockResolvedValue({
+        id: 'service-1',
+        organization_id: 'org-1',
+      } as any);
+      serviceAttachmentFindFirst.mockResolvedValue({
+        file_id: 'file-1',
+        file_name: 'foto.webp',
+        file_type: 'image/webp',
+      });
+      storedFilesService.resolveFileUrlForOrg.mockResolvedValue(
+        'https://signed.example/file',
+      );
+
+      await expect(
+        service.getAttachmentDownloadUrl('service-1', 'att-1', {
+          id: 'admin-1',
+          role: 'ADMIN',
+          orgId: 'org-1',
+        }),
+      ).resolves.toEqual({
+        url: 'https://signed.example/file',
+        file_name: 'foto.webp',
+        file_type: 'image/webp',
+      });
+
+      expect(prisma.service.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'service-1',
+          deleted_at: null,
+          purged_at: null,
+          organization_id: 'org-1',
+        },
+        select: { id: true, organization_id: true },
+      });
+      expect(storedFilesService.resolveFileUrlForOrg).toHaveBeenCalledWith(
+        'file-1',
+        'org-1',
+      );
+    });
+
+    it('usuario de otro tenant recibe la misma respuesta que recurso inexistente', async () => {
+      jest.spyOn(prisma.service, 'findFirst').mockResolvedValue(null);
+
+      await expect(
+        service.getAttachmentDownloadUrl('service-1', 'att-1', {
+          id: 'admin-2',
+          role: 'ADMIN',
+          orgId: 'org-2',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(serviceAttachmentFindFirst).not.toHaveBeenCalled();
+    });
+
+    it('recurso inexistente no revela adjuntos', async () => {
+      jest.spyOn(prisma.service, 'findFirst').mockResolvedValue(null);
+
+      await expect(
+        service.getAttachmentDownloadUrl('missing-service', 'att-1', {
+          id: 'admin-1',
+          role: 'ADMIN',
+          orgId: 'org-1',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(serviceAttachmentFindFirst).not.toHaveBeenCalled();
+    });
+
+    it('adjunto de otro servicio no revela existencia', async () => {
+      jest.spyOn(prisma.service, 'findFirst').mockResolvedValue({
+        id: 'service-1',
+        organization_id: 'org-1',
+      } as any);
+      serviceAttachmentFindFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getAttachmentDownloadUrl('service-1', 'att-other', {
+          id: 'admin-1',
+          role: 'ADMIN',
+          orgId: 'org-1',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

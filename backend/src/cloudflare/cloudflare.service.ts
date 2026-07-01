@@ -19,6 +19,32 @@ interface ImageUploadResponse {
   variants: string[];
 }
 
+interface CloudflareApiError {
+  message?: string;
+}
+
+interface CloudflareApiResponse<T> {
+  success?: boolean;
+  errors?: CloudflareApiError[];
+  result: T;
+}
+
+interface CloudflareStreamResult {
+  status?: { state?: StreamStatusResponse['status'] };
+  readyToStream?: boolean;
+  duration?: number | null;
+  thumbnail?: string | null;
+}
+
+interface CloudflareTokenResult {
+  token: string;
+}
+
+interface CloudflareImageResult {
+  id: string;
+  variants?: string[];
+}
+
 function encodeTusMetadataValue(value: string): string {
   return Buffer.from(value, 'utf-8').toString('base64');
 }
@@ -39,12 +65,26 @@ export class CloudflareService {
   private readonly baseUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.accountId = this.configService.get<string>('CLOUDFLARE_ACCOUNT_ID', '');
-    this.apiToken = this.configService.get<string>('CLOUDFLARE_API_TOKEN', '');
-    this.streamSubdomain = this.configService.get<string>(
-      'CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN',
-      'customer-yrufylz27agxoaqz.cloudflarestream.com',
-    );
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+    const streamEnabled =
+      this.configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true';
+    this.accountId =
+      this.configService.get<string>('CLOUDFLARE_ACCOUNT_ID') ?? '';
+    this.apiToken =
+      this.configService.get<string>('CLOUDFLARE_API_TOKEN') ?? '';
+    this.streamSubdomain =
+      this.configService.get<string>('CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN') ??
+      '';
+    if (
+      isProduction &&
+      streamEnabled &&
+      (!this.accountId || !this.apiToken || !this.streamSubdomain)
+    ) {
+      throw new Error(
+        'Cloudflare Stream is enabled but required production configuration is missing',
+      );
+    }
     this.baseUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}`;
   }
 
@@ -61,9 +101,7 @@ export class CloudflareService {
     serviceId: string;
     uploadId: string;
   }): Promise<StreamDirectUploadResponse> {
-    const ttl = Number(
-      this.configService.get<string>('CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS', '3600'),
-    );
+    const ttl = this.resolveStreamTtlSeconds();
     const expiry = new Date(Date.now() + ttl * 1000).toISOString();
     const requireSigned =
       this.configService.get('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
@@ -127,9 +165,12 @@ export class CloudflareService {
       headers: this.headers(),
     });
 
-    const data = await res.json();
+    const data =
+      (await res.json()) as CloudflareApiResponse<CloudflareStreamResult>;
     if (!data.success) {
-      throw new Error(`CF Stream status error: ${data.errors?.[0]?.message ?? 'unknown'}`);
+      throw new Error(
+        `CF Stream status error: ${data.errors?.[0]?.message ?? 'unknown'}`,
+      );
     }
 
     const video = data.result;
@@ -155,9 +196,12 @@ export class CloudflareService {
       }),
     });
 
-    const data = await res.json();
+    const data =
+      (await res.json()) as CloudflareApiResponse<CloudflareTokenResult>;
     if (!data.success) {
-      throw new Error(`CF Stream token error: ${data.errors?.[0]?.message ?? 'unknown'}`);
+      throw new Error(
+        `CF Stream token error: ${data.errors?.[0]?.message ?? 'unknown'}`,
+      );
     }
 
     return data.result.token;
@@ -182,8 +226,14 @@ export class CloudflareService {
     attachmentId: string;
   }): Promise<ImageUploadResponse> {
     const formData = new FormData();
-    const blob = new Blob([opts.buffer as unknown as ArrayBuffer], { type: opts.mimeType });
-    formData.append('file', blob, `${opts.attachmentId}.${opts.mimeType.split('/')[1] || 'jpg'}`);
+    const blob = new Blob([opts.buffer as unknown as ArrayBuffer], {
+      type: opts.mimeType,
+    });
+    formData.append(
+      'file',
+      blob,
+      `${opts.attachmentId}.${opts.mimeType.split('/')[1] || 'jpg'}`,
+    );
     formData.append(
       'metadata',
       JSON.stringify({
@@ -199,10 +249,15 @@ export class CloudflareService {
       body: formData,
     });
 
-    const data = await res.json();
+    const data =
+      (await res.json()) as CloudflareApiResponse<CloudflareImageResult>;
     if (!data.success) {
-      this.logger.error(`CF Images upload failed: ${JSON.stringify(data.errors)}`);
-      throw new Error(`Cloudflare Images error: ${data.errors?.[0]?.message ?? 'unknown'}`);
+      this.logger.error(
+        `CF Images upload failed: ${JSON.stringify(data.errors)}`,
+      );
+      throw new Error(
+        `Cloudflare Images error: ${data.errors?.[0]?.message ?? 'unknown'}`,
+      );
     }
 
     return {
@@ -236,5 +291,24 @@ export class CloudflareService {
 
   isConfigured(): boolean {
     return !!(this.accountId && this.apiToken);
+  }
+
+  private resolveStreamTtlSeconds(): number {
+    const configured = this.configService.get<string>(
+      'CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS',
+    );
+    if (
+      this.configService.get<string>('NODE_ENV') === 'production' &&
+      !configured
+    ) {
+      throw new Error(
+        'CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS must be defined in production',
+      );
+    }
+    const ttl = Number(configured ?? '3600');
+    if (!Number.isFinite(ttl) || ttl <= 0) {
+      throw new Error('CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS is invalid');
+    }
+    return ttl;
   }
 }

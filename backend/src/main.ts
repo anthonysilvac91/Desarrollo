@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import helmet from 'helmet';
 import { WinstonModule } from 'nest-winston';
 import { winstonConfig } from './logger/winston.config';
+import type { NextFunction, Request, Response } from 'express';
 
 function requireProductionEnv(configService: ConfigService) {
   if (configService.get<string>('NODE_ENV') !== 'production') {
@@ -25,6 +26,15 @@ function requireProductionEnv(configService: ConfigService) {
     'SIGNED_URL_TTL_SECONDS',
     'CORS_ORIGIN',
   ];
+  if (configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true') {
+    requiredEnvVars.push(
+      'CLOUDFLARE_ACCOUNT_ID',
+      'CLOUDFLARE_API_TOKEN',
+      'CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN',
+      'CLOUDFLARE_STREAM_WEBHOOK_SECRET',
+      'CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS',
+    );
+  }
 
   const missing = requiredEnvVars.filter(
     (key) => !configService.get<string>(key),
@@ -54,8 +64,12 @@ function parseCorsOrigins(configService: ConfigService): string[] {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: WinstonModule.createLogger(winstonConfig),
+    rawBody: true,
   });
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  expressApp.set('trust proxy', 1);
 
   const configService = app.get(ConfigService);
   requireProductionEnv(configService);
@@ -71,7 +85,7 @@ async function bootstrap() {
   );
 
   const logger = new Logger('RequestTiming');
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const startedAt = Date.now();
     res.on('finish', () => {
       const durationMs = Date.now() - startedAt;
@@ -85,7 +99,10 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
       if (!origin) {
         callback(null, true);
         return;
@@ -137,10 +154,14 @@ async function bootstrap() {
   const startupLogger = new Logger('Bootstrap');
   const env = configService.get<string>('NODE_ENV') ?? 'development';
   const storageType = configService.get<string>('STORAGE_TYPE') ?? 'local';
-  const cfStreamEnabled = configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true';
-  const cfSignedUrls = configService.get<string>('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
+  const cfStreamEnabled =
+    configService.get<string>('CLOUDFLARE_STREAM_ENABLED') === 'true';
+  const cfSignedUrls =
+    configService.get<string>('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
 
   startupLogger.log(`Fentri API listening on port ${port} [${env}]`);
-  startupLogger.log(`storage=${storageType} cf_stream=${cfStreamEnabled} signed_urls=${cfSignedUrls}`);
+  startupLogger.log(
+    `storage=${storageType} cf_stream=${cfStreamEnabled} signed_urls=${cfSignedUrls}`,
+  );
 }
-bootstrap();
+void bootstrap();

@@ -1,113 +1,251 @@
-import { Injectable } from '@nestjs/common';
-import { StorageService } from './storage.service';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
-import { UploadFileOptions } from './storage.service';
 import { getExtensionForMime } from '../common/files/image-validation';
+import { StorageService, UploadFileOptions } from './storage.service';
 
 @Injectable()
 export class LocalStorageService extends StorageService {
   private readonly uploadDir: string;
+  private readonly canonicalUploadDir: string;
   private readonly baseUrl: string;
 
   constructor(private configService: ConfigService) {
     super();
     this.uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
+    this.canonicalUploadDir = path.resolve(this.uploadDir);
     this.baseUrl = this.configService.get<string>(
       'BASE_URL',
       'http://localhost:3000',
     );
 
-    // Asegurar que el directorio existe
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
+    if (!fs.existsSync(this.canonicalUploadDir)) {
+      fs.mkdirSync(this.canonicalUploadDir, { recursive: true });
     }
   }
 
-  async uploadFile(
+  uploadFile(
     file: Express.Multer.File,
     options: UploadFileOptions = {},
   ): Promise<string> {
-    const folder = options.folder ?? '';
-    const targetDir = path.join(this.uploadDir, folder);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
+    return Promise.resolve().then(() => {
+      const folder = options.folder ?? '';
+      const targetDir = this.resolveInsideUploadDir(folder, {
+        allowMissingLeaf: true,
+        requireUploadsPrefix: false,
+      });
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
 
-    const fileExt =
-      getExtensionForMime(file.mimetype) || path.extname(file.originalname);
-    const fileName = `${randomUUID()}${fileExt}`;
-    const filePath = path.join(targetDir, fileName);
+      const fileExt =
+        getExtensionForMime(file.mimetype) || path.extname(file.originalname);
+      const fileName = `${randomUUID()}${fileExt}`;
+      const filePath = path.join(targetDir, fileName);
 
-    fs.writeFileSync(filePath, file.buffer);
+      fs.writeFileSync(filePath, file.buffer);
 
-    // Retornamos URL relativa para compatibilidad con backend estático actual
-    // Si folder existe, incluimos en el path
-    const relativePath = folder ? `${folder}/${fileName}` : fileName;
-    return `/uploads/${relativePath}`;
+      const relativePath = folder ? `${folder}/${fileName}` : fileName;
+      return `/uploads/${relativePath}`;
+    });
   }
 
-  async resolveFileUrl(fileRef: string): Promise<string> {
-    return fileRef;
+  resolveFileUrl(fileRef: string): Promise<string> {
+    return Promise.resolve(fileRef);
   }
 
-  async deleteFile(fileRef: string): Promise<void> {
-    const fileName = fileRef.replace('/uploads/', '');
-    const filePath = path.join(this.uploadDir, fileName);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+  deleteFile(fileRef: string): Promise<void> {
+    return Promise.resolve().then(() => {
+      const filePath = this.resolveInsideUploadDir(fileRef, {
+        allowMissingLeaf: true,
+        requireUploadsPrefix: true,
+      });
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    });
   }
 
   canHandleFileRef(fileRef: string): boolean {
     return fileRef.startsWith('/uploads/');
   }
 
-  async getFileSize(fileRef: string): Promise<number | null> {
-    if (!this.canHandleFileRef(fileRef)) {
-      return null;
-    }
+  getFileSize(fileRef: string): Promise<number | null> {
+    return Promise.resolve().then(() => {
+      if (!this.canHandleFileRef(fileRef)) {
+        this.rejectSuspiciousNonUploadRef(fileRef);
+        return null;
+      }
 
-    const fileName = fileRef.replace('/uploads/', '');
-    const filePath = path.join(this.uploadDir, fileName);
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
+      const filePath = this.resolveInsideUploadDir(fileRef, {
+        allowMissingLeaf: false,
+        requireUploadsPrefix: true,
+      });
+      if (!fs.existsSync(filePath)) {
+        return null;
+      }
 
-    return fs.statSync(filePath).size;
+      const stat = fs.statSync(filePath);
+      if (!stat.isFile()) {
+        throw new BadRequestException('Invalid storage path');
+      }
+
+      return stat.size;
+    });
   }
 
-  async listFileRefs(prefix = ''): Promise<string[]> {
-    const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, '');
-    const startDir = normalizedPrefix
-      ? path.join(this.uploadDir, normalizedPrefix)
-      : this.uploadDir;
+  listFileRefs(prefix = ''): Promise<string[]> {
+    return Promise.resolve().then(() => {
+      const startDir = prefix
+        ? this.resolveInsideUploadDir(prefix, {
+            allowMissingLeaf: false,
+            requireUploadsPrefix: false,
+          })
+        : this.canonicalUploadDir;
 
-    if (!fs.existsSync(startDir)) {
-      return [];
+      if (!fs.existsSync(startDir)) {
+        return [];
+      }
+
+      const refs: string[] = [];
+      const walk = (currentDir: string) => {
+        for (const entry of fs.readdirSync(currentDir, {
+          withFileTypes: true,
+        })) {
+          const absolutePath = path.join(currentDir, entry.name);
+          const realPath = this.realPathIfExists(absolutePath);
+          if (realPath && !this.isInsideUploadDir(realPath)) {
+            throw new BadRequestException('Invalid storage path');
+          }
+          if (entry.isDirectory()) {
+            walk(absolutePath);
+            continue;
+          }
+
+          const relativePath = path
+            .relative(this.canonicalUploadDir, absolutePath)
+            .split(path.sep)
+            .join('/');
+          refs.push(`/uploads/${relativePath}`);
+        }
+      };
+
+      walk(startDir);
+      return refs;
+    });
+  }
+
+  private resolveInsideUploadDir(
+    input: string,
+    options: { allowMissingLeaf: boolean; requireUploadsPrefix: boolean },
+  ): string {
+    const relativePath = this.normalizeStorageInput(
+      input,
+      options.requireUploadsPrefix,
+    );
+    const resolvedPath = path.resolve(this.canonicalUploadDir, relativePath);
+    if (!this.isInsideUploadDir(resolvedPath)) {
+      throw new BadRequestException('Invalid storage path');
     }
 
-    const refs: string[] = [];
+    const realPath = this.realPathIfExists(resolvedPath);
+    if (realPath && !this.isInsideUploadDir(realPath)) {
+      throw new BadRequestException('Invalid storage path');
+    }
 
-    const walk = (currentDir: string) => {
-      for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
-        const absolutePath = path.join(currentDir, entry.name);
-        if (entry.isDirectory()) {
-          walk(absolutePath);
-          continue;
-        }
-
-        const relativePath = path
-          .relative(this.uploadDir, absolutePath)
-          .split(path.sep)
-          .join('/');
-        refs.push(`/uploads/${relativePath}`);
+    if (!realPath && !options.allowMissingLeaf) {
+      const existingParent = this.findExistingParent(resolvedPath);
+      const realParent = this.realPathIfExists(existingParent);
+      if (!realParent || !this.isInsideUploadDir(realParent)) {
+        throw new BadRequestException('Invalid storage path');
       }
-    };
+    }
 
-    walk(startDir);
-    return refs;
+    return resolvedPath;
+  }
+
+  private normalizeStorageInput(
+    input: string,
+    requireUploadsPrefix: boolean,
+  ): string {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(input);
+    } catch {
+      throw new BadRequestException('Invalid storage path');
+    }
+
+    if (decoded.includes('\\')) {
+      throw new BadRequestException('Invalid storage path');
+    }
+
+    const normalized = decoded.replace(/^\/+|\/+$/g, '');
+    if (requireUploadsPrefix) {
+      if (!decoded.startsWith('/uploads/')) {
+        throw new BadRequestException('Invalid storage path');
+      }
+      return normalized.slice('uploads/'.length);
+    }
+
+    if (path.isAbsolute(decoded) || normalized.startsWith('uploads/')) {
+      throw new BadRequestException('Invalid storage path');
+    }
+
+    return normalized;
+  }
+
+  private rejectSuspiciousNonUploadRef(input: string): void {
+    let decoded = input;
+    try {
+      decoded = decodeURIComponent(input);
+    } catch {
+      throw new BadRequestException('Invalid storage path');
+    }
+
+    if (
+      path.isAbsolute(decoded) ||
+      decoded.includes('\\') ||
+      decoded.includes('..')
+    ) {
+      throw new BadRequestException('Invalid storage path');
+    }
+  }
+
+  private isInsideUploadDir(candidatePath: string): boolean {
+    const relative = path.relative(this.canonicalUploadDir, candidatePath);
+    return (
+      relative === '' ||
+      (!relative.startsWith('..') && !path.isAbsolute(relative))
+    );
+  }
+
+  private realPathIfExists(candidatePath: string): string | null {
+    try {
+      return fs.realpathSync(candidatePath);
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  private findExistingParent(candidatePath: string): string {
+    let current = path.dirname(candidatePath);
+    while (!fs.existsSync(current)) {
+      const parent = path.dirname(current);
+      if (parent === current) {
+        break;
+      }
+      current = parent;
+    }
+    return current;
   }
 }
