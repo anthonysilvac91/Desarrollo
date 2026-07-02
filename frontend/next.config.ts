@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
+const apiUrl =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    if (!apiUrl) return [];
+    return [
+      {
+        source: "/api-proxy/:path*",
+        destination: `${apiUrl}/:path*`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

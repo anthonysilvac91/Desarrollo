@@ -1,17 +1,25 @@
 import axios from "axios";
 
-const apiBaseUrl =
+// In production, route all API calls through the Next.js rewrite (/api-proxy)
+// so the cookie is set by the same origin as the frontend. This is required for
+// iOS Safari which blocks cross-origin cookies via ITP.
+const rawApiUrl =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
 
-if (!apiBaseUrl) {
+if (!rawApiUrl) {
   throw new Error("NEXT_PUBLIC_API_URL is required in production");
 }
+
+const apiBaseUrl =
+  typeof window !== "undefined" && process.env.NODE_ENV === "production"
+    ? "/api-proxy"
+    : rawApiUrl;
 
 const normalizeMediaUrls = (value: unknown): unknown => {
   if (typeof value === "string") {
     if (value.startsWith("/uploads/")) {
-      return `${apiBaseUrl}${value}`;
+      return `${rawApiUrl}${value}`;
     }
     return value;
   }
@@ -44,7 +52,7 @@ const isPublicRequest = (url?: string): boolean => {
   if (!url) return false;
 
   try {
-    const parsed = new URL(url, apiBaseUrl);
+    const parsed = new URL(url, rawApiUrl);
     return parsed.pathname.startsWith("/public/");
   } catch {
     return url.startsWith("/public/");
