@@ -459,6 +459,45 @@ export class UploadsService {
     return this.serializeAttachment(attachment);
   }
 
+  /**
+   * Called when a Service is permanently purged from trash. Unlike cancel(),
+   * this must also clean up CONFIRMED uploads (their attachment is being
+   * destroyed too), not just abandoned ones.
+   */
+  async purgeUploadsForService(serviceId: string): Promise<void> {
+    const uploads = await this.prisma.fileUpload.findMany({
+      where: { service_id: serviceId },
+    });
+    if (uploads.length === 0) return;
+
+    for (const upload of uploads) {
+      try {
+        if (upload.cf_stream_uid) {
+          await this.cloudflareService.deleteStreamVideo(upload.cf_stream_uid);
+        } else {
+          await this.storageService.deleteFile(upload.storage_ref);
+        }
+      } catch (e: any) {
+        this.logger.warn(
+          `No se pudo eliminar el recurso de la carga ${upload.id} al purgar servicio ${serviceId}: ${e.message}`,
+        );
+      }
+
+      if (ACTIVE_UPLOAD_STATUSES.includes(upload.status as any)) {
+        await this.releaseReservation(
+          this.prisma,
+          upload.organization_id,
+          upload.declared_size_bytes,
+          1,
+        );
+      }
+    }
+
+    await this.prisma.fileUpload.deleteMany({
+      where: { service_id: serviceId },
+    });
+  }
+
   async cancel(serviceId: string, uploadId: string, user: any) {
     this.assertInternalUser(user);
     await this.assertServiceAccess(serviceId, user);

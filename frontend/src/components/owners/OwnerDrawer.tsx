@@ -16,6 +16,7 @@ interface OwnerDrawerProps {
   onDelete?: (owner: Owner) => void;
   onToggleStatus?: (owner: Owner) => void;
   onAssetClick?: (asset: OwnerAsset, owner: Owner) => void;
+  readOnly?: boolean;
 }
 
 const OwnerLogo = ({ owner }: { owner: Owner }) => (
@@ -79,7 +80,7 @@ const AssetRow = ({
   </button>
 );
 
-export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggleStatus, onAssetClick }: OwnerDrawerProps) {
+export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggleStatus, onAssetClick, readOnly = false }: OwnerDrawerProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const assetIconId = user?.organization?.default_asset_icon;
@@ -100,7 +101,7 @@ export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggle
   const { data: ownerDetail, isLoading } = useQuery({
     queryKey: ["owner", owner?.id],
     queryFn: () => ownersService.findOne(owner!.id),
-    enabled: !!owner?.id,
+    enabled: !!owner?.id && !readOnly,
   });
 
   if (!owner) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
@@ -114,7 +115,7 @@ export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggle
       onClose={onClose}
       panelClassName="bg-app-bg"
       closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
-      leftAction={
+      leftAction={readOnly ? undefined : (
         <div ref={actionsMenuRef} className="relative">
           <button
             type="button"
@@ -164,7 +165,7 @@ export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggle
             </div>
           )}
         </div>
-      }
+      )}
     >
       <div className="flex flex-col min-h-full">
         <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5 pt-16 lg:pt-24">

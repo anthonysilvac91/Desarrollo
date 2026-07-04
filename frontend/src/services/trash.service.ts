@@ -30,6 +30,11 @@ export const trashService = {
     return res.data;
   },
 
+  findOneDetail: async (entityType: string, id: string): Promise<any> => {
+    const res = await api.get(`/trash/${entityType}/${id}`);
+    return res.data;
+  },
+
   restore: async (entityType: string, id: string): Promise<any> => {
     const res = await api.post(`/trash/${entityType}/${id}/restore`);
     return res.data;

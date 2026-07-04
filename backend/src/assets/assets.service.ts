@@ -550,6 +550,39 @@ export class AssetsService {
     };
   }
 
+  /** Same shape as findOne(), but for a soft-deleted asset viewed from Trash. */
+  async findOneForTrash(id: string, orgId: string) {
+    const asset = await this.prisma.asset.findFirst({
+      where: { id, organization_id: orgId, deleted_at: { not: null } },
+      include: {
+        services: {
+          include: {
+            worker: {
+              select: { name: true, id: true, deleted_at: true, purged_at: true },
+            },
+            attachments: {
+              select: { id: true, file_id: true, file_type: true },
+            },
+          },
+          orderBy: { created_at: 'desc' },
+          take: 20,
+        },
+        owner: {
+          select: { id: true, name: true, deleted_at: true, purged_at: true },
+        },
+      },
+    });
+
+    if (!asset) {
+      throw new NotFoundException('Activo no encontrado en papelera');
+    }
+
+    return this.resolveAssetFileUrls(
+      this.mapAssetRelations(this.withLastService(asset)),
+      asset.organization_id,
+    );
+  }
+
   async assignOwner(assetId: string, ownerId: string, orgId: string) {
     const asset = await this.prisma.asset.findFirst({
       where: { id: assetId, organization_id: orgId },

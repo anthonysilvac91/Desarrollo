@@ -28,6 +28,7 @@ interface AssetDrawerProps {
   onClose: () => void;
   onEdit?: (asset: Asset) => void;
   onDelete?: (asset: Asset) => void;
+  readOnly?: boolean;
 }
 
 // Fallback image component for thumbnails/cards
@@ -68,7 +69,7 @@ function CalendarCaption({ calendarMonth }: MonthCaptionProps) {
   );
 }
 
-export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDelete }: AssetDrawerProps) {
+export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDelete, readOnly = false }: AssetDrawerProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
@@ -93,7 +94,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
   const { user } = useAuth();
   const { t } = useLanguage();
   const { showToast } = useToast();
-  const canCreateService = user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
+  const canCreateService = !readOnly && (user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN");
   const iconId = user?.organization?.default_asset_icon;
 
   const {
@@ -103,7 +104,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
   } = useQuery({
     queryKey: ["asset", initialAsset?.id],
     queryFn: () => assetsService.findOne(initialAsset!.id),
-    enabled: !!initialAsset?.id,
+    enabled: !!initialAsset?.id && !readOnly,
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
   });
@@ -277,6 +278,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
 
   const leftAction = (
     <div className="flex items-center gap-2">
+      {!readOnly && (
       <div ref={actionsMenuRef} className="relative">
         <button
           type="button"
@@ -330,6 +332,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
           </div>
         )}
       </div>
+      )}
+      {!readOnly && (
       <button
         onClick={() => {
           onClose();
@@ -339,6 +343,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
       >
         <Maximize2 className="w-5 h-5" />
       </button>
+      )}
     </div>
   );
 
@@ -373,6 +378,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
                 <AssetIcon iconId={iconId} className="w-12 h-12 text-brand" strokeWidth={1.5} />
               )}
             </button>
+            {!readOnly && (
             <button
               type="button"
               onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
@@ -382,7 +388,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
             >
               {isPhotoUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
             </button>
-            {currentAsset.thumbnail_url && (
+            )}
+            {!readOnly && currentAsset.thumbnail_url && (
               <button
                 type="button"
                 onClick={handleRemovePhoto}
@@ -442,6 +449,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
                   <AssetIcon iconId={iconId} className="w-12 h-12 text-brand" strokeWidth={1.5} />
                 )}
               </div>
+              {!readOnly && (
               <button
                 type="button"
                 onClick={() => !isPhotoUpdating && fileInputRef.current?.click()}
@@ -451,7 +459,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
               >
                 {isPhotoUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
               </button>
-              {currentAsset.thumbnail_url && (
+              )}
+              {!readOnly && currentAsset.thumbnail_url && (
                 <button
                   type="button"
                   onClick={handleRemovePhoto}
@@ -817,7 +826,7 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
       {canCreateService && view === "history" && (
         <button
           onClick={() => setView("new-service")}
-          className="fixed bottom-24 right-6 lg:hidden z-60 w-14 h-14 bg-brand text-white rounded-full shadow-xl shadow-brand/30 flex items-center justify-center active:scale-95 transition-all"
+          className="fixed bottom-24 right-6 lg:bottom-8 z-60 w-14 h-14 bg-brand text-white rounded-full shadow-xl shadow-brand/30 flex items-center justify-center active:scale-95 transition-all"
           aria-label={t.services.add_new}
         >
           <Plus className="w-6 h-6 stroke-[3px]" />

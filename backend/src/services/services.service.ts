@@ -1188,6 +1188,53 @@ export class ServicesService {
     );
   }
 
+  /** Same shape as findOne(), but for a soft-deleted service viewed from Trash. */
+  async findOneForTrash(id: string, orgId: string) {
+    const service = await this.prisma.service.findFirst({
+      where: { id, organization_id: orgId, deleted_at: { not: null } },
+      include: {
+        attachments: { orderBy: { created_at: 'asc' } },
+        file_uploads: {
+          select: {
+            id: true,
+            original_name: true,
+            media_type: true,
+            status: true,
+            local_progress: true,
+            declared_size_bytes: true,
+            actual_size_bytes: true,
+            failure_reason: true,
+          },
+          orderBy: { created_at: 'asc' },
+        },
+        worker: {
+          select: { name: true, id: true, deleted_at: true, purged_at: true },
+        },
+        asset: {
+          select: {
+            name: true,
+            id: true,
+            category: true,
+            owner_id: true,
+            location: true,
+            thumbnail_file_id: true,
+            deleted_at: true,
+            purged_at: true,
+            owner: {
+              select: { id: true, name: true, deleted_at: true, purged_at: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service no encontrado en papelera');
+    }
+
+    return this.prepareServiceResponse(service, service.organization_id);
+  }
+
   async getOrCreateShareLink(id: string, user: any) {
     if (isExternalRole(user.role)) {
       throw new ForbiddenException(
@@ -1489,9 +1536,17 @@ export class ServicesService {
       );
     }
 
-    return this.prisma.service.update({
+    const updated = await this.prisma.service.update({
       where: { id },
       data: { deleted_at: new Date(), deleted_by_id: user.id },
     });
+
+    // attachment_bytes_total/ready are BigInt columns - JSON.stringify() throws
+    // on those, so they must be stringified before this reaches the response.
+    return {
+      ...updated,
+      attachment_bytes_total: String(updated.attachment_bytes_total),
+      attachment_bytes_ready: String(updated.attachment_bytes_ready),
+    };
   }
 }

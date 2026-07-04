@@ -334,6 +334,36 @@ export class OwnersService {
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
+  /** Same shape as findOne(), but for a soft-deleted owner viewed from Trash. */
+  async findOneForTrash(id: string, orgId: string) {
+    const owner = await this.prisma.owner.findFirst({
+      where: { id, organization_id: orgId, deleted_at: { not: null } },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+        assets: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            location: true,
+            is_active: true,
+            thumbnail_file_id: true,
+            deleted_at: true,
+            purged_at: true,
+          },
+        },
+      },
+    });
+
+    if (!owner) {
+      throw new NotFoundException('Owner no encontrado en papelera');
+    }
+
+    return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
+  }
+
   async update(
     id: string,
     updateOwnerDto: UpdateOwnerDto,

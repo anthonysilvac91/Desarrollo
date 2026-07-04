@@ -21,6 +21,7 @@ interface UserDrawerProps {
   onDelete?: (user: User) => void;
   onResetPassword?: (user: User) => void;
   onToggleStatus?: (user: User) => void;
+  readOnly?: boolean;
 }
 
 const ROLE_LABELS: Record<string, { en: string; es: string }> = {
@@ -48,7 +49,7 @@ const getRoleStyle = (role: string) => {
   return styles[role] || "bg-gray-50 text-gray-600 border-gray-100";
 };
 
-export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPassword, onToggleStatus }: UserDrawerProps) {
+export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPassword, onToggleStatus, readOnly = false }: UserDrawerProps) {
   const { t, language } = useLanguage();
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [dateFilter, setDateFilter] = useState<"custom" | null>(null);
@@ -127,7 +128,7 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
         onClose={onClose}
         panelClassName="bg-app-bg"
         closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
-        leftAction={
+        leftAction={readOnly ? undefined : (
           <div ref={actionsMenuRef} className="relative">
             <button
               type="button"
@@ -188,7 +189,7 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
               </div>
             )}
           </div>
-        }
+        )}
       >
         <div className="flex flex-col min-h-full">
 

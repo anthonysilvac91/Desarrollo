@@ -23,6 +23,7 @@ const DESCRIPTION_CLAMP_THRESHOLD = 160;
 interface ServiceDrawerProps {
   service: Service | null;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 const getInitials = (name: string) =>
@@ -135,7 +136,7 @@ function AttachmentUploadSummary({ service }: { service: Service }) {
   );
 }
 
-export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) {
+export default function ServiceDrawer({ service, onClose, readOnly = false }: ServiceDrawerProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -155,7 +156,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["service", service?.id, language],
     queryFn: () => servicesService.findOne(service!.id, language),
-    enabled: !!service?.id,
+    enabled: !!service?.id && !readOnly,
     refetchInterval: AUTO_REFETCH_INTERVALS.detail,
     ...AUTO_REFETCH_OPTIONS,
   });
@@ -345,6 +346,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
           <span className="text-[13px] font-black text-title uppercase tracking-[0.15em]">
             {t.services.drawer.drawer_title}
           </span>
+          {!readOnly && (
           <button
             onClick={handleShareService}
             disabled={isSharing}
@@ -353,6 +355,7 @@ export default function ServiceDrawer({ service, onClose }: ServiceDrawerProps) 
           >
             {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
           </button>
+          )}
         </div>
 
         {/* Badges: date + worker */}

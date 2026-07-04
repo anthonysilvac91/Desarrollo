@@ -14,6 +14,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
+import ServiceDrawer from "@/components/services/ServiceDrawer";
+import AssetDrawer from "@/components/assets/AssetDrawer";
+import OwnerDrawer from "@/components/owners/OwnerDrawer";
+import UserDrawer from "@/components/users/UserDrawer";
 import {
   Loader2,
   AlertCircle,
@@ -55,6 +59,7 @@ export default function TrashPage() {
   const [limit, setLimit] = useState(5);
   const [confirmAction, setConfirmAction] = useState<{ type: "restore" | "delete"; item: TrashItem } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [detailItem, setDetailItem] = useState<TrashItem | null>(null);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -78,6 +83,12 @@ export default function TrashPage() {
   const items = data?.data ?? [];
   const meta = data?.meta;
   const hasExternalFilter = !!categoryFilter || !!deletedByFilter;
+
+  const { data: detailData } = useQuery({
+    queryKey: ["trash-detail", detailItem?.entity_type, detailItem?.id],
+    queryFn: () => trashService.findOneDetail(detailItem!.entity_type, detailItem!.id),
+    enabled: !!detailItem,
+  });
 
   const handleAction = async () => {
     if (!confirmAction) return;
@@ -300,6 +311,7 @@ export default function TrashPage() {
         <DataTable
           columns={columns}
           data={items}
+          onRowClick={(item) => setDetailItem(item)}
           emptyState={{
             title: t.trash.states.empty_title,
             subtitle: t.trash.states.empty_subtitle,
@@ -331,6 +343,36 @@ export default function TrashPage() {
           confirmText={t.trash.confirm_permanent_delete.confirm}
           cancelText={t.common.cancel}
           variant="danger"
+        />
+      )}
+
+      {/* Detail drawers (read-only) */}
+      {detailItem?.entity_type === "service" && (
+        <ServiceDrawer
+          service={detailData ?? null}
+          onClose={() => setDetailItem(null)}
+          readOnly
+        />
+      )}
+      {detailItem?.entity_type === "asset" && (
+        <AssetDrawer
+          asset={detailData ?? null}
+          onClose={() => setDetailItem(null)}
+          readOnly
+        />
+      )}
+      {detailItem?.entity_type === "owner" && (
+        <OwnerDrawer
+          owner={detailData ?? null}
+          onClose={() => setDetailItem(null)}
+          readOnly
+        />
+      )}
+      {detailItem?.entity_type === "user" && (
+        <UserDrawer
+          user={detailData ?? null}
+          onClose={() => setDetailItem(null)}
+          readOnly
         />
       )}
     </div>

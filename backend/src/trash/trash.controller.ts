@@ -55,6 +55,21 @@ export class TrashController {
     return this.trashService.getFilterOptions(req.user.orgId);
   }
 
+  @Get(':entityType/:id')
+  @ApiOperation({ summary: 'Detalle de un elemento en papelera' })
+  findOneDetail(
+    @Param('entityType') entityType: string,
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden acceder a la papelera',
+      );
+    }
+    return this.trashService.findOneDetail(entityType, id, req.user);
+  }
+
   @Post(':entityType/:id/restore')
   @ApiOperation({ summary: 'Restaurar un elemento de la papelera' })
   restore(

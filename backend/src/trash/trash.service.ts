@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { UploadsService } from '../uploads/uploads.service';
+import { AssetsService } from '../assets/assets.service';
+import { ServicesService } from '../services/services.service';
+import { OwnersService } from '../companies/companies.service';
+import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 
@@ -18,7 +23,31 @@ export class TrashService {
   constructor(
     private prisma: PrismaService,
     private storedFilesService: StoredFilesService,
+    private uploadsService: UploadsService,
+    private assetsService: AssetsService,
+    private servicesService: ServicesService,
+    private ownersService: OwnersService,
+    private usersService: UsersService,
   ) {}
+
+  async findOneDetail(entityType: string, id: string, user: any) {
+    switch (entityType) {
+      case 'asset':
+        return this.assetsService.findOneForTrash(id, user.orgId);
+      case 'service':
+        return this.servicesService.findOneForTrash(id, user.orgId);
+      case 'owner':
+        return this.ownersService.findOneForTrash(id, user.orgId);
+      case 'user':
+        return this.usersService.findOne(id, {
+          id: user.id,
+          role: user.role,
+          orgId: user.orgId,
+        });
+      default:
+        throw new NotFoundException('Tipo de elemento no soportado');
+    }
+  }
 
   async getFilterOptions(orgId: string) {
     const deletedBySelect = { id: true, name: true };
@@ -367,6 +396,7 @@ export class TrashService {
               this.storedFilesService.deleteStoredFileAndBlob(fileId),
             ),
         );
+        await this.uploadsService.purgeUploadsForService(id);
         await this.prisma.service.update({
           where: { id },
           data: {
