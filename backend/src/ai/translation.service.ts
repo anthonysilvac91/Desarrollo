@@ -25,6 +25,17 @@ type TranslationStatus =
   | 'skipped_unsupported_language'
   | 'failed';
 
+type TranslatableField = 'title' | 'description';
+
+interface TranslatedField {
+  text: string | null;
+  original_text: string | null;
+  original_language: string | null;
+  translated_language: string | null;
+  is_translated: boolean;
+  translation_status: TranslationStatus;
+}
+
 export interface TranslatedDescription {
   description: string | null;
   original_description: string | null;
@@ -32,6 +43,13 @@ export interface TranslatedDescription {
   translated_language: string | null;
   is_translated: boolean;
   translation_status: TranslationStatus;
+}
+
+export interface TranslatedTitle {
+  title: string;
+  original_title: string | null;
+  is_title_translated: boolean;
+  title_translation_status: TranslationStatus;
 }
 
 @Injectable()
@@ -47,45 +65,84 @@ export class TranslationService {
     service: any,
     targetLanguage?: string | null,
   ): Promise<TranslatedDescription> {
-    const original = service.description?.trim() || null;
-    const normalizedTarget = this.normalizeLanguage(targetLanguage);
+    const result = await this.translateField({
+      service,
+      field: 'description',
+      sourceText: service.description,
+      cachedLanguage: service.description_language ?? null,
+      targetLanguage,
+    });
+
+    return {
+      description: result.text,
+      original_description: result.original_text,
+      original_language: result.original_language,
+      translated_language: result.translated_language,
+      is_translated: result.is_translated,
+      translation_status: result.translation_status,
+    };
+  }
+
+  async translateServiceTitle(
+    service: any,
+    targetLanguage?: string | null,
+  ): Promise<TranslatedTitle> {
+    const result = await this.translateField({
+      service,
+      field: 'title',
+      sourceText: service.title,
+      cachedLanguage: service.description_language ?? null,
+      targetLanguage,
+    });
+
+    return {
+      title: result.text ?? service.title,
+      original_title: result.original_text,
+      is_title_translated: result.is_translated,
+      title_translation_status: result.translation_status,
+    };
+  }
+
+  private async translateField(params: {
+    service: any;
+    field: TranslatableField;
+    sourceText: string | null | undefined;
+    cachedLanguage: string | null;
+    targetLanguage?: string | null;
+  }): Promise<TranslatedField> {
+    const { service, field, cachedLanguage } = params;
+    const original = params.sourceText?.trim() || null;
+    const normalizedTarget = this.normalizeLanguage(params.targetLanguage);
 
     if (!original) {
-      return this.originalPayload(
-        original,
-        service.description_language ?? null,
-        normalizedTarget,
-        'original',
-      );
+      return this.fieldPayload(original, cachedLanguage, normalizedTarget, 'original');
     }
 
     if (!normalizedTarget) {
-      return this.originalPayload(
+      return this.fieldPayload(
         original,
-        service.description_language ?? null,
+        cachedLanguage,
         null,
         'skipped_unsupported_language',
       );
     }
 
-    if (!this.isTextEligible(original)) {
-      return this.originalPayload(
+    if (!this.isTextEligible(original, field)) {
+      return this.fieldPayload(
         original,
-        service.description_language ?? null,
+        cachedLanguage,
         normalizedTarget,
         'skipped_low_quality',
       );
     }
 
     const detectedLanguage =
-      service.description_language || this.detectLanguageHeuristic(original);
+      cachedLanguage || this.detectLanguageHeuristic(original);
     if (detectedLanguage && detectedLanguage === normalizedTarget) {
-      await this.persistDetectedLanguage(
-        service.id,
-        detectedLanguage,
-        service.description_language,
-      );
-      return this.originalPayload(
+      if (field === 'description') {
+        await this.persistDetectedLanguage(service.id, detectedLanguage, cachedLanguage);
+      }
+      return this.fieldPayload(
         original,
         detectedLanguage,
         normalizedTarget,
@@ -95,7 +152,7 @@ export class TranslationService {
 
     const runtime = await this.aiSettingsService.getOpenAiRuntimeConfig();
     if (!runtime) {
-      return this.originalPayload(
+      return this.fieldPayload(
         original,
         detectedLanguage,
         normalizedTarget,
@@ -107,7 +164,7 @@ export class TranslationService {
       runtime.translateServicesCreatedAfter &&
       service.created_at < runtime.translateServicesCreatedAfter
     ) {
-      return this.originalPayload(
+      return this.fieldPayload(
         original,
         detectedLanguage,
         normalizedTarget,
@@ -120,7 +177,7 @@ export class TranslationService {
       where: {
         service_id_field_language: {
           service_id: service.id,
-          field: 'description',
+          field,
           language: normalizedTarget,
         },
       },
@@ -128,8 +185,8 @@ export class TranslationService {
 
     if (cached?.source_hash === sourceHash) {
       return {
-        description: cached.translated_text,
-        original_description: original,
+        text: cached.translated_text,
+        original_text: original,
         original_language: cached.source_language ?? detectedLanguage,
         translated_language: normalizedTarget,
         is_translated: true,
@@ -150,12 +207,10 @@ export class TranslationService {
         detectedLanguage ??
         null;
       if (sourceLanguage && sourceLanguage === normalizedTarget) {
-        await this.persistDetectedLanguage(
-          service.id,
-          sourceLanguage,
-          service.description_language,
-        );
-        return this.originalPayload(
+        if (field === 'description') {
+          await this.persistDetectedLanguage(service.id, sourceLanguage, cachedLanguage);
+        }
+        return this.fieldPayload(
           original,
           sourceLanguage,
           normalizedTarget,
@@ -164,7 +219,7 @@ export class TranslationService {
       }
 
       if (!generated.translated_text?.trim()) {
-        return this.originalPayload(
+        return this.fieldPayload(
           original,
           sourceLanguage,
           normalizedTarget,
@@ -176,13 +231,13 @@ export class TranslationService {
         where: {
           service_id_field_language: {
             service_id: service.id,
-            field: 'description',
+            field,
             language: normalizedTarget,
           },
         },
         create: {
           service_id: service.id,
-          field: 'description',
+          field,
           language: normalizedTarget,
           source_hash: sourceHash,
           source_language: sourceLanguage,
@@ -196,15 +251,13 @@ export class TranslationService {
         },
       });
 
-      await this.persistDetectedLanguage(
-        service.id,
-        sourceLanguage,
-        service.description_language,
-      );
+      if (field === 'description') {
+        await this.persistDetectedLanguage(service.id, sourceLanguage, cachedLanguage);
+      }
 
       return {
-        description: translation.translated_text,
-        original_description: original,
+        text: translation.translated_text,
+        original_text: original,
         original_language: sourceLanguage,
         translated_language: normalizedTarget,
         is_translated: true,
@@ -212,9 +265,9 @@ export class TranslationService {
       };
     } catch (error) {
       this.logger.warn(
-        `OpenAI translation failed for service ${service.id}: ${error instanceof Error ? error.message : String(error)}`,
+        `OpenAI translation failed for service ${service.id} (${field}): ${error instanceof Error ? error.message : String(error)}`,
       );
-      return this.originalPayload(
+      return this.fieldPayload(
         original,
         detectedLanguage,
         normalizedTarget,
@@ -290,7 +343,7 @@ export class TranslationService {
           {
             role: 'system',
             content:
-              'You translate technical service descriptions. Preserve brands, names, serial numbers, codes, dates, quantities and units. Do not add information. Return only compact JSON.',
+              'You translate short technical service titles and descriptions. Preserve brands, names, serial numbers, codes, dates, quantities and units. Do not add information. Return only compact JSON.',
           },
           {
             role: 'user',
@@ -330,15 +383,15 @@ export class TranslationService {
       .join('\n');
   }
 
-  private originalPayload(
-    description: string | null,
+  private fieldPayload(
+    text: string | null,
     originalLanguage: string | null,
     targetLanguage: string | null,
     status: TranslationStatus,
-  ): TranslatedDescription {
+  ): TranslatedField {
     return {
-      description,
-      original_description: description,
+      text,
+      original_text: text,
       original_language: originalLanguage,
       translated_language: targetLanguage,
       is_translated: false,
@@ -352,16 +405,20 @@ export class TranslationService {
     return SUPPORTED_LANGUAGES.has(normalized) ? normalized : null;
   }
 
-  private isTextEligible(text: string): boolean {
+  private isTextEligible(text: string, field: TranslatableField): boolean {
     const normalized = this.normalizeText(text);
     const words = normalized.split(/\s+/).filter(Boolean);
     const hasRepeatedCharacters = /(.)\1{4,}/.test(normalized);
     const hasSkipTerm = SKIP_TERMS.some(
       (term) => normalized === term || normalized.includes(term),
     );
+    // Titles are legitimately short (unlike descriptions), so they get a much
+    // lighter length/word-count bar - we still filter out junk/placeholder text.
+    const minLength = field === 'title' ? 3 : 20;
+    const minWords = field === 'title' ? 1 : 3;
     return (
-      normalized.length >= 20 &&
-      words.length >= 3 &&
+      normalized.length >= minLength &&
+      words.length >= minWords &&
       !hasRepeatedCharacters &&
       !hasSkipTerm
     );

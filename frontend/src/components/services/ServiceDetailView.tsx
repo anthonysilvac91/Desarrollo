@@ -363,8 +363,14 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
         <span className="block px-1 text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
           {t.mobile.new_service.title_label}
         </span>
-        <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4">
-          <h2 className="text-base font-black text-title leading-snug">{current.title}</h2>
+        <div className="bg-surface rounded-2xl border border-border-theme/40 px-5 py-4 space-y-2">
+          <TranslatedDescription
+            description={current.title}
+            originalDescription={current.original_title}
+            isTranslated={current.is_title_translated}
+            emptyText=""
+            className="text-base font-black text-title leading-snug"
+          />
         </div>
       </div>
 

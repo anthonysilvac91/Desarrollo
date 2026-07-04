@@ -369,14 +369,20 @@ export class ServicesService {
         translated_language: null,
         is_translated: false,
         translation_status: 'original',
+        original_title: service.title ?? null,
+        is_title_translated: false,
+        title_translation_status: 'original',
       };
     }
 
-    const translated =
-      await this.translationService.translateServiceDescription(service, lang);
+    const [translatedDescription, translatedTitle] = await Promise.all([
+      this.translationService.translateServiceDescription(service, lang),
+      this.translationService.translateServiceTitle(service, lang),
+    ]);
     return {
       ...service,
-      ...translated,
+      ...translatedDescription,
+      ...translatedTitle,
     };
   }
 

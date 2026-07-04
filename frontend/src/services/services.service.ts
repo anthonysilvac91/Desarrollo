@@ -3,6 +3,9 @@ import api from "@/lib/api";
 export interface Service {
   id: string;
   title: string;
+  original_title?: string | null;
+  is_title_translated?: boolean;
+  title_translation_status?: string;
   description: string | null;
   original_description?: string | null;
   original_language?: string | null;

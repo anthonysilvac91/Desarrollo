@@ -98,7 +98,7 @@ export class AiSettingsService {
       body: JSON.stringify({
         model: runtime.model,
         input: 'Return only the word ok.',
-        max_output_tokens: 8,
+        max_output_tokens: 16,
       }),
     });
 
