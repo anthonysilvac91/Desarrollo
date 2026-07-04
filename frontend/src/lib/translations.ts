@@ -250,6 +250,9 @@ export const translations = {
         error: "Error creating service.",
         asset_required: "You must select an asset.",
         title_required: "Title is required.",
+        no_assets_title: "You need an asset first",
+        no_assets_subtitle: "A service always belongs to an asset. Create one to start logging services.",
+        no_assets_cta: "Create an asset",
       },
       states: {
         loading: "Loading services...",
@@ -1156,6 +1159,9 @@ export const translations = {
         error: "Error al crear el servicio.",
         asset_required: "Debes seleccionar un activo.",
         title_required: "El título es obligatorio.",
+        no_assets_title: "Primero necesitas un activo",
+        no_assets_subtitle: "Un servicio siempre pertenece a un activo. Crea uno para empezar a registrar servicios.",
+        no_assets_cta: "Crear un activo",
       },
       states: {
         loading: "Cargando servicios...",

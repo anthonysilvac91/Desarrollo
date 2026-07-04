@@ -50,7 +50,9 @@ export default function AssetCoverageCard({ totalAssets, assetsServiced, t }: Pr
           <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-title tracking-tight">{m.title}</h3>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 py-8 px-5 text-center gap-2">
-          <Package className="w-9 h-9 text-subtitle/20 mb-1" />
+          <div className="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center mb-1">
+            <Package className="w-5 h-5 text-brand/30" />
+          </div>
           <p className="text-sm font-black text-title/50">{m.no_assets_title}</p>
           <p className="text-xs text-subtitle/40 font-medium">{m.no_assets_subtitle}</p>
         </div>

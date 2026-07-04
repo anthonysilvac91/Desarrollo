@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, Loader2, ImagePlus, FileText, FileSpreadsheet, Paperclip } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, Loader2, ImagePlus, FileText, FileSpreadsheet, Paperclip, Package } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Combobox from "@/components/ui/Combobox";
 import { useLanguage } from "@/lib/LanguageContext";
@@ -28,6 +29,7 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   const { t } = useLanguage();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,13 +41,14 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   const [documents, setDocuments] = useState<File[]>([]);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
 
-  const { data: assetsData = [] } = useQuery<Asset[] | { data: Asset[] }>({
+  const { data: assetsData = [], isLoading: isLoadingAssets } = useQuery<Asset[] | { data: Asset[] }>({
     queryKey: ["assets"],
     queryFn: () => assetsService.findAll(),
     enabled: isOpen,
   });
 
   const assets = Array.isArray(assetsData) ? assetsData : assetsData.data || [];
+  const hasNoAssets = isOpen && !isLoadingAssets && assets.length === 0;
 
   const resetForm = () => {
     setAssetId("");
@@ -58,6 +61,11 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleGoToAssets = () => {
+    handleClose();
+    router.push("/assets");
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,6 +158,27 @@ export default function ServiceModal({ isOpen, onClose, onSuccess }: ServiceModa
       setLoading(false);
     }
   };
+
+  if (hasNoAssets) {
+    return (
+      <Modal isOpen={isOpen} onClose={handleClose} title={t.services.modal.title_create}>
+        <div className="flex flex-col items-center text-center gap-3 py-8">
+          <div className="w-14 h-14 rounded-2xl bg-brand/5 flex items-center justify-center">
+            <Package className="w-6 h-6 text-brand/30" />
+          </div>
+          <p className="text-base font-black text-title">{t.services.modal.no_assets_title}</p>
+          <p className="text-sm text-subtitle/50 font-medium max-w-xs">{t.services.modal.no_assets_subtitle}</p>
+          <button
+            type="button"
+            onClick={handleGoToAssets}
+            className="mt-3 py-3 px-6 rounded-2xl text-sm font-black text-white bg-brand shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            {t.services.modal.no_assets_cta}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={t.services.modal.title_create}>

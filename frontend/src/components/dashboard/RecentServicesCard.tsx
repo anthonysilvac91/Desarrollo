@@ -48,7 +48,7 @@ export default function RecentServicesCard({ services, t }: Props) {
       </div>
 
       {services.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 px-5 text-center gap-2">
+        <div className="flex flex-col items-center justify-center flex-1 py-10 px-5 text-center gap-2">
           <div className="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center mb-1">
             <Inbox className="w-5 h-5 text-brand/30" />
           </div>
