@@ -7,6 +7,7 @@ import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { usersService } from "@/services/users.service";
 import { ownersService } from "@/services/owners.service";
+import Combobox from "@/components/ui/Combobox";
 import { organizationsService, Organization } from "@/services/organizations.service";
 
 export interface UserFormData {
@@ -77,6 +78,10 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isEditMode && formData.role === "EXTERNAL" && !formData.owner_id) {
+      showToast(t.users.modal.owner_required, "error");
+      return;
+    }
     setLoading(true);
     try {
       if (isEditMode) {
@@ -202,27 +207,14 @@ export default function UserModal({ isOpen, onClose, onSuccess, existingOwners =
           )}
 
           {!isEditMode && formData.role === "EXTERNAL" && (
-            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-[11px] font-black text-subtitle opacity-40 uppercase tracking-[0.2em] ml-1">{t.users.modal.owner}</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none group-focus-within:text-brand">
-                  <Building2 className="h-5 w-5 opacity-30" />
-                </div>
-                <select
-                  required
-                  className="block w-full pl-14 pr-10 py-4 border border-border-theme/40 rounded-2xl bg-app-bg text-title font-bold placeholder:text-subtitle/20 focus:outline-none focus:ring-4 focus:ring-brand/5 focus:border-brand transition-all text-sm appearance-none"
-                  value={formData.owner_id}
-                  onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
-                >
-                  <option value="" disabled>{t.users.modal.owner_select_placeholder}</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>{owner.name}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                  <ChevronDown className="h-4 w-4 text-subtitle/50" />
-                </div>
-              </div>
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <Combobox
+                label={t.users.modal.owner}
+                options={owners}
+                value={formData.owner_id}
+                onChange={(val) => setFormData({ ...formData, owner_id: val })}
+                placeholder={t.users.modal.owner_select_placeholder}
+              />
             </div>
           )}
 

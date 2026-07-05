@@ -14,6 +14,7 @@ import type * as tus from "tus-js-client";
 import { createTusUpload } from "@/lib/uploads/tusUploader";
 import { uploadService } from "@/services/uploadService";
 import { UploadIntent, UploadQueueItem } from "@/types/uploads";
+import { useAuth } from "@/lib/AuthContext";
 
 interface EnqueueInput {
   serviceId: string;
@@ -78,6 +79,9 @@ export function UploadQueueProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = useAuth();
+  const canUpload =
+    user?.role === "ADMIN" || user?.role === "WORKER" || user?.role === "SUPER_ADMIN";
   const queryClient = useQueryClient();
   const [items, setItems] = useState<UploadQueueItem[]>(restorePersistedItems);
   const [concurrency, setConcurrency] = useState(2);
@@ -87,13 +91,14 @@ export function UploadQueueProvider({
   );
 
   useEffect(() => {
+    if (!canUpload) return;
     uploadService
       .getAttachmentConfig()
       .then((config) =>
         setConcurrency(Math.max(1, config.uploadConcurrency || 2)),
       )
       .catch(() => setConcurrency(2));
-  }, []);
+  }, [canUpload]);
 
   useEffect(() => {
     localStorage.setItem(

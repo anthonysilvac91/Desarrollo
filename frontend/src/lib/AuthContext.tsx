@@ -32,7 +32,7 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/owners": ["SUPER_ADMIN", "ADMIN"],
   "/settings": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
   "/assets": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
-  "/service": ["SUPER_ADMIN", "ADMIN", "WORKER"],
+  "/service": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
   "/trash": ["SUPER_ADMIN", "ADMIN"],
 };
 

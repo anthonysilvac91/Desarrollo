@@ -132,6 +132,7 @@ export default function ServicesPage() {
     <AssetIcon iconId={assetIconId} className={className} strokeWidth={strokeWidth} />
   );
   const canCreate = user?.role === "ADMIN" || user?.role === "WORKER";
+  const canDelete = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [mobileSearch, setMobileSearch] = useState("");
@@ -377,22 +378,26 @@ export default function ServicesPage() {
         </div>
       )
     },
-    {
-      key: "actions",
-      header: t.services.table.actions,
-      align: "center",
-      cell: (item) => (
-        <div className="flex items-center justify-center">
-          <button
-            onClick={(e) => handleDeleteRequest(e, item)}
-            className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
-            title={t.confirm_modal.delete_service_title}
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-        </div>
-      )
-    }
+    ...(canDelete
+      ? [
+          {
+            key: "actions",
+            header: t.services.table.actions,
+            align: "center" as const,
+            cell: (item: Service) => (
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={(e) => handleDeleteRequest(e, item)}
+                  className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
+                  title={t.confirm_modal.delete_service_title}
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const pagination = (

@@ -68,54 +68,62 @@ function WorkerMobileDashboard({
   t,
   language,
   assetIconId,
+  variant = "worker",
 }: {
   stats?: DashboardStats;
   t: ReturnType<typeof useLanguage>["t"];
   language: string;
   assetIconId?: string | null;
+  variant?: "worker" | "external";
 }) {
+  const isExternal = variant === "external";
   const lastServiceLabel = stats?.last_service
     ? formatRelativeTime(stats.last_service, language as "en" | "es")
     : "---";
   const latestService = stats?.recent_services?.[0];
   const weeklyTotal = stats?.evolution?.reduce((sum, point) => sum + point.value, 0) ?? 0;
+  const servicesLabel = isExternal
+    ? t.dashboard.kpis.services_received
+    : t.dashboard.kpis.services_performed;
   const WorkerAssetIcon = ({ className, strokeWidth }: { className?: string; strokeWidth?: number }) => (
     <AssetIcon iconId={assetIconId} className={className} strokeWidth={strokeWidth} />
   );
 
   return (
     <div className="sm:hidden space-y-4 pb-24">
-      <div className="rounded-3xl border border-border-theme/40 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand">{t.date_filters.today}</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-title">{t.dashboard.kpis.my_services}</h2>
-            <p className="mt-1 text-sm font-medium leading-relaxed text-subtitle/55">
-              {stats?.total_services ?? 0} {t.dashboard.kpis.services_performed.toLowerCase()} - {stats?.assets_serviced ?? 0} {t.dashboard.kpis.assets_attended.toLowerCase()}
-            </p>
+      {!isExternal && (
+        <div className="rounded-3xl border border-border-theme/40 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand">{t.date_filters.today}</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-title">{t.dashboard.kpis.my_services}</h2>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-subtitle/55">
+                {stats?.total_services ?? 0} {servicesLabel.toLowerCase()} - {stats?.assets_serviced ?? 0} {t.dashboard.kpis.assets_attended.toLowerCase()}
+              </p>
+            </div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/20">
+              <Wrench className="h-5 w-5" strokeWidth={2} />
+            </div>
           </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/20">
-            <Wrench className="h-5 w-5" strokeWidth={2} />
-          </div>
-        </div>
 
-        <Link
-          href="/assets"
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-sm font-black text-white shadow-lg shadow-brand/20 active:scale-[0.98] transition-transform"
-        >
-          <Plus className="h-4 w-4" strokeWidth={3} />
-          {t.mobile.nav.new_service}
-        </Link>
-      </div>
+          <Link
+            href="/assets"
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-sm font-black text-white shadow-lg shadow-brand/20 active:scale-[0.98] transition-transform"
+          >
+            <Plus className="h-4 w-4" strokeWidth={3} />
+            {t.mobile.nav.new_service}
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
-        <WorkerMetric label={t.dashboard.kpis.services_performed} value={stats?.total_services ?? 0} icon={Wrench} />
+        <WorkerMetric label={servicesLabel} value={stats?.total_services ?? 0} icon={Wrench} />
         <WorkerMetric label={t.dashboard.kpis.assets_attended} value={stats?.assets_serviced ?? 0} icon={WorkerAssetIcon} />
         <WorkerMetric label={t.dashboard.kpis.last_service} value={lastServiceLabel} icon={Clock} />
         <WorkerMetric label={t.date_filters.week} value={weeklyTotal} icon={CalendarDays} />
       </div>
 
-      {stats?.private_services ? (
+      {!isExternal && stats?.private_services ? (
         <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
             <UploadCloud className="h-4 w-4" />
@@ -503,11 +511,11 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
-    if (!isWorker || workerDefaultApplied) return;
+    if ((!isWorker && !isExternal) || workerDefaultApplied) return;
     setActivePreset("Hoy");
     setDateRange(getTodayRange());
     setWorkerDefaultApplied(true);
-  }, [isWorker, workerDefaultApplied]);
+  }, [isWorker, isExternal, workerDefaultApplied]);
 
   const presetLabel: Record<string, string> = {
     "Hoy": t.date_filters.today,
@@ -590,9 +598,17 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-w-0 flex-col space-y-5 sm:space-y-6">
-      {isWorker && <WorkerMobileDashboard stats={stats} t={t} language={language} assetIconId={assetIconId} />}
+      {(isWorker || isExternal) && (
+        <WorkerMobileDashboard
+          stats={stats}
+          t={t}
+          language={language}
+          assetIconId={assetIconId}
+          variant={isExternal ? "external" : "worker"}
+        />
+      )}
 
-      <div className={isWorker ? "hidden min-w-0 flex-col space-y-5 sm:flex sm:space-y-6" : "flex min-w-0 flex-col space-y-5 sm:space-y-6"}>
+      <div className={(isWorker || isExternal) ? "hidden min-w-0 flex-col space-y-5 sm:flex sm:space-y-6" : "flex min-w-0 flex-col space-y-5 sm:space-y-6"}>
         {/* KPI Section */}
         <div className="grid grid-cols-4 gap-2 sm:gap-4">
           <KPICard

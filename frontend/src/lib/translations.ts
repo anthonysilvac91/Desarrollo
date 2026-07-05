@@ -298,6 +298,7 @@ export const translations = {
         organization: "Organization",
         organization_placeholder: "Select an organization...",
         owner_select_placeholder: "Select an owner...",
+        owner_required: "You must select an owner.",
         roles: {
           admin: "Admin",
           worker: "Worker",
@@ -1207,6 +1208,7 @@ export const translations = {
         organization: "Organización",
         organization_placeholder: "Selecciona una organización...",
         owner_select_placeholder: "Selecciona un owner...",
+        owner_required: "Debes seleccionar un owner.",
         roles: {
           admin: "Administrador",
           worker: "Operador",
