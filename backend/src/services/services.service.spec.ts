@@ -44,7 +44,6 @@ const buildOrganization = (
   auto_publish_services: true,
   worker_edit_policy: 'TIME_WINDOW',
   worker_edit_window_hours: null,
-  worker_restricted_access: false,
   show_org_name: false,
   video_uploads_enabled: false,
   storage_quota_bytes: null,
@@ -119,7 +118,7 @@ describe('ServicesService', () => {
     const prismaMock = {
       organization: { findUnique: jest.fn() },
       asset: { findFirst: jest.fn(), findMany: jest.fn() },
-      user: { findMany: jest.fn() },
+      user: { findMany: jest.fn(), findUnique: jest.fn() },
       service: {
         create: jest.fn(),
         findMany: jest.fn(),
@@ -463,10 +462,10 @@ describe('ServicesService', () => {
       );
     });
 
-    it('WORKER org no restringida: no aplica filtro WorkerAssetAccess', async () => {
+    it('WORKER no restringido: no aplica filtro WorkerAssetAccess', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-        worker_restricted_access: false,
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        asset_access_mode: 'UNRESTRICTED',
       } as any);
 
       await service.findAll(
@@ -479,10 +478,10 @@ describe('ServicesService', () => {
       expect(JSON.stringify(callArg.where)).not.toContain('worker_access');
     });
 
-    it('WORKER org restringida: filtra por WorkerAssetAccess en asset', async () => {
+    it('WORKER restringido: filtra por WorkerAssetAccess en asset', async () => {
       jest.spyOn(prisma.service, 'findMany').mockResolvedValue([]);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-        worker_restricted_access: true,
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        asset_access_mode: 'RESTRICTED',
       } as any);
 
       await service.findAll(

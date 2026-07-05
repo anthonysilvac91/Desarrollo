@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Query,
@@ -29,6 +30,7 @@ import { UserResponseDto } from './dto/users.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
+import { SetAssetAccessDto } from './dto/set-asset-access.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { imageUploadOptions } from '../common/files/multer-image-options';
@@ -202,6 +204,29 @@ export class UsersController {
       role: req.user.role,
       orgId: req.user.orgId,
     });
+  }
+
+  @Put(':id/asset-access')
+  @ApiOperation({
+    summary: 'Asignar acceso a activos de un worker (Solo ADMIN/SUPER_ADMIN)',
+    description:
+      'Reemplaza el conjunto de activos a los que el worker tiene acceso.',
+  })
+  setAssetAccess(
+    @Param('id') id: string,
+    @Body() dto: SetAssetAccessDto,
+    @Request() req: any,
+  ) {
+    return this.usersService.setAssetAccess(
+      id,
+      dto.asset_ids,
+      {
+        id: req.user.id,
+        role: req.user.role,
+        orgId: req.user.orgId,
+      },
+      dto.mode,
+    );
   }
 
   @Get(':id')

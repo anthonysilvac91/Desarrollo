@@ -279,11 +279,11 @@ export class AssetsService {
     }
 
     if (role === 'WORKER' && userId && orgId) {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: orgId },
-        select: { worker_restricted_access: true },
+      const worker = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { asset_access_mode: true },
       });
-      if (org?.worker_restricted_access) {
+      if (worker?.asset_access_mode === 'RESTRICTED') {
         (baseWhere as Record<string, unknown>)['worker_access'] = {
           some: { worker_id: userId, organization_id: orgId },
         };
@@ -386,11 +386,11 @@ export class AssetsService {
     if (role === 'WORKER') {
       baseWhere.is_active = true;
       if (userId && orgId) {
-        const org = await this.prisma.organization.findUnique({
-          where: { id: orgId },
-          select: { worker_restricted_access: true },
+        const worker = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { asset_access_mode: true },
         });
-        if (org?.worker_restricted_access) {
+        if (worker?.asset_access_mode === 'RESTRICTED') {
           (baseWhere as Record<string, unknown>)['worker_access'] = {
             some: { worker_id: userId, organization_id: orgId },
           };
@@ -443,11 +443,11 @@ export class AssetsService {
     }
 
     if (role === 'WORKER' && userId && orgId) {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: orgId },
-        select: { worker_restricted_access: true },
+      const worker = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { asset_access_mode: true },
       });
-      if (org?.worker_restricted_access) {
+      if (worker?.asset_access_mode === 'RESTRICTED') {
         (assetWhere as Record<string, unknown>)['worker_access'] = {
           some: { worker_id: userId, organization_id: orgId },
         };

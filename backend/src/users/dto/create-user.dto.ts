@@ -10,7 +10,7 @@ import {
   IsUUID,
   MinLength,
 } from 'class-validator';
-import { Role } from '@prisma/client';
+import { AssetAccessMode, Role } from '@prisma/client';
 
 export class CreateUserDto {
   @ApiProperty({ description: 'Correo electronico unico' })
@@ -63,4 +63,14 @@ export class CreateUserDto {
   @ApiHideProperty()
   @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: AssetAccessMode,
+    description:
+      'Solo aplica a WORKER. UNRESTRICTED (default) ve todos los assets de la org; RESTRICTED solo ve los asignados via /users/:id/asset-access.',
+  })
+  @IsOptional()
+  @IsIn(['UNRESTRICTED', 'RESTRICTED'], { message: 'Modo de acceso invalido' })
+  asset_access_mode?: AssetAccessMode;
 }

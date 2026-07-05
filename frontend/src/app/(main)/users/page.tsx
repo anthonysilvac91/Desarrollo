@@ -10,7 +10,6 @@ import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import UserModal from "@/components/users/UserModal";
 import UserDrawer from "@/components/users/UserDrawer";
-import InvitationModal from "@/components/users/InvitationModal";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersService, User } from "@/services/users.service";
@@ -18,7 +17,7 @@ import { authService } from "@/services/auth.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, Send, ChevronDown, X, ShieldCheck, ShieldUser, HardHat } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, ChevronDown, X, ShieldCheck, ShieldUser, HardHat } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 const getInitials = (name: string) =>
@@ -119,7 +118,6 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
@@ -132,8 +130,6 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [roleFilter, setRoleFilter] = useState<User["role"] | null>(null);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  const desktopAddMenuRef = useRef<HTMLDivElement>(null);
 
   const queryParams = {
     page,
@@ -165,10 +161,6 @@ export default function UsersPage() {
       : { total: usersList.length, page: 1, limit: 10, totalPages: 1 };
   }, [responseData, usersList.length]);
 
-  const existingOwners = useMemo(() => {
-    return Array.from(new Set<string>(usersList.map(() => "Fentri Co"))).sort();
-  }, [usersList]);
-
   const visibleRoleOptions = useMemo(() => {
     return user?.role === "SUPER_ADMIN"
       ? ROLE_OPTIONS
@@ -181,16 +173,6 @@ export default function UsersPage() {
       setPage(1);
     }
   }, [roleFilter, user?.role]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!desktopAddMenuRef.current?.contains(event.target as Node)) {
-        setIsAddMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // .slice(0,10) was removed since backend paginates
   const displayData = usersList;
@@ -650,52 +632,16 @@ export default function UsersPage() {
               placeholder={t.users.table.status}
               className="w-40"
             />
-            <div ref={desktopAddMenuRef} className="relative">
-              <button
-                onClick={() => setIsAddMenuOpen(v => !v)}
-                className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
-              >
-                <Plus className="w-4 h-4 stroke-[3px]" />
-                <span>{t.users.add_new}</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isAddMenuOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {isAddMenuOpen && (
-                <div className="absolute right-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-2xl border border-border-theme/40 bg-white shadow-xl shadow-title/10">
-                  <button
-                    onClick={() => {
-                      setIsAddMenuOpen(false);
-                      setEditingUser(null);
-                      setIsModalOpen(true);
-                    }}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-app-bg"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                      <Plus className="w-4 h-4 stroke-[3px]" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-black text-title">{t.users.add_new}</span>
-                      <span className="block truncate text-xs font-semibold text-subtitle/45">{t.users.modal.title}</span>
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsAddMenuOpen(false);
-                      setIsInviteModalOpen(true);
-                    }}
-                    className="flex w-full items-center gap-3 border-t border-border-theme/30 px-4 py-3 text-left transition-colors hover:bg-app-bg"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
-                      <Send className="w-4 h-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-black text-title">{t.invitations.modal.invite_button}</span>
-                      <span className="block truncate text-xs font-semibold text-subtitle/45">{t.invitations.modal.subtitle}</span>
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() => {
+                setEditingUser(null);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 bg-brand hover:bg-brand/90 active:scale-95 text-white h-11 px-5 rounded-2xl font-black text-sm transition-all shadow-lg shadow-brand/25"
+            >
+              <Plus className="w-4 h-4 stroke-[3px]" />
+              <span>{t.users.add_new}</span>
+            </button>
           </div>
         }
       />
@@ -786,7 +732,6 @@ export default function UsersPage() {
           refetch();
           refetchUserStats();
         }}
-        existingOwners={existingOwners}
         userToEdit={editingUser}
       />
 
@@ -815,12 +760,6 @@ export default function UsersPage() {
         confirmText={t.confirm_modal.confirm_reset_password}
         cancelText={t.confirm_modal.cancel_delete}
         variant="brand"
-      />
-
-      <InvitationModal
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        onSuccess={() => { refetch(); refetchUserStats(); }}
       />
 
       <button

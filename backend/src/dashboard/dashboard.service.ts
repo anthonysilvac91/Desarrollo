@@ -56,11 +56,11 @@ export class DashboardService {
       const orgId = baseWhereTyped['organization_id'] as string | undefined;
       const workerId = (currentUser as { id: string }).id;
       if (orgId) {
-        const org = await this.prisma.organization.findUnique({
-          where: { id: orgId },
-          select: { worker_restricted_access: true },
+        const worker = await this.prisma.user.findUnique({
+          where: { id: workerId },
+          select: { asset_access_mode: true },
         });
-        if (org?.worker_restricted_access) {
+        if (worker?.asset_access_mode === 'RESTRICTED') {
           workerAccessFilter = {
             worker_access: {
               some: { worker_id: workerId, organization_id: orgId },

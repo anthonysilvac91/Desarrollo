@@ -15,6 +15,11 @@ enum Role {
   EXTERNAL
 }
 
+enum AssetAccessMode {
+  UNRESTRICTED
+  RESTRICTED
+}
+
 enum ServiceStatus {
   COMPLETED
   ARCHIVED
@@ -110,7 +115,6 @@ model Organization {
   auto_publish_services    Boolean          @default(true)
   worker_edit_policy       WorkerEditPolicy @default(TIME_WINDOW)
   worker_edit_window_hours Int?
-  worker_restricted_access Boolean          @default(false)
   show_org_name            Boolean          @default(false)
   video_uploads_enabled    Boolean          @default(false)
   storage_quota_bytes      BigInt?
@@ -181,6 +185,7 @@ model User {
   phone                   String?
   avatar_file_id          String?         @unique
   owner_id                String?
+  asset_access_mode       AssetAccessMode @default(UNRESTRICTED)
   is_active               Boolean         @default(true)
   two_factor_enabled      Boolean         @default(false)
   two_factor_method       TwoFactorMethod @default(APP)
@@ -599,15 +604,17 @@ model WorkerAssetAccess {
 }
 
 model Invitation {
-  id              String   @id @default(uuid())
-  organization_id String
-  email           String
-  role            Role
-  token           String   @unique
-  invited_by_id   String
-  owner_id        String?
-  is_used         Boolean  @default(false)
-  expires_at      DateTime
+  id                 String          @id @default(uuid())
+  organization_id    String
+  email              String
+  role               Role
+  token              String          @unique
+  invited_by_id      String
+  owner_id           String?
+  asset_access_mode  AssetAccessMode @default(UNRESTRICTED)
+  pending_asset_ids  String[]        @default([])
+  is_used            Boolean         @default(false)
+  expires_at         DateTime
 
   created_at DateTime @default(now())
 

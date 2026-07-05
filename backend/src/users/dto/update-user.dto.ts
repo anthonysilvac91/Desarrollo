@@ -2,10 +2,12 @@ import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEmpty,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
 } from 'class-validator';
+import { AssetAccessMode } from '@prisma/client';
 
 export class UpdateUserDto {
   @ApiProperty({ required: false, description: 'Alias legacy de owner_id.' })
@@ -46,4 +48,13 @@ export class UpdateUserDto {
   @ApiHideProperty()
   @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: AssetAccessMode,
+    description: 'Solo aplica a WORKER.',
+  })
+  @IsOptional()
+  @IsIn(['UNRESTRICTED', 'RESTRICTED'], { message: 'Modo de acceso invalido' })
+  asset_access_mode?: AssetAccessMode;
 }

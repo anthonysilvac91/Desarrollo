@@ -53,14 +53,6 @@ export class UpdateOrganizationSettingsDto {
   logo_url?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Si es true, los workers tendran acceso restringido configurado por un admin en lugar de ver todos los assets.',
-  })
-  @IsBoolean()
-  @IsOptional()
-  worker_restricted_access?: boolean;
-
-  @ApiPropertyOptional({
     description: 'ID del icono por defecto para activos (yacht, car, etc.)',
   })
   @IsString()
@@ -71,7 +63,7 @@ export class UpdateOrganizationSettingsDto {
     description:
       'Si es true, muestra el nombre de la organización junto al logo en la UI.',
   })
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ obj, key }) => obj[key] === 'true' || obj[key] === true)
   @IsBoolean()
   @IsOptional()
   show_org_name?: boolean;

@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsEmail,
   IsEmpty,
   IsIn,
@@ -12,7 +13,7 @@ import {
   ApiProperty,
   ApiPropertyOptional,
 } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { AssetAccessMode, Role } from '@prisma/client';
 
 export class CreateInvitationDto {
   @ApiProperty({ description: 'Email del invitado.' })
@@ -50,6 +51,25 @@ export class CreateInvitationDto {
   @ApiHideProperty()
   @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
+
+  @ApiPropertyOptional({
+    enum: AssetAccessMode,
+    description:
+      'Solo aplica si role es WORKER. UNRESTRICTED (default) vera todos los assets de la org.',
+  })
+  @IsOptional()
+  @IsIn(['UNRESTRICTED', 'RESTRICTED'])
+  asset_access_mode?: AssetAccessMode;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'IDs de activos a preasignar cuando asset_access_mode es RESTRICTED. Se aplican cuando la invitacion es aceptada.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  asset_ids?: string[];
 }
 
 export class ValidateInvitationDto {

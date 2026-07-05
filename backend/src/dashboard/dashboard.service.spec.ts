@@ -20,6 +20,7 @@ describe('DashboardService tenant scoping', () => {
       user: {
         count: jest.fn(),
         findMany: jest.fn(),
+        findUnique: jest.fn(),
       },
       owner: { count: jest.fn() },
       $queryRaw: jest.fn(),
@@ -91,9 +92,9 @@ describe('DashboardService tenant scoping', () => {
     });
   });
 
-  it('WORKER org no restringida: asset count sin filtro WorkerAssetAccess', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-      worker_restricted_access: false,
+  it('WORKER no restringido: asset count sin filtro WorkerAssetAccess', async () => {
+    jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+      asset_access_mode: 'UNRESTRICTED',
     } as any);
     const assetCountSpy = jest
       .spyOn(prisma.asset, 'count')
@@ -115,9 +116,9 @@ describe('DashboardService tenant scoping', () => {
     );
   });
 
-  it('WORKER org restringida: asset count incluye filtro WorkerAssetAccess', async () => {
-    jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-      worker_restricted_access: true,
+  it('WORKER restringido: asset count incluye filtro WorkerAssetAccess', async () => {
+    jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+      asset_access_mode: 'RESTRICTED',
     } as any);
     const assetCountSpy = jest
       .spyOn(prisma.asset, 'count')

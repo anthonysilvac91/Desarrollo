@@ -3,7 +3,10 @@ import api from '@/lib/api';
 export interface CreateInvitationData {
   email: string;
   role: 'ADMIN' | 'WORKER' | 'EXTERNAL';
+  organization_id?: string;
   owner_id?: string;
+  asset_access_mode?: 'UNRESTRICTED' | 'RESTRICTED';
+  asset_ids?: string[];
 }
 
 export const invitationsService = {

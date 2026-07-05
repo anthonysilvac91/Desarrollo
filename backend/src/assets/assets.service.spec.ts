@@ -51,6 +51,7 @@ describe('AssetsService', () => {
   beforeEach(async () => {
     const prismaMock = {
       organization: { findUnique: jest.fn() },
+      user: { findUnique: jest.fn() },
       asset: {
         create: jest.fn(),
         findUnique: jest.fn(),
@@ -217,13 +218,13 @@ describe('AssetsService', () => {
   });
 
   describe('findAll()', () => {
-    it('WORKER org restringida: aplica filtro worker_access con worker_id y organization_id', async () => {
+    it('WORKER restringido: aplica filtro worker_access con worker_id y organization_id', async () => {
       const findManySpy = jest
         .spyOn(prisma.asset, 'findMany')
         .mockResolvedValue([]);
       jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-        worker_restricted_access: true,
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        asset_access_mode: 'RESTRICTED',
       } as any);
 
       await service.findAll({}, 'org-1', 'WORKER', undefined, 'worker-1');
@@ -239,13 +240,13 @@ describe('AssetsService', () => {
       );
     });
 
-    it('WORKER org no restringida: no aplica filtro por WorkerAssetAccess', async () => {
+    it('WORKER no restringido: no aplica filtro por WorkerAssetAccess', async () => {
       const findManySpy = jest
         .spyOn(prisma.asset, 'findMany')
         .mockResolvedValue([]);
       jest.spyOn(prisma.asset, 'count').mockResolvedValue(0);
-      jest.spyOn(prisma.organization, 'findUnique').mockResolvedValue({
-        worker_restricted_access: false,
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        asset_access_mode: 'UNRESTRICTED',
       } as any);
 
       await service.findAll({}, 'org-1', 'WORKER', undefined, 'worker-1');

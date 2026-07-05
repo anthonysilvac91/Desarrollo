@@ -35,28 +35,26 @@ export class TestUtils {
   /**
    * Genera una organización de prueba y retorna la entidad.
    */
-  async createTestOrganization(
-    suffix: string = '1',
-    restrictedWorker: boolean = false,
-  ) {
+  async createTestOrganization(suffix: string = '1') {
     return this.prisma.organization.create({
       data: {
         name: `Org Test ${suffix}`,
         slug: `org-test-${suffix.toLowerCase()}`,
-        worker_restricted_access: restrictedWorker,
         worker_edit_policy: WorkerEditPolicy.TIME_WINDOW,
       },
     });
   }
 
   /**
-   * Crea un usuario con rol específico. Si no se manda orgId asume SUPER_ADMIN
+   * Crea un usuario con rol específico. Si no se manda orgId asume SUPER_ADMIN.
+   * assetAccessMode solo aplica a WORKER (default UNRESTRICTED, ve todos los assets).
    */
   async createTestUser(
     role: Role,
     email: string,
     orgId?: string,
     ownerId?: string,
+    assetAccessMode?: 'UNRESTRICTED' | 'RESTRICTED',
   ) {
     const password_hash = await bcrypt.hash('123456', 10);
     let resolvedOwnerId = ownerId;
@@ -79,6 +77,7 @@ export class TestUtils {
         name: `User ${role} ${email}`,
         organization_id: orgId || null,
         owner_id: resolvedOwnerId || null,
+        ...(assetAccessMode ? { asset_access_mode: assetAccessMode } : {}),
       },
     });
   }

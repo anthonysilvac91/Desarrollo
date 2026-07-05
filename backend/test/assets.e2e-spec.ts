@@ -75,12 +75,14 @@ describe('Assets Visibility (e2e)', () => {
 
   describe('GET /assets (Visibilidad Múltiple)', () => {
     it('WORKER no restringido ve todos los assets de su tenant.', async () => {
-      const org = await testUtils.createTestOrganization('Libre', false);
+      const org = await testUtils.createTestOrganization('Libre');
       const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(
         Role.WORKER,
         'worker@libre.com',
         org.id,
+        undefined,
+        'UNRESTRICTED',
       );
 
       await prisma.asset.createMany({
@@ -100,12 +102,14 @@ describe('Assets Visibility (e2e)', () => {
     });
 
     it('WORKER restringido solo ve los assets asignados.', async () => {
-      const org = await testUtils.createTestOrganization('Restringida', true);
+      const org = await testUtils.createTestOrganization('Restringida');
       const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(
         Role.WORKER,
         'worker@restringida.com',
         org.id,
+        undefined,
+        'RESTRICTED',
       );
 
       const assetVinculado = await prisma.asset.create({
@@ -142,12 +146,14 @@ describe('Assets Visibility (e2e)', () => {
     });
 
     it('WORKER restringido no ve assets de su org sin grant.', async () => {
-      const org = await testUtils.createTestOrganization('Estricta', true);
+      const org = await testUtils.createTestOrganization('Estricta');
       const owner = await testUtils.createTestOwner('Empresa A', org.id);
       const worker = await testUtils.createTestUser(
         Role.WORKER,
         'worker@estricta.com',
         org.id,
+        undefined,
+        'RESTRICTED',
       );
 
       await prisma.asset.create({
@@ -168,8 +174,8 @@ describe('Assets Visibility (e2e)', () => {
     });
 
     it('WORKER nunca ve assets de otra organización.', async () => {
-      const orgA = await testUtils.createTestOrganization('OrgA', false);
-      const orgB = await testUtils.createTestOrganization('OrgB', false);
+      const orgA = await testUtils.createTestOrganization('OrgA');
+      const orgB = await testUtils.createTestOrganization('OrgB');
       const ownerB = await testUtils.createTestOwner('Empresa B', orgB.id);
       const worker = await testUtils.createTestUser(
         Role.WORKER,

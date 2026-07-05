@@ -14,6 +14,8 @@ export interface User {
   is_active: boolean;
   last_login_at?: string | null;
   created_at: string;
+  asset_access?: string[];
+  asset_access_mode?: "UNRESTRICTED" | "RESTRICTED";
 }
 
 export interface UserStats {
@@ -76,6 +78,15 @@ export const usersService = {
 
   delete: async (id: string): Promise<User> => {
     const res = await api.delete(`/users/${id}`);
+    return res.data;
+  },
+
+  setAssetAccess: async (
+    id: string,
+    assetIds: string[],
+    mode?: "UNRESTRICTED" | "RESTRICTED",
+  ): Promise<{ asset_access_mode: string; asset_access: string[] }> => {
+    const res = await api.put(`/users/${id}/asset-access`, { asset_ids: assetIds, mode });
     return res.data;
   }
 };

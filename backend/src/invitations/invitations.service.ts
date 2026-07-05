@@ -81,6 +81,25 @@ export class InvitationsService {
       }
     }
 
+    const pendingAssetIds =
+      dto.role === 'WORKER' && dto.asset_access_mode === 'RESTRICTED'
+        ? Array.from(new Set(dto.asset_ids ?? []))
+        : [];
+
+    if (pendingAssetIds.length > 0) {
+      const matchingAssetsCount = await this.prisma.asset.count({
+        where: {
+          id: { in: pendingAssetIds },
+          organization_id: organizationId,
+        },
+      });
+      if (matchingAssetsCount !== pendingAssetIds.length) {
+        throw new BadRequestException(
+          'Uno o mas activos no pertenecen a esta organización',
+        );
+      }
+    }
+
     const existing = await this.prisma.invitation.findFirst({
       where: {
         email: dto.email,
@@ -115,6 +134,11 @@ export class InvitationsService {
         token: tokenHash,
         invited_by_id: actor.id,
         owner_id: dto.owner_id ?? null,
+        asset_access_mode:
+          dto.role === 'WORKER' && dto.asset_access_mode === 'RESTRICTED'
+            ? 'RESTRICTED'
+            : 'UNRESTRICTED',
+        pending_asset_ids: pendingAssetIds,
         expires_at: expiresAt,
       },
     });

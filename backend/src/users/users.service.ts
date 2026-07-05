@@ -303,6 +303,8 @@ export class UsersService {
         last_login_at: true,
         created_at: true,
         updated_at: true,
+        asset_access_mode: true,
+        worker_asset_access: { select: { asset_id: true } },
       },
     });
 
@@ -320,7 +322,95 @@ export class UsersService {
       );
     }
 
-    return this.resolveUserFileUrls(this.mapUserRelations(user));
+    const { worker_asset_access, ...userWithoutAccess } = user;
+    const userWithAssetAccess = {
+      ...userWithoutAccess,
+      asset_access: worker_asset_access.map((access) => access.asset_id),
+    };
+
+    return this.resolveUserFileUrls(this.mapUserRelations(userWithAssetAccess));
+  }
+
+  async setAssetAccess(
+    id: string,
+    assetIds: string[],
+    currentUser: { id: string; role: Role; orgId?: string },
+    mode?: 'UNRESTRICTED' | 'RESTRICTED',
+  ) {
+    if (
+      currentUser.role !== Role.SUPER_ADMIN &&
+      currentUser.role !== Role.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'No tienes permiso para gestionar el acceso a activos',
+      );
+    }
+
+    const worker = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, organization_id: true },
+    });
+
+    if (!worker) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (
+      currentUser.role === Role.ADMIN &&
+      worker.organization_id !== currentUser.orgId
+    ) {
+      throw new ForbiddenException(
+        'No tienes acceso a usuarios de otra organización',
+      );
+    }
+
+    if (worker.role !== Role.WORKER) {
+      throw new BadRequestException(
+        'Solo se puede asignar acceso a activos a usuarios con rol Worker',
+      );
+    }
+
+    // UNRESTRICTED ignores whatever list was sent — the worker sees everything.
+    const effectiveMode = mode ?? 'RESTRICTED';
+    const uniqueAssetIds =
+      effectiveMode === 'UNRESTRICTED' ? [] : Array.from(new Set(assetIds));
+    if (uniqueAssetIds.length > 0) {
+      const matchingAssetsCount = await this.prisma.asset.count({
+        where: {
+          id: { in: uniqueAssetIds },
+          organization_id: worker.organization_id!,
+        },
+      });
+      if (matchingAssetsCount !== uniqueAssetIds.length) {
+        throw new BadRequestException(
+          'Uno o mas activos no pertenecen a la organización del worker',
+        );
+      }
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id },
+        data: { asset_access_mode: effectiveMode },
+      }),
+      this.prisma.workerAssetAccess.deleteMany({
+        where: { worker_id: id },
+      }),
+      ...(uniqueAssetIds.length > 0
+        ? [
+            this.prisma.workerAssetAccess.createMany({
+              data: uniqueAssetIds.map((assetId) => ({
+                worker_id: id,
+                asset_id: assetId,
+                organization_id: worker.organization_id!,
+                granted_by_id: currentUser.id,
+              })),
+            }),
+          ]
+        : []),
+    ]);
+
+    return { asset_access_mode: effectiveMode, asset_access: uniqueAssetIds };
   }
 
   async create(
@@ -404,6 +494,9 @@ export class UsersService {
         organization_id: dto.organization_id || null,
         owner_id: ownerId,
         is_active: true,
+        ...(dbRole === Role.WORKER && dto.asset_access_mode
+          ? { asset_access_mode: dto.asset_access_mode }
+          : {}),
       },
       select: {
         id: true,
@@ -524,6 +617,13 @@ export class UsersService {
       throw new BadRequestException(
         'Un usuario externo debe asociarse a un owner',
       );
+    }
+
+    if (
+      data.asset_access_mode !== undefined &&
+      currentUserRecord.role !== Role.WORKER
+    ) {
+      delete data.asset_access_mode;
     }
 
     const updatedUser = await this.prisma.user.update({

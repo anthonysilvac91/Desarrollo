@@ -554,8 +554,8 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(registerDto.password, 10);
 
-    const [user] = await this.prisma.$transaction([
-      this.prisma.user.create({
+    const user = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
         data: {
           email: invitation.email,
           name: registerDto.name,
@@ -564,13 +564,34 @@ export class AuthService {
           organization_id: invitation.organization_id,
           owner_id: invitation.owner_id ?? registerDto.owner_id ?? null,
           email_verified_at: new Date(),
+          ...(invitation.role === 'WORKER'
+            ? { asset_access_mode: invitation.asset_access_mode }
+            : {}),
         },
-      }),
-      this.prisma.invitation.update({
+      });
+
+      if (
+        invitation.role === 'WORKER' &&
+        invitation.asset_access_mode === 'RESTRICTED' &&
+        invitation.pending_asset_ids.length > 0
+      ) {
+        await tx.workerAssetAccess.createMany({
+          data: invitation.pending_asset_ids.map((assetId) => ({
+            worker_id: createdUser.id,
+            asset_id: assetId,
+            organization_id: invitation.organization_id,
+            granted_by_id: invitation.invited_by_id,
+          })),
+        });
+      }
+
+      await tx.invitation.update({
         where: { id: invitation.id },
         data: { is_used: true },
-      }),
-    ]);
+      });
+
+      return createdUser;
+    });
 
     const session = await this.createSession(user, context);
 
