@@ -17,6 +17,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { EmailService } from '../email/email.service';
+import { PLAN_LIMITS } from '../subscriptions/plan-limits';
 import { toApiRole } from '../common/compat/owner-role-compat';
 import {
   buildOtpAuthUrl,
@@ -773,6 +774,35 @@ export class AuthService {
             organization_id: organization.id,
             owner_id: null,
             ...(dto.language ? { language: dto.language } : {}),
+          },
+        });
+
+        const limits = PLAN_LIMITS.DEMO;
+        await tx.subscription.create({
+          data: {
+            organization_id: organization.id,
+            plan: 'DEMO',
+            status: 'TRIALING',
+            max_users: limits.max_users,
+            max_assets: limits.max_assets,
+            max_storage_gb: limits.max_storage_gb,
+            max_video_hours: limits.max_video_hours,
+            allow_external: limits.allow_external,
+            allow_branding: limits.allow_branding,
+            allow_ai_translation: limits.allow_ai_translation,
+            demo_expires_at: new Date(
+              Date.now() + limits.demo_duration_days! * 24 * 60 * 60 * 1000,
+            ),
+          },
+        });
+
+        await tx.organizationStorageUsage.create({
+          data: {
+            organization_id: organization.id,
+            ready_bytes: 0,
+            reserved_bytes: 0,
+            ready_file_count: 0,
+            pending_upload_count: 0,
           },
         });
 

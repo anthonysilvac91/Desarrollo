@@ -22,6 +22,8 @@ describe('AuthService', () => {
       create: jest.fn(),
     },
     organization: { findUnique: jest.fn(), create: jest.fn() },
+    subscription: { create: jest.fn() },
+    organizationStorageUsage: { create: jest.fn() },
     userSession: {
       create: jest.fn(),
       findFirst: jest.fn(),
