@@ -27,6 +27,8 @@
     "storage:backfill:entity-fields:dry": "ts-node scripts/backfill-entity-fields.ts --dry-run",
     "storage:validate:entity-fields": "ts-node scripts/backfill-entity-fields.ts --validate-only",
     "uploads:maintenance": "ts-node scripts/upload-maintenance.ts",
+    "storage:backfill:attachment-thumbnails": "ts-node scripts/backfill-service-attachment-thumbnails.ts",
+    "storage:backfill:attachment-thumbnails:dry": "ts-node scripts/backfill-service-attachment-thumbnails.ts --dry-run",
     "test:e2e": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- jest --config ./test/jest-e2e.json --runInBand"
   },
   "dependencies": {

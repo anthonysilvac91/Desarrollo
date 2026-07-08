@@ -15,7 +15,7 @@ import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { validateImageFile } from '../common/files/image-validation';
-import { processUploadedImage } from '../common/files/image-processing';
+import { processUploadedImage, generateThumbnail } from '../common/files/image-processing';
 import {
   validateDocumentFile,
   isImageMime,
@@ -40,6 +40,8 @@ const SERVICE_ATTACHMENT_MAX_PIXELS = 24 * 1024 * 1024;
 const SERVICE_ATTACHMENT_OUTPUT_MAX_DIMENSION = 2000;
 const SERVICE_ATTACHMENT_OUTPUT_QUALITY = 82;
 const SERVICE_ATTACHMENT_OUTPUT_FORMAT = 'webp';
+const SERVICE_ATTACHMENT_THUMBNAIL_DIMENSION = 150;
+const SERVICE_ATTACHMENT_THUMBNAIL_QUALITY = 60;
 const SHARE_TOKEN_BYTES = 32;
 const ACTIVE_ATTACHMENT_UPLOAD_STATUSES = ['PENDING', 'UPLOADING', 'UPLOADED'];
 const FAILED_ATTACHMENT_UPLOAD_STATUSES = ['FAILED', 'EXPIRED'];
@@ -468,7 +470,10 @@ export class ServicesService {
           String(att.file_type ?? '')
             .toLowerCase()
             .startsWith('video/');
-        if (!isVideo) ids.push(att.file_id);
+        if (!isVideo) {
+          ids.push(att.file_id);
+          ids.push(att.thumbnail_file_id);
+        }
       }
     }
     return ids;
@@ -499,6 +504,9 @@ export class ServicesService {
           return {
             ...attachment,
             file_url: isVideo ? null : (urlMap.get(attachment.file_id) ?? null),
+            thumbnail_url: isVideo
+              ? null
+              : (urlMap.get(attachment.thumbnail_file_id) ?? null),
           };
         },
       );
@@ -678,6 +686,7 @@ export class ServicesService {
     const serviceId = randomUUID();
     const attachments: Array<{
       file_id: string;
+      thumbnail_file_id?: string;
       file_type: string;
       file_name: string;
       file_size_bytes: number;
@@ -744,8 +753,52 @@ export class ServicesService {
         if (uploadedRefIndex !== -1) {
           uploadedStorageRefs.splice(uploadedRefIndex, 1);
         }
+
+        let thumbnailFileId: string | undefined;
+        if (isImageMime(file.mimetype)) {
+          const thumbnail = await generateThumbnail(file.buffer, {
+            maxWidth: SERVICE_ATTACHMENT_THUMBNAIL_DIMENSION,
+            maxHeight: SERVICE_ATTACHMENT_THUMBNAIL_DIMENSION,
+            quality: SERVICE_ATTACHMENT_THUMBNAIL_QUALITY,
+          });
+          const thumbnailFile = {
+            buffer: thumbnail.buffer,
+            mimetype: thumbnail.mimetype,
+            originalname: file.originalname,
+            size: thumbnail.size,
+          } as Express.Multer.File;
+          const thumbnail_url = await this.storageService.uploadFile(
+            thumbnailFile,
+            {
+              folder: buildServiceAttachmentsPath(serviceOrgId, serviceId),
+              visibility: 'private',
+            },
+          );
+          uploadedStorageRefs.push(thumbnail_url);
+          const storedThumbnail =
+            await this.storedFilesService.registerUploadedFile({
+              organizationId: serviceOrgId,
+              storageRef: thumbnail_url,
+              originalName: file.originalname,
+              mimeType: thumbnail.mimetype,
+              sizeBytes: thumbnail.size,
+              kind: StoredFileKind.SERVICE_ATTACHMENT_THUMBNAIL,
+              visibility: 'private',
+              entityType: 'SERVICE',
+              entityId: serviceId,
+              uploadedByUserId: user.id,
+            });
+          storedFileIds.push(storedThumbnail.id);
+          const uploadedThumbRefIndex = uploadedStorageRefs.indexOf(thumbnail_url);
+          if (uploadedThumbRefIndex !== -1) {
+            uploadedStorageRefs.splice(uploadedThumbRefIndex, 1);
+          }
+          thumbnailFileId = storedThumbnail.id;
+        }
+
         attachments.push({
           file_id: storedFile.id,
+          thumbnail_file_id: thumbnailFileId,
           file_type: file.mimetype,
           file_name: file.originalname,
           file_size_bytes: file.size,
@@ -1123,6 +1176,7 @@ export class ServicesService {
         select: {
           id: true,
           file_id: true,
+          thumbnail_file_id: true,
           file_type: true,
           file_name: true,
           file_size_bytes: true,

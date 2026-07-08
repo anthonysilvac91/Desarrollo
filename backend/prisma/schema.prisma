@@ -49,6 +49,7 @@ enum StoredFileKind {
   USER_AVATAR
   ASSET_THUMBNAIL
   SERVICE_ATTACHMENT
+  SERVICE_ATTACHMENT_THUMBNAIL
   OWNER_LOGO
 }
 
@@ -413,27 +414,31 @@ model ServiceShareLink {
 }
 
 model ServiceAttachment {
-  id               String              @id @default(uuid())
-  service_id       String
-  upload_id        String?             @unique
-  file_id          String?             @unique
-  file_type        String?
-  file_name        String?
-  file_size_bytes  Int?
-  media_type       AttachmentMediaType @default(IMAGE)
-  duration_seconds Int?
-  width            Int?
-  height           Int?
-  sort_order       Int                 @default(0)
+  id                String              @id @default(uuid())
+  service_id        String
+  upload_id         String?             @unique
+  file_id           String?             @unique
+  /// Derivado pequeño (150px) generado al subir, usado en las cards de la lista
+  /// de servicios para no tener que descargar el archivo de tamaño completo.
+  thumbnail_file_id String?             @unique
+  file_type         String?
+  file_name         String?
+  file_size_bytes   Int?
+  media_type        AttachmentMediaType @default(IMAGE)
+  duration_seconds  Int?
+  width             Int?
+  height            Int?
+  sort_order        Int                 @default(0)
 
   cf_image_id      String?
   cf_image_variant String?
 
   created_at DateTime @default(now())
 
-  service Service     @relation(fields: [service_id], references: [id])
-  upload  FileUpload? @relation(fields: [upload_id], references: [id])
-  file    StoredFile? @relation("ServiceAttachmentFile", fields: [file_id], references: [id])
+  service        Service     @relation(fields: [service_id], references: [id])
+  upload         FileUpload? @relation(fields: [upload_id], references: [id])
+  file           StoredFile? @relation("ServiceAttachmentFile", fields: [file_id], references: [id])
+  thumbnail_file StoredFile? @relation("ServiceAttachmentThumbnailFile", fields: [thumbnail_file_id], references: [id])
 
   @@index([service_id])
   @@index([service_id, media_type])
@@ -591,6 +596,7 @@ model StoredFile {
   asset_thumbnail_for   Asset?             @relation("AssetThumbnailFile")
   owner_logo_for        Owner?             @relation("OwnerLogoFile")
   service_attachment    ServiceAttachment? @relation("ServiceAttachmentFile")
+  service_attachment_thumbnail_for ServiceAttachment? @relation("ServiceAttachmentThumbnailFile")
 
   @@index([organization_id])
   @@index([organization_id, kind])

@@ -98,6 +98,10 @@ jest.mock('../common/files/image-processing', () => ({
     file.mimetype = 'image/webp';
     return file;
   }),
+  generateThumbnail: jest.fn(async () => {
+    const buffer = Buffer.from('thumb-webp');
+    return { buffer, mimetype: 'image/webp', size: buffer.length };
+  }),
 }));
 
 describe('ServicesService', () => {

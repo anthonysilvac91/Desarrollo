@@ -53,3 +53,33 @@ export async function processUploadedImage(
 
   return file;
 }
+
+export interface GeneratedThumbnail {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+}
+
+/**
+ * Genera un derivado chico (miniatura real) para usar en cards/listas, en vez
+ * de servir el archivo de tamaño completo y dejar que el navegador lo achique.
+ */
+export async function generateThumbnail(
+  sourceBuffer: Buffer,
+  options: { maxWidth: number; maxHeight: number; quality?: number },
+): Promise<GeneratedThumbnail> {
+  const quality = options.quality ?? 60;
+
+  const buffer = await sharp(sourceBuffer, { animated: false })
+    .rotate()
+    .resize({
+      width: options.maxWidth,
+      height: options.maxHeight,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality, effort: 4 })
+    .toBuffer();
+
+  return { buffer, mimetype: 'image/webp', size: buffer.length };
+}

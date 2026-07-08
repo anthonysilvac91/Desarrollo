@@ -42,7 +42,7 @@ function AttachmentThumb({
   attachment,
   onClick,
 }: {
-  attachment: { file_url?: string | null; file_type?: string };
+  attachment: { file_url?: string | null; thumbnail_url?: string | null; file_type?: string };
   onClick: () => void;
 }) {
   const [error, setError] = useState(false);
@@ -66,7 +66,7 @@ function AttachmentThumb({
       className="aspect-square rounded-2xl overflow-hidden border border-border-theme/40 active:scale-95 transition-transform group relative"
     >
       <img
-        src={attachment.file_url ?? ""}
+        src={attachment.thumbnail_url ?? attachment.file_url ?? ""}
         alt=""
         className="w-full h-full object-cover"
         onError={() => setError(true)}
@@ -616,7 +616,7 @@ export default function ServiceDrawer({ service, onClose, readOnly = false }: Se
                             isSelected ? "border-brand ring-2 ring-brand/30 opacity-100" : "border-white/20 opacity-60"
                           }`}
                         >
-                          <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" loading="lazy" />
+                          <img src={att.thumbnail_url ?? att.file_url ?? ""} className="h-full w-full object-cover" alt="" loading="lazy" />
                         </button>
                       );
                     })}

@@ -36,7 +36,7 @@ export interface ServiceForCard {
   created_at: string;
   worker?: { name: string; deleted_at?: string | null; purged_at?: string | null } | null;
   asset?: { owner?: { id?: string; name: string; deleted_at?: string | null; purged_at?: string | null } | null } | null;
-  attachments?: { file_url?: string | null }[];
+  attachments?: { file_url?: string | null; thumbnail_url?: string | null }[];
 }
 
 interface ServiceHistoryCardProps {
@@ -114,7 +114,7 @@ export default function ServiceHistoryCard({
                 className="w-12 h-12 rounded-lg border border-border-theme/20 overflow-hidden shadow-sm hover:scale-110 transition-transform bg-white"
                 aria-label={`${viewDetailsLabel}: ${service.title}`}
               >
-                <Thumbnail src={att.file_url} />
+                <Thumbnail src={att.thumbnail_url ?? att.file_url} />
               </button>
             ))}
             {service.attachments.length > 4 && (

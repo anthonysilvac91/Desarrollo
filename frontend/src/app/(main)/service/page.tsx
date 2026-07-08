@@ -38,8 +38,10 @@ interface ServiceEvidenceAvatarProps {
   iconClassName: string;
 }
 
-const getPrimaryEvidenceUrl = (item: Service) =>
-  item.attachments?.find((attachment) => attachment.file_url)?.file_url ?? null;
+const getPrimaryEvidenceUrl = (item: Service) => {
+  const attachment = item.attachments?.find((a) => a.file_url);
+  return attachment ? (attachment.thumbnail_url ?? attachment.file_url ?? null) : null;
+};
 
 const ServiceEvidenceAvatar = ({ item, className, iconClassName }: ServiceEvidenceAvatarProps) => {
   const [imageFailed, setImageFailed] = useState(false);

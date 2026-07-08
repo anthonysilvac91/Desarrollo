@@ -5,6 +5,7 @@ import { Camera, FileText } from "lucide-react";
 
 export interface ServiceAttachmentLike {
   file_url?: string | null;
+  thumbnail_url?: string | null;
   file_type?: string;
 }
 
@@ -27,6 +28,7 @@ export default function ServiceAttachmentCard({
 }: ServiceAttachmentCardProps) {
   const [hasError, setHasError] = useState(false);
   const fileUrl = attachment.file_url ?? "";
+  const displayUrl = attachment.thumbnail_url || fileUrl;
   const hasUrl = fileUrl.length > 0;
   const isImage = hasUrl && isImageAttachment(attachment.file_type) && !hasError;
 
@@ -57,7 +59,7 @@ export default function ServiceAttachmentCard({
       className={`${sizeClass} overflow-hidden border border-border-theme/20 shadow-sm bg-app-bg group relative ${clickable ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform" : ""}`}
     >
       <img
-        src={fileUrl}
+        src={displayUrl}
         alt={alt}
         className="w-full h-full object-cover"
         onError={() => setHasError(true)}

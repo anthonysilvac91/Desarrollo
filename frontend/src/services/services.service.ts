@@ -31,6 +31,7 @@ export interface Service {
   attachments?: {
     id?: string;
     file_url?: string | null;
+    thumbnail_url?: string | null;
     file_type?: string;
     file_name?: string | null;
     file_size_bytes?: number | null;

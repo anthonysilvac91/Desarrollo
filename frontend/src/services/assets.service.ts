@@ -3,6 +3,7 @@ import api from "@/lib/api";
 export interface ServiceAttachment {
   id: string;
   file_url?: string | null;
+  thumbnail_url?: string | null;
   file_type?: string;
 }
 
