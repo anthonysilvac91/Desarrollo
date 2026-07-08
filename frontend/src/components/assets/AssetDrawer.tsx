@@ -877,6 +877,8 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
               ref={pinch.ref}
               onTouchStart={pinch.onTouchStart}
               onTouchEnd={pinch.onTouchEnd}
+              onMouseDown={pinch.onMouseDown}
+              onDoubleClick={pinch.onDoubleClick}
               className="relative overflow-hidden rounded-[32px] border border-white/10 bg-surface shadow-2xl animate-in zoom-in-95 duration-200"
             >
               <img

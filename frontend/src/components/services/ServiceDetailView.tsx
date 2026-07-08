@@ -566,6 +566,8 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               <div
                 ref={pinch.ref}
                 className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl"
+                onMouseDown={pinch.onMouseDown}
+                onDoubleClick={pinch.onDoubleClick}
                 onTouchStart={(e) => {
                   pinch.onTouchStart(e);
                   if (e.touches.length === 1 && !pinch.isZoomed) {

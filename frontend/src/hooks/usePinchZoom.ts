@@ -1,20 +1,28 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 function touchDist(a: { clientX: number; clientY: number }, b: { clientX: number; clientY: number }) {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
 /**
- * Pinch-to-zoom + double-tap + pan hook for mobile image viewers.
+ * Pinch-to-zoom + double-tap + pan hook for mobile image viewers, plus the
+ * desktop equivalent: mouse wheel to zoom, click-drag to pan, double-click
+ * to toggle. Both input types share the same scale/pan state.
  *
  * Usage:
  *   const pinch = usePinchZoom();
- *   <div ref={pinch.ref} onTouchStart={pinch.onTouchStart} onTouchEnd={pinch.onTouchEnd}>
+ *   <div
+ *     ref={pinch.ref}
+ *     onTouchStart={pinch.onTouchStart}
+ *     onTouchEnd={pinch.onTouchEnd}
+ *     onMouseDown={pinch.onMouseDown}
+ *     onDoubleClick={pinch.onDoubleClick}
+ *   >
  *     <img style={pinch.imgStyle} draggable={false} />
  *   </div>
  *
- * - Attach `ref` to the scrollable container (receives the non-passive touchmove listener).
- * - Attach `onTouchStart` / `onTouchEnd` to the same element.
+ * - Attach `ref` to the scrollable container (receives the non-passive touchmove/wheel listeners).
+ * - Attach `onTouchStart` / `onTouchEnd` / `onMouseDown` / `onDoubleClick` to the same element.
  * - Apply `imgStyle` to the <img> element.
  * - Call `reset()` when the viewer closes or the image changes.
  * - Read `isZoomed` to disable competing gestures (e.g. swipe-to-navigate).
@@ -26,7 +34,8 @@ export function usePinchZoom(maxScale = 4) {
   const tRef = useRef(t);
   tRef.current = t;
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerElRef = useRef<HTMLDivElement | null>(null);
+  const detachRef = useRef<(() => void) | null>(null);
 
   // Gesture state stored in a ref (never needs to trigger re-render).
   const g = useRef({
@@ -39,10 +48,16 @@ export function usePinchZoom(maxScale = 4) {
     tap: 0,     // timestamp of last single tap (for double-tap detection)
   });
 
-  // Attach non-passive touchmove listener so e.preventDefault() actually works.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+  // Callback ref: attaches the non-passive touchmove listener as soon as the
+  // container mounts, instead of only once at hook-init time. A plain
+  // useRef + useEffect([]) would miss the element entirely when the
+  // container is conditionally rendered (e.g. a lightbox that isn't open
+  // yet when this hook first runs) since refs aren't reactive.
+  const setContainerRef = useCallback((node: HTMLDivElement | null) => {
+    detachRef.current?.();
+    detachRef.current = null;
+    containerElRef.current = node;
+    if (!node) return;
 
     const handleMove = (e: TouchEvent) => {
       const c = tRef.current;
@@ -62,8 +77,30 @@ export function usePinchZoom(maxScale = 4) {
       }
     };
 
-    el.addEventListener('touchmove', handleMove, { passive: false });
-    return () => el.removeEventListener('touchmove', handleMove);
+    node.addEventListener('touchmove', handleMove, { passive: false });
+
+    // Wheel-to-zoom, centered on the image (matches transform-origin: center).
+    // Registered as a raw non-passive listener for the same reason as
+    // touchmove: React's synthetic onWheel is passive by default, so
+    // e.preventDefault() inside it would not actually stop page scroll.
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const c = tRef.current;
+      const zoomFactor = Math.exp(-e.deltaY * 0.001);
+      const newS = Math.max(1, Math.min(maxScale, c.s * zoomFactor));
+      if (newS <= 1.01) {
+        setT({ s: 1, x: 0, y: 0 });
+      } else {
+        setT(prev => ({ ...prev, s: newS }));
+      }
+    };
+    node.addEventListener('wheel', handleWheel, { passive: false });
+
+    detachRef.current = () => {
+      node.removeEventListener('touchmove', handleMove);
+      node.removeEventListener('wheel', handleWheel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxScale]);
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -105,6 +142,32 @@ export function usePinchZoom(maxScale = 4) {
     }
   };
 
+  // Click-drag to pan once zoomed in (desktop equivalent of the one-finger pan above).
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (tRef.current.s <= 1.05) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startTx = tRef.current.x;
+    const startTy = tRef.current.y;
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      setT(prev => ({ ...prev, x: startTx + (ev.clientX - startX), y: startTy + (ev.clientY - startY) }));
+    };
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Double-click: desktop equivalent of double-tap, toggles between 1x and 2.5x.
+  const onDoubleClick = () => {
+    const c = tRef.current;
+    setT(c.s > 1 ? { s: 1, x: 0, y: 0 } : { s: 2.5, x: 0, y: 0 });
+  };
+
   const reset = () => setT({ s: 1, x: 0, y: 0 });
 
   const imgStyle: React.CSSProperties = {
@@ -113,15 +176,18 @@ export function usePinchZoom(maxScale = 4) {
     transition: t.s === 1 ? 'transform 0.25s ease' : 'none',
     userSelect: 'none',
     willChange: 'transform',
+    cursor: t.s > 1.05 ? 'grab' : 'zoom-in',
   };
 
   return {
-    ref: containerRef,
+    ref: setContainerRef,
     isZoomed: t.s > 1.05,
     scale: t.s,
     imgStyle,
     reset,
     onTouchStart,
     onTouchEnd,
+    onMouseDown,
+    onDoubleClick,
   };
 }
