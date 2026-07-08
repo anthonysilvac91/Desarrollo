@@ -24,7 +24,7 @@ import { usePWA } from "@/hooks/usePWA";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { login } = useAuth();
   const { showToast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +56,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
-      const response = await authService.login(data);
+      const response = await authService.login(data, language);
       if ("requires_2fa" in response && response.requires_2fa) {
         setTemporaryToken(response.temporary_token);
         setTwoFactorMethod(response.method);
@@ -64,6 +64,7 @@ export default function LoginPage() {
           try {
             await authService.requestTwoFactorEmailCode(
               response.temporary_token,
+              language,
             );
             showToast(t.auth.login.two_factor_email_required, "info");
           } catch {
@@ -108,9 +109,9 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       if (twoFactorMethod === "email") {
-        await authService.loginWithEmailCode(temporaryToken, twoFactorCode);
+        await authService.loginWithEmailCode(temporaryToken, twoFactorCode, language);
       } else {
-        await authService.loginWithTwoFactor(temporaryToken, twoFactorCode);
+        await authService.loginWithTwoFactor(temporaryToken, twoFactorCode, language);
       }
       const redirectTarget = new URLSearchParams(window.location.search).get(
         "redirect",
@@ -143,7 +144,7 @@ export default function LoginPage() {
     if (!temporaryToken) return;
     setIsSubmitting(true);
     try {
-      await authService.requestTwoFactorEmailCode(temporaryToken);
+      await authService.requestTwoFactorEmailCode(temporaryToken, language);
       showToast(t.auth.login.two_factor_email_required, "info");
     } catch {
       showToast(t.auth.login.two_factor_invalid, "error");

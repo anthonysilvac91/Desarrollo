@@ -249,6 +249,7 @@ export default function SettingsPage() {
     if (newPassword) {
       fd.append("current_password", currentPassword);
       fd.append("new_password", newPassword);
+      fd.append("language", language);
     }
     profileMutation.mutate(fd);
   };
@@ -1274,12 +1275,47 @@ function OpenAiSettingsForm({ compact }: { compact: boolean }) {
 
 function NotificationsTab({ t }: { t: any }) {
   const n = t.settings.notifications_section;
+  const { user, refreshUser } = useAuth();
+  const { showToast } = useToast();
+
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [systemLogs, setSystemLogs] = useState(true);
+
+  React.useEffect(() => {
+    if (!user) return;
+    setEmailAlerts(user.email_notifications_enabled ?? true);
+    setSystemLogs(user.security_alerts_enabled ?? true);
+  }, [user]);
+
+  const prefsMutation = useMutation({
+    mutationFn: usersService.updateNotificationPreferences,
+    onSuccess: () => refreshUser(),
+    onError: () => showToast(n.save_error, "error"),
+  });
+
+  const toggle = (key: "email_alerts" | "system_logs") => {
+    if (key === "email_alerts") {
+      const next = !emailAlerts;
+      setEmailAlerts(next);
+      prefsMutation.mutate(
+        { email_notifications_enabled: next },
+        { onError: () => setEmailAlerts(!next) },
+      );
+    } else {
+      const next = !systemLogs;
+      setSystemLogs(next);
+      prefsMutation.mutate(
+        { security_alerts_enabled: next },
+        { onError: () => setSystemLogs(!next) },
+      );
+    }
+  };
 
   const items = [
-    { key: "email_alerts" as const,    icon: Mail,       name: n.email_alerts_name,    desc: n.email_alerts_desc    },
-    { key: "system_logs" as const,     icon: Database,   name: n.system_logs_name,     desc: n.system_logs_desc     },
-    { key: "weekly_summary" as const,  icon: AlignLeft,  name: n.weekly_summary_name,  desc: n.weekly_summary_desc  },
-    { key: "newsletter" as const,      icon: Megaphone,  name: n.newsletter_name,      desc: n.newsletter_desc      },
+    { key: "email_alerts" as const,    icon: Mail,       name: n.email_alerts_name,    desc: n.email_alerts_desc,    active: true,  checked: emailAlerts },
+    { key: "system_logs" as const,     icon: Database,   name: n.system_logs_name,     desc: n.system_logs_desc,     active: true,  checked: systemLogs  },
+    { key: "weekly_summary" as const,  icon: AlignLeft,  name: n.weekly_summary_name,  desc: n.weekly_summary_desc,  active: false, checked: false        },
+    { key: "newsletter" as const,      icon: Megaphone,  name: n.newsletter_name,      desc: n.newsletter_desc,      active: false, checked: false        },
   ];
 
   return (
@@ -1293,11 +1329,11 @@ function NotificationsTab({ t }: { t: any }) {
           </div>
 
           <div className="space-y-3">
-            {items.map(({ key, icon: Icon, name, desc }) => {
+            {items.map(({ key, icon: Icon, name, desc, active, checked }) => {
               return (
                 <div
                   key={key}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 opacity-70 transition-all"
+                  className={`flex items-center gap-4 p-4 rounded-2xl border border-border-theme/30 bg-app-bg/30 transition-all ${active ? "" : "opacity-70"}`}
                 >
                   <div className="w-10 h-10 rounded-xl bg-white border border-border-theme/25 flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5 text-subtitle/40" strokeWidth={1.5} />
@@ -1305,19 +1341,32 @@ function NotificationsTab({ t }: { t: any }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-title">{name}</p>
-                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-border-theme/60 text-subtitle/50 border border-border-theme">
-                        Proximamente
-                      </span>
+                      {!active && (
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-border-theme/60 text-subtitle/50 border border-border-theme">
+                          Proximamente
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-subtitle/50 mt-0.5">{desc}</p>
                   </div>
                   <button
                     type="button"
-                    disabled
-                    className="relative shrink-0 w-12 h-6 rounded-full bg-border-theme/40 transition-colors duration-200 cursor-not-allowed"
+                    role="switch"
+                    aria-checked={checked}
+                    disabled={!active}
+                    onClick={() => active && toggle(key as "email_alerts" | "system_logs")}
+                    className={`relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200 ${
+                      !active
+                        ? "bg-border-theme/40 cursor-not-allowed"
+                        : checked
+                        ? "bg-brand"
+                        : "bg-border-theme/40"
+                    }`}
                   >
                     <span
-                      className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-0"
+                      className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        active && checked ? "translate-x-6" : "translate-x-0"
+                      }`}
                     />
                   </button>
                 </div>
@@ -1333,6 +1382,7 @@ function NotificationsTab({ t }: { t: any }) {
 
 function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }) {
   const { showToast } = useToast();
+  const { language } = useLanguage();
   const { refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const [isWorking, setIsWorking] = useState(false);
@@ -1413,7 +1463,7 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
     if (!setup || !code.trim()) return;
     setIsWorking(true);
     try {
-      const result = await authService.verifyTwoFactorSetup(setup.setup_token, code);
+      const result = await authService.verifyTwoFactorSetup(setup.setup_token, code, language);
       setBackupCodes(result.backup_codes);
       setSetup(null);
       setIsQrOpen(false);
@@ -1441,7 +1491,7 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
     if (!disableCode.trim()) return;
     setIsWorking(true);
     try {
-      await authService.disableTwoFactor(disableCode);
+      await authService.disableTwoFactor(disableCode, language);
       setDisableCode("");
       setBackupCodes([]);
       setIsDisableOpen(false);
@@ -1717,6 +1767,7 @@ function TwoFactorAppPanel({ s, compact = false }: { s: any; compact?: boolean }
 
 function TwoFactorEmailPanel({ s, compact = false }: { s: any; compact?: boolean }) {
   const { showToast } = useToast();
+  const { language } = useLanguage();
   const { refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const [isWorking, setIsWorking] = useState(false);
@@ -1742,7 +1793,7 @@ function TwoFactorEmailPanel({ s, compact = false }: { s: any; compact?: boolean
   const sendCode = async () => {
     setIsWorking(true);
     try {
-      await authService.sendTwoFactorEmailCode();
+      await authService.sendTwoFactorEmailCode(language);
       setCodeSent(true);
       setCode("");
       showToast("Código enviado a tu correo", "success");
@@ -1758,7 +1809,7 @@ function TwoFactorEmailPanel({ s, compact = false }: { s: any; compact?: boolean
     if (!code.trim()) return;
     setIsWorking(true);
     try {
-      const result = await authService.verifyTwoFactorEmailSetup(code);
+      const result = await authService.verifyTwoFactorEmailSetup(code, language);
       setBackupCodes(result.backup_codes);
       setCode("");
       setCodeSent(false);
@@ -1779,7 +1830,7 @@ function TwoFactorEmailPanel({ s, compact = false }: { s: any; compact?: boolean
     if (!code.trim()) return;
     setIsWorking(true);
     try {
-      await authService.disableTwoFactorEmail(code);
+      await authService.disableTwoFactorEmail(code, language);
       setCode("");
       setCodeSent(false);
       setIsDisableOpen(false);
@@ -2449,12 +2500,47 @@ function TimezoneSelect({ value, onChange, searchPlaceholder = "Search timezone.
 
 function MobileNotificationsTab({ t }: { t: any }) {
   const n = t.settings.notifications_section;
+  const { user, refreshUser } = useAuth();
+  const { showToast } = useToast();
+
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [systemLogs, setSystemLogs] = useState(true);
+
+  React.useEffect(() => {
+    if (!user) return;
+    setEmailAlerts(user.email_notifications_enabled ?? true);
+    setSystemLogs(user.security_alerts_enabled ?? true);
+  }, [user]);
+
+  const prefsMutation = useMutation({
+    mutationFn: usersService.updateNotificationPreferences,
+    onSuccess: () => refreshUser(),
+    onError: () => showToast(n.save_error, "error"),
+  });
+
+  const toggle = (key: "email_alerts" | "system_logs") => {
+    if (key === "email_alerts") {
+      const next = !emailAlerts;
+      setEmailAlerts(next);
+      prefsMutation.mutate(
+        { email_notifications_enabled: next },
+        { onError: () => setEmailAlerts(!next) },
+      );
+    } else {
+      const next = !systemLogs;
+      setSystemLogs(next);
+      prefsMutation.mutate(
+        { security_alerts_enabled: next },
+        { onError: () => setSystemLogs(!next) },
+      );
+    }
+  };
 
   const items = [
-    { key: "email_alerts" as const,   icon: Mail,      name: n.email_alerts_name,   desc: n.email_alerts_desc   },
-    { key: "system_logs" as const,    icon: Database,  name: n.system_logs_name,    desc: n.system_logs_desc    },
-    { key: "weekly_summary" as const, icon: AlignLeft, name: n.weekly_summary_name, desc: n.weekly_summary_desc },
-    { key: "newsletter" as const,     icon: Megaphone, name: n.newsletter_name,     desc: n.newsletter_desc     },
+    { key: "email_alerts" as const,   icon: Mail,      name: n.email_alerts_name,   desc: n.email_alerts_desc,   active: true,  checked: emailAlerts },
+    { key: "system_logs" as const,    icon: Database,  name: n.system_logs_name,    desc: n.system_logs_desc,    active: true,  checked: systemLogs  },
+    { key: "weekly_summary" as const, icon: AlignLeft, name: n.weekly_summary_name, desc: n.weekly_summary_desc, active: false, checked: false        },
+    { key: "newsletter" as const,     icon: Megaphone, name: n.newsletter_name,     desc: n.newsletter_desc,     active: false, checked: false        },
   ];
 
   return (
@@ -2466,11 +2552,11 @@ function MobileNotificationsTab({ t }: { t: any }) {
         </div>
 
         <div className="space-y-2">
-          {items.map(({ key, icon: Icon, name, desc }) => {
+          {items.map(({ key, icon: Icon, name, desc, active, checked }) => {
             return (
               <div
                 key={key}
-                className="flex items-center gap-3.5 p-4 rounded-2xl border-2 border-border-theme/30 bg-app-bg/30 opacity-70 transition-all"
+                className={`flex items-center gap-3.5 p-4 rounded-2xl border-2 border-border-theme/30 bg-app-bg/30 transition-all ${active ? "" : "opacity-70"}`}
               >
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white border border-border-theme/20 transition-colors">
                   <Icon className="w-4 h-4 text-subtitle/40 transition-colors" strokeWidth={1.5} />
@@ -2478,18 +2564,33 @@ function MobileNotificationsTab({ t }: { t: any }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-bold text-title transition-colors">{name}</p>
-                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-border-theme/60 text-subtitle/50 border border-border-theme">
-                      Proximamente
-                    </span>
+                    {!active && (
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-border-theme/60 text-subtitle/50 border border-border-theme">
+                        Proximamente
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-subtitle/50 mt-0.5 leading-snug">{desc}</p>
                 </div>
                 <button
                   type="button"
-                  disabled
-                  className="relative shrink-0 w-11 h-6 rounded-full bg-border-theme/40 transition-colors duration-200 cursor-not-allowed"
+                  role="switch"
+                  aria-checked={checked}
+                  disabled={!active}
+                  onClick={() => active && toggle(key as "email_alerts" | "system_logs")}
+                  className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+                    !active
+                      ? "bg-border-theme/40 cursor-not-allowed"
+                      : checked
+                      ? "bg-brand"
+                      : "bg-border-theme/40"
+                  }`}
                 >
-                  <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-0" />
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      active && checked ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
                 </button>
               </div>
             );

@@ -7,6 +7,7 @@ import {
   Request,
   Delete,
   Param,
+  Query,
   Res,
 } from '@nestjs/common';
 import type {
@@ -170,14 +171,18 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: 'Solicitar enlace de recuperación de contraseña' })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto.email);
+    return this.authService.forgotPassword(dto.email, dto.language);
   }
 
   @Post('reset-password')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Restablecer contraseña con token del correo' })
   resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto.token, dto.password);
+    return this.authService.resetPassword(
+      dto.token,
+      dto.password,
+      dto.language,
+    );
   }
 
   @Post('2fa/login')
@@ -192,6 +197,7 @@ export class AuthController {
       dto.temporary_token,
       dto.code,
       this.getRequestContext(req),
+      dto.language,
     );
     return this.setSessionCookie(res, result);
   }
@@ -278,6 +284,7 @@ export class AuthController {
       req.user.id,
       dto.setup_token,
       dto.code,
+      dto.language,
     );
   }
 
@@ -289,7 +296,11 @@ export class AuthController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: DisableTwoFactorDto,
   ) {
-    return this.authService.disableTwoFactor(req.user.id, dto.code);
+    return this.authService.disableTwoFactor(
+      req.user.id,
+      dto.code,
+      dto.language,
+    );
   }
 
   @Post('2fa/email/send-code')
@@ -299,8 +310,14 @@ export class AuthController {
   @ApiOperation({
     summary: 'Enviar codigo 2FA al correo del usuario autenticado',
   })
-  sendTwoFactorEmailCode(@Request() req: AuthenticatedRequest) {
-    return this.authService.sendTwoFactorEmailCode(req.user.id);
+  sendTwoFactorEmailCode(
+    @Request() req: AuthenticatedRequest,
+    @Query('language') language: string | undefined,
+  ) {
+    return this.authService.sendTwoFactorEmailCode(
+      req.user.id,
+      language === 'en' ? 'en' : 'es',
+    );
   }
 
   @Post('2fa/email/verify-setup')
@@ -312,7 +329,11 @@ export class AuthController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: VerifyTwoFactorEmailSetupDto,
   ) {
-    return this.authService.verifyTwoFactorEmailSetup(req.user.id, dto.code);
+    return this.authService.verifyTwoFactorEmailSetup(
+      req.user.id,
+      dto.code,
+      dto.language,
+    );
   }
 
   @Post('2fa/email/disable')
@@ -324,14 +345,21 @@ export class AuthController {
     @Request() req: AuthenticatedRequest,
     @Body() dto: DisableTwoFactorEmailDto,
   ) {
-    return this.authService.disableTwoFactorEmail(req.user.id, dto.code);
+    return this.authService.disableTwoFactorEmail(
+      req.user.id,
+      dto.code,
+      dto.language,
+    );
   }
 
   @Post('2fa/email/request')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: 'Solicitar codigo 2FA por correo durante el login' })
   requestTwoFactorEmailCode(@Body() dto: RequestTwoFactorEmailDto) {
-    return this.authService.requestTwoFactorEmailCode(dto.temporary_token);
+    return this.authService.requestTwoFactorEmailCode(
+      dto.temporary_token,
+      dto.language,
+    );
   }
 
   @Post('2fa/email/login')
@@ -346,6 +374,7 @@ export class AuthController {
       dto.temporary_token,
       dto.code,
       this.getRequestContext(req),
+      dto.language,
     );
     return this.setSessionCookie(res, result);
   }

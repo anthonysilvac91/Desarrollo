@@ -3,12 +3,50 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanTier, SubscriptionStatus } from '@prisma/client';
 import { PLAN_LIMITS, suggestUpgrade } from './plan-limits';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
+
+  /** Notifica a todos los admins activos de una organizacion. Nunca lanza. */
+  private async notifyOrgAdmins(
+    orgId: string,
+    send: (admin: {
+      email: string;
+      name: string;
+      language: string;
+    }) => Promise<void>,
+  ): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: {
+          organization_id: orgId,
+          role: 'ADMIN',
+          is_active: true,
+          email_notifications_enabled: true,
+        },
+        select: { email: true, name: true, language: true },
+      });
+      await Promise.all(
+        admins.map((admin) =>
+          send(admin).catch((err) =>
+            this.logger.error(
+              `Failed to notify admin ${admin.email} (org ${orgId})`,
+              err,
+            ),
+          ),
+        ),
+      );
+    } catch (err) {
+      this.logger.error(`Failed to load admins for org ${orgId}`, err);
+    }
+  }
 
   async createForOrganization(orgId: string, plan: PlanTier = 'DEMO') {
     const limits = PLAN_LIMITS[plan];
@@ -191,6 +229,47 @@ export class SubscriptionsService {
       throw new NotFoundException('No hay solicitud de cambio pendiente');
     }
 
+    const requestedPlan = subscription.pending_plan;
+    const requester = subscription.pending_plan_requested_by
+      ? await this.prisma.user.findUnique({
+          where: { id: subscription.pending_plan_requested_by },
+          select: {
+            email: true,
+            name: true,
+            language: true,
+            email_notifications_enabled: true,
+          },
+        })
+      : null;
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { name: true },
+    });
+
+    if (requester && org && requester.email_notifications_enabled) {
+      const emailSend = approved
+        ? this.emailService.sendPlanChangeApproved(
+            requester.email,
+            requester.name,
+            org.name,
+            requestedPlan,
+            requester.language as 'en' | 'es',
+          )
+        : this.emailService.sendPlanChangeRejected(
+            requester.email,
+            requester.name,
+            org.name,
+            requestedPlan,
+            requester.language as 'en' | 'es',
+          );
+      emailSend.catch((err) =>
+        this.logger.error(
+          `Failed to send plan-change notice to ${requester.email}`,
+          err,
+        ),
+      );
+    }
+
     if (approved) {
       return this.updatePlan(orgId, subscription.pending_plan);
     }
@@ -281,10 +360,21 @@ export class SubscriptionsService {
       data: { status },
     });
 
-    await this.prisma.organization.update({
+    const org = await this.prisma.organization.update({
       where: { id: orgId },
       data: { is_active: status === 'ACTIVE' },
+      select: { name: true },
     });
+
+    void this.notifyOrgAdmins(orgId, (admin) =>
+      this.emailService.sendSubscriptionStatusChanged(
+        admin.email,
+        admin.name,
+        org.name,
+        status === 'ACTIVE',
+        admin.language as 'en' | 'es',
+      ),
+    );
 
     this.logger.log(`Subscription status for org ${orgId}: ${status}`);
     return subscription;
@@ -317,6 +407,7 @@ export class SubscriptionsService {
         demo_expires_at: { lt: new Date() },
         status: { in: ['ACTIVE', 'TRIALING'] },
       },
+      include: { organization: { select: { name: true } } },
     });
 
     for (const sub of expired) {
@@ -330,11 +421,60 @@ export class SubscriptionsService {
         data: { is_active: false },
       });
 
+      void this.notifyOrgAdmins(sub.organization_id, (admin) =>
+        this.emailService.sendSubscriptionStatusChanged(
+          admin.email,
+          admin.name,
+          sub.organization.name,
+          false,
+          admin.language as 'en' | 'es',
+        ),
+      );
+
       this.logger.warn(`Demo expired and suspended: org ${sub.organization_id}`);
     }
 
     if (expired.length > 0) {
       this.logger.log(`Suspended ${expired.length} expired demo(s)`);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async warnExpiringDemos() {
+    const now = new Date();
+    const in5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+    const expiringSoon = await this.prisma.subscription.findMany({
+      where: {
+        plan: 'DEMO',
+        status: { in: ['ACTIVE', 'TRIALING'] },
+        demo_expires_at: { gt: now, lte: in5Days },
+      },
+      include: { organization: { select: { name: true } } },
+    });
+
+    let warned = 0;
+    for (const sub of expiringSoon) {
+      if (!sub.demo_expires_at) continue;
+      const daysLeft = Math.ceil(
+        (sub.demo_expires_at.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+      );
+      if (daysLeft !== 5 && daysLeft !== 1) continue;
+
+      void this.notifyOrgAdmins(sub.organization_id, (admin) =>
+        this.emailService.sendDemoExpiringSoon(
+          admin.email,
+          admin.name,
+          sub.organization.name,
+          daysLeft,
+          admin.language as 'en' | 'es',
+        ),
+      );
+      warned += 1;
+    }
+
+    if (warned > 0) {
+      this.logger.log(`Warned admins of ${warned} soon-to-expire demo(s)`);
     }
   }
 }

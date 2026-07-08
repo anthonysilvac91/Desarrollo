@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { EmailService } from '../email/email.service';
 
 describe('ServicesService.getStats regression', () => {
   const prismaMock = {
@@ -16,6 +17,7 @@ describe('ServicesService.getStats regression', () => {
   const storageService = {} as unknown as StorageService;
   const storageGovernance = {} as unknown as StorageGovernanceService;
   const storedFilesService = {} as unknown as StoredFilesService;
+  const emailService = {} as unknown as EmailService;
 
   let service: ServicesService;
 
@@ -33,6 +35,7 @@ describe('ServicesService.getStats regression', () => {
         { provide: StorageService, useValue: storageService },
         { provide: StorageGovernanceService, useValue: storageGovernance },
         { provide: StoredFilesService, useValue: storedFilesService },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
 

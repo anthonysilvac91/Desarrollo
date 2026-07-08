@@ -127,7 +127,12 @@ export class ServicesController {
         'Solo un Admin puede editar los Services en esta fase MVP',
       );
     }
-    return this.servicesService.update(id, updateServiceDto, req.user.orgId);
+    return this.servicesService.update(
+      id,
+      updateServiceDto,
+      req.user.orgId,
+      req.user.id,
+    );
   }
 
   @Get(':id')

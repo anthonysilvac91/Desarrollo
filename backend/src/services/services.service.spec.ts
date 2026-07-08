@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
+import { EmailService } from '../email/email.service';
 import { processUploadedImage } from '../common/files/image-processing';
 import { validateImageFile } from '../common/files/image-validation';
 import type { Asset, Organization, Service } from '@prisma/client';
@@ -117,7 +118,7 @@ describe('ServicesService', () => {
     serviceAttachmentFindFirst = jest.fn();
     const prismaMock = {
       organization: { findUnique: jest.fn() },
-      asset: { findFirst: jest.fn(), findMany: jest.fn() },
+      asset: { findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
       user: { findMany: jest.fn(), findUnique: jest.fn() },
       service: {
         create: jest.fn(),
@@ -154,6 +155,13 @@ describe('ServicesService', () => {
         { provide: StorageService, useValue: storageService },
         { provide: StorageGovernanceService, useValue: storageGovernance },
         { provide: StoredFilesService, useValue: storedFilesService },
+        {
+          provide: EmailService,
+          useValue: {
+            sendServiceCompletedAdmin: jest.fn(),
+            sendServiceCompletedExternal: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -823,6 +831,7 @@ describe('ServicesService', () => {
         'svc-1',
         { title: 'Nuevo', status: 'ARCHIVED' },
         'org-1',
+        'admin-1',
       );
 
       expect(prisma.service.update).toHaveBeenCalledWith(

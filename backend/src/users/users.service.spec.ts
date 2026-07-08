@@ -7,6 +7,7 @@ import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { EmailService } from '../email/email.service';
 
 function oc<T extends object>(obj: T): T {
   return expect.objectContaining(obj) as T;
@@ -52,6 +53,10 @@ describe('UsersService', () => {
           },
         },
         { provide: RealtimeService, useValue: { emit: jest.fn() } },
+        {
+          provide: EmailService,
+          useValue: { sendPasswordChanged: jest.fn() },
+        },
       ],
     }).compile();
 

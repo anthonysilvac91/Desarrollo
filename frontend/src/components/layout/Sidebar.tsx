@@ -11,7 +11,8 @@ import {
   Users,
   Settings,
   Building2,
-  Trash2
+  Trash2,
+  Mail
 } from "lucide-react";
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const links = [
     { href: "/dashboard", label: t.sidebar.dashboard, icon: LayoutGrid },
     { href: "/organizations", label: t.sidebar.organizations, icon: Building2 },
+    { href: "/email-templates", label: t.sidebar.email_templates, icon: Mail },
     { href: "/assets", label: t.sidebar.assets, icon: AssetNavIcon },
     { href: "/service", label: t.sidebar.services, icon: Wrench },
     { href: "/users", label: t.sidebar.users, icon: Users },

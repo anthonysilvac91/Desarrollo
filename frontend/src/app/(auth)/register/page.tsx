@@ -33,7 +33,7 @@ export default function RegisterPage() {
 }
 
 function RegisterContent() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { login } = useAuth();
   const searchParams = useSearchParams();
@@ -85,7 +85,7 @@ function RegisterContent() {
     if (!token) return;
     setIsSubmitting(true);
     try {
-      await authService.register(token, data.name, data.password);
+      await authService.register(token, data.name, data.password, language);
       await login();
     } catch (err: unknown) {
       const msg =

@@ -111,7 +111,7 @@ const UserCard = ({ item, t, onClick }: UserCardProps) => (
 );
 
 export default function UsersPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -224,7 +224,7 @@ export default function UsersPage() {
     if (!userToResetPassword) return;
 
     try {
-      await authService.forgotPassword(userToResetPassword.email);
+      await authService.forgotPassword(userToResetPassword.email, language);
       showToast(t.confirm_modal.reset_password_sent, "success");
     } catch (err) {
       showToast(getServerErrorMessage(err, t.confirm_modal.reset_password_error), "error");

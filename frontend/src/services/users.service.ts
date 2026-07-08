@@ -16,6 +16,8 @@ export interface User {
   created_at: string;
   asset_access?: string[];
   asset_access_mode?: "UNRESTRICTED" | "RESTRICTED";
+  email_notifications_enabled?: boolean;
+  security_alerts_enabled?: boolean;
 }
 
 export interface UserStats {
@@ -68,6 +70,14 @@ export const usersService = {
       ? { headers: { "Content-Type": "multipart/form-data" } }
       : undefined;
     const res = await api.patch("/users/me", data, config);
+    return res.data;
+  },
+
+  updateNotificationPreferences: async (data: {
+    email_notifications_enabled?: boolean;
+    security_alerts_enabled?: boolean;
+  }): Promise<Pick<User, "email_notifications_enabled" | "security_alerts_enabled">> => {
+    const res = await api.patch("/users/me/notification-preferences", data);
     return res.data;
   },
 

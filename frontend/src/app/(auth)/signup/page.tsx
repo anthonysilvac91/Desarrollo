@@ -20,7 +20,7 @@ import {
 import Link from "next/link";
 
 export default function SignupPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,6 +87,7 @@ export default function SignupPage() {
         admin_name: data.admin_name.trim(),
         email: data.email.trim().toLowerCase(),
         password: data.password,
+        language,
       });
       await login();
     } catch (error: unknown) {

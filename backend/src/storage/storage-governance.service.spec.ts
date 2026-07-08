@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { StorageGovernanceService } from './storage-governance.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
+import { EmailService } from '../email/email.service';
 
 describe('StorageGovernanceService', () => {
   let service: StorageGovernanceService;
@@ -30,12 +31,17 @@ describe('StorageGovernanceService', () => {
       get: jest.fn().mockReturnValue(String(100 * 1024 * 1024)),
     };
 
+    const emailMock = {
+      sendStorageNearLimit: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageGovernanceService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: StorageService, useValue: storageMock },
         { provide: ConfigService, useValue: configMock },
+        { provide: EmailService, useValue: emailMock },
       ],
     }).compile();
 

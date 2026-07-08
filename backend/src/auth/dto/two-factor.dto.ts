@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class VerifyTwoFactorSetupDto {
@@ -11,6 +11,14 @@ export class VerifyTwoFactorSetupDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class LoginTwoFactorDto {
@@ -28,6 +36,14 @@ export class LoginTwoFactorDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class DisableTwoFactorDto {
@@ -37,6 +53,14 @@ export class DisableTwoFactorDto {
   @IsString()
   @IsOptional()
   code?: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class RequestTwoFactorEmailDto {
@@ -47,6 +71,14 @@ export class RequestTwoFactorEmailDto {
   @IsString()
   @IsNotEmpty()
   temporary_token: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class LoginTwoFactorEmailDto {
@@ -59,6 +91,14 @@ export class LoginTwoFactorEmailDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class VerifyTwoFactorEmailSetupDto {
@@ -66,6 +106,14 @@ export class VerifyTwoFactorEmailSetupDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class DisableTwoFactorEmailDto {
@@ -73,4 +121,12 @@ export class DisableTwoFactorEmailDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }

@@ -53,6 +53,10 @@ describe('AuthService', () => {
     sendPasswordReset: jest.fn(),
     sendEmailVerification: jest.fn(),
     sendTwoFactorCode: jest.fn(),
+    sendWelcome: jest.fn(),
+    sendNewDeviceLogin: jest.fn().mockResolvedValue(undefined),
+    sendPasswordChanged: jest.fn().mockResolvedValue(undefined),
+    sendTwoFactorStatusChanged: jest.fn().mockResolvedValue(undefined),
     isEnabled: jest.fn().mockReturnValue(true),
   };
 

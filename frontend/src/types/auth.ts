@@ -20,4 +20,6 @@ export interface User {
   avatar_url?: string;
   organization_id?: string;
   organization?: Organization;
+  email_notifications_enabled?: boolean;
+  security_alerts_enabled?: boolean;
 }

@@ -4,6 +4,7 @@
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
   Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +12,7 @@ import { Role, StoredFileKind } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
+import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 import * as bcrypt from 'bcryptjs';
 import { StorageService } from '../storage/storage.service';
 import { StorageGovernanceService } from '../storage/storage-governance.service';
@@ -29,13 +31,17 @@ import {
   withOwner,
 } from '../common/compat/owner-role-compat';
 import { RealtimeService } from '../realtime/realtime.service';
+import { EmailService } from '../email/email.service';
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    private emailService: EmailService,
     @Optional() private realtimeService?: RealtimeService,
   ) {}
 
@@ -304,6 +310,8 @@ export class UsersService {
         created_at: true,
         updated_at: true,
         asset_access_mode: true,
+        language: true,
+        security_alerts_enabled: true,
         worker_asset_access: { select: { asset_id: true } },
       },
     });
@@ -778,6 +786,7 @@ export class UsersService {
         data: {
           ...data,
           avatar_file_id: avatarFileId,
+          ...(dto.language ? { language: dto.language } : {}),
         },
         select: {
           id: true,
@@ -789,6 +798,7 @@ export class UsersService {
           owner_id: true,
           avatar_file_id: true,
           is_active: true,
+          security_alerts_enabled: true,
           organization: { select: { id: true, name: true, slug: true } },
           owner: {
             select: { id: true, name: true, deleted_at: true, purged_at: true },
@@ -815,7 +825,36 @@ export class UsersService {
       );
     }
 
+    if (dto.new_password && updatedUser.security_alerts_enabled) {
+      this.emailService
+        .sendPasswordChanged(updatedUser.email, updatedUser.name, dto.language)
+        .catch((err) =>
+          this.logger.error('Failed to send password-changed notice', err),
+        );
+    }
+
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
+  }
+
+  async updateNotificationPreferences(
+    userId: string,
+    dto: UpdateNotificationPreferencesDto,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.email_notifications_enabled !== undefined
+          ? { email_notifications_enabled: dto.email_notifications_enabled }
+          : {}),
+        ...(dto.security_alerts_enabled !== undefined
+          ? { security_alerts_enabled: dto.security_alerts_enabled }
+          : {}),
+      },
+      select: {
+        email_notifications_enabled: true,
+        security_alerts_enabled: true,
+      },
+    });
   }
 
   async toggleStatus(
@@ -839,6 +878,23 @@ export class UsersService {
         is_active: true,
       },
     });
+
+    if (user.organization?.name && user.security_alerts_enabled) {
+      this.emailService
+        .sendUserStatusChanged(
+          updatedUser.email,
+          user.name,
+          user.organization.name,
+          updatedUser.is_active,
+          user.language as 'en' | 'es',
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Failed to send user-status notice to ${updatedUser.email}`,
+            err,
+          ),
+        );
+    }
 
     return updatedUser;
   }

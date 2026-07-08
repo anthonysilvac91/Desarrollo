@@ -193,6 +193,17 @@ model User {
   two_factor_backup_codes Json?
   last_login_at           DateTime?
   email_verified_at       DateTime?
+  /// Ultimo idioma de UI conocido para este usuario (se actualiza en cada login/registro).
+  /// Es la unica fuente de idioma disponible para correos disparados por terceros,
+  /// donde no hay una sesion en vivo de la que tomarlo.
+  language                String          @default("es")
+  /// Preferencia del usuario: recibir notificaciones operativas por correo
+  /// (servicio completado/editado, cambios de plan, suscripcion, almacenamiento, etc.).
+  /// No afecta correos criticos que el propio usuario dispara (reset de password, 2FA, etc.).
+  email_notifications_enabled Boolean @default(true)
+  /// Preferencia del usuario: recibir alertas de seguridad de su cuenta
+  /// (nuevo dispositivo, contraseña cambiada, 2FA activado/desactivado, acceso cambiado).
+  security_alerts_enabled     Boolean @default(true)
   deleted_at              DateTime?
   deleted_by_id           String?
   purged_at               DateTime?
@@ -481,6 +492,9 @@ model OrganizationStorageUsage {
   pending_upload_count Int       @default(0)
   reconciled_at        DateTime?
   updated_at           DateTime  @updatedAt
+  /// Umbral (80 o 100) del ultimo aviso de "cerca del limite" enviado. Null si
+  /// el uso esta por debajo del umbral mas bajo (evita reenviar el aviso cada dia).
+  last_storage_alert_pct Int?
 
   organization Organization @relation(fields: [organization_id], references: [id])
 }
@@ -655,4 +669,12 @@ model PendingTotpSetup {
 
   @@index([user_id])
   @@index([expires_at])
+}
+
+/// Interruptor por plantilla de email. Si no hay fila para una key, se
+/// considera habilitada (comportamiento por defecto sin necesidad de backfill).
+model EmailTemplateSetting {
+  key        String   @id
+  enabled    Boolean  @default(true)
+  updated_at DateTime @updatedAt
 }

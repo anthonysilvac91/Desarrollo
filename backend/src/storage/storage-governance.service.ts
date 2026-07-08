@@ -5,9 +5,14 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
+import { EmailService } from '../email/email.service';
 import { resolveStorageQuotaBytes } from './resolve-storage-quota';
+
+/** Umbrales (%) para el aviso de "almacenamiento cerca del limite", de mayor a menor. */
+const STORAGE_ALERT_THRESHOLDS = [100, 80];
 
 export interface OrganizationStorageUsage {
   organizationId: string;
@@ -34,6 +39,7 @@ export class StorageGovernanceService {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   private async resolveQuotaForOrg(organizationId: string): Promise<bigint> {
@@ -92,6 +98,129 @@ export class StorageGovernanceService {
         quotaBytes === null ? null : Math.max(quotaBytes - bytesUsed, 0),
       quotaExceeded: quotaBytes === null ? false : bytesUsed > quotaBytes,
     };
+  }
+
+  /**
+   * Avisa a los admins cuando una organizacion alcanza 80% o 100% de su cuota.
+   * Usa un "watermark" (last_storage_alert_pct) para no reenviar el mismo aviso
+   * todos los dias mientras el uso se mantenga sobre el umbral ya notificado.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async warnStorageNearLimit(): Promise<void> {
+    const usages = await this.prisma.organizationStorageUsage.findMany({
+      include: {
+        organization: {
+          select: {
+            name: true,
+            storage_quota_bytes: true,
+            subscription: { select: { max_storage_gb: true } },
+          },
+        },
+      },
+    });
+
+    let warned = 0;
+    for (const usage of usages) {
+      const org = usage.organization;
+      if (!org?.subscription) continue;
+
+      const quotaBytes = resolveStorageQuotaBytes({
+        orgStorageQuotaBytes: org.storage_quota_bytes ?? null,
+        subscriptionMaxStorageGb: org.subscription.max_storage_gb,
+        envFallbackBytes: BigInt(
+          this.configService.get<string>(
+            'ORG_STORAGE_QUOTA_BYTES',
+            String(100 * 1024 * 1024),
+          ),
+        ),
+      });
+      if (quotaBytes <= 0n) continue;
+
+      const usedBytes = usage.ready_bytes + usage.reserved_bytes;
+      const pctUsed = Number((usedBytes * 10000n) / quotaBytes) / 100;
+      const crossedThreshold =
+        STORAGE_ALERT_THRESHOLDS.find((t) => pctUsed >= t) ?? null;
+
+      if (crossedThreshold !== null) {
+        if (
+          usage.last_storage_alert_pct === null ||
+          crossedThreshold > usage.last_storage_alert_pct
+        ) {
+          void this.notifyStorageNearLimit(
+            usage.organization_id,
+            org.name,
+            usedBytes,
+            quotaBytes,
+            crossedThreshold,
+          );
+          await this.prisma.organizationStorageUsage.update({
+            where: { organization_id: usage.organization_id },
+            data: { last_storage_alert_pct: crossedThreshold },
+          });
+          warned += 1;
+        }
+      } else if (usage.last_storage_alert_pct !== null) {
+        await this.prisma.organizationStorageUsage.update({
+          where: { organization_id: usage.organization_id },
+          data: { last_storage_alert_pct: null },
+        });
+      }
+    }
+
+    if (warned > 0) {
+      this.logger.log(`Warned admins of ${warned} org(s) near storage limit`);
+    }
+  }
+
+  /** Notifica a los admins activos de la organizacion. Nunca lanza. */
+  private async notifyStorageNearLimit(
+    orgId: string,
+    orgName: string,
+    usedBytes: bigint,
+    quotaBytes: bigint,
+    thresholdPct: number,
+  ): Promise<void> {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: {
+          organization_id: orgId,
+          role: 'ADMIN',
+          is_active: true,
+          email_notifications_enabled: true,
+        },
+        select: { email: true, name: true, language: true },
+      });
+      const usedGb =
+        Math.round((Number(usedBytes) / (1024 * 1024 * 1024)) * 100) / 100;
+      const quotaGb =
+        Math.round((Number(quotaBytes) / (1024 * 1024 * 1024)) * 100) / 100;
+
+      await Promise.all(
+        admins.map((admin) =>
+          this.emailService
+            .sendStorageNearLimit(
+              admin.email,
+              admin.name,
+              orgName,
+              usedGb,
+              quotaGb,
+              thresholdPct,
+              admin.language as 'en' | 'es',
+            )
+            .catch((err) =>
+              this.logger.error(
+                `Failed to notify admin ${admin.email} of storage near limit`,
+                err,
+              ),
+            ),
+        ),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to send storage-near-limit notifications for org ${orgId}`,
+        err,
+      );
+    }
   }
 
   async assertCanStore(

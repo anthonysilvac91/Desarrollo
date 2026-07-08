@@ -30,6 +30,7 @@ import { UploadPolicyService } from '../uploads/upload-policy.service';
 import { CreateServiceWithUploadManifestDto } from '../uploads/dto/create-service-with-upload-manifest.dto';
 import { extensionForVideoMime } from '../common/files/video-signature-validation';
 import { createHash } from 'crypto';
+import { EmailService } from '../email/email.service';
 
 const SERVICE_ATTACHMENT_MAX_FILES = 30;
 const SERVICE_ATTACHMENT_MAX_ORIGINAL_BYTES = 10 * 1024 * 1024;
@@ -253,10 +254,180 @@ export class ServicesService {
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    private emailService: EmailService,
     @Optional() private realtimeService?: RealtimeService,
     @Optional() private translationService?: TranslationService,
     @Optional() private uploadPolicyService?: UploadPolicyService,
   ) {}
+
+  /**
+   * Notifica por correo a los admins de la organizacion y, si el activo
+   * tiene un owner con usuario EXTERNAL vinculado, tambien a ese usuario.
+   * Nunca lanza — un fallo de envio no debe afectar la creacion del servicio.
+   */
+  private async notifyServiceCompleted(params: {
+    serviceId: string;
+    assetId: string;
+    orgId: string;
+    workerId: string;
+  }): Promise<void> {
+    try {
+      const [asset, worker, org] = await Promise.all([
+        this.prisma.asset.findUnique({
+          where: { id: params.assetId },
+          select: { name: true, owner_id: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: params.workerId },
+          select: { name: true },
+        }),
+        this.prisma.organization.findUnique({
+          where: { id: params.orgId },
+          select: { name: true },
+        }),
+      ]);
+      if (!asset || !org) return;
+
+      const serviceUrl = this.frontendUrlBase
+        ? `${this.frontendUrlBase}/service?id=${params.serviceId}`
+        : '';
+      const workerName = worker?.name ?? 'Un worker';
+
+      const admins = await this.prisma.user.findMany({
+        where: {
+          organization_id: params.orgId,
+          role: 'ADMIN',
+          is_active: true,
+          email_notifications_enabled: true,
+        },
+        select: { email: true, name: true, language: true },
+      });
+      await Promise.all(
+        admins.map((admin) =>
+          this.emailService
+            .sendServiceCompletedAdmin(
+              admin.email,
+              admin.name,
+              workerName,
+              asset.name,
+              org.name,
+              serviceUrl,
+              admin.language as 'en' | 'es',
+            )
+            .catch((err) =>
+              this.logger.error(
+                `Failed to notify admin ${admin.email} of completed service`,
+                err,
+              ),
+            ),
+        ),
+      );
+
+      if (asset.owner_id) {
+        const externals = await this.prisma.user.findMany({
+          where: {
+            owner_id: asset.owner_id,
+            role: 'EXTERNAL',
+            is_active: true,
+            email_notifications_enabled: true,
+          },
+          select: { email: true, name: true, language: true },
+        });
+        await Promise.all(
+          externals.map((ext) =>
+            this.emailService
+              .sendServiceCompletedExternal(
+                ext.email,
+                ext.name,
+                asset.name,
+                org.name,
+                serviceUrl,
+                ext.language as 'en' | 'es',
+              )
+              .catch((err) =>
+                this.logger.error(
+                  `Failed to notify external user ${ext.email} of completed service`,
+                  err,
+                ),
+              ),
+          ),
+        );
+      }
+    } catch (err) {
+      this.logger.error('Failed to send service-completed notifications', err);
+    }
+  }
+
+  private get frontendUrlBase(): string {
+    return (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+  }
+
+  /**
+   * Notifica a los demas admins de la organizacion (no al que edito) cuando
+   * un servicio ya publicado es modificado. Nunca lanza.
+   */
+  private async notifyServiceEdited(params: {
+    serviceId: string;
+    assetId: string;
+    orgId: string;
+    editorUserId: string;
+  }): Promise<void> {
+    try {
+      const [asset, editor, org] = await Promise.all([
+        this.prisma.asset.findUnique({
+          where: { id: params.assetId },
+          select: { name: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: params.editorUserId },
+          select: { name: true },
+        }),
+        this.prisma.organization.findUnique({
+          where: { id: params.orgId },
+          select: { name: true },
+        }),
+      ]);
+      if (!asset || !org) return;
+
+      const serviceUrl = this.frontendUrlBase
+        ? `${this.frontendUrlBase}/service?id=${params.serviceId}`
+        : '';
+      const editorName = editor?.name ?? 'Un admin';
+
+      const admins = await this.prisma.user.findMany({
+        where: {
+          organization_id: params.orgId,
+          role: 'ADMIN',
+          is_active: true,
+          id: { not: params.editorUserId },
+          email_notifications_enabled: true,
+        },
+        select: { email: true, name: true, language: true },
+      });
+      await Promise.all(
+        admins.map((admin) =>
+          this.emailService
+            .sendServiceEdited(
+              admin.email,
+              admin.name,
+              editorName,
+              asset.name,
+              org.name,
+              serviceUrl,
+              admin.language as 'en' | 'es',
+            )
+            .catch((err) =>
+              this.logger.error(
+                `Failed to notify admin ${admin.email} of edited service`,
+                err,
+              ),
+            ),
+        ),
+      );
+    } catch (err) {
+      this.logger.error('Failed to send service-edited notifications', err);
+    }
+  }
 
   private mapServiceRelations<T extends Record<string, any>>(service: T): T {
     if (!service.asset) {
@@ -619,6 +790,15 @@ export class ServicesService {
         organizationId: serviceOrgId,
         actorUserId: user.id,
       });
+
+      if (newService.is_public) {
+        void this.notifyServiceCompleted({
+          serviceId: newService.id,
+          assetId: createServiceDto.asset_id,
+          orgId: serviceOrgId,
+          workerId: user.id,
+        });
+      }
 
       return resolvedService;
     } catch (error) {
@@ -1092,7 +1272,12 @@ export class ServicesService {
     return { workers, assets };
   }
 
-  async update(id: string, updateServiceDto: UpdateServiceDto, orgId: string) {
+  async update(
+    id: string,
+    updateServiceDto: UpdateServiceDto,
+    orgId: string,
+    actorUserId: string,
+  ) {
     const service = await this.prisma.service.findUnique({ where: { id } });
     if (
       !service ||
@@ -1105,13 +1290,38 @@ export class ServicesService {
       );
     }
 
-    return this.prisma.service.update({
+    const wasPublic = service.is_public;
+    const updated = await this.prisma.service.update({
       where: { id },
       data: {
         ...updateServiceDto,
         admin_intervened: true,
       },
     });
+
+    if (!wasPublic && updated.is_public) {
+      void this.notifyServiceCompleted({
+        serviceId: updated.id,
+        assetId: updated.asset_id,
+        orgId: orgId,
+        workerId: service.worker_id,
+      });
+    } else if (wasPublic && updated.is_public) {
+      void this.notifyServiceEdited({
+        serviceId: updated.id,
+        assetId: updated.asset_id,
+        orgId,
+        editorUserId: actorUserId,
+      });
+    }
+
+    // attachment_bytes_total/ready are BigInt columns - JSON.stringify() throws
+    // on those, so they must be stringified before this reaches the response.
+    return {
+      ...updated,
+      attachment_bytes_total: String(updated.attachment_bytes_total),
+      attachment_bytes_ready: String(updated.attachment_bytes_ready),
+    };
   }
 
   async findOne(id: string, user: any, lang?: string) {

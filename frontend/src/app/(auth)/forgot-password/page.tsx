@@ -11,7 +11,7 @@ import { Loader2, Mail, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function ForgotPasswordPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const forgotPasswordSchema = z.object({
@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsSubmitting(true);
     try {
-      await authService.forgotPassword(data.email);
+      await authService.forgotPassword(data.email, language);
       setSent(true);
     } finally {
       setIsSubmitting(false);

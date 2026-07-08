@@ -1,5 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
   @ApiProperty({ example: 'admin@test.com' })
@@ -11,4 +11,12 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma para correos de seguridad (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }

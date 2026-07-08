@@ -13,7 +13,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 function ResetPasswordContent() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,7 +61,7 @@ function ResetPasswordContent() {
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsSubmitting(true);
     try {
-      await authService.resetPassword(token, data.password);
+      await authService.resetPassword(token, data.password, language);
       showToast(t.auth.reset_password.success, "success");
       router.push("/login");
     } catch {

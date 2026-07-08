@@ -1,5 +1,6 @@
 import {
   IsEmpty,
+  IsIn,
   IsString,
   IsNotEmpty,
   MinLength,
@@ -43,4 +44,12 @@ export class RegisterDto {
   @ApiHideProperty()
   @IsEmpty({ message: 'customer_id is no longer accepted; use owner_id' })
   customer_id?: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo de bienvenida (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }

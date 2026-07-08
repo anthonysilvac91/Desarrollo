@@ -3,6 +3,7 @@ import { SubscriptionsService } from './subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PLAN_LIMITS } from './plan-limits';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { EmailService } from '../email/email.service';
 
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;
@@ -22,7 +23,11 @@ describe('SubscriptionsService', () => {
         findMany: jest.fn(),
         update: jest.fn(),
       },
-      user: { count: jest.fn().mockResolvedValue(0) },
+      user: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
       asset: { count: jest.fn().mockResolvedValue(0) },
       organizationStorageUsage: { findUnique: jest.fn().mockResolvedValue(null) },
     };
@@ -32,6 +37,15 @@ describe('SubscriptionsService', () => {
         SubscriptionsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchedulerRegistry, useValue: {} },
+        {
+          provide: EmailService,
+          useValue: {
+            sendPlanChangeApproved: jest.fn().mockResolvedValue(undefined),
+            sendPlanChangeRejected: jest.fn().mockResolvedValue(undefined),
+            sendSubscriptionStatusChanged: jest.fn().mockResolvedValue(undefined),
+            sendDemoExpiringSoon: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 

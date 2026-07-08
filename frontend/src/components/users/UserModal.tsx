@@ -300,7 +300,7 @@ function AdminAccessPanel({ t }: { t: ReturnType<typeof useLanguage>["t"] }) {
 }
 
 export default function UserModal({ isOpen, onClose, onSuccess, userToEdit }: UserModalProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { showToast } = useToast();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
@@ -407,6 +407,7 @@ export default function UserModal({ isOpen, onClose, onSuccess, userToEdit }: Us
         const invitePayload: Record<string, unknown> = {
           email: formData.email,
           role: formData.role,
+          language,
         };
         if (isSuperAdmin && formData.role !== "SUPER_ADMIN") invitePayload.organization_id = formData.organization_id;
         if (formData.role === "EXTERNAL") invitePayload.owner_id = formData.owner_id;

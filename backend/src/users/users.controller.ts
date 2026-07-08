@@ -30,6 +30,7 @@ import { UserResponseDto } from './dto/users.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
+import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 import { SetAssetAccessDto } from './dto/set-asset-access.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -138,6 +139,15 @@ export class UsersController {
       dto,
       avatar,
     );
+  }
+
+  @Patch('me/notification-preferences')
+  @ApiOperation({ summary: 'Actualizar preferencias de notificacion del usuario autenticado' })
+  updateMyNotificationPreferences(
+    @Body() dto: UpdateNotificationPreferencesDto,
+    @Request() req: any,
+  ) {
+    return this.usersService.updateNotificationPreferences(req.user.id, dto);
   }
 
   @Patch(':id')

@@ -27,6 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/organizations": ["SUPER_ADMIN"],
+  "/email-templates": ["SUPER_ADMIN"],
   "/dashboard": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
   "/users": ["SUPER_ADMIN", "ADMIN"],
   "/owners": ["SUPER_ADMIN", "ADMIN"],

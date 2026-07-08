@@ -7,7 +7,7 @@
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserSession } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -271,7 +271,7 @@ export class AuthService {
       organization_id: string | null;
     },
     context?: AuthRequestContext,
-  ) {
+  ): Promise<{ session: UserSession; isNewDevice: boolean }> {
     const now = new Date();
     const tokenJti = randomBytes(24).toString('hex');
     const device = this.parseDevice(context?.userAgent);
@@ -288,7 +288,7 @@ export class AuthService {
     });
 
     if (existingSession) {
-      return this.prisma.userSession.update({
+      const session = await this.prisma.userSession.update({
         where: { id: existingSession.id },
         data: {
           token_jti: tokenJti,
@@ -302,9 +302,15 @@ export class AuthService {
           expires_at: new Date(now.getTime() + this.accessTokenTtlMs),
         },
       });
+      return { session, isNewDevice: false };
     }
 
-    return this.prisma.userSession.create({
+    const hadAnyPriorSession = await this.prisma.userSession.findFirst({
+      where: { user_id: user.id },
+      select: { id: true },
+    });
+
+    const session = await this.prisma.userSession.create({
       data: {
         user_id: user.id,
         organization_id: user.organization_id,
@@ -320,6 +326,62 @@ export class AuthService {
         expires_at: new Date(now.getTime() + this.accessTokenTtlMs),
       },
     });
+    return { session, isNewDevice: !!hadAnyPriorSession };
+  }
+
+  private notifyNewDeviceLogin(
+    user: { email: string; name: string; security_alerts_enabled?: boolean },
+    session: UserSession,
+    language: 'en' | 'es' = 'es',
+  ): void {
+    if (user.security_alerts_enabled === false) return;
+    this.emailService
+      .sendNewDeviceLogin(
+        user.email,
+        user.name,
+        {
+          browser: session.browser,
+          os: session.os,
+          deviceType: session.device_type,
+          city: session.city,
+          country: session.country,
+          ipAddress: session.ip_address,
+        },
+        language,
+      )
+      .catch((err) =>
+        this.logger.error(
+          `Failed to send new-device login notice to ${user.email}`,
+          err,
+        ),
+      );
+  }
+
+  private notifyTwoFactorStatusChanged(
+    userId: string,
+    enabled: boolean,
+    language: 'en' | 'es' = 'es',
+  ): void {
+    this.prisma.user
+      .findUnique({
+        where: { id: userId },
+        select: { email: true, name: true, security_alerts_enabled: true },
+      })
+      .then((user) => {
+        if (!user || !user.security_alerts_enabled) return;
+        return this.emailService.sendTwoFactorStatusChanged(
+          user.email,
+          user.name,
+          enabled,
+          language,
+        );
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Failed to send 2FA-status notice for user ${userId}`,
+          err,
+        ),
+      );
   }
 
   private signTwoFactorLoginToken(userId: string) {
@@ -415,9 +477,18 @@ export class AuthService {
       }
       await this.prisma.user.update({
         where: { id: user.id },
-        data: { last_login_at: new Date() },
+        data: {
+          last_login_at: new Date(),
+          ...(loginDto.language ? { language: loginDto.language } : {}),
+        },
       });
-      const session = await this.createSession(user, context);
+      const { session, isNewDevice } = await this.createSession(
+        user,
+        context,
+      );
+      if (isNewDevice) {
+        this.notifyNewDeviceLogin(user, session, loginDto.language);
+      }
       this.logger.log(`User ${user.id} logged in successfully`);
       return { access_token: this.signAccessToken(user, session) };
     }
@@ -446,10 +517,16 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { last_login_at: new Date() },
+      data: {
+        last_login_at: new Date(),
+        ...(loginDto.language ? { language: loginDto.language } : {}),
+      },
     });
 
-    const session = await this.createSession(user, context);
+    const { session, isNewDevice } = await this.createSession(user, context);
+    if (isNewDevice) {
+      this.notifyNewDeviceLogin(user, session, loginDto.language);
+    }
     this.logger.log(`User ${user.id} logged in successfully`);
     return { access_token: this.signAccessToken(user, session) };
   }
@@ -458,6 +535,7 @@ export class AuthService {
     temporaryToken: string,
     code: string,
     context?: AuthRequestContext,
+    language: 'en' | 'es' = 'es',
   ) {
     let payload: any;
     try {
@@ -515,13 +593,17 @@ export class AuthService {
       where: { id: user.id },
       data: {
         last_login_at: new Date(),
+        language,
         ...(backupResult.valid
           ? { two_factor_backup_codes: backupResult.remainingHashes }
           : {}),
       },
     });
 
-    const session = await this.createSession(user, context);
+    const { session, isNewDevice } = await this.createSession(user, context);
+    if (isNewDevice) {
+      this.notifyNewDeviceLogin(user, session, language);
+    }
     return { access_token: this.signAccessToken(user, session) };
   }
 
@@ -564,6 +646,7 @@ export class AuthService {
           organization_id: invitation.organization_id,
           owner_id: invitation.owner_id ?? registerDto.owner_id ?? null,
           email_verified_at: new Date(),
+          ...(registerDto.language ? { language: registerDto.language } : {}),
           ...(invitation.role === 'WORKER'
             ? { asset_access_mode: invitation.asset_access_mode }
             : {}),
@@ -593,7 +676,45 @@ export class AuthService {
       return createdUser;
     });
 
-    const session = await this.createSession(user, context);
+    const { session } = await this.createSession(user, context);
+
+    try {
+      await this.emailService.sendWelcome(
+        user.email,
+        user.name,
+        invitation.organization.name,
+        registerDto.language,
+      );
+    } catch (err) {
+      this.logger.error(
+        'Failed to send welcome email after invitation registration',
+        err,
+      );
+    }
+
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: invitation.invited_by_id },
+      select: {
+        email: true,
+        name: true,
+        language: true,
+        email_notifications_enabled: true,
+      },
+    });
+    if (inviter && inviter.email_notifications_enabled) {
+      this.emailService
+        .sendInvitationAccepted(
+          inviter.email,
+          inviter.name,
+          user.name,
+          user.email,
+          invitation.organization.name,
+          inviter.language as 'en' | 'es',
+        )
+        .catch((err) =>
+          this.logger.error('Failed to send invitation-accepted notice', err),
+        );
+    }
 
     this.logger.log(`User ${user.id} registered via invitation`);
     return { access_token: this.signAccessToken(user, session) };
@@ -651,6 +772,7 @@ export class AuthService {
             role: 'ADMIN',
             organization_id: organization.id,
             owner_id: null,
+            ...(dto.language ? { language: dto.language } : {}),
           },
         });
 
@@ -658,7 +780,21 @@ export class AuthService {
       },
     );
 
-    const session = await this.createSession(user, context);
+    const { session } = await this.createSession(user, context);
+
+    try {
+      await this.emailService.sendWelcome(
+        user.email,
+        user.name,
+        organization.name,
+        dto.language,
+      );
+    } catch (err) {
+      this.logger.error(
+        'Failed to send welcome email after organization registration',
+        err,
+      );
+    }
 
     this.logger.log(
       `Organization ${organization.id} registered with admin ${user.id}`,
@@ -825,7 +961,10 @@ export class AuthService {
     return { revoked: true };
   }
 
-  async forgotPassword(email: string): Promise<{ message: string }> {
+  async forgotPassword(
+    email: string,
+    language: 'en' | 'es' = 'es',
+  ): Promise<{ message: string }> {
     const genericResponse = {
       message: 'Si el correo existe recibirás un enlace de recuperación.',
     };
@@ -870,7 +1009,12 @@ export class AuthService {
     });
 
     const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
-    await this.emailService.sendPasswordReset(user.email, user.name, resetUrl);
+    await this.emailService.sendPasswordReset(
+      user.email,
+      user.name,
+      resetUrl,
+      language,
+    );
     this.logger.log('Password reset email sent');
 
     return genericResponse;
@@ -879,6 +1023,7 @@ export class AuthService {
   async resetPassword(
     token: string,
     newPassword: string,
+    language: 'en' | 'es' = 'es',
   ): Promise<{ message: string }> {
     const emailToken = await this.prisma.emailToken.findUnique({
       where: { token: sha256hex(token) },
@@ -895,10 +1040,11 @@ export class AuthService {
 
     const hash = await bcrypt.hash(newPassword, 10);
 
-    await Promise.all([
+    const [updatedUser] = await Promise.all([
       this.prisma.user.update({
         where: { id: emailToken.user_id },
         data: { password_hash: hash },
+        select: { email: true, name: true, security_alerts_enabled: true },
       }),
       this.prisma.emailToken.update({
         where: { id: emailToken.id },
@@ -909,6 +1055,14 @@ export class AuthService {
         data: { revoked_at: new Date() },
       }),
     ]);
+
+    if (updatedUser.security_alerts_enabled) {
+      this.emailService
+        .sendPasswordChanged(updatedUser.email, updatedUser.name, language)
+        .catch((err) =>
+          this.logger.error('Failed to send password-changed notice', err),
+        );
+    }
 
     this.logger.log(`Password reset completed for user ${emailToken.user_id}`);
     return { message: 'Contraseña actualizada correctamente' };
@@ -981,7 +1135,12 @@ export class AuthService {
     };
   }
 
-  async verifyTwoFactorSetup(userId: string, setupToken: string, code: string) {
+  async verifyTwoFactorSetup(
+    userId: string,
+    setupToken: string,
+    code: string,
+    language: 'en' | 'es' = 'es',
+  ) {
     let payload: any;
     try {
       payload = this.jwtService.verify(setupToken);
@@ -1031,13 +1190,19 @@ export class AuthService {
       }),
     ]);
 
+    this.notifyTwoFactorStatusChanged(userId, true, language);
+
     return {
       enabled: true,
       backup_codes: backupCodes,
     };
   }
 
-  async disableTwoFactor(userId: string, code?: string) {
+  async disableTwoFactor(
+    userId: string,
+    code?: string,
+    language: 'en' | 'es' = 'es',
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -1083,10 +1248,12 @@ export class AuthService {
       },
     });
 
+    this.notifyTwoFactorStatusChanged(userId, false, language);
+
     return { enabled: false };
   }
 
-  async sendTwoFactorEmailCode(userId: string) {
+  async sendTwoFactorEmailCode(userId: string, language: 'en' | 'es' = 'es') {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, name: true },
@@ -1109,11 +1276,20 @@ export class AuthService {
       },
     });
 
-    await this.emailService.sendTwoFactorCode(user.email, user.name, code);
+    await this.emailService.sendTwoFactorCode(
+      user.email,
+      user.name,
+      code,
+      language,
+    );
     return { sent: true };
   }
 
-  async verifyTwoFactorEmailSetup(userId: string, code: string) {
+  async verifyTwoFactorEmailSetup(
+    userId: string,
+    code: string,
+    language: 'en' | 'es' = 'es',
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, two_factor_enabled: true },
@@ -1156,10 +1332,16 @@ export class AuthService {
       },
     });
 
+    this.notifyTwoFactorStatusChanged(userId, true, language);
+
     return { enabled: true, backup_codes: backupCodes };
   }
 
-  async disableTwoFactorEmail(userId: string, code: string) {
+  async disableTwoFactorEmail(
+    userId: string,
+    code: string,
+    language: 'en' | 'es' = 'es',
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -1214,10 +1396,15 @@ export class AuthService {
       },
     });
 
+    this.notifyTwoFactorStatusChanged(userId, false, language);
+
     return { enabled: false };
   }
 
-  async requestTwoFactorEmailCode(temporaryToken: string) {
+  async requestTwoFactorEmailCode(
+    temporaryToken: string,
+    language: 'en' | 'es' = 'es',
+  ) {
     let payload: any;
     try {
       payload = this.jwtService.verify(temporaryToken);
@@ -1265,7 +1452,12 @@ export class AuthService {
       },
     });
 
-    await this.emailService.sendTwoFactorCode(user.email, user.name, code);
+    await this.emailService.sendTwoFactorCode(
+      user.email,
+      user.name,
+      code,
+      language,
+    );
     return { sent: true };
   }
 
@@ -1273,6 +1465,7 @@ export class AuthService {
     temporaryToken: string,
     code: string,
     context?: AuthRequestContext,
+    language: 'en' | 'es' = 'es',
   ) {
     let payload: any;
     try {
@@ -1321,10 +1514,17 @@ export class AuthService {
         where: { id: user.id },
         data: {
           last_login_at: new Date(),
+          language,
           two_factor_backup_codes: backupResult.remainingHashes,
         },
       });
-      const session = await this.createSession(user, context);
+      const { session, isNewDevice } = await this.createSession(
+        user,
+        context,
+      );
+      if (isNewDevice) {
+        this.notifyNewDeviceLogin(user, session, language);
+      }
       return { access_token: this.signAccessToken(user, session) };
     }
 
@@ -1348,10 +1548,13 @@ export class AuthService {
     });
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { last_login_at: new Date() },
+      data: { last_login_at: new Date(), language },
     });
 
-    const session = await this.createSession(user, context);
+    const { session, isNewDevice } = await this.createSession(user, context);
+    if (isNewDevice) {
+      this.notifyNewDeviceLogin(user, session, language);
+    }
     return { access_token: this.signAccessToken(user, session) };
   }
 

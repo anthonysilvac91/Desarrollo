@@ -1,5 +1,12 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterOrganizationDto {
   @ApiProperty({ description: 'Nombre de la organizacion.' })
@@ -23,4 +30,12 @@ export class RegisterOrganizationDto {
   @IsNotEmpty()
   @MinLength(6, { message: 'La contrasena requiere min. 6 caracteres' })
   password: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo de bienvenida (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }

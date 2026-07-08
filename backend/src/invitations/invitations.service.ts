@@ -154,6 +154,7 @@ export class InvitationsService {
       inviter?.name ?? 'Un administrador',
       org.name,
       inviteUrl,
+      dto.language,
     );
     this.logger.log(
       `Invitation sent to ${dto.email} for org ${organizationId}`,

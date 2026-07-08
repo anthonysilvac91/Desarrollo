@@ -16,6 +16,7 @@ import { CloudflareService } from '../cloudflare/cloudflare.service';
 import { extensionForVideoMime } from '../common/files/video-signature-validation';
 import { createHash, randomUUID } from 'crypto';
 import { RealtimeService } from '../realtime/realtime.service';
+import { EmailService } from '../email/email.service';
 
 const ACTIVE_UPLOAD_STATUSES = ['PENDING', 'UPLOADING', 'UPLOADED'] as const;
 const FAILED_UPLOAD_STATUSES = ['FAILED', 'EXPIRED'] as const;
@@ -39,6 +40,7 @@ export class UploadsService {
     private readonly verificationService: UploadVerificationService,
     private readonly configService: ConfigService,
     private readonly cloudflareService: CloudflareService,
+    private readonly emailService: EmailService,
     @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
@@ -959,6 +961,55 @@ export class UploadsService {
     await this.refreshServiceAttachmentSnapshot(upload.service_id);
     this.emitAttachmentsUpdated(upload.service_id, upload.organization_id, null);
     this.logger.warn(`CF Stream failed: upload ${uploadId}, reason: ${reason}`);
+
+    void this.notifyVideoProcessingFailed(upload);
+  }
+
+  /** Avisa al worker que subio el video que su procesamiento fallo. Nunca lanza. */
+  private async notifyVideoProcessingFailed(upload: {
+    created_by_user_id: string;
+    service_id: string;
+    organization_id: string;
+  }): Promise<void> {
+    try {
+      const [worker, service, org] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: upload.created_by_user_id },
+          select: {
+            email: true,
+            name: true,
+            language: true,
+            email_notifications_enabled: true,
+          },
+        }),
+        this.prisma.service.findUnique({
+          where: { id: upload.service_id },
+          select: { title: true, asset: { select: { name: true } } },
+        }),
+        this.prisma.organization.findUnique({
+          where: { id: upload.organization_id },
+          select: { name: true },
+        }),
+      ]);
+      if (!worker || !service || !org || !worker.email_notifications_enabled) return;
+
+      const frontendUrl = (this.configService.get<string>('FRONTEND_URL') || '').replace(/\/$/, '');
+      const serviceUrl = frontendUrl
+        ? `${frontendUrl}/service?id=${upload.service_id}`
+        : '';
+
+      await this.emailService.sendVideoProcessingFailed(
+        worker.email,
+        worker.name,
+        service.asset?.name ?? 'un activo',
+        service.title,
+        org.name,
+        serviceUrl,
+        worker.language as 'en' | 'es',
+      );
+    } catch (err) {
+      this.logger.error('Failed to send video-processing-failed notice', err);
+    }
   }
 
   private async assertServiceAccess(

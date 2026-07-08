@@ -36,17 +36,22 @@ export interface RegisterOrganizationData {
   admin_name: string;
   email: string;
   password: string;
+  language?: "en" | "es";
 }
 
 export const authService = {
-  login: async (credentials: LoginFormData) => {
-    const res = await api.post<LoginResponse>("/auth/login", credentials);
+  login: async (credentials: LoginFormData, language?: "en" | "es") => {
+    const res = await api.post<LoginResponse>("/auth/login", {
+      ...credentials,
+      language,
+    });
     return res.data;
   },
-  loginWithTwoFactor: async (temporaryToken: string, code: string) => {
+  loginWithTwoFactor: async (temporaryToken: string, code: string, language?: "en" | "es") => {
     const res = await api.post<Record<string, never>>("/auth/2fa/login", {
       temporary_token: temporaryToken,
       code,
+      language,
     });
     return res.data;
   },
@@ -58,50 +63,56 @@ export const authService = {
     const res = await api.post<TwoFactorSetup>("/auth/2fa/setup");
     return res.data;
   },
-  verifyTwoFactorSetup: async (setupToken: string, code: string) => {
+  verifyTwoFactorSetup: async (setupToken: string, code: string, language?: "en" | "es") => {
     const res = await api.post<{ enabled: boolean; backup_codes: string[] }>(
       "/auth/2fa/verify-setup",
       {
         setup_token: setupToken,
         code,
+        language,
       },
     );
     return res.data;
   },
-  disableTwoFactor: async (code: string) => {
+  disableTwoFactor: async (code: string, language?: "en" | "es") => {
     const res = await api.post<{ enabled: boolean }>("/auth/2fa/disable", {
       code,
+      language,
     });
     return res.data;
   },
-  sendTwoFactorEmailCode: async () => {
-    const res = await api.post<{ sent: boolean }>("/auth/2fa/email/send-code");
+  sendTwoFactorEmailCode: async (language?: "en" | "es") => {
+    const res = await api.post<{ sent: boolean }>("/auth/2fa/email/send-code", null, {
+      params: { language },
+    });
     return res.data;
   },
-  verifyTwoFactorEmailSetup: async (code: string) => {
+  verifyTwoFactorEmailSetup: async (code: string, language?: "en" | "es") => {
     const res = await api.post<{ enabled: boolean; backup_codes: string[] }>(
       "/auth/2fa/email/verify-setup",
-      { code },
+      { code, language },
     );
     return res.data;
   },
-  disableTwoFactorEmail: async (code: string) => {
+  disableTwoFactorEmail: async (code: string, language?: "en" | "es") => {
     const res = await api.post<{ enabled: boolean }>(
       "/auth/2fa/email/disable",
-      { code },
+      { code, language },
     );
     return res.data;
   },
-  requestTwoFactorEmailCode: async (temporaryToken: string) => {
+  requestTwoFactorEmailCode: async (temporaryToken: string, language?: "en" | "es") => {
     const res = await api.post<{ sent: boolean }>("/auth/2fa/email/request", {
       temporary_token: temporaryToken,
+      language,
     });
     return res.data;
   },
-  loginWithEmailCode: async (temporaryToken: string, code: string) => {
+  loginWithEmailCode: async (temporaryToken: string, code: string, language?: "en" | "es") => {
     const res = await api.post<Record<string, never>>("/auth/2fa/email/login", {
       temporary_token: temporaryToken,
       code,
+      language,
     });
     return res.data;
   },
@@ -109,16 +120,18 @@ export const authService = {
     const res = await api.get("/auth/me");
     return res.data;
   },
-  forgotPassword: async (email: string) => {
+  forgotPassword: async (email: string, language?: "en" | "es") => {
     const res = await api.post<{ message: string }>("/auth/forgot-password", {
       email,
+      language,
     });
     return res.data;
   },
-  resetPassword: async (token: string, password: string) => {
+  resetPassword: async (token: string, password: string, language?: "en" | "es") => {
     const res = await api.post<{ message: string }>("/auth/reset-password", {
       token,
       password,
+      language,
     });
     return res.data;
   },
@@ -142,11 +155,12 @@ export const authService = {
     const res = await api.post<{ revoked: boolean }>("/auth/logout");
     return res.data;
   },
-  register: async (token: string, name: string, password: string) => {
+  register: async (token: string, name: string, password: string, language?: "en" | "es") => {
     const res = await api.post<Record<string, never>>("/auth/register", {
       token,
       name,
       password,
+      language,
     });
     return res.data;
   },

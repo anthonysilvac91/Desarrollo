@@ -1,7 +1,8 @@
-import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEmpty,
+  IsIn,
   IsOptional,
   IsString,
   MinLength,
@@ -49,4 +50,12 @@ export class UpdateOwnProfileDto {
     message: 'avatar_url is no longer accepted; upload avatar file instead',
   })
   avatar_url?: string;
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo de confirmacion (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }

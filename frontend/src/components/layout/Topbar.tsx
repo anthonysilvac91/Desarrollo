@@ -22,6 +22,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     if (pathname === "/settings") return t.topbar.titles.settings;
     if (pathname === "/dashboard") return t.topbar.titles.dashboard;
     if (pathname.startsWith("/organizations")) return t.sidebar.organizations;
+    if (pathname.startsWith("/email-templates")) return t.sidebar.email_templates;
     return t.topbar.titles.dashboard;
   };
 

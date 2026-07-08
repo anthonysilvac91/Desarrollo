@@ -70,6 +70,14 @@ export class CreateInvitationDto {
   @IsArray()
   @IsUUID('4', { each: true })
   asset_ids?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['en', 'es'],
+    description: 'Idioma del correo de invitacion (segun el idioma activo en el cliente)',
+  })
+  @IsOptional()
+  @IsIn(['en', 'es'])
+  language?: 'en' | 'es';
 }
 
 export class ValidateInvitationDto {

@@ -7,6 +7,7 @@ export interface CreateInvitationData {
   owner_id?: string;
   asset_access_mode?: 'UNRESTRICTED' | 'RESTRICTED';
   asset_ids?: string[];
+  language?: 'en' | 'es';
 }
 
 export const invitationsService = {
