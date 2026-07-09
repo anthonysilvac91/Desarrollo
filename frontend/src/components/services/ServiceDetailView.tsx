@@ -137,7 +137,6 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [shareData, setShareData] = useState<{ url: string; text: string } | null>(null);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [videoPreview, setVideoPreview] = useState<{ url?: string; embedUrl?: string; name?: string | null } | null>(null);
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
@@ -267,11 +266,12 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
     if (!att.id || isPdfLoading) return;
     setIsPdfLoading(true);
     try {
-      const { url, file_name } = await servicesService.getAttachmentDownloadUrl(current.id, att.id);
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
-      setPdfPreview({ url: blobUrl, name: file_name || "document.pdf" });
+      const { url } = await servicesService.getAttachmentDownloadUrl(current.id, att.id);
+      // Open the direct URL instead of embedding it in an <iframe> via a blob:
+      // WebKit's inline PDF viewer only renders the first page for iframe/blob
+      // sources on iOS. Opening it directly hands off to the full native PDF
+      // viewer (all pages, search, zoom) on every platform.
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch {
       showToast(t.feedback.generic_error, "error");
     } finally {
@@ -674,37 +674,6 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               </div>
             </div>
 
-          </div>
-        </div>
-      )}
-
-      {/* PDF Preview */}
-      {pdfPreview && (
-        <div className="fixed inset-0 z-100">
-          <div
-            className="absolute inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
-            onClick={() => { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}
-          />
-          <div className="relative z-10 flex flex-col h-full animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <FileText className="w-5 h-5 text-red-500 shrink-0" />
-                <p className="text-sm font-black text-title truncate">{pdfPreview.name}</p>
-              </div>
-              <button
-                onClick={() => { URL.revokeObjectURL(pdfPreview.url); setPdfPreview(null); }}
-                className="p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 active:scale-90 transition-all shrink-0"
-              >
-                <X className="w-5 h-5 text-brand" />
-              </button>
-            </div>
-            <div className="flex-1 px-4 pb-4">
-              <iframe
-                src={pdfPreview.url}
-                className="w-full h-full rounded-2xl border border-border-theme/20 bg-white"
-                title={pdfPreview.name}
-              />
-            </div>
           </div>
         </div>
       )}
