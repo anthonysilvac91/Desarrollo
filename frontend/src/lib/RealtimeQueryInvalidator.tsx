@@ -14,9 +14,20 @@ type RealtimeEvent = {
   emittedAt: string;
 };
 
-const apiBaseUrl =
+const rawApiUrl =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
+
+// In production, route through the Next.js rewrite (/api-proxy) like every
+// other API call (see lib/api.ts) so the session cookie is sent same-origin.
+// A direct cross-origin fetch to the backend's own domain drops the cookie
+// (browsers block it, and iOS Safari's ITP is especially strict about it),
+// so this endpoint would 401 forever and retry every 3s without ever
+// connecting.
+const apiBaseUrl =
+  typeof window !== "undefined" && process.env.NODE_ENV === "production"
+    ? "/api-proxy"
+    : rawApiUrl;
 
 const invalidatePrefixes = (
   queryClient: ReturnType<typeof useQueryClient>,
