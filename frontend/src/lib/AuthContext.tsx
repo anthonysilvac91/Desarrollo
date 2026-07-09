@@ -13,6 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { User } from "@/types/auth";
 import { isSafeInternalPath } from "@/lib/safe-path";
+import { isAlwaysPublicPath } from "@/lib/publicRoutes";
 
 interface AuthContextType {
   user: User | null;
@@ -37,14 +38,19 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/trash": ["SUPER_ADMIN", "ADMIN"],
 };
 
-const isPublicRoute = (path: string): boolean =>
+// Guest-only routes: shown when logged out, but redirect away to the
+// dashboard if the viewer is already authenticated (no reason to see the
+// login form again). This is distinct from isAlwaysPublicPath (e.g.
+// /share/...), which must render the same way for everyone regardless of
+// auth state — a logged-in admin previewing their own share link should
+// see the shared content, not get bounced to /dashboard.
+const isGuestOnlyRoute = (path: string): boolean =>
   path === "/login" ||
   path === "/" ||
   path === "/forgot-password" ||
   path === "/reset-password" ||
   path === "/register" ||
-  path === "/signup" ||
-  path.startsWith("/share/");
+  path === "/signup";
 
 const getServerMessage = (error: unknown): string => {
   if (
@@ -73,8 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearClientAuthState = useCallback(() => {
     setUser(null);
-    queryClient.clear();
-  }, [queryClient]);
+    // On an always-public page (e.g. a share link), there was never a
+    // logged-in session to begin with — the ambient /auth/me check 401ing
+    // is the expected, benign state, not a session expiry. Wiping the
+    // whole query cache here would also blow away that page's own
+    // in-flight/successful query, permanently stalling it.
+    if (!isAlwaysPublicPath(pathname)) {
+      queryClient.clear();
+    }
+  }, [queryClient, pathname]);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -142,7 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    const isPublicPath = isPublicRoute(pathname);
+    // Always-public pages (e.g. a service share link) render the same for
+    // everyone — never redirect based on auth state, logged in or not.
+    if (isAlwaysPublicPath(pathname)) return;
+
+    const isPublicPath = isGuestOnlyRoute(pathname);
 
     if (!user && !isPublicPath) {
       router.push("/login");

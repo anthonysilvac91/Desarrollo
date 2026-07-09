@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isAlwaysPublicPath } from "./publicRoutes";
 
 // In production, route all API calls through the Next.js rewrite (/api-proxy)
 // so the cookie is set by the same origin as the frontend. This is required for
@@ -110,13 +111,20 @@ api.interceptors.response.use(
     if (
       error.response &&
       error.response.status === 401 &&
-      !isPublicRequest(error.config?.url)
+      !isPublicRequest(error.config?.url) &&
+      typeof window !== "undefined" &&
+      // An ambient background check (e.g. AuthContext's /auth/me on mount)
+      // 401s on a page that's public regardless of auth state (a share
+      // link) — that's the expected, benign "not logged in" state there,
+      // not a session-expiry event. Skip the whole reaction: no redirect,
+      // and no auth:unauthorized broadcast either, since AuthContext's
+      // handler calls queryClient.clear() — which would wipe out (and
+      // permanently stall) that page's own in-flight/successful query.
+      !isAlwaysPublicPath(window.location.pathname)
     ) {
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
+      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);

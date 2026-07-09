@@ -43,6 +43,7 @@ const SERVICE_ATTACHMENT_OUTPUT_FORMAT = 'webp';
 const SERVICE_ATTACHMENT_THUMBNAIL_DIMENSION = 150;
 const SERVICE_ATTACHMENT_THUMBNAIL_QUALITY = 60;
 const SHARE_TOKEN_BYTES = 32;
+const SHARE_LINK_LIFETIME_DAYS = 30;
 const ACTIVE_ATTACHMENT_UPLOAD_STATUSES = ['PENDING', 'UPLOADING', 'UPLOADED'];
 const FAILED_ATTACHMENT_UPLOAD_STATUSES = ['FAILED', 'EXPIRED'];
 
@@ -1520,10 +1521,14 @@ export class ServicesService {
       throw new NotFoundException('Service no encontrado');
     }
 
+    // Reuse the current link only while it's still valid. An expired link is
+    // left in place (harmless — getPublicSharedService already rejects it)
+    // and a fresh one with a new 30-day window is minted below instead.
     const existingLink = await this.prisma.serviceShareLink.findFirst({
       where: {
         service_id: service.id,
         is_enabled: true,
+        OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
       },
       orderBy: { created_at: 'desc' },
     });
@@ -1550,6 +1555,9 @@ export class ServicesService {
         service_id: service.id,
         token,
         created_by_user_id: user.id,
+        expires_at: new Date(
+          Date.now() + SHARE_LINK_LIFETIME_DAYS * 24 * 60 * 60 * 1000,
+        ),
       },
     });
 
@@ -1694,7 +1702,16 @@ export class ServicesService {
       const resolvedUrl = fileUrl.startsWith('http')
         ? fileUrl
         : `${baseUrl}${fileUrl}`;
-      const response = await fetch(resolvedUrl);
+      let response: Response;
+      try {
+        response = await fetch(resolvedUrl);
+      } catch (err) {
+        this.logger.warn(
+          `Skipping photo in shared zip, fetch failed: ${resolvedUrl}`,
+          err instanceof Error ? err.stack : String(err),
+        );
+        continue;
+      }
       if (!response.ok) {
         continue;
       }

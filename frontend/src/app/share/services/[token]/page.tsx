@@ -30,12 +30,19 @@ export default function SharedServicePage() {
   const { language } = useLanguage();
   const token = params.token;
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["public-service-share", token, language],
     queryFn: () => servicesService.findPublicShare(token, language),
     enabled: !!token,
     retry: false,
   });
+
+  const status = (error as any)?.response?.status as number | undefined;
+  const serverMessage = (error as any)?.response?.data?.message as string | undefined;
+  const errorMessage =
+    status === 404 && serverMessage
+      ? serverMessage
+      : "No pudimos cargar este servicio. Intenta de nuevo en unos minutos.";
 
   const service = data?.service;
   const imageAttachments = useMemo(
@@ -64,9 +71,7 @@ export default function SharedServicePage() {
             <FileText className="w-7 h-7 text-error" />
           </div>
           <h1 className="text-2xl font-black text-title mb-2">Link no disponible</h1>
-          <p className="text-sm text-subtitle leading-relaxed">
-            El enlace puede haber expirado, estar desactivado o no existir.
-          </p>
+          <p className="text-sm text-subtitle leading-relaxed">{errorMessage}</p>
         </section>
       </main>
     );
