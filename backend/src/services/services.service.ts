@@ -1521,14 +1521,21 @@ export class ServicesService {
       throw new NotFoundException('Service no encontrado');
     }
 
-    // Reuse the current link only while it's still valid. An expired link is
-    // left in place (harmless — getPublicSharedService already rejects it)
-    // and a fresh one with a new 30-day window is minted below instead.
+    // Reuse the current link only while it has a non-expired expiry. A
+    // Prisma `gt` comparison on a nullable column excludes NULLs on its
+    // own, so this also catches legacy links from before expires_at was
+    // enforced (expires_at: null): they're treated as not reusable, so the
+    // next share mints a fresh one with a real 30-day window instead of
+    // perpetuating a link nobody ever set to expire. Note this only stops
+    // NEW shares from handing out the old permanent link again — a legacy
+    // link already given to someone keeps working indefinitely until then,
+    // since getPublicSharedService only rejects an expiry that's actually
+    // set and in the past.
     const existingLink = await this.prisma.serviceShareLink.findFirst({
       where: {
         service_id: service.id,
         is_enabled: true,
-        OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        expires_at: { gt: new Date() },
       },
       orderBy: { created_at: 'desc' },
     });
