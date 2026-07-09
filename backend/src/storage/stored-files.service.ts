@@ -24,20 +24,42 @@ export class StoredFilesService {
   ) {}
 
   async registerFile(input: RegisterStoredFileInput) {
-    return this.prisma.storedFile.create({
-      data: {
-        organization_id: input.organizationId,
-        storage_ref: input.storageRef,
-        original_name: input.originalName ?? null,
-        mime_type: input.mimeType ?? null,
-        size_bytes: input.sizeBytes ?? null,
-        kind: input.kind,
-        visibility: input.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
-        entity_type: input.entityType,
-        entity_id: input.entityId,
-        uploaded_by_user_id: input.uploadedByUserId ?? null,
-      },
-    });
+    const sizeBytes = input.sizeBytes ?? 0;
+
+    const [storedFile] = await this.prisma.$transaction([
+      this.prisma.storedFile.create({
+        data: {
+          organization_id: input.organizationId,
+          storage_ref: input.storageRef,
+          original_name: input.originalName ?? null,
+          mime_type: input.mimeType ?? null,
+          size_bytes: input.sizeBytes ?? null,
+          kind: input.kind,
+          visibility: input.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
+          entity_type: input.entityType,
+          entity_id: input.entityId,
+          uploaded_by_user_id: input.uploadedByUserId ?? null,
+        },
+      }),
+      ...(sizeBytes > 0
+        ? [
+            this.prisma.organizationStorageUsage.upsert({
+              where: { organization_id: input.organizationId },
+              create: {
+                organization_id: input.organizationId,
+                ready_bytes: BigInt(sizeBytes),
+                ready_file_count: 1,
+              },
+              update: {
+                ready_bytes: { increment: BigInt(sizeBytes) },
+                ready_file_count: { increment: 1 },
+              },
+            }),
+          ]
+        : []),
+    ]);
+
+    return storedFile;
   }
 
   async registerUploadedFile(input: RegisterStoredFileInput) {
@@ -136,7 +158,7 @@ export class StoredFilesService {
     if (storedFileId) {
       const storedFile = await this.prisma.storedFile.findUnique({
         where: { id: storedFileId },
-        select: { storage_ref: true },
+        select: { storage_ref: true, organization_id: true, size_bytes: true },
       });
 
       if (storedFile?.storage_ref) {
@@ -144,9 +166,24 @@ export class StoredFilesService {
         await this.storageService.deleteFile(storedFile.storage_ref);
       }
 
-      await this.prisma.storedFile.deleteMany({
+      const deleteQuery = this.prisma.storedFile.deleteMany({
         where: { id: storedFileId },
       });
+
+      if (storedFile && storedFile.size_bytes) {
+        await this.prisma.$transaction([
+          deleteQuery,
+          this.prisma.$executeRaw`
+            UPDATE "OrganizationStorageUsage"
+            SET "ready_bytes" = GREATEST("ready_bytes" - ${BigInt(storedFile.size_bytes)}, 0),
+                "ready_file_count" = GREATEST("ready_file_count" - 1, 0),
+                "updated_at" = NOW()
+            WHERE "organization_id" = ${storedFile.organization_id}
+          `,
+        ]);
+      } else {
+        await deleteQuery;
+      }
       return;
     }
   }

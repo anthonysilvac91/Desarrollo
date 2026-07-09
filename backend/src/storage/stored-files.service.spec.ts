@@ -13,6 +13,11 @@ describe('StoredFilesService', () => {
       findMany: jest.Mock;
       deleteMany: jest.Mock;
     };
+    organizationStorageUsage: {
+      upsert: jest.Mock;
+    };
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
   };
   let storageService: {
     deleteFile: jest.Mock;
@@ -28,6 +33,11 @@ describe('StoredFilesService', () => {
         findMany: jest.fn(),
         deleteMany: jest.fn(),
       },
+      organizationStorageUsage: {
+        upsert: jest.fn(),
+      },
+      $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
+      $executeRaw: jest.fn(),
     };
     storageService = {
       deleteFile: jest.fn(),

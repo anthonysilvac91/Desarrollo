@@ -492,6 +492,13 @@ export class UploadsService {
           upload.declared_size_bytes,
           1,
         );
+      } else if (upload.status === 'CONFIRMED') {
+        await this.releaseReadyBytes(
+          this.prisma,
+          upload.organization_id,
+          upload.actual_size_bytes ?? upload.declared_size_bytes,
+          1,
+        );
       }
     }
 
@@ -1202,6 +1209,23 @@ export class UploadsService {
       ON CONFLICT ("organization_id") DO UPDATE
         SET "reserved_bytes" = GREATEST("OrganizationStorageUsage"."reserved_bytes" - ${bytes}, 0),
             "pending_upload_count" = GREATEST("OrganizationStorageUsage"."pending_upload_count" - ${count}, 0),
+            "updated_at" = NOW()
+    `;
+  }
+
+  /** Descuenta un video ya confirmado (contaba en ready_bytes) al purgarlo definitivamente. */
+  private async releaseReadyBytes(
+    tx: any,
+    organizationId: string,
+    bytes: bigint,
+    count: number,
+  ) {
+    await tx.$executeRaw`
+      INSERT INTO "OrganizationStorageUsage" ("organization_id", "ready_bytes", "reserved_bytes", "ready_file_count", "pending_upload_count", "updated_at")
+      VALUES (${organizationId}, 0, 0, 0, 0, NOW())
+      ON CONFLICT ("organization_id") DO UPDATE
+        SET "ready_bytes" = GREATEST("OrganizationStorageUsage"."ready_bytes" - ${bytes}, 0),
+            "ready_file_count" = GREATEST("OrganizationStorageUsage"."ready_file_count" - ${count}, 0),
             "updated_at" = NOW()
     `;
   }

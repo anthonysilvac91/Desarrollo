@@ -377,7 +377,7 @@ export class TrashService {
 
         const attachments = await this.prisma.serviceAttachment.findMany({
           where: { service_id: id },
-          select: { file_id: true },
+          select: { file_id: true, thumbnail_file_id: true },
         });
         await this.prisma.serviceAttachment.deleteMany({
           where: { service_id: id },
@@ -390,7 +390,7 @@ export class TrashService {
         });
         await Promise.all(
           attachments
-            .map((a) => a.file_id)
+            .flatMap((a) => [a.file_id, a.thumbnail_file_id])
             .filter((fileId): fileId is string => !!fileId)
             .map((fileId) =>
               this.storedFilesService.deleteStoredFileAndBlob(fileId),
