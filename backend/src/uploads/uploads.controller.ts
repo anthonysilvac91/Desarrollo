@@ -122,6 +122,24 @@ export class UploadsController {
     );
   }
 
+  @Post('services/:serviceId/attachments/:attachmentId/download-url')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @ApiOperation({
+    summary:
+      'Solicitar (o consultar el estado de) la descarga MP4 de un video de Cloudflare Stream',
+  })
+  downloadUrl(
+    @Param('serviceId') serviceId: string,
+    @Param('attachmentId') attachmentId: string,
+    @Request() req,
+  ) {
+    return this.uploadsService.getDownloadUrl(
+      serviceId,
+      attachmentId,
+      req.user,
+    );
+  }
+
   @Post('services/:serviceId/attachments/finalize-with-failures')
   @ApiOperation({ summary: 'Descartar cargas fallidas o pendientes restantes' })
   finalizeWithFailures(@Param('serviceId') serviceId: string, @Request() req) {

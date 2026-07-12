@@ -14,6 +14,12 @@ interface StreamStatusResponse {
   thumbnail: string | null;
 }
 
+interface StreamDownloadResponse {
+  status: 'inprogress' | 'ready' | 'error' | 'none';
+  url: string | null;
+  percentComplete: number | null;
+}
+
 interface ImageUploadResponse {
   id: string;
   variants: string[];
@@ -34,6 +40,14 @@ interface CloudflareStreamResult {
   readyToStream?: boolean;
   duration?: number | null;
   thumbnail?: string | null;
+}
+
+interface CloudflareStreamDownloadResult {
+  default?: {
+    status?: string;
+    percentComplete?: number;
+    url?: string;
+  };
 }
 
 interface CloudflareTokenResult {
@@ -205,6 +219,34 @@ export class CloudflareService {
     }
 
     return data.result.token;
+  }
+
+  /**
+   * Solicita (o consulta, si ya fue solicitada) la generacion de un MP4
+   * descargable para un video de Stream. Idempotente: Cloudflare devuelve el
+   * estado actual si ya se habia pedido antes, asi que este mismo metodo
+   * sirve tanto para disparar la solicitud inicial como para hacer polling.
+   */
+  async enableStreamDownloads(uid: string): Promise<StreamDownloadResponse> {
+    const res = await fetch(`${this.baseUrl}/stream/${uid}/downloads`, {
+      method: 'POST',
+      headers: this.headers(),
+    });
+
+    const data =
+      (await res.json()) as CloudflareApiResponse<CloudflareStreamDownloadResult>;
+    if (!data.success) {
+      throw new Error(
+        `CF Stream downloads error: ${data.errors?.[0]?.message ?? 'unknown'}`,
+      );
+    }
+
+    const info = data.result.default;
+    return {
+      status: (info?.status as StreamDownloadResponse['status']) ?? 'none',
+      url: info?.url ?? null,
+      percentComplete: info?.percentComplete ?? null,
+    };
   }
 
   async deleteStreamVideo(uid: string): Promise<void> {

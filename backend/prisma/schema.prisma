@@ -474,6 +474,8 @@ model FileUpload {
   cf_stream_ready_to_stream Boolean @default(false)
   cf_stream_duration        Float?
   cf_stream_thumbnail       String?
+  cf_stream_download_status String?
+  cf_stream_download_url    String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

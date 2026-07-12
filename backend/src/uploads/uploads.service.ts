@@ -630,6 +630,53 @@ export class UploadsService {
     };
   }
 
+  async getDownloadUrl(serviceId: string, attachmentId: string, user: any) {
+    const service = await this.assertServiceAccess(serviceId, user, true);
+    const attachment = await this.prisma.serviceAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        service_id: serviceId,
+        media_type: 'VIDEO',
+      },
+      include: { upload: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Video no disponible');
+    }
+
+    if (!attachment.upload?.cf_stream_uid) {
+      throw new BadRequestException(
+        'Este video no esta alojado en Cloudflare Stream; usa la URL de reproduccion directa para descargarlo',
+      );
+    }
+
+    const uid = attachment.upload.cf_stream_uid;
+    const result = await this.cloudflareService.enableStreamDownloads(uid);
+
+    await this.prisma.fileUpload.update({
+      where: { id: attachment.upload.id },
+      data: {
+        cf_stream_download_status: result.status,
+        cf_stream_download_url: result.url,
+      },
+    });
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'cf_stream_download_requested',
+        uid,
+        attachmentId,
+        serviceId,
+        organizationId: service.organization_id,
+        userId: user.id,
+        status: result.status,
+      }),
+    );
+
+    return { status: result.status, url: result.url };
+  }
+
   async getMine(user: any, status?: string) {
     this.assertInternalUser(user);
     const uploads = await this.prisma.fileUpload.findMany({
