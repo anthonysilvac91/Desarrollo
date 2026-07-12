@@ -56,3 +56,6 @@ next-env.d.ts
 
 # Misc
 *.pem
+
+# start.sh / start.bat incremental-install cache
+.dev-cache/
