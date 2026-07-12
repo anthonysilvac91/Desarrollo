@@ -473,8 +473,10 @@ export class ServicesService {
             .startsWith('video/');
         if (!isVideo) {
           ids.push(att.file_id);
-          ids.push(att.thumbnail_file_id);
         }
+        // El derivado pequeño es seguro de resolver para cualquier media_type
+        // (para video, hoy solo lo puebla el script de seed local).
+        ids.push(att.thumbnail_file_id);
       }
     }
     return ids;
@@ -505,9 +507,7 @@ export class ServicesService {
           return {
             ...attachment,
             file_url: isVideo ? null : (urlMap.get(attachment.file_id) ?? null),
-            thumbnail_url: isVideo
-              ? null
-              : (urlMap.get(attachment.thumbnail_file_id) ?? null),
+            thumbnail_url: urlMap.get(attachment.thumbnail_file_id) ?? null,
           };
         },
       );

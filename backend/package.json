@@ -29,6 +29,7 @@
     "uploads:maintenance": "ts-node scripts/upload-maintenance.ts",
     "storage:backfill:attachment-thumbnails": "ts-node scripts/backfill-service-attachment-thumbnails.ts",
     "storage:backfill:attachment-thumbnails:dry": "ts-node scripts/backfill-service-attachment-thumbnails.ts --dry-run",
+    "dev:seed-video": "ts-node scripts/seed-local-video.ts",
     "test:e2e": "dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- jest --config ./test/jest-e2e.json --runInBand"
   },
   "dependencies": {
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
