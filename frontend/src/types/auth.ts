@@ -22,4 +22,5 @@ export interface User {
   organization?: Organization;
   email_notifications_enabled?: boolean;
   security_alerts_enabled?: boolean;
+  impersonator?: { id: string; name: string; email: string } | null;
 }

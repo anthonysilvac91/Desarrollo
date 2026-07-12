@@ -22,6 +22,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   canAccess: (path: string) => boolean;
+  impersonate: (userId: string) => Promise<void>;
+  stopImpersonation: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -138,6 +140,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   }, [clearClientAuthState, router]);
 
+  const impersonate = useCallback(async (userId: string) => {
+    await authService.impersonate(userId);
+    queryClient.clear();
+    setLoading(true);
+    await refreshUser();
+    router.push("/dashboard");
+  }, [queryClient, refreshUser, router]);
+
+  const stopImpersonation = useCallback(async () => {
+    await authService.stopImpersonation();
+    queryClient.clear();
+    setLoading(true);
+    await refreshUser();
+    router.push("/dashboard");
+  }, [queryClient, refreshUser, router]);
+
   const canAccess = useCallback(
     (path: string): boolean => {
       if (!user) return false;
@@ -194,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, refreshUser, canAccess }}
+      value={{ user, loading, login, logout, refreshUser, canAccess, impersonate, stopImpersonation }}
     >
       {children}
     </AuthContext.Provider>

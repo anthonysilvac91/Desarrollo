@@ -11,6 +11,7 @@ export interface JwtUser {
   api_role: string;
   owner_id: string | null;
   session_id: string;
+  impersonator_id?: string | null;
 }
 
 function extractJwtFromCookie(req: any): string | null {
@@ -100,6 +101,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       data: { last_seen_at: new Date() },
     });
 
+    const impersonatorId =
+      typeof payload.imp === 'string' && payload.imp ? payload.imp : null;
+
     if (user.role === 'SUPER_ADMIN') {
       if (user.organization_id !== null) throw new UnauthorizedException();
       return {
@@ -109,6 +113,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         api_role: user.role,
         owner_id: null,
         session_id: payload.sid,
+        impersonator_id: impersonatorId,
       };
     }
 
@@ -125,6 +130,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         api_role: user.role,
         owner_id: user.owner_id,
         session_id: payload.sid,
+        impersonator_id: impersonatorId,
       };
     }
 
@@ -135,6 +141,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       api_role: user.role,
       owner_id: null,
       session_id: payload.sid,
+      impersonator_id: impersonatorId,
     };
   }
 }

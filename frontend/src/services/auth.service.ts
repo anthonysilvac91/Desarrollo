@@ -155,6 +155,14 @@ export const authService = {
     const res = await api.post<{ revoked: boolean }>("/auth/logout");
     return res.data;
   },
+  impersonate: async (userId: string) => {
+    const res = await api.post(`/auth/impersonate/${userId}`);
+    return res.data;
+  },
+  stopImpersonation: async () => {
+    const res = await api.post("/auth/stop-impersonation");
+    return res.data;
+  },
   register: async (token: string, name: string, password: string, language?: "en" | "es") => {
     const res = await api.post<Record<string, never>>("/auth/register", {
       token,

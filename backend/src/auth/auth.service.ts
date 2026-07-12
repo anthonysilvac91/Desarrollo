@@ -63,10 +63,12 @@ export class AuthService {
       owner_id: string | null;
     },
     session?: { id: string; token_jti: string },
+    impersonatorId?: string,
   ) {
     const sessionPayload = session
       ? { sid: session.id, jti: session.token_jti }
       : {};
+    const impersonationPayload = impersonatorId ? { imp: impersonatorId } : {};
 
     if (user.role === 'SUPER_ADMIN') {
       return {
@@ -75,6 +77,7 @@ export class AuthService {
         role: 'SUPER_ADMIN',
         owner_id: null,
         ...sessionPayload,
+        ...impersonationPayload,
       };
     }
 
@@ -84,6 +87,7 @@ export class AuthService {
       role: toApiRole(user.role as any),
       owner_id: user.owner_id ?? null,
       ...sessionPayload,
+      ...impersonationPayload,
     };
   }
 
@@ -95,8 +99,11 @@ export class AuthService {
       owner_id: string | null;
     },
     session?: { id: string; token_jti: string },
+    impersonatorId?: string,
   ) {
-    return this.jwtService.sign(this.buildAccessPayload(user, session));
+    return this.jwtService.sign(
+      this.buildAccessPayload(user, session, impersonatorId),
+    );
   }
 
   private parseDevice(userAgent?: string) {
@@ -989,6 +996,99 @@ export class AuthService {
     });
 
     return { revoked: true };
+  }
+
+  /**
+   * Solo SUPER_ADMIN puede impersonar, y nunca a otro SUPER_ADMIN (evita
+   * cadenas de escalado de privilegios). El token resultante lleva el claim
+   * `imp` con el id del super admin original para poder volver via
+   * stopImpersonation.
+   */
+  async impersonate(
+    actingUser: { id: string; role: string },
+    targetUserId: string,
+    context?: AuthRequestContext,
+  ) {
+    if (actingUser.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Solo un Super Admin puede impersonar usuarios');
+    }
+
+    if (targetUserId === actingUser.id) {
+      throw new BadRequestException('No puedes impersonarte a ti mismo');
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { organization: { select: { id: true, is_active: true } } },
+    });
+
+    if (!targetUser || !targetUser.is_active) {
+      throw new BadRequestException('Usuario no encontrado o inactivo');
+    }
+
+    if (targetUser.role === 'SUPER_ADMIN') {
+      throw new ForbiddenException('No puedes impersonar a otro Super Admin');
+    }
+
+    if (
+      !targetUser.organization_id ||
+      !targetUser.organization ||
+      !targetUser.organization.is_active
+    ) {
+      throw new BadRequestException('El usuario no tiene una organizacion activa');
+    }
+
+    if (targetUser.role === 'EXTERNAL' && !targetUser.owner_id) {
+      throw new BadRequestException('Usuario externo invalido');
+    }
+
+    const { session } = await this.createSession(targetUser, context);
+
+    this.logger.warn(
+      `IMPERSONATION START: super_admin=${actingUser.id} -> target_user=${targetUserId}`,
+    );
+
+    return {
+      access_token: this.signAccessToken(targetUser, session, actingUser.id),
+    };
+  }
+
+  async stopImpersonation(
+    actingUser: { id: string; impersonator_id?: string | null },
+    context?: AuthRequestContext,
+  ) {
+    if (!actingUser.impersonator_id) {
+      throw new BadRequestException('No estas impersonando a ningun usuario');
+    }
+
+    const originalUser = await this.prisma.user.findUnique({
+      where: { id: actingUser.impersonator_id },
+    });
+
+    if (
+      !originalUser ||
+      !originalUser.is_active ||
+      originalUser.role !== 'SUPER_ADMIN' ||
+      originalUser.organization_id !== null
+    ) {
+      throw new UnauthorizedException('La sesion original ya no es valida');
+    }
+
+    const { session } = await this.createSession(originalUser, context);
+
+    this.logger.warn(
+      `IMPERSONATION END: super_admin=${originalUser.id} restored from target_user=${actingUser.id}`,
+    );
+
+    return { access_token: this.signAccessToken(originalUser, session) };
+  }
+
+  async getImpersonatorSummary(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true },
+    });
+    return user ?? null;
   }
 
   async forgotPassword(

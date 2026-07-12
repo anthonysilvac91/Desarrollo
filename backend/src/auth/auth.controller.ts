@@ -42,7 +42,9 @@ import { Throttle, SkipThrottle } from '@nestjs/throttler';
 type AuthenticatedRequest = ExpressRequest & {
   user: {
     id: string;
+    role: string;
     session_id?: string;
+    impersonator_id?: string | null;
   };
 };
 
@@ -388,7 +390,45 @@ export class AuthController {
     status: 200,
     description: 'Retorna los datos del usuario autenticado',
   })
-  getMe(@Request() req: AuthenticatedRequest) {
-    return this.authService.getMe(req.user.id);
+  async getMe(@Request() req: AuthenticatedRequest) {
+    const me = await this.authService.getMe(req.user.id);
+    const impersonator = req.user.impersonator_id
+      ? await this.authService.getImpersonatorSummary(req.user.impersonator_id)
+      : null;
+    return { ...me, impersonator };
+  }
+
+  @Post('impersonate/:userId')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Impersonar a otro usuario (solo Super Admin)' })
+  async impersonate(
+    @Param('userId') userId: string,
+    @Request() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.impersonate(
+      req.user,
+      userId,
+      this.getRequestContext(req),
+    );
+    return this.setSessionCookie(res, result);
+  }
+
+  @Post('stop-impersonation')
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Volver a la sesion original de Super Admin' })
+  async stopImpersonation(
+    @Request() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.stopImpersonation(
+      req.user,
+      this.getRequestContext(req),
+    );
+    return this.setSessionCookie(res, result);
   }
 }

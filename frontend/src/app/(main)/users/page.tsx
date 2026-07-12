@@ -17,7 +17,7 @@ import { authService } from "@/services/auth.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, ChevronDown, X, ShieldCheck, ShieldUser, HardHat } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, ChevronDown, X, ShieldCheck, ShieldUser, HardHat, Eye } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 const getInitials = (name: string) =>
@@ -113,7 +113,7 @@ const UserCard = ({ item, t, onClick }: UserCardProps) => (
 export default function UsersPage() {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, impersonate } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -122,6 +122,8 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToImpersonate, setUserToImpersonate] = useState<User | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
@@ -233,6 +235,19 @@ export default function UsersPage() {
     }
   };
 
+  const handleConfirmImpersonate = async () => {
+    if (!userToImpersonate || isImpersonating) return;
+    setIsImpersonating(true);
+    try {
+      await impersonate(userToImpersonate.id);
+    } catch (err) {
+      showToast(getServerErrorMessage(err, "No se pudo impersonar al usuario"), "error");
+    } finally {
+      setIsImpersonating(false);
+      setUserToImpersonate(null);
+    }
+  };
+
   const handleToggleStatus = async (targetUser: User) => {
     if (targetUser.id === user?.id && targetUser.is_active) {
       showToast(ownUserStatusMessage, "error");
@@ -329,6 +344,15 @@ export default function UsersPage() {
       align: "center",
       cell: (item) => (
         <div className="flex items-center justify-center space-x-1.5">
+          {user?.role === "SUPER_ADMIN" && item.role !== "SUPER_ADMIN" && item.is_active && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setUserToImpersonate(item); }}
+              className="p-1.5 text-subtitle/40 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+              title="Ver como este usuario"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
             className={`p-1.5 transition-all rounded-full ${item.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50'}`}
@@ -758,6 +782,21 @@ export default function UsersPage() {
             : t.confirm_modal.reset_password_description
         }
         confirmText={t.confirm_modal.confirm_reset_password}
+        cancelText={t.confirm_modal.cancel_delete}
+        variant="brand"
+      />
+
+      <ConfirmModal
+        isOpen={!!userToImpersonate}
+        onClose={() => setUserToImpersonate(null)}
+        onConfirm={handleConfirmImpersonate}
+        title="Ver como este usuario"
+        description={
+          userToImpersonate
+            ? `Vas a entrar como ${userToImpersonate.name} (${userToImpersonate.email}). Podrás volver a tu cuenta de Super Admin en cualquier momento.`
+            : ""
+        }
+        confirmText="Continuar"
         cancelText={t.confirm_modal.cancel_delete}
         variant="brand"
       />
