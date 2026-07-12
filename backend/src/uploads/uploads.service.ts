@@ -573,21 +573,77 @@ export class UploadsService {
       }),
     );
 
+    return this.buildVideoPlaybackPayload(attachment);
+  }
+
+  /**
+   * Version publica de getPlaybackUrl: en vez de validar sesion/organizacion,
+   * valida que el token del link compartido siga vigente. Usada por la
+   * pagina publica de share de servicios (sin autenticacion).
+   */
+  async getPublicPlaybackUrl(token: string, attachmentId: string) {
+    const shareLink = await this.prisma.serviceShareLink.findUnique({
+      where: { token },
+      select: {
+        is_enabled: true,
+        expires_at: true,
+        service_id: true,
+        service: { select: { deleted_at: true, purged_at: true } },
+      },
+    });
+
+    if (
+      !shareLink ||
+      !shareLink.is_enabled ||
+      shareLink.service.deleted_at ||
+      (shareLink.service as any).purged_at
+    ) {
+      throw new NotFoundException('Link compartido no encontrado');
+    }
+    if (shareLink.expires_at && shareLink.expires_at.getTime() < Date.now()) {
+      throw new NotFoundException('Link compartido expirado');
+    }
+
+    const attachment = await this.prisma.serviceAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        service_id: shareLink.service_id,
+        media_type: 'VIDEO',
+      },
+      include: { file: true, upload: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Video no disponible');
+    }
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'public_playback_url_requested',
+        token,
+        attachmentId,
+        serviceId: shareLink.service_id,
+      }),
+    );
+
+    return this.buildVideoPlaybackPayload(attachment);
+  }
+
+  private async buildVideoPlaybackPayload(attachment: {
+    file: { storage_ref: string; status: string } | null;
+    upload: {
+      cf_stream_uid: string | null;
+      cf_stream_ready_to_stream: boolean;
+      cf_stream_duration: number | null;
+      cf_stream_thumbnail: string | null;
+    } | null;
+  }) {
     if (attachment.upload?.cf_stream_uid && attachment.upload.cf_stream_ready_to_stream) {
       const uid = attachment.upload.cf_stream_uid;
       const ttl = Number(
         this.configService.get<string>('CLOUDFLARE_STREAM_UPLOAD_URL_TTL_SECONDS', '3600'),
       );
       const signedUrls = this.configService.get('CLOUDFLARE_STREAM_SIGNED_URLS') === 'true';
-
-      this.logger.log(
-        JSON.stringify({
-          event: 'cf_stream_playback_url_built',
-          uid,
-          signedUrls,
-          attachmentId,
-        }),
-      );
 
       if (signedUrls) {
         const token = await this.cloudflareService.getStreamSignedToken(uid, ttl);

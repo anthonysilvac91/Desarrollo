@@ -146,6 +146,18 @@ export const servicesService = {
     const res = await api.get<PublicServiceShare>(`/public/service-shares/${token}`, { params: { lang } });
     return res.data;
   },
+  getPublicVideoPlaybackUrl: async (token: string, attachmentId: string): Promise<{
+    url?: string;
+    embedUrl?: string;
+    hlsUrl?: string;
+    cfStreamUid?: string;
+    duration?: number | null;
+    thumbnail?: string | null;
+    expiresAt?: string;
+  }> => {
+    const res = await api.post(`/public/service-shares/${token}/attachments/${attachmentId}/playback-url`);
+    return res.data;
+  },
   create: async (data: FormData) => {
     const res = await api.post<Service>("/services", data, {
       headers: { "Content-Type": "multipart/form-data" },

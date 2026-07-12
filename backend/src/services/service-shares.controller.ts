@@ -1,12 +1,17 @@
-import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ServicesService } from './services.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 @ApiTags('Public Service Shares')
 @Controller('public/service-shares')
 export class ServiceSharesController {
-  constructor(private readonly servicesService: ServicesService) {}
+  constructor(
+    private readonly servicesService: ServicesService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   @Get(':token')
   @ApiOperation({ summary: 'Obtener vista publica de un servicio compartido' })
@@ -30,6 +35,18 @@ export class ServiceSharesController {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(buffer);
+  }
+
+  @Post(':token/attachments/:attachmentId/playback-url')
+  @Throttle({ default: { ttl: 60000, limit: 60 } })
+  @ApiOperation({
+    summary: 'Obtener URL de reproduccion de un video de un servicio compartido',
+  })
+  getPublicPlaybackUrl(
+    @Param('token') token: string,
+    @Param('attachmentId') attachmentId: string,
+  ) {
+    return this.uploadsService.getPublicPlaybackUrl(token, attachmentId);
   }
 
   @Get(':token/report.pdf')

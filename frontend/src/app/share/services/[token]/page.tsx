@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Archive, Calendar, Camera, Download, FileDown, FileText, Loader2 } from "lucide-react";
+import { Archive, Calendar, Camera, Download, FileDown, FileSpreadsheet, FileText, Loader2, Play, Video, X } from "lucide-react";
 import { servicesService } from "@/services/services.service";
 import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
@@ -24,6 +24,31 @@ function fileNameFromUrl(url: string, fallback: string) {
 
 const getInitials = (name: string) =>
   name.split(" ").slice(0, 2).map((word) => word[0]?.toUpperCase() ?? "").join("");
+
+function isVideoAttachment(item: { media_type?: string; file_type?: string }) {
+  return item.media_type === "VIDEO" || !!item.file_type?.startsWith("video/");
+}
+
+function formatDuration(seconds: number | null | undefined) {
+  if (seconds == null) return null;
+  const mm = Math.floor(seconds / 60);
+  const ss = Math.round(seconds % 60);
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+function getDocIcon(mime: string | undefined) {
+  if (mime === "application/pdf") return { Icon: FileText, color: "text-red-500" };
+  if (mime?.includes("spreadsheet") || mime?.includes("ms-excel")) return { Icon: FileSpreadsheet, color: "text-green-600" };
+  if (mime?.includes("word") || mime?.includes("msword")) return { Icon: FileText, color: "text-blue-500" };
+  return { Icon: FileText, color: "text-subtitle/50" };
+}
+
+function formatBytes(bytes: number | null | undefined) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function SharedServicePage() {
   const params = useParams<{ token: string }>();
@@ -49,8 +74,41 @@ export default function SharedServicePage() {
     () => (service?.attachments ?? []).filter((item) => item.file_url && item.file_type?.startsWith("image/")),
     [service?.attachments],
   );
+  const videoAttachments = useMemo(
+    () => (service?.attachments ?? []).filter((item) => isVideoAttachment(item)),
+    [service?.attachments],
+  );
+  const documentAttachments = useMemo(
+    () => (service?.attachments ?? []).filter(
+      (item) => item.file_type && !item.file_type.startsWith("image/") && !isVideoAttachment(item),
+    ),
+    [service?.attachments],
+  );
+  const mediaAttachments = useMemo(
+    () => (service?.attachments ?? []).filter((item) => imageAttachments.includes(item) || videoAttachments.includes(item)),
+    [service?.attachments, imageAttachments, videoAttachments],
+  );
   const photosZipUrl = `${apiBaseUrl}/public/service-shares/${token}/photos.zip`;
   const reportPdfUrl = `${apiBaseUrl}/public/service-shares/${token}/report.pdf`;
+
+  const [activeVideo, setActiveVideo] = useState<{ id: string; name?: string | null; url?: string; embedUrl?: string } | null>(null);
+  const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
+  const [mediaTab, setMediaTab] = useState<"all" | "photos" | "videos">("all");
+  const visibleMediaAttachments =
+    mediaTab === "photos" ? imageAttachments : mediaTab === "videos" ? videoAttachments : mediaAttachments;
+
+  const handlePlayVideo = async (attachment: { id?: string; file_name?: string | null }) => {
+    if (!attachment.id || loadingVideoId) return;
+    setLoadingVideoId(attachment.id);
+    try {
+      const playback = await servicesService.getPublicVideoPlaybackUrl(token, attachment.id);
+      setActiveVideo({ id: attachment.id, name: attachment.file_name, url: playback.url, embedUrl: playback.embedUrl });
+    } catch {
+      // el tile queda clickeable de nuevo para reintentar
+    } finally {
+      setLoadingVideoId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -209,21 +267,94 @@ export default function SharedServicePage() {
             <h2 className="text-sm font-black uppercase tracking-widest text-subtitle/55">Galeria</h2>
           </div>
 
-          {imageAttachments.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-              {imageAttachments.map((attachment, index) => {
+          {videoAttachments.length > 0 && (
+            <div className="mb-4 flex items-center gap-1.5">
+              {([
+                ["all", "Todo", mediaAttachments.length],
+                ["photos", "Fotos", imageAttachments.length],
+                ["videos", "Videos", videoAttachments.length],
+              ] as const).map(([key, label, count]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setMediaTab(key)}
+                  className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors ${
+                    mediaTab === key
+                      ? "bg-brand text-white"
+                      : "bg-surface text-subtitle/60 hover:text-title"
+                  }`}
+                >
+                  {label}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      mediaTab === key ? "bg-white/20" : "bg-title/5"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visibleMediaAttachments.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+              {visibleMediaAttachments.map((attachment, index) => {
+                if (isVideoAttachment(attachment)) {
+                  const videoIndex = videoAttachments.indexOf(attachment) + 1;
+                  const duration = formatDuration(attachment.duration_seconds);
+                  return (
+                    <figure key={attachment.id ?? index} className="overflow-hidden rounded-2xl border border-border-theme bg-surface">
+                      <button
+                        type="button"
+                        onClick={() => handlePlayVideo(attachment)}
+                        disabled={loadingVideoId === attachment.id}
+                        className="relative block aspect-square w-full bg-title"
+                      >
+                        {attachment.thumbnail_url ? (
+                          <img src={attachment.thumbnail_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-title/90 to-title/70">
+                            <Video className="h-6 w-6 text-white/30" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          {loadingVideoId === attachment.id ? (
+                            <Loader2 className="h-6 w-6 animate-spin text-white" />
+                          ) : (
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-lg">
+                              <Play className="ml-0.5 h-4 w-4 fill-title text-title" />
+                            </div>
+                          )}
+                        </div>
+                        {duration && (
+                          <span className="absolute bottom-1.5 left-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-white backdrop-blur-sm">
+                            {duration}
+                          </span>
+                        )}
+                      </button>
+                      <figcaption className="flex items-center justify-between gap-3 p-3">
+                        <span className="text-xs font-black text-subtitle/60">
+                          Video {videoIndex}
+                        </span>
+                      </figcaption>
+                    </figure>
+                  );
+                }
+
+                const photoIndex = imageAttachments.indexOf(attachment) + 1;
                 const url = attachment.file_url ?? "";
-                const fallbackName = `servicio-${service.id}-foto-${index + 1}.webp`;
+                const fallbackName = `servicio-${service.id}-foto-${photoIndex}.webp`;
                 const downloadName = attachment.file_name || fileNameFromUrl(url, fallbackName);
 
                 return (
-                  <figure key={`${url}-${index}`} className="overflow-hidden rounded-2xl border border-border-theme bg-surface">
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="block aspect-[4/3] bg-app-bg sm:aspect-square">
-                      <img src={url} alt={`Evidencia ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
+                  <figure key={attachment.id ?? index} className="overflow-hidden rounded-2xl border border-border-theme bg-surface">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-app-bg">
+                      <img src={url} alt={`Evidencia ${photoIndex}`} className="h-full w-full object-cover" loading="lazy" />
                     </a>
                     <figcaption className="flex items-center justify-between gap-3 p-3">
                       <span className="text-xs font-black text-subtitle/60">
-                        Foto {index + 1}
+                        Foto {photoIndex}
                       </span>
                       {data.allow_downloads && (
                         <a
@@ -232,7 +363,7 @@ export default function SharedServicePage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white active:scale-95 transition-transform"
-                          aria-label={`Descargar foto ${index + 1}`}
+                          aria-label={`Descargar foto ${photoIndex}`}
                         >
                           <Download className="w-4 h-4" />
                         </a>
@@ -249,7 +380,85 @@ export default function SharedServicePage() {
             </div>
           )}
         </section>
+
+        {documentAttachments.length > 0 && (
+          <section className="mt-8">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-black uppercase tracking-widest text-subtitle/55">Documentos</h2>
+            </div>
+            <div className="space-y-2">
+              {documentAttachments.map((doc, index) => {
+                const { Icon, color } = getDocIcon(doc.file_type);
+                const url = doc.file_url ?? "";
+                const downloadName = doc.file_name || fileNameFromUrl(url, `documento-${index + 1}`);
+                return (
+                  <div key={doc.id ?? index} className="flex items-center gap-3 rounded-xl border border-border-theme bg-surface p-3">
+                    <Icon className={`h-5 w-5 shrink-0 ${color}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-title">{doc.file_name || `Documento ${index + 1}`}</p>
+                      {doc.file_size_bytes != null && (
+                        <p className="text-[10px] font-medium text-subtitle/50">{formatBytes(doc.file_size_bytes)}</p>
+                      )}
+                    </div>
+                    {data.allow_downloads && url && (
+                      <a
+                        href={url}
+                        download={downloadName}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-white active:scale-95 transition-transform"
+                        aria-label={`Descargar ${doc.file_name ?? "documento"}`}
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
+
+      {activeVideo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm"
+          onClick={() => setActiveVideo(null)}
+        >
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-2xl bg-title shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 px-5 py-4">
+              <p className="min-w-0 truncate text-sm font-black text-white">{activeVideo.name || "Video"}</p>
+              <button
+                onClick={() => setActiveVideo(null)}
+                className="rounded-full bg-white/10 p-2 text-white active:scale-90"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {activeVideo.embedUrl ? (
+              <iframe
+                src={activeVideo.embedUrl}
+                className="aspect-video w-full bg-black"
+                style={{ border: "none" }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                src={activeVideo.url}
+                controls
+                autoPlay
+                preload="metadata"
+                className="aspect-video w-full bg-black"
+              />
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
