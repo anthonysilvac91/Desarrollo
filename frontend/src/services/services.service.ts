@@ -36,6 +36,7 @@ export interface Service {
     file_name?: string | null;
     file_size_bytes?: number | null;
     media_type?: "IMAGE" | "VIDEO" | "DOCUMENT";
+    duration_seconds?: number | null;
     status?: string;
   }[];
   attachmentUploadSummary?: {
@@ -184,6 +185,13 @@ export const servicesService = {
     expiresAt?: string;
   }> => {
     const res = await api.post(`/services/${serviceId}/attachments/${attachmentId}/playback-url`);
+    return res.data;
+  },
+  getVideoDownloadUrl: async (serviceId: string, attachmentId: string): Promise<{
+    status: "inprogress" | "ready" | "error" | "none";
+    url: string | null;
+  }> => {
+    const res = await api.post(`/services/${serviceId}/attachments/${attachmentId}/download-url`);
     return res.data;
   },
   delete: async (id: string) => {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, FileSpreadsheet, Loader2, Info, Share2, Download, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Calendar, Camera, FileText, FileSpreadsheet, Loader2, Info, Share2, Download, Eye, Play, Video } from "lucide-react";
 import ShareModal from "@/components/ui/ShareModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useQuery } from "@tanstack/react-query";
@@ -12,8 +12,6 @@ import { TranslatedDescription } from "@/components/services/TranslatedDescripti
 import { useLanguage } from "@/lib/LanguageContext";
 import { formatDate } from "@/lib/formatDate";
 import { AUTO_REFETCH_INTERVALS, AUTO_REFETCH_OPTIONS } from "@/lib/queryAutoRefetch";
-import { VideoAttachmentCard } from "@/components/services/VideoAttachmentCard";
-import { VideoPlayerModal } from "@/components/services/VideoPlayerModal";
 
 const DESCRIPTION_CLAMP_THRESHOLD = 160;
 
@@ -62,6 +60,63 @@ function AttachmentThumb({
       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <Camera className="w-5 h-5 text-white" />
       </div>
+    </button>
+  );
+}
+
+function formatDuration(seconds: number | null | undefined) {
+  if (seconds == null) return null;
+  const mm = Math.floor(seconds / 60);
+  const ss = Math.round(seconds % 60);
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+function VideoThumb({
+  attachment,
+  onClick,
+  isLoading,
+}: {
+  attachment: { thumbnail_url?: string | null; duration_seconds?: number | null };
+  onClick: () => void;
+  isLoading?: boolean;
+}) {
+  const [error, setError] = useState(false);
+  const hasThumbnail = !!attachment.thumbnail_url && !error;
+  const duration = formatDuration(attachment.duration_seconds);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isLoading}
+      className="aspect-square rounded-2xl overflow-hidden border border-border-theme/40 active:scale-95 transition-transform group relative bg-title/80 disabled:opacity-60"
+    >
+      {hasThumbnail ? (
+        <img
+          src={attachment.thumbnail_url ?? ""}
+          alt=""
+          className="w-full h-full object-cover"
+          onError={() => setError(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-title/90 to-title/70">
+          <Video className="w-6 h-6 text-white/30" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+        {isLoading ? (
+          <Loader2 className="w-5 h-5 text-white animate-spin" />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+            <Play className="w-4 h-4 text-title fill-title ml-0.5" />
+          </div>
+        )}
+      </div>
+      {duration && (
+        <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold tracking-wide">
+          {duration}
+        </span>
+      )}
     </button>
   );
 }
@@ -130,7 +185,8 @@ function AttachmentUploadSummary({ service }: { service: Service }) {
 export default function ServiceDetailView({ service, onClose, hideWorker = false }: ServiceDetailViewProps) {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const [mediaTab, setMediaTab] = useState<"all" | "photos" | "videos">("all");
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -138,14 +194,11 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const [videoPreview, setVideoPreview] = useState<{ url?: string; embedUrl?: string; name?: string | null } | null>(null);
+  const [videoPlayback, setVideoPlayback] = useState<{ id: string; url?: string; embedUrl?: string } | null>(null);
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
+  const [cfDownload, setCfDownload] = useState<{ status: string; url: string | null } | null>(null);
+  const [isRequestingDownload, setIsRequestingDownload] = useState(false);
   const pinch = usePinchZoom();
-
-  useEffect(() => {
-    pinch.reset();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedImageIndex]);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["service", service.id, language],
@@ -167,15 +220,38 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   const documentAttachments = attachments.filter(
     a => a.file_type && !a.file_type.startsWith("image/") && !a.file_type.startsWith("video/"),
   );
+  const mediaAttachments = attachments.filter(a => imageAttachments.includes(a) || videoAttachments.includes(a));
+  const visibleMediaAttachments =
+    mediaTab === "photos" ? imageAttachments : mediaTab === "videos" ? videoAttachments : mediaAttachments;
   const descriptionIsLong = (current.description?.length ?? 0) > DESCRIPTION_CLAMP_THRESHOLD;
+  const selectedMedia = selectedMediaIndex !== null ? mediaAttachments[selectedMediaIndex] : null;
+  const selectedIsVideo =
+    !!selectedMedia && (selectedMedia.media_type === "VIDEO" || selectedMedia.file_type?.startsWith("video/"));
 
-  const handleImageClick = (att: { file_url?: string | null; file_type?: string }) => {
-    const idx = imageAttachments.findIndex(a => a.file_url === att.file_url);
-    if (idx !== -1) setSelectedImageIndex(idx);
+  useEffect(() => {
+    pinch.reset();
+    setCfDownload(null);
+    if (selectedIsVideo && selectedMedia?.id) {
+      const attId = selectedMedia.id;
+      setVideoPlayback(null);
+      setLoadingVideoId(attId);
+      servicesService.getVideoPlaybackUrl(current.id, attId)
+        .then((data) => setVideoPlayback({ id: attId, url: data.url, embedUrl: data.embedUrl }))
+        .catch(() => showToast(t.feedback.generic_error, "error"))
+        .finally(() => setLoadingVideoId((prev) => (prev === attId ? null : prev)));
+    } else {
+      setVideoPlayback(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMediaIndex]);
+
+  const handleMediaClick = (att: (typeof mediaAttachments)[number]) => {
+    const idx = mediaAttachments.indexOf(att);
+    if (idx !== -1) setSelectedMediaIndex(idx);
   };
 
   const handleLightboxSwipeEnd = (x: number) => {
-    if (touchStartX === null || selectedImageIndex === null) return;
+    if (touchStartX === null || selectedMediaIndex === null) return;
 
     const deltaX = x - touchStartX;
     const swipeThreshold = 48;
@@ -185,12 +261,12 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
       return;
     }
 
-    if (deltaX < 0 && selectedImageIndex < imageAttachments.length - 1) {
-      setSelectedImageIndex(selectedImageIndex + 1);
+    if (deltaX < 0 && selectedMediaIndex < mediaAttachments.length - 1) {
+      setSelectedMediaIndex(selectedMediaIndex + 1);
     }
 
-    if (deltaX > 0 && selectedImageIndex > 0) {
-      setSelectedImageIndex(selectedImageIndex - 1);
+    if (deltaX > 0 && selectedMediaIndex > 0) {
+      setSelectedMediaIndex(selectedMediaIndex - 1);
     }
 
     setTouchStartX(null);
@@ -212,16 +288,48 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
   };
 
   const handleDownloadCurrent = async () => {
-    const att = imageAttachments[selectedImageIndex ?? 0];
-    if (!att?.file_url) return;
-    const res = await fetch(att.file_url);
+    const att = mediaAttachments[selectedMediaIndex ?? 0];
+    const isVideo = att?.media_type === "VIDEO" || att?.file_type?.startsWith("video/");
+    // El video solo es descargable en el path directo (sin Cloudflare Stream),
+    // donde getVideoPlaybackUrl devuelve un `url` de archivo real en vez de un
+    // `embedUrl` de streaming.
+    const sourceUrl = isVideo ? (videoPlayback?.embedUrl ? null : videoPlayback?.url) : att?.file_url;
+    if (!sourceUrl) return;
+    const res = await fetch(sourceUrl);
     const blob = await res.blob();
-    const ext = att.file_type?.split("/")[1] || "jpg";
+    const ext = att.file_type?.split("/")[1] || (isVideo ? "mp4" : "jpg");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `foto-${(selectedImageIndex ?? 0) + 1}.${ext}`;
+    a.download = `${isVideo ? "video" : "foto"}-${(selectedMediaIndex ?? 0) + 1}.${ext}`;
     a.click();
     URL.revokeObjectURL(a.href);
+  };
+
+  const handleRequestCfDownload = async () => {
+    if (!selectedMedia?.id || isRequestingDownload) return;
+    setIsRequestingDownload(true);
+    try {
+      const data = await servicesService.getVideoDownloadUrl(current.id, selectedMedia.id);
+      setCfDownload(data);
+      if (data.status === "ready" && data.url) {
+        // Descarga directa vía navegación del navegador: la URL es de
+        // Cloudflare (cross-origin), así que fetch+blob chocaría con CORS.
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.download = `video-${(selectedMediaIndex ?? 0) + 1}.mp4`;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.click();
+      } else if (data.status === "inprogress") {
+        showToast(t.common.video_download_preparing, "success");
+      } else if (data.status === "error") {
+        showToast(t.feedback.generic_error, "error");
+      }
+    } catch {
+      showToast(t.feedback.generic_error, "error");
+    } finally {
+      setIsRequestingDownload(false);
+    }
   };
 
   const handleDownloadAll = async () => {
@@ -291,19 +399,6 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
       a.click();
     } catch {
       showToast(t.feedback.generic_error, "error");
-    }
-  };
-
-  const handleVideoPlay = async (att: { id?: string; file_name?: string | null }) => {
-    if (!att.id || loadingVideoId) return;
-    setLoadingVideoId(att.id);
-    try {
-      const data = await servicesService.getVideoPlaybackUrl(current.id, att.id);
-      setVideoPreview({ url: data.url, embedUrl: data.embedUrl, name: att.file_name });
-    } catch {
-      showToast(t.feedback.generic_error, "error");
-    } finally {
-      setLoadingVideoId(null);
     }
   };
 
@@ -407,71 +502,85 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
 
       <AttachmentUploadSummary service={current} />
 
-      {/* Evidencia (fotos) */}
+      {/* Media evidence (fotos + videos) */}
       <div className="px-6 lg:px-10">
         <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden">
-          <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
+          <div className="px-5 pt-5 pb-3 flex items-center justify-between">
             <h3 className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
               {t.services.drawer.evidence_label}
             </h3>
-            {imageAttachments.length > 0 && (
+            {mediaAttachments.length > 0 && (
               <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
-                {imageAttachments.length}
+                {mediaAttachments.length}
               </span>
             )}
           </div>
 
-          {isLoading && attachments.length === 0 ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="w-6 h-6 animate-spin text-brand/20" />
-            </div>
-          ) : imageAttachments.length > 0 ? (
-            <div className="p-4 grid grid-cols-3 gap-2.5">
-              {imageAttachments.map((att, idx) => (
-                <AttachmentThumb
-                  key={idx}
-                  attachment={att}
-                  onClick={() => handleImageClick(att)}
-                />
+          {videoAttachments.length > 0 && (
+            <div className="px-5 pb-3 flex items-center gap-1.5">
+              {([
+                ["all", t.services.drawer.tab_all, mediaAttachments.length],
+                ["photos", t.services.drawer.tab_photos, imageAttachments.length],
+                ["videos", t.services.drawer.tab_videos, videoAttachments.length],
+              ] as const).map(([key, label, count]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setMediaTab(key)}
+                  className={`flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-black transition-colors ${
+                    mediaTab === key
+                      ? "bg-brand text-white"
+                      : "bg-app-bg text-subtitle/60 hover:text-title"
+                  }`}
+                >
+                  {label}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      mediaTab === key ? "bg-white/20" : "bg-title/5"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
               ))}
-            </div>
-          ) : (
-            <div className="py-10 flex flex-col items-center justify-center text-subtitle/30">
-              <Camera className="w-7 h-7 mb-2 opacity-20" />
-              <span className="text-xs font-bold uppercase tracking-widest">
-                {t.services.drawer.no_photos}
-              </span>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Videos */}
-      {videoAttachments.length > 0 && (
-        <div className="px-6 lg:px-10 mt-4">
-          <div className="bg-surface rounded-3xl border border-border-theme/40 overflow-hidden">
-            <div className="px-5 pt-5 pb-3 border-b border-border-theme/20 flex items-center justify-between">
-              <h3 className="text-[10px] font-black text-subtitle/40 uppercase tracking-[0.2em]">
-                Videos
-              </h3>
-              <span className="bg-brand/10 text-brand text-[10px] font-black px-2 py-0.5 rounded-full">
-                {videoAttachments.length}
-              </span>
-            </div>
-            <div className="p-4 space-y-2">
-              {videoAttachments.map((video) => (
-                <div key={video.id} className={loadingVideoId === video.id ? "opacity-60 pointer-events-none" : undefined}>
-                  <VideoAttachmentCard
-                    name={video.file_name}
-                    size={video.file_size_bytes}
-                    onPlay={() => handleVideoPlay(video)}
-                  />
-                </div>
-              ))}
-            </div>
+          <div className="border-t border-border-theme/20">
+            {isLoading && attachments.length === 0 ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-brand/20" />
+              </div>
+            ) : visibleMediaAttachments.length > 0 ? (
+              <div className="p-4 grid grid-cols-3 gap-2.5">
+                {visibleMediaAttachments.map((att, idx) => {
+                  const isVideo = att.media_type === "VIDEO" || att.file_type?.startsWith("video/");
+                  if (isVideo) {
+                    return (
+                      <VideoThumb
+                        key={att.id ?? idx}
+                        attachment={att}
+                        isLoading={loadingVideoId === att.id}
+                        onClick={() => handleMediaClick(att)}
+                      />
+                    );
+                  }
+                  return (
+                    <AttachmentThumb key={att.id ?? idx} attachment={att} onClick={() => handleMediaClick(att)} />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-10 flex flex-col items-center justify-center text-subtitle/30">
+                <Camera className="w-7 h-7 mb-2 opacity-20" />
+                <span className="text-xs font-bold uppercase tracking-widest">
+                  {t.services.drawer.no_photos}
+                </span>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Documentos adjuntos */}
       {documentAttachments.length > 0 && (
@@ -523,11 +632,11 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
       )}
 
       {/* Lightbox */}
-      {selectedImageIndex !== null && imageAttachments.length > 0 && (
+      {selectedMediaIndex !== null && selectedMedia && (
         <div className="absolute inset-0 z-100 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
             className="fixed inset-0 bg-app-bg/70 backdrop-blur-2xl animate-in fade-in duration-200"
-            onClick={() => setSelectedImageIndex(null)}
+            onClick={() => setSelectedMediaIndex(null)}
           />
           <div className="relative z-10 flex flex-col items-center gap-4 px-6 pt-10 pb-10 min-h-full animate-in zoom-in-95 duration-200">
 
@@ -536,7 +645,7 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               <p className="text-lg font-black text-title">{t.mobile.service_detail.lightbox.title}</p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setSelectedImageIndex(null)}
+                  onClick={() => setSelectedMediaIndex(null)}
                   className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
                   aria-label="Cerrar"
                 >
@@ -545,102 +654,163 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
               </div>
             </div>
 
-            {/* Image with navigation */}
+            {/* Media with navigation */}
             <div className="relative w-full max-w-sm">
-              {selectedImageIndex > 0 && (
-                <button
-                  onClick={() => setSelectedImageIndex(i => (i ?? 0) - 1)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-110 p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
-                >
-                  <ChevronLeft className="w-5 h-5 text-brand" />
-                </button>
+              {selectedIsVideo ? (
+                <>
+                  <div className="w-full rounded-4xl overflow-hidden border border-white/10 shadow-2xl bg-title flex items-center justify-center min-h-64">
+                    {loadingVideoId === selectedMedia.id || !videoPlayback || videoPlayback.id !== selectedMedia.id ? (
+                      <Loader2 className="w-6 h-6 text-white animate-spin my-16" />
+                    ) : videoPlayback.embedUrl ? (
+                      <iframe
+                        src={videoPlayback.embedUrl}
+                        className="aspect-video w-full bg-black"
+                        style={{ border: "none" }}
+                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        src={videoPlayback.url}
+                        controls
+                        autoPlay
+                        preload="metadata"
+                        className="max-h-[70vh] w-full object-contain bg-black"
+                      />
+                    )}
+                  </div>
+                  {videoPlayback && videoPlayback.id === selectedMedia.id && (
+                    videoPlayback.embedUrl ? (
+                      <button
+                        onClick={handleRequestCfDownload}
+                        disabled={isRequestingDownload}
+                        className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all disabled:opacity-50"
+                        aria-label={t.common.download}
+                      >
+                        {isRequestingDownload
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Download className="w-4 h-4" />
+                        }
+                      </button>
+                    ) : videoPlayback.url ? (
+                      <button
+                        onClick={handleDownloadCurrent}
+                        className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
+                        aria-label={t.common.download}
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    ) : null
+                  )}
+                </>
+              ) : (
+                <>
+                  <div
+                    ref={pinch.ref}
+                    className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl"
+                    onMouseDown={pinch.onMouseDown}
+                    onDoubleClick={pinch.onDoubleClick}
+                    onTouchStart={(e) => {
+                      pinch.onTouchStart(e);
+                      if (e.touches.length === 1 && !pinch.isZoomed) {
+                        setTouchStartX(e.touches[0]?.clientX ?? null);
+                      } else {
+                        setTouchStartX(null);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      pinch.onTouchEnd(e);
+                      if (!pinch.isZoomed) {
+                        handleLightboxSwipeEnd(e.changedTouches[0]?.clientX ?? 0);
+                      } else {
+                        setTouchStartX(null);
+                      }
+                    }}
+                    onTouchCancel={() => setTouchStartX(null)}
+                  >
+                    <img
+                      src={selectedMedia.file_url ?? ""}
+                      className="w-full h-full object-cover"
+                      style={pinch.imgStyle}
+                      draggable={false}
+                      alt="Evidencia"
+                    />
+                  </div>
+                  <button
+                    onClick={handleDownloadCurrent}
+                    className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
+                    aria-label={t.common.download_photo}
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </>
               )}
-              {selectedImageIndex < imageAttachments.length - 1 && (
-                <button
-                  onClick={() => setSelectedImageIndex(i => (i ?? 0) + 1)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-110 p-3 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all"
-                >
-                  <ChevronRight className="w-5 h-5 text-brand" />
-                </button>
-              )}
-              <div
-                ref={pinch.ref}
-                className="w-full aspect-square rounded-4xl overflow-hidden border border-white/10 shadow-2xl"
-                onMouseDown={pinch.onMouseDown}
-                onDoubleClick={pinch.onDoubleClick}
-                onTouchStart={(e) => {
-                  pinch.onTouchStart(e);
-                  if (e.touches.length === 1 && !pinch.isZoomed) {
-                    setTouchStartX(e.touches[0]?.clientX ?? null);
-                  } else {
-                    setTouchStartX(null);
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  pinch.onTouchEnd(e);
-                  if (!pinch.isZoomed) {
-                    handleLightboxSwipeEnd(e.changedTouches[0]?.clientX ?? 0);
-                  } else {
-                    setTouchStartX(null);
-                  }
-                }}
-                onTouchCancel={() => setTouchStartX(null)}
-              >
-                <img
-                  src={imageAttachments[selectedImageIndex]?.file_url ?? ""}
-                  className="w-full h-full object-cover"
-                  style={pinch.imgStyle}
-                  draggable={false}
-                  alt="Evidencia"
-                />
-              </div>
-              <button
-                onClick={handleDownloadCurrent}
-                className="absolute bottom-3 right-3 z-110 p-2.5 rounded-full bg-black/40 backdrop-blur-sm text-white active:scale-90 transition-all"
-                aria-label={t.common.download_photo}
-              >
-                <Download className="w-4 h-4" />
-              </button>
             </div>
 
             {/* Counter */}
-            {imageAttachments.length > 1 && (
+            {mediaAttachments.length > 1 && (
               <div className="flex flex-col items-center gap-0.5">
                 <span className="text-xs font-black text-title/50">
-                  {selectedImageIndex + 1} / {imageAttachments.length}
+                  {selectedMediaIndex + 1} / {mediaAttachments.length}
                 </span>
                 <span className="text-[10px] text-subtitle/50">{t.mobile.service_detail.lightbox.counter_hint}</span>
               </div>
             )}
 
             {/* Thumbnails */}
-            {imageAttachments.length > 1 && (
-              <div className="w-full max-w-sm overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex w-max min-w-full justify-center gap-2 px-1">
-                  {imageAttachments.map((att, index) => {
-                    const isSelected = index === selectedImageIndex;
-                    return (
-                      <button
-                        key={`${att.file_url}-${index}`}
-                        type="button"
-                        onClick={() => setSelectedImageIndex(index)}
-                        aria-label={`Ver foto ${index + 1}`}
-                        aria-current={isSelected ? "true" : undefined}
-                        className={`h-14 w-14 shrink-0 overflow-hidden rounded-2xl border bg-surface shadow-lg transition-all active:scale-95 ${
-                          isSelected
-                            ? "border-brand ring-2 ring-brand/30 opacity-100"
-                            : "border-white/20 opacity-60"
-                        }`}
-                      >
-                        <img src={att.file_url ?? ""} className="h-full w-full object-cover" alt="" loading="lazy" />
-                      </button>
-                    );
-                  })}
+            {mediaAttachments.length > 1 && (
+              <div className="w-full max-w-sm flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedMediaIndex(i => (i ?? 0) - 1)}
+                  disabled={selectedMediaIndex === 0}
+                  className="shrink-0 p-2 rounded-full bg-surface shadow-lg border border-border-theme/20 text-title active:scale-90 transition-all disabled:opacity-30"
+                  aria-label="Anterior"
+                >
+                  <ChevronLeft className="w-4 h-4 text-brand" />
+                </button>
+                <div className="flex-1 min-w-0 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="flex w-max min-w-full justify-center gap-2 px-1">
+                    {mediaAttachments.map((att, index) => {
+                      const isSelected = index === selectedMediaIndex;
+                      const isVideo = att.media_type === "VIDEO" || att.file_type?.startsWith("video/");
+                      return (
+                        <button
+                          key={att.id ?? index}
+                          type="button"
+                          onClick={() => setSelectedMediaIndex(index)}
+                          aria-label={`Ver adjunto ${index + 1}`}
+                          aria-current={isSelected ? "true" : undefined}
+                          className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border bg-surface shadow-lg transition-all active:scale-95 ${
+                            isSelected
+                              ? "border-brand ring-2 ring-brand/30 opacity-100"
+                              : "border-white/20 opacity-60"
+                          }`}
+                        >
+                          <img src={att.thumbnail_url ?? att.file_url ?? ""} className="h-full w-full object-cover" alt="" loading="lazy" />
+                          {isVideo && (
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                              <div className="w-5 h-5 rounded-full bg-white/90 flex items-center justify-center">
+                                <Play className="w-2.5 h-2.5 text-title fill-title ml-0.5" />
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+                <button
+                  onClick={() => setSelectedMediaIndex(i => (i ?? 0) + 1)}
+                  disabled={selectedMediaIndex === mediaAttachments.length - 1}
+                  className="shrink-0 p-2 rounded-full bg-surface shadow-lg border border-border-theme/20 text-title active:scale-90 transition-all disabled:opacity-30"
+                  aria-label="Siguiente"
+                >
+                  <ChevronRight className="w-4 h-4 text-brand" />
+                </button>
               </div>
             )}
 
-            {imageAttachments.length > 1 && (
+            {imageAttachments.length > 1 && !selectedIsVideo && (
               <div className="w-full max-w-sm flex justify-end">
                 <button
                   onClick={() => setShowDownloadConfirm(true)}
@@ -668,7 +838,10 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
                     {current.description || t.mobile.service_detail.no_description}
                   </p>
                   <p className="text-xs text-subtitle/70 font-medium">
-                    {current.worker?.name} · {formatDate(current.created_at)} · {imageAttachments.length} {imageAttachments.length === 1 ? t.mobile.service_detail.lightbox.photo : t.mobile.service_detail.lightbox.photos}
+                    {current.worker?.name} · {formatDate(current.created_at)}
+                    {!selectedIsVideo && (
+                      <> · {imageAttachments.length} {imageAttachments.length === 1 ? t.mobile.service_detail.lightbox.photo : t.mobile.service_detail.lightbox.photos}</>
+                    )}
                   </p>
                 </div>
               </div>
@@ -676,15 +849,6 @@ export default function ServiceDetailView({ service, onClose, hideWorker = false
 
           </div>
         </div>
-      )}
-
-      {videoPreview && (
-        <VideoPlayerModal
-          url={videoPreview.url}
-          embedUrl={videoPreview.embedUrl}
-          title={videoPreview.name}
-          onClose={() => setVideoPreview(null)}
-        />
       )}
 
       <ShareModal
