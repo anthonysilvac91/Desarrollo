@@ -48,6 +48,10 @@ backend/scripts/*.js
 backend/scripts/*.d.ts
 backend/scripts/*.js.map
 
+# GeoIP (MaxMind GeoLite2 — no distribuible, se provee por variable de entorno)
+*.mmdb
+backend/data/
+
 # Frontend (Next.js - Preparación)
 .next/
 out/

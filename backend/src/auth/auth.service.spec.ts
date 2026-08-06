@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService, AuthRequestContext } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { EmailService } from '../email/email.service';
+import { GeoIpService } from './geoip.service';
 import * as bcrypt from 'bcryptjs';
 import { sha256hex, aesGcmEncrypt, aesGcmDecrypt } from '../common/crypto.util';
 
@@ -61,6 +62,17 @@ describe('AuthService', () => {
     sendTwoFactorStatusChanged: jest.fn().mockResolvedValue(undefined),
     isEnabled: jest.fn().mockReturnValue(true),
   };
+  const UNKNOWN_GEOIP = {
+    country: null,
+    countryCode: null,
+    region: null,
+    city: null,
+    accuracyRadius: null,
+    source: 'unknown' as const,
+  };
+  const geoIpMock = {
+    lookup: jest.fn().mockResolvedValue(UNKNOWN_GEOIP),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -74,6 +86,7 @@ describe('AuthService', () => {
     prismaMock.pendingTotpSetup.upsert.mockResolvedValue({});
     prismaMock.pendingTotpSetup.update.mockResolvedValue({});
     prismaMock.emailToken.deleteMany.mockResolvedValue({});
+    geoIpMock.lookup.mockResolvedValue(UNKNOWN_GEOIP);
     prismaMock.$transaction.mockImplementation(async (ops) => {
       if (Array.isArray(ops)) return Promise.all(ops);
       return ops(prismaMock);
@@ -90,6 +103,7 @@ describe('AuthService', () => {
           useValue: { resolveFileUrl: jest.fn() },
         },
         { provide: EmailService, useValue: emailMock },
+        { provide: GeoIpService, useValue: geoIpMock },
       ],
     }).compile();
 
@@ -412,6 +426,151 @@ describe('AuthService', () => {
         sid: 'session-1',
         jti: 'jti-1',
       });
+    });
+  });
+
+  // ─── createSession() — GeoIP ──────────────────────────────────────────────────
+
+  describe('createSession() — resolucion GeoIP', () => {
+    const loginAsAdmin = async (context: AuthRequestContext) => {
+      const hash = await bcrypt.hash('pass', 10);
+      prismaMock.user.findFirst.mockResolvedValue(
+        makeUser({ password_hash: hash, organization_id: 'org-real' }),
+      );
+      return service.login(
+        { email: 'admin@test.com', password: 'pass' },
+        context,
+      );
+    };
+
+    const createdSessionData = (): Record<string, unknown> => {
+      const call = prismaMock.userSession.create.mock.calls[0][0] as {
+        data: Record<string, unknown>;
+      };
+      return call.data;
+    };
+
+    const updatedSessionCall = (): {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    } =>
+      prismaMock.userSession.update.mock.calls[0][0] as {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      };
+
+    it.each([
+      ['187.190.12.34:54321', '187.190.12.34'],
+      ['::ffff:187.190.12.34', '187.190.12.34'],
+      ['::1', '127.0.0.1'],
+      ['[2001:db8::1]', '2001:db8::1'],
+    ])('normaliza la IP %s a %s antes de persistir', async (raw, expected) => {
+      await loginAsAdmin({ ipAddress: raw });
+
+      expect(createdSessionData().ip_address).toBe(expected);
+    });
+
+    it('una IP privada no ejecuta el lookup GeoIP', async () => {
+      await loginAsAdmin({ ipAddress: '192.168.1.10' });
+
+      expect(geoIpMock.lookup).not.toHaveBeenCalled();
+      const data = createdSessionData();
+      expect(data.city).toBe('Local network');
+      expect(data.country).toBeNull();
+      expect(data.geo_source).toBe('unknown');
+      expect(data.geo_resolved_at).toBeNull();
+    });
+
+    it('persiste region, pais, country_code y accuracy_radius de un lookup exitoso', async () => {
+      geoIpMock.lookup.mockResolvedValue({
+        country: 'Chile',
+        countryCode: 'CL',
+        region: 'Santiago Metropolitan',
+        city: 'Santiago',
+        accuracyRadius: 20,
+        source: 'maxmind_geolite2',
+      });
+
+      await loginAsAdmin({ ipAddress: '190.20.1.1' });
+
+      expect(geoIpMock.lookup).toHaveBeenCalledWith('190.20.1.1');
+      const data = createdSessionData();
+      expect(data.country).toBe('Chile');
+      expect(data.country_code).toBe('CL');
+      expect(data.region).toBe('Santiago Metropolitan');
+      expect(data.city).toBe('Santiago');
+      expect(data.geo_accuracy_radius).toBe(20);
+      expect(data.geo_source).toBe('maxmind_geolite2');
+      expect(data.geo_resolved_at).toBeInstanceOf(Date);
+    });
+
+    it('una IP sin resultado en el MMDB no marca geo_resolved_at', async () => {
+      geoIpMock.lookup.mockResolvedValue(UNKNOWN_GEOIP);
+
+      await loginAsAdmin({ ipAddress: '203.0.113.5' });
+
+      const data = createdSessionData();
+      expect(data.country).toBeNull();
+      expect(data.geo_source).toBe('unknown');
+      expect(data.geo_resolved_at).toBeNull();
+    });
+
+    it('no sobrescribe datos previos de una sesion existente cuando el nuevo lookup no devuelve informacion', async () => {
+      const previousResolvedAt = new Date('2026-01-01T00:00:00Z');
+      prismaMock.userSession.findFirst.mockResolvedValue({
+        id: 'existing-session',
+        country: 'Chile',
+        country_code: 'CL',
+        region: 'Santiago Metropolitan',
+        city: 'Santiago',
+        geo_source: 'maxmind_geolite2',
+        geo_accuracy_radius: 20,
+        geo_resolved_at: previousResolvedAt,
+      });
+      geoIpMock.lookup.mockResolvedValue(UNKNOWN_GEOIP);
+
+      await loginAsAdmin({ ipAddress: '190.20.1.1' });
+
+      const { where, data } = updatedSessionCall();
+      expect(where).toEqual({ id: 'existing-session' });
+      expect(data.country).toBe('Chile');
+      expect(data.country_code).toBe('CL');
+      expect(data.region).toBe('Santiago Metropolitan');
+      expect(data.city).toBe('Santiago');
+      expect(data.geo_source).toBe('maxmind_geolite2');
+      expect(data.geo_accuracy_radius).toBe(20);
+      expect(data.geo_resolved_at).toBe(previousResolvedAt);
+    });
+
+    it('actualiza los datos GeoIP de una sesion existente cuando el nuevo lookup si devuelve informacion', async () => {
+      prismaMock.userSession.findFirst.mockResolvedValue({
+        id: 'existing-session',
+        country: 'Brasil',
+        country_code: 'BR',
+        region: 'Antiguo',
+        city: 'Antigua',
+        geo_source: 'maxmind_geolite2',
+        geo_accuracy_radius: 500,
+        geo_resolved_at: new Date('2026-01-01T00:00:00Z'),
+      });
+      geoIpMock.lookup.mockResolvedValue({
+        country: 'Chile',
+        countryCode: 'CL',
+        region: 'Santiago Metropolitan',
+        city: 'Santiago',
+        accuracyRadius: 20,
+        source: 'maxmind_geolite2',
+      });
+
+      await loginAsAdmin({ ipAddress: '190.20.1.1' });
+
+      const { data } = updatedSessionCall();
+      expect(data.country).toBe('Chile');
+      expect(data.country_code).toBe('CL');
+      expect(data.region).toBe('Santiago Metropolitan');
+      expect(data.city).toBe('Santiago');
+      expect(data.geo_accuracy_radius).toBe(20);
+      expect(data.geo_resolved_at).toBeInstanceOf(Date);
     });
   });
 

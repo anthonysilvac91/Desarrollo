@@ -17,6 +17,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
 import { StoredFilesService } from '../storage/stored-files.service';
 import { EmailService } from '../email/email.service';
+import { GeoIpService, GeoSource } from './geoip.service';
 import { PLAN_LIMITS } from '../subscriptions/plan-limits';
 import { toApiRole } from '../common/compat/owner-role-compat';
 import {
@@ -38,8 +39,13 @@ export interface AuthRequestContext {
 interface ResolvedIpLocation {
   ipAddress: string | null;
   country: string | null;
+  countryCode: string | null;
   region: string | null;
   city: string | null;
+  accuracyRadius: number | null;
+  geoSource: GeoSource;
+  /** true solo si esta resolucion produjo datos nuevos (para sellar geo_resolved_at). */
+  resolvedNow: boolean;
 }
 
 @Injectable()
@@ -53,6 +59,7 @@ export class AuthService {
     private config: ConfigService,
     private storedFilesService: StoredFilesService,
     private emailService: EmailService,
+    private geoIpService: GeoIpService,
   ) {}
 
   private buildAccessPayload(
@@ -188,57 +195,6 @@ export class AuthService {
     );
   }
 
-  private parseGeoIpResponse(data: any): Omit<ResolvedIpLocation, 'ipAddress'> {
-    return {
-      country:
-        data.country_name ||
-        data.countryName ||
-        data.country ||
-        data.countryCode ||
-        null,
-      region: data.region || data.regionName || data.region_name || null,
-      city: data.city || data.cityName || null,
-    };
-  }
-
-  private async fetchGeoIpLocation(
-    ip: string,
-  ): Promise<Omit<ResolvedIpLocation, 'ipAddress'> | null> {
-    const customTemplate = this.config.get<string>('GEOIP_LOOKUP_URL_TEMPLATE');
-    const templates = [
-      customTemplate,
-      'https://ipapi.co/{ip}/json/',
-      'https://ipwho.is/{ip}',
-      'https://ipinfo.io/{ip}/json',
-      'https://freeipapi.com/api/json/{ip}',
-      'http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,message',
-    ].filter(Boolean) as string[];
-
-    for (const template of templates) {
-      try {
-        const response = await fetch(
-          template.replace('{ip}', encodeURIComponent(ip)),
-          {
-            signal: AbortSignal.timeout(1800),
-          },
-        );
-
-        if (!response.ok) continue;
-
-        const data: any = await response.json();
-        if (data.success === false || data.status === 'fail') continue;
-
-        const location = this.parseGeoIpResponse(data);
-        if (location.country || location.region || location.city)
-          return location;
-      } catch {
-        continue;
-      }
-    }
-
-    return null;
-  }
-
   private async resolveIpLocation(
     context?: AuthRequestContext,
   ): Promise<ResolvedIpLocation> {
@@ -249,27 +205,60 @@ export class AuthService {
       city: context?.city || null,
     };
 
-    if (!ip) return { ipAddress: null, ...headerLocation };
+    if (!ip) {
+      return {
+        ipAddress: null,
+        ...headerLocation,
+        countryCode: null,
+        accuracyRadius: null,
+        geoSource: 'unknown',
+        resolvedNow: false,
+      };
+    }
 
     if (
       headerLocation.country ||
       headerLocation.region ||
       headerLocation.city
     ) {
-      return { ipAddress: ip, ...headerLocation };
+      return {
+        ipAddress: ip,
+        ...headerLocation,
+        countryCode: null,
+        accuracyRadius: null,
+        geoSource: 'unknown',
+        resolvedNow: true,
+      };
     }
 
     if (this.isPrivateIp(ip)) {
       return {
         ipAddress: ip,
         country: null,
+        countryCode: null,
         region: null,
         city: 'Local network',
+        accuracyRadius: null,
+        geoSource: 'unknown',
+        resolvedNow: false,
       };
     }
 
-    const lookupLocation = await this.fetchGeoIpLocation(ip);
-    return { ipAddress: ip, ...(lookupLocation || headerLocation) };
+    const lookup = await this.geoIpService.lookup(ip);
+    const resolvedNow = Boolean(
+      lookup.country || lookup.countryCode || lookup.region || lookup.city,
+    );
+
+    return {
+      ipAddress: ip,
+      country: lookup.country,
+      countryCode: lookup.countryCode,
+      region: lookup.region,
+      city: lookup.city,
+      accuracyRadius: lookup.accuracyRadius,
+      geoSource: lookup.source,
+      resolvedNow,
+    };
   }
 
   private async createSession(
@@ -303,8 +292,17 @@ export class AuthService {
           organization_id: user.organization_id,
           ...device,
           country: location.country ?? existingSession.country,
+          country_code: location.countryCode ?? existingSession.country_code,
           region: location.region ?? existingSession.region,
           city: location.city ?? existingSession.city,
+          geo_accuracy_radius:
+            location.accuracyRadius ?? existingSession.geo_accuracy_radius,
+          geo_source: location.resolvedNow
+            ? location.geoSource
+            : existingSession.geo_source,
+          geo_resolved_at: location.resolvedNow
+            ? now
+            : existingSession.geo_resolved_at,
           last_seen_at: now,
           revoked_at: null,
           expires_at: new Date(now.getTime() + this.accessTokenTtlMs),
@@ -327,8 +325,12 @@ export class AuthService {
         user_agent: context?.userAgent || null,
         ip_address: location.ipAddress,
         country: location.country,
+        country_code: location.countryCode,
         region: location.region,
         city: location.city,
+        geo_accuracy_radius: location.accuracyRadius,
+        geo_source: location.geoSource,
+        geo_resolved_at: location.resolvedNow ? now : null,
         first_seen_at: now,
         last_seen_at: now,
         expires_at: new Date(now.getTime() + this.accessTokenTtlMs),
@@ -352,7 +354,9 @@ export class AuthService {
           os: session.os,
           deviceType: session.device_type,
           city: session.city,
+          region: session.region,
           country: session.country,
+          countryCode: session.country_code,
           ipAddress: session.ip_address,
         },
         language,
@@ -903,20 +907,24 @@ export class AuthService {
     );
 
     if (sessionsToBackfill.length > 0) {
+      const now = new Date();
       const updates = await Promise.all(
         sessionsToBackfill.map(async (session) => {
           const location = await this.resolveIpLocation({
             ipAddress: session.ip_address ?? undefined,
           });
-          if (!location.country && !location.region && !location.city)
-            return null;
+          if (!location.resolvedNow) return null;
 
           await this.prisma.userSession.updateMany({
             where: { id: session.id, user_id: userId, revoked_at: null },
             data: {
               country: location.country,
+              country_code: location.countryCode,
               region: location.region,
               city: location.city,
+              geo_accuracy_radius: location.accuracyRadius,
+              geo_source: location.geoSource,
+              geo_resolved_at: now,
             },
           });
 
@@ -930,8 +938,12 @@ export class AuthService {
           ? {
               ...session,
               country: update.country,
+              country_code: update.countryCode,
               region: update.region,
               city: update.city,
+              geo_accuracy_radius: update.accuracyRadius,
+              geo_source: update.geoSource,
+              geo_resolved_at: now,
             }
           : session;
       });

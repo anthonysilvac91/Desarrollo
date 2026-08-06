@@ -87,6 +87,9 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance() as {
     set: (key: string, value: unknown) => void;
   };
+  // Railway coloca exactamente un proxy/edge delante del contenedor, por lo
+  // que confiar en un solo hop es correcto: X-Forwarded-For/X-Real-Ip en ese
+  // hop reflejan la IP real del cliente y no pueden ser falseados por él.
   expressApp.set('trust proxy', 1);
 
   const configService = app.get(ConfigService);

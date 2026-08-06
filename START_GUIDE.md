@@ -85,6 +85,21 @@ Con ambos servidores arriba, abre `http://localhost:3000/login` y valida:
 - Entra directo a `http://localhost:3000/dashboard` sin sesion
 - **Resultado esperado**: redireccion a `/login`
 
+## GeoIP (opcional)
+
+Las notificaciones de "nuevo inicio de sesion" muestran una ubicacion aproximada
+resuelta con MaxMind GeoLite2 City, de forma local (sin llamadas a APIs externas).
+
+- **Local**: descarga `GeoLite2-City.mmdb` con tu propia license key de MaxMind
+  (gratuita en https://www.maxmind.com/en/geolite2/signup), colocala en
+  `backend/data/GeoLite2-City.mmdb` (ignorado por git) y define
+  `GEOIP_DATABASE_PATH=./data/GeoLite2-City.mmdb` en `backend/.env`.
+- **Railway/produccion**: monta el `.mmdb` via un volumen persistente y apunta
+  `GEOIP_DATABASE_PATH` a esa ruta. No incluyas el archivo ni la license key en el
+  repo ni en pasos de build/deploy con acceso publico.
+- Si la variable no esta definida o el archivo no existe, el login funciona igual;
+  simplemente no se resuelve ubicacion.
+
 ## Resolucion de Problemas
 
 - **Error de DB**: confirma que `backend/docker-compose.yml` este corriendo y que la DB exponga `5433`.

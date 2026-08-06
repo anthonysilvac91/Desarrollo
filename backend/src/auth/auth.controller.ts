@@ -99,13 +99,12 @@ export class AuthController {
   }
 
   private getRequestContext(req: ExpressRequest): AuthRequestContext {
-    const forwardedFor = this.firstHeader(req.headers?.['x-forwarded-for']);
-    const ipFromForwarded = forwardedFor?.split(',')[0]?.trim();
-
     return {
       userAgent: this.firstHeader(req.headers?.['user-agent']),
+      // No confiar en x-forwarded-for (puede venir manipulado por el cliente).
+      // Railway inyecta x-real-ip con la IP real del cliente; req.ip queda
+      // como respaldo (usa "trust proxy" de Express) y el socket como ultimo recurso.
       ipAddress:
-        ipFromForwarded ||
         this.firstHeader(req.headers?.['x-real-ip']) ||
         req.ip ||
         req.socket?.remoteAddress,

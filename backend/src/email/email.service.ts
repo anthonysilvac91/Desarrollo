@@ -8,7 +8,9 @@ export interface DeviceLoginInfo {
   os?: string | null;
   deviceType?: string | null;
   city?: string | null;
+  region?: string | null;
   country?: string | null;
+  countryCode?: string | null;
   ipAddress?: string | null;
 }
 
@@ -1646,6 +1648,20 @@ export class EmailService {
     );
   }
 
+  /** "Ciudad, Región, País", filtrando vacíos y sin repetir el mismo valor consecutivo. */
+  private buildLocationLabel(device: DeviceLoginInfo): string {
+    const parts = [device.city, device.region, device.country].filter(
+      (part): part is string => Boolean(part && part.trim()),
+    );
+
+    const deduped = parts.filter(
+      (part, index) =>
+        index === 0 || part.trim().toLowerCase() !== parts[index - 1].trim().toLowerCase(),
+    );
+
+    return deduped.join(', ');
+  }
+
   private newDeviceLoginTemplate(
     lang: 'en' | 'es',
     name: string,
@@ -1658,9 +1674,7 @@ export class EmailService {
     const deviceLabel = [device.browser, device.os]
       .filter(Boolean)
       .join(' · ');
-    const locationLabel = [device.city, device.country]
-      .filter(Boolean)
-      .join(', ');
+    const locationLabel = this.buildLocationLabel(device);
     const copy =
       lang === 'en'
         ? {
@@ -1670,7 +1684,7 @@ export class EmailService {
               "If this was you, no action is needed. If you don't recognize this activity, we recommend changing your password right away.",
             button: 'Review my sessions',
             deviceRow: 'Device',
-            locationRow: 'Location',
+            locationRow: 'Approximate location',
             ipRow: 'IP address',
             unknown: 'Unknown',
             preheader: 'New sign-in detected on your Fentri account.',
@@ -1682,7 +1696,7 @@ export class EmailService {
               'Si fuiste tú, no necesitas hacer nada. Si no reconoces esta actividad, te recomendamos cambiar tu contraseña de inmediato.',
             button: 'Revisar mis sesiones',
             deviceRow: 'Dispositivo',
-            locationRow: 'Ubicación',
+            locationRow: 'Ubicación aproximada',
             ipRow: 'Dirección IP',
             unknown: 'Desconocido',
             preheader: 'Detectamos un nuevo inicio de sesión en tu cuenta de Fentri.',

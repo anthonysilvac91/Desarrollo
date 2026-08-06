@@ -177,38 +177,38 @@ model Subscription {
 }
 
 model User {
-  id                      String          @id @default(uuid())
-  organization_id         String?
-  role                    Role
-  email                   String          @unique
-  password_hash           String
-  name                    String
-  phone                   String?
-  avatar_file_id          String?         @unique
-  owner_id                String?
-  asset_access_mode       AssetAccessMode @default(UNRESTRICTED)
-  is_active               Boolean         @default(true)
-  two_factor_enabled      Boolean         @default(false)
-  two_factor_method       TwoFactorMethod @default(APP)
-  two_factor_secret       String?
-  two_factor_backup_codes Json?
-  last_login_at           DateTime?
-  email_verified_at       DateTime?
+  id                          String          @id @default(uuid())
+  organization_id             String?
+  role                        Role
+  email                       String          @unique
+  password_hash               String
+  name                        String
+  phone                       String?
+  avatar_file_id              String?         @unique
+  owner_id                    String?
+  asset_access_mode           AssetAccessMode @default(UNRESTRICTED)
+  is_active                   Boolean         @default(true)
+  two_factor_enabled          Boolean         @default(false)
+  two_factor_method           TwoFactorMethod @default(APP)
+  two_factor_secret           String?
+  two_factor_backup_codes     Json?
+  last_login_at               DateTime?
+  email_verified_at           DateTime?
   /// Ultimo idioma de UI conocido para este usuario (se actualiza en cada login/registro).
   /// Es la unica fuente de idioma disponible para correos disparados por terceros,
   /// donde no hay una sesion en vivo de la que tomarlo.
-  language                String          @default("es")
+  language                    String          @default("es")
   /// Preferencia del usuario: recibir notificaciones operativas por correo
   /// (servicio completado/editado, cambios de plan, suscripcion, almacenamiento, etc.).
   /// No afecta correos criticos que el propio usuario dispara (reset de password, 2FA, etc.).
-  email_notifications_enabled Boolean @default(true)
+  email_notifications_enabled Boolean         @default(true)
   /// Preferencia del usuario: recibir alertas de seguridad de su cuenta
   /// (nuevo dispositivo, contraseña cambiada, 2FA activado/desactivado, acceso cambiado).
-  security_alerts_enabled     Boolean @default(true)
-  deleted_at              DateTime?
-  deleted_by_id           String?
-  purged_at               DateTime?
-  purged_by_id            String?
+  security_alerts_enabled     Boolean         @default(true)
+  deleted_at                  DateTime?
+  deleted_by_id               String?
+  purged_at                   DateTime?
+  purged_by_id                String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -245,23 +245,27 @@ model User {
 }
 
 model UserSession {
-  id              String    @id @default(uuid())
-  user_id         String
-  organization_id String?
-  token_jti       String    @unique
-  device_name     String?
-  device_type     String?
-  browser         String?
-  os              String?
-  user_agent      String?
-  ip_address      String?
-  country         String?
-  region          String?
-  city            String?
-  first_seen_at   DateTime  @default(now())
-  last_seen_at    DateTime  @default(now())
-  revoked_at      DateTime?
-  expires_at      DateTime
+  id                  String    @id @default(uuid())
+  user_id             String
+  organization_id     String?
+  token_jti           String    @unique
+  device_name         String?
+  device_type         String?
+  browser             String?
+  os                  String?
+  user_agent          String?
+  ip_address          String?
+  country             String?
+  country_code        String?
+  region              String?
+  city                String?
+  geo_source          String?
+  geo_accuracy_radius Int?
+  geo_resolved_at     DateTime?
+  first_seen_at       DateTime  @default(now())
+  last_seen_at        DateTime  @default(now())
+  revoked_at          DateTime?
+  expires_at          DateTime
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -492,13 +496,13 @@ model FileUpload {
 }
 
 model OrganizationStorageUsage {
-  organization_id      String    @id
-  ready_bytes          BigInt    @default(0)
-  reserved_bytes       BigInt    @default(0)
-  ready_file_count     Int       @default(0)
-  pending_upload_count Int       @default(0)
-  reconciled_at        DateTime?
-  updated_at           DateTime  @updatedAt
+  organization_id        String    @id
+  ready_bytes            BigInt    @default(0)
+  reserved_bytes         BigInt    @default(0)
+  ready_file_count       Int       @default(0)
+  pending_upload_count   Int       @default(0)
+  reconciled_at          DateTime?
+  updated_at             DateTime  @updatedAt
   /// Umbral (80 o 100) del ultimo aviso de "cerca del limite" enviado. Null si
   /// el uso esta por debajo del umbral mas bajo (evita reenviar el aviso cada dia).
   last_storage_alert_pct Int?
@@ -591,13 +595,13 @@ model StoredFile {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  organization          Organization       @relation(fields: [organization_id], references: [id])
-  uploaded_by           User?              @relation("StoredFileUploadedBy", fields: [uploaded_by_user_id], references: [id])
-  organization_logo_for Organization?      @relation("OrganizationLogoFile")
-  user_avatar_for       User?              @relation("UserAvatarFile")
-  asset_thumbnail_for   Asset?             @relation("AssetThumbnailFile")
-  owner_logo_for        Owner?             @relation("OwnerLogoFile")
-  service_attachment    ServiceAttachment? @relation("ServiceAttachmentFile")
+  organization                     Organization       @relation(fields: [organization_id], references: [id])
+  uploaded_by                      User?              @relation("StoredFileUploadedBy", fields: [uploaded_by_user_id], references: [id])
+  organization_logo_for            Organization?      @relation("OrganizationLogoFile")
+  user_avatar_for                  User?              @relation("UserAvatarFile")
+  asset_thumbnail_for              Asset?             @relation("AssetThumbnailFile")
+  owner_logo_for                   Owner?             @relation("OwnerLogoFile")
+  service_attachment               ServiceAttachment? @relation("ServiceAttachmentFile")
   service_attachment_thumbnail_for ServiceAttachment? @relation("ServiceAttachmentThumbnailFile")
 
   @@index([organization_id])
@@ -626,17 +630,17 @@ model WorkerAssetAccess {
 }
 
 model Invitation {
-  id                 String          @id @default(uuid())
-  organization_id    String
-  email              String
-  role               Role
-  token              String          @unique
-  invited_by_id      String
-  owner_id           String?
-  asset_access_mode  AssetAccessMode @default(UNRESTRICTED)
-  pending_asset_ids  String[]        @default([])
-  is_used            Boolean         @default(false)
-  expires_at         DateTime
+  id                String          @id @default(uuid())
+  organization_id   String
+  email             String
+  role              Role
+  token             String          @unique
+  invited_by_id     String
+  owner_id          String?
+  asset_access_mode AssetAccessMode @default(UNRESTRICTED)
+  pending_asset_ids String[]        @default([])
+  is_used           Boolean         @default(false)
+  expires_at        DateTime
 
   created_at DateTime @default(now())
 

@@ -7,6 +7,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageModule } from '../storage/storage.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { GeoIpService } from './geoip.service';
 
 @Module({
   imports: [
@@ -22,6 +23,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PrismaService],
+  providers: [AuthService, JwtStrategy, PrismaService, GeoIpService],
 })
 export class AuthModule {}

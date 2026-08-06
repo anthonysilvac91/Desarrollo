@@ -125,4 +125,79 @@ describe('AuthController cookie session', () => {
       }),
     );
   });
+
+  describe('captura de IP del request', () => {
+    const loginBody = { email: 'admin@test.com', password: '123456' };
+
+    it('prioriza x-real-ip sobre cualquier otro origen', async () => {
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue({ access_token: 'jwt-token' });
+
+      const spoofedReq = {
+        headers: {
+          'x-forwarded-for': '1.2.3.4',
+          'x-real-ip': '203.0.113.9',
+        },
+        ip: '10.0.0.5',
+        socket: { remoteAddress: '10.0.0.5' },
+      } as unknown as LoginRequest;
+
+      await controller.login(
+        loginBody,
+        spoofedReq,
+        res as unknown as LoginResponse,
+      );
+
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginBody,
+        expect.objectContaining({ ipAddress: '203.0.113.9' }),
+      );
+    });
+
+    it('no usa directamente el primer valor de x-forwarded-for cuando no hay x-real-ip', async () => {
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue({ access_token: 'jwt-token' });
+
+      const spoofedReq = {
+        headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' },
+        ip: '10.0.0.5',
+        socket: { remoteAddress: '10.0.0.5' },
+      } as unknown as LoginRequest;
+
+      await controller.login(
+        loginBody,
+        spoofedReq,
+        res as unknown as LoginResponse,
+      );
+
+      const context = loginSpy.mock.calls[0][1];
+      expect(context?.ipAddress).not.toBe('1.2.3.4');
+      expect(context?.ipAddress).toBe('10.0.0.5');
+    });
+
+    it('usa req.socket.remoteAddress como ultimo recurso', async () => {
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue({ access_token: 'jwt-token' });
+
+      const reqWithoutIp = {
+        headers: {},
+        ip: undefined,
+        socket: { remoteAddress: '198.51.100.7' },
+      } as unknown as LoginRequest;
+
+      await controller.login(
+        loginBody,
+        reqWithoutIp,
+        res as unknown as LoginResponse,
+      );
+
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginBody,
+        expect.objectContaining({ ipAddress: '198.51.100.7' }),
+      );
+    });
+  });
 });
