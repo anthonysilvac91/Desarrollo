@@ -88,8 +88,14 @@ async function bootstrap() {
     set: (key: string, value: unknown) => void;
   };
   // Railway coloca exactamente un proxy/edge delante del contenedor, por lo
-  // que confiar en un solo hop es correcto: X-Forwarded-For/X-Real-Ip en ese
-  // hop reflejan la IP real del cliente y no pueden ser falseados por él.
+  // que "trust proxy: 1" hace que Express confie en X-Forwarded-For/req.ip
+  // de ese unico hop. Pero el flujo real de autenticacion es
+  // Usuario -> Vercel/Next.js -> Railway: X-Real-Ip que llega a Railway es
+  // la IP de salida de Vercel, no la del usuario, y X-Forwarded-For podria
+  // venir falseado por cualquier cliente ya que Railway es publico. Por eso
+  // este ajuste queda solo como fallback; la IP autoritativa para login
+  // llega en el header x-fentri-client-ip firmado con HMAC por el
+  // auth-proxy de Next.js (ver AuthController.getRequestContext).
   expressApp.set('trust proxy', 1);
 
   const configService = app.get(ConfigService);

@@ -1,8 +1,11 @@
+import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { signTrustedClientIpPayload } from './trusted-client-ip.util';
 
 const AUTH_COOKIE_NAME = 'access_token';
 const ACCESS_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const HMAC_SECRET = 'test-hmac-secret';
 
 describe('AuthController cookie session', () => {
   const authService = {
@@ -13,6 +16,13 @@ describe('AuthController cookie session', () => {
     registerOrganization: jest.fn(),
     logout: jest.fn(),
   } as unknown as AuthService;
+
+  let authProxySecret: string | undefined;
+  const configService = {
+    get: jest.fn((key: string) =>
+      key === 'AUTH_PROXY_HMAC_SECRET' ? authProxySecret : undefined,
+    ),
+  } as unknown as ConfigService;
 
   type LoginRequest = Parameters<AuthController['login']>[1];
   type LoginResponse = Parameters<AuthController['login']>[2];
@@ -32,7 +42,8 @@ describe('AuthController cookie session', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NODE_ENV = 'test';
-    controller = new AuthController(authService);
+    authProxySecret = HMAC_SECRET;
+    controller = new AuthController(authService, configService);
     res = { cookie: jest.fn(), clearCookie: jest.fn() };
   });
 
@@ -198,6 +209,122 @@ describe('AuthController cookie session', () => {
         loginBody,
         expect.objectContaining({ ipAddress: '198.51.100.7' }),
       );
+    });
+
+    it('usa x-fentri-client-ip cuando la firma HMAC es valida (prioridad maxima)', async () => {
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue({ access_token: 'jwt-token' });
+
+      const timestamp = String(Date.now());
+      const clientIp = '186.11.74.13';
+      const signature = signTrustedClientIpPayload(
+        'POST',
+        '/auth/login',
+        timestamp,
+        clientIp,
+        HMAC_SECRET,
+      );
+
+      const signedReq = {
+        method: 'POST',
+        originalUrl: '/auth/login',
+        headers: {
+          'x-fentri-client-ip': clientIp,
+          'x-fentri-proxy-timestamp': timestamp,
+          'x-fentri-proxy-signature': signature,
+          // La IP de salida de Vercel, distinta de la IP real firmada arriba.
+          'x-real-ip': '56.125.190.173',
+        },
+        ip: '10.0.0.5',
+        socket: { remoteAddress: '10.0.0.5' },
+      } as unknown as LoginRequest;
+
+      await controller.login(
+        loginBody,
+        signedReq,
+        res as unknown as LoginResponse,
+      );
+
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginBody,
+        expect.objectContaining({ ipAddress: clientIp }),
+      );
+    });
+
+    it('una firma invalida ignora x-fentri-client-ip, cae a x-real-ip y no bloquea el login', async () => {
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue({ access_token: 'jwt-token' });
+
+      const timestamp = String(Date.now());
+      const signedReq = {
+        method: 'POST',
+        originalUrl: '/auth/login',
+        headers: {
+          'x-fentri-client-ip': '186.11.74.13',
+          'x-fentri-proxy-timestamp': timestamp,
+          // Firma con formato valido (64 chars hex) pero contenido incorrecto.
+          'x-fentri-proxy-signature': 'ab'.repeat(32),
+          'x-real-ip': '56.125.190.173',
+        },
+        ip: '10.0.0.5',
+        socket: { remoteAddress: '10.0.0.5' },
+      } as unknown as LoginRequest;
+
+      const body = await controller.login(
+        loginBody,
+        signedReq,
+        res as unknown as LoginResponse,
+      );
+
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginBody,
+        expect.objectContaining({ ipAddress: '56.125.190.173' }),
+      );
+      expect(body).toEqual({});
+    });
+
+    it('sin AUTH_PROXY_HMAC_SECRET configurado ignora x-fentri-client-ip y no bloquea el login', async () => {
+      authProxySecret = undefined;
+      const loginSpy = jest
+        .spyOn(authService, 'login')
+        .mockResolvedValue({ access_token: 'jwt-token' });
+
+      const timestamp = String(Date.now());
+      const clientIp = '186.11.74.13';
+      const signature = signTrustedClientIpPayload(
+        'POST',
+        '/auth/login',
+        timestamp,
+        clientIp,
+        HMAC_SECRET,
+      );
+
+      const signedReq = {
+        method: 'POST',
+        originalUrl: '/auth/login',
+        headers: {
+          'x-fentri-client-ip': clientIp,
+          'x-fentri-proxy-timestamp': timestamp,
+          'x-fentri-proxy-signature': signature,
+          'x-real-ip': '56.125.190.173',
+        },
+        ip: '10.0.0.5',
+        socket: { remoteAddress: '10.0.0.5' },
+      } as unknown as LoginRequest;
+
+      const body = await controller.login(
+        loginBody,
+        signedReq,
+        res as unknown as LoginResponse,
+      );
+
+      expect(loginSpy).toHaveBeenCalledWith(
+        loginBody,
+        expect.objectContaining({ ipAddress: '56.125.190.173' }),
+      );
+      expect(body).toEqual({});
     });
   });
 });

@@ -15,7 +15,9 @@ import type {
   Request as ExpressRequest,
   Response,
 } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { AuthRequestContext, AuthService } from './auth.service';
+import { resolveTrustedClientIp } from './trusted-client-ip.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RegisterOrganizationDto } from './dto/register-organization.dto';
@@ -54,7 +56,10 @@ export class AuthController {
   private static readonly authCookieName = 'access_token';
   private static readonly accessTokenTtlMs = 12 * 60 * 60 * 1000;
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private config: ConfigService,
+  ) {}
 
   private getCookieOptions(): CookieOptions {
     const isProduction = process.env.NODE_ENV === 'production';
@@ -99,12 +104,27 @@ export class AuthController {
   }
 
   private getRequestContext(req: ExpressRequest): AuthRequestContext {
+    // En produccion hay Vercel delante de Railway (Usuario -> Vercel -> Railway),
+    // asi que x-real-ip en Railway es la IP de salida de Vercel, no la del
+    // usuario. El auth-proxy de Next.js firma la IP real con HMAC en
+    // x-fentri-client-ip; solo se confia en ella si la firma es valida y el
+    // timestamp esta dentro de la ventana de tolerancia. Nunca se confia
+    // directamente en x-forwarded-for, que un cliente podria falsificar.
+    const trustedIp = resolveTrustedClientIp(
+      {
+        method: req.method,
+        originalUrl: req.originalUrl,
+        clientIp: this.firstHeader(req.headers?.['x-fentri-client-ip']),
+        timestamp: this.firstHeader(req.headers?.['x-fentri-proxy-timestamp']),
+        signature: this.firstHeader(req.headers?.['x-fentri-proxy-signature']),
+      },
+      this.config.get<string>('AUTH_PROXY_HMAC_SECRET'),
+    );
+
     return {
       userAgent: this.firstHeader(req.headers?.['user-agent']),
-      // No confiar en x-forwarded-for (puede venir manipulado por el cliente).
-      // Railway inyecta x-real-ip con la IP real del cliente; req.ip queda
-      // como respaldo (usa "trust proxy" de Express) y el socket como ultimo recurso.
       ipAddress:
+        trustedIp ||
         this.firstHeader(req.headers?.['x-real-ip']) ||
         req.ip ||
         req.socket?.remoteAddress,

@@ -12,10 +12,17 @@ if (!rawApiUrl) {
   throw new Error("NEXT_PUBLIC_API_URL is required in production");
 }
 
-const apiBaseUrl =
-  typeof window !== "undefined" && process.env.NODE_ENV === "production"
-    ? "/api-proxy"
-    : rawApiUrl;
+const isProxiedBrowserProduction =
+  typeof window !== "undefined" && process.env.NODE_ENV === "production";
+
+const apiBaseUrl = isProxiedBrowserProduction ? "/api-proxy" : rawApiUrl;
+
+// /auth/* pasa por un proxy dedicado (/auth-proxy) que firma la IP real del
+// visitante con HMAC antes de reenviarla a Railway. Ver
+// src/app/auth-proxy/[...path]/route.ts. El resto de la API sigue usando el
+// rewrite generico /api-proxy sin cambios.
+export const isAuthRequestUrl = (url?: string): boolean =>
+  typeof url === "string" && (url === "/auth" || url.startsWith("/auth/"));
 
 const normalizeMediaUrls = (value: unknown): unknown => {
   if (typeof value === "string") {
@@ -63,6 +70,10 @@ const isPublicRequest = (url?: string): boolean => {
 api.interceptors.request.use((config) => {
   if (config.data instanceof FormData && config.headers) {
     delete config.headers["Content-Type"];
+  }
+
+  if (isProxiedBrowserProduction && isAuthRequestUrl(config.url)) {
+    config.baseURL = "/auth-proxy";
   }
 
   return config;
