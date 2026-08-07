@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import Drawer from "@/components/ui/Drawer";
-import { Building2, ChevronRight, Inbox, Loader2, MapPin, MoreVertical, Pencil, Power, Trash2, Wrench } from "lucide-react";
+import { Building2, ChevronRight, Inbox, Loader2, MapPin, MoreVertical, Pencil, Power, Trash2, Wrench, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import AssetIcon from "@/components/ui/AssetIcon";
@@ -16,6 +16,8 @@ interface OwnerDrawerProps {
   onDelete?: (owner: Owner) => void;
   onToggleStatus?: (owner: Owner) => void;
   onAssetClick?: (asset: OwnerAsset, owner: Owner) => void;
+  onRestore?: () => void;
+  onPermanentDelete?: () => void;
   readOnly?: boolean;
 }
 
@@ -80,7 +82,7 @@ const AssetRow = ({
   </button>
 );
 
-export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggleStatus, onAssetClick, readOnly = false }: OwnerDrawerProps) {
+export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggleStatus, onAssetClick, onRestore, onPermanentDelete, readOnly = false }: OwnerDrawerProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const assetIconId = user?.organization?.default_asset_icon;
@@ -115,57 +117,99 @@ export default function OwnerDrawer({ owner, onClose, onEdit, onDelete, onToggle
       onClose={onClose}
       panelClassName="bg-app-bg"
       closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
-      leftAction={readOnly ? undefined : (
-        <div ref={actionsMenuRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setIsActionsMenuOpen(v => !v)}
-            className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
-          >
-            <MoreVertical className="w-5 h-5" />
-          </button>
-          {isActionsMenuOpen && (
-            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsActionsMenuOpen(false);
-                  onEdit?.(currentOwner);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
-              >
-                <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
-                <span className="text-sm font-semibold text-title">{t.common.edit}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsActionsMenuOpen(false);
-                  onToggleStatus?.(currentOwner);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
-              >
-                <Power className="w-4 h-4 shrink-0" style={{ color: currentOwner.is_active ? "#f59e0b" : "#22c55e" }} />
-                <span className="text-sm font-semibold text-title">
-                  {currentOwner.is_active ? t.common.deactivate : t.common.activate}
-                </span>
-              </button>
-              <div className="mx-3 my-1 border-t border-border-theme/20" />
-              <button
-                type="button"
-                onClick={() => {
-                  setIsActionsMenuOpen(false);
-                  onDelete?.(currentOwner);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
-              >
-                <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
-                <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      leftAction={
+        !readOnly ? (
+          <div ref={actionsMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsActionsMenuOpen(v => !v)}
+              className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {isActionsMenuOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onEdit?.(currentOwner);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                >
+                  <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
+                  <span className="text-sm font-semibold text-title">{t.common.edit}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onToggleStatus?.(currentOwner);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                >
+                  <Power className="w-4 h-4 shrink-0" style={{ color: currentOwner.is_active ? "#f59e0b" : "#22c55e" }} />
+                  <span className="text-sm font-semibold text-title">
+                    {currentOwner.is_active ? t.common.deactivate : t.common.activate}
+                  </span>
+                </button>
+                <div className="mx-3 my-1 border-t border-border-theme/20" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onDelete?.(currentOwner);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                >
+                  <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                  <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (onRestore || onPermanentDelete) ? (
+          <div ref={actionsMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsActionsMenuOpen(v => !v)}
+              className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {isActionsMenuOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                {onRestore && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onRestore();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                  >
+                    <RotateCcw className="w-4 h-4 text-brand shrink-0" />
+                    <span className="text-sm font-semibold text-title">{t.trash.actions.restore}</span>
+                  </button>
+                )}
+                {onPermanentDelete && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onPermanentDelete();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                  >
+                    <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                    <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : undefined
+      }
     >
       <div className="flex flex-col min-h-full">
         <div className="p-10 pb-6 flex flex-col items-center text-center space-y-5 pt-16 lg:pt-24">

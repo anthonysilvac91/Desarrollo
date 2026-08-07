@@ -15,9 +15,10 @@ interface ComboboxProps {
   placeholder?: string;
   label: string;
   onCreate?: (name: string) => void;
+  icon?: React.ReactNode;
 }
 
-export default function Combobox({ options, value, onChange, placeholder, label, onCreate }: ComboboxProps) {
+export default function Combobox({ options, value, onChange, placeholder, label, onCreate, icon }: ComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,18 +71,25 @@ export default function Combobox({ options, value, onChange, placeholder, label,
 
   return (
     <div className="flex flex-col space-y-2 relative" ref={containerRef}>
-      <label className="text-[13px] font-bold text-subtitle uppercase tracking-widest pl-1">
-        {label}
-      </label>
-      
+      {label && (
+        <label className="text-[13px] font-bold text-subtitle uppercase tracking-widest pl-1">
+          {label}
+        </label>
+      )}
+
       <div className="relative group">
+        {icon && (
+          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none z-10 text-subtitle/30 group-focus-within:text-brand transition-colors">
+            {icon}
+          </div>
+        )}
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
-          className="w-full pl-5 pr-12 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm"
+          className={`w-full ${icon ? "pl-12" : "pl-5"} pr-12 py-4 bg-gray-50/50 border border-border-theme/60 rounded-2xl text-title font-medium placeholder:text-subtitle/30 focus:outline-none focus:ring-2 focus:ring-brand/10 focus:border-brand transition-all shadow-sm`}
           placeholder={placeholder}
         />
         <button

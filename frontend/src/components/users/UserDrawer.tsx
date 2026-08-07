@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
 import Drawer from "@/components/ui/Drawer";
-import { Wrench, Calendar, Inbox, Loader2, Mail, Pencil, X, Trash2, KeyRound, MoreVertical, Power } from "lucide-react";
+import { Wrench, Calendar, Inbox, Loader2, Mail, Pencil, X, Trash2, KeyRound, MoreVertical, Power, RotateCcw } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import type { DateRange } from "react-day-picker";
 import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
@@ -21,6 +21,8 @@ interface UserDrawerProps {
   onDelete?: (user: User) => void;
   onResetPassword?: (user: User) => void;
   onToggleStatus?: (user: User) => void;
+  onRestore?: () => void;
+  onPermanentDelete?: () => void;
   readOnly?: boolean;
 }
 
@@ -49,7 +51,7 @@ const getRoleStyle = (role: string) => {
   return styles[role] || "bg-gray-50 text-gray-600 border-gray-100";
 };
 
-export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPassword, onToggleStatus, readOnly = false }: UserDrawerProps) {
+export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPassword, onToggleStatus, onRestore, onPermanentDelete, readOnly = false }: UserDrawerProps) {
   const { t, language } = useLanguage();
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [dateFilter, setDateFilter] = useState<"custom" | null>(null);
@@ -128,68 +130,110 @@ export default function UserDrawer({ user, onClose, onEdit, onDelete, onResetPas
         onClose={onClose}
         panelClassName="bg-app-bg"
         closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
-        leftAction={readOnly ? undefined : (
-          <div ref={actionsMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setIsActionsMenuOpen(v => !v)}
-              className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
-            >
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            {isActionsMenuOpen && (
-              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onEdit?.(user);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
-                >
-                  <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
-                  <span className="text-sm font-semibold text-title">{t.common.edit}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onResetPassword?.(user);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
-                >
-                  <KeyRound className="w-4 h-4 text-subtitle/50 shrink-0" />
-                  <span className="text-sm font-semibold text-title">{t.common.reset_password}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onToggleStatus?.(user);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
-                >
-                  <Power className="w-4 h-4 shrink-0" style={{ color: user.is_active ? "#f59e0b" : "#22c55e" }} />
-                  <span className="text-sm font-semibold text-title">
-                    {user.is_active ? t.common.deactivate : t.common.activate}
-                  </span>
-                </button>
-                <div className="mx-3 my-1 border-t border-border-theme/20" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsActionsMenuOpen(false);
-                    onDelete?.(user);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
-                >
-                  <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
-                  <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        leftAction={
+          !readOnly ? (
+            <div ref={actionsMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsActionsMenuOpen(v => !v)}
+                className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              {isActionsMenuOpen && (
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onEdit?.(user);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                  >
+                    <Pencil className="w-4 h-4 text-subtitle/50 shrink-0" />
+                    <span className="text-sm font-semibold text-title">{t.common.edit}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onResetPassword?.(user);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                  >
+                    <KeyRound className="w-4 h-4 text-subtitle/50 shrink-0" />
+                    <span className="text-sm font-semibold text-title">{t.common.reset_password}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onToggleStatus?.(user);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                  >
+                    <Power className="w-4 h-4 shrink-0" style={{ color: user.is_active ? "#f59e0b" : "#22c55e" }} />
+                    <span className="text-sm font-semibold text-title">
+                      {user.is_active ? t.common.deactivate : t.common.activate}
+                    </span>
+                  </button>
+                  <div className="mx-3 my-1 border-t border-border-theme/20" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onDelete?.(user);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                  >
+                    <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                    <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (onRestore || onPermanentDelete) ? (
+            <div ref={actionsMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setIsActionsMenuOpen(v => !v)}
+                className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+              {isActionsMenuOpen && (
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                  {onRestore && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionsMenuOpen(false);
+                        onRestore();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                    >
+                      <RotateCcw className="w-4 h-4 text-brand shrink-0" />
+                      <span className="text-sm font-semibold text-title">{t.trash.actions.restore}</span>
+                    </button>
+                  )}
+                  {onPermanentDelete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionsMenuOpen(false);
+                        onPermanentDelete();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                    >
+                      <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                      <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : undefined
+        }
       >
         <div className="flex flex-col min-h-full">
 

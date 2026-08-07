@@ -49,6 +49,18 @@ export class ServiceSharesController {
     return this.uploadsService.getPublicPlaybackUrl(token, attachmentId);
   }
 
+  @Post(':token/attachments/:attachmentId/download-url')
+  @Throttle({ default: { ttl: 60000, limit: 30 } })
+  @ApiOperation({
+    summary: 'Obtener URL de descarga de un video de un servicio compartido',
+  })
+  getPublicDownloadUrl(
+    @Param('token') token: string,
+    @Param('attachmentId') attachmentId: string,
+  ) {
+    return this.uploadsService.getPublicDownloadUrl(token, attachmentId);
+  }
+
   @Get(':token/report.pdf')
   @ApiOperation({ summary: 'Descargar reporte PDF de un servicio compartido' })
   async downloadReportPdf(@Param('token') token: string, @Res() res: Response) {

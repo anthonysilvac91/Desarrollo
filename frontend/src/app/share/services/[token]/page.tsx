@@ -8,6 +8,7 @@ import { servicesService } from "@/services/services.service";
 import { formatDate } from "@/lib/formatDate";
 import AssetIcon from "@/components/ui/AssetIcon";
 import { useLanguage } from "@/lib/LanguageContext";
+import { useToast } from "@/lib/ToastContext";
 import { TranslatedDescription } from "@/components/services/TranslatedDescription";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001");
@@ -52,7 +53,8 @@ function formatBytes(bytes: number | null | undefined) {
 
 export default function SharedServicePage() {
   const params = useParams<{ token: string }>();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const token = params.token;
 
   const { data, isLoading, isError, error } = useQuery({
@@ -93,6 +95,7 @@ export default function SharedServicePage() {
 
   const [activeVideo, setActiveVideo] = useState<{ id: string; name?: string | null; url?: string; embedUrl?: string } | null>(null);
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
+  const [isDownloadingVideo, setIsDownloadingVideo] = useState(false);
   const [mediaTab, setMediaTab] = useState<"all" | "photos" | "videos">("all");
   const visibleMediaAttachments =
     mediaTab === "photos" ? imageAttachments : mediaTab === "videos" ? videoAttachments : mediaAttachments;
@@ -107,6 +110,42 @@ export default function SharedServicePage() {
       // el tile queda clickeable de nuevo para reintentar
     } finally {
       setLoadingVideoId(null);
+    }
+  };
+
+  const handleDownloadVideo = async () => {
+    if (!activeVideo || isDownloadingVideo) return;
+    setIsDownloadingVideo(true);
+    try {
+      if (activeVideo.embedUrl) {
+        // Cloudflare Stream: hay que habilitar/solicitar el archivo descargable primero.
+        const data = await servicesService.getPublicVideoDownloadUrl(token, activeVideo.id);
+        if (data.status === "ready" && data.url) {
+          const a = document.createElement("a");
+          a.href = data.url;
+          a.download = `${activeVideo.name || "video"}.mp4`;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.click();
+        } else if (data.status === "inprogress") {
+          showToast(t.common.video_download_preparing, "success");
+        } else {
+          showToast(t.feedback.generic_error, "error");
+        }
+      } else if (activeVideo.url) {
+        // Video servido directo (sin Cloudflare Stream): se puede descargar de una vez.
+        const res = await fetch(activeVideo.url);
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${activeVideo.name || "video"}.mp4`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+    } catch {
+      showToast(t.feedback.generic_error, "error");
+    } finally {
+      setIsDownloadingVideo(false);
     }
   };
 
@@ -431,13 +470,25 @@ export default function SharedServicePage() {
           >
             <div className="flex items-center justify-between gap-4 px-5 py-4">
               <p className="min-w-0 truncate text-sm font-black text-white">{activeVideo.name || "Video"}</p>
-              <button
-                onClick={() => setActiveVideo(null)}
-                className="rounded-full bg-white/10 p-2 text-white active:scale-90"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                {data.allow_downloads && (
+                  <button
+                    onClick={handleDownloadVideo}
+                    disabled={isDownloadingVideo}
+                    className="rounded-full bg-brand p-2 text-white active:scale-90 disabled:opacity-50"
+                    aria-label="Descargar video"
+                  >
+                    {isDownloadingVideo ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveVideo(null)}
+                  className="rounded-full bg-white/10 p-2 text-white active:scale-90"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             {activeVideo.embedUrl ? (
               <iframe

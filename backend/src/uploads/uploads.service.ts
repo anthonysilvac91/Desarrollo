@@ -686,6 +686,85 @@ export class UploadsService {
     };
   }
 
+  /**
+   * Version publica de getDownloadUrl: valida el token del link compartido
+   * (habilitado, vigente y con descargas permitidas) en vez de sesion/rol.
+   * Usada por la pagina publica de share de servicios (sin autenticacion).
+   */
+  async getPublicDownloadUrl(token: string, attachmentId: string) {
+    const shareLink = await this.prisma.serviceShareLink.findUnique({
+      where: { token },
+      select: {
+        is_enabled: true,
+        allow_downloads: true,
+        expires_at: true,
+        service_id: true,
+        service: { select: { deleted_at: true, purged_at: true, organization_id: true } },
+      },
+    });
+
+    if (
+      !shareLink ||
+      !shareLink.is_enabled ||
+      shareLink.service.deleted_at ||
+      (shareLink.service as any).purged_at
+    ) {
+      throw new NotFoundException('Link compartido no encontrado');
+    }
+    if (shareLink.expires_at && shareLink.expires_at.getTime() < Date.now()) {
+      throw new NotFoundException('Link compartido expirado');
+    }
+    if (!shareLink.allow_downloads) {
+      throw new ForbiddenException(
+        'Las descargas no estan habilitadas para este link',
+      );
+    }
+
+    const attachment = await this.prisma.serviceAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        service_id: shareLink.service_id,
+        media_type: 'VIDEO',
+      },
+      include: { upload: true },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Video no disponible');
+    }
+
+    if (!attachment.upload?.cf_stream_uid) {
+      throw new BadRequestException(
+        'Este video no esta alojado en Cloudflare Stream; usa la URL de reproduccion directa para descargarlo',
+      );
+    }
+
+    const uid = attachment.upload.cf_stream_uid;
+    const result = await this.cloudflareService.enableStreamDownloads(uid);
+
+    await this.prisma.fileUpload.update({
+      where: { id: attachment.upload.id },
+      data: {
+        cf_stream_download_status: result.status,
+        cf_stream_download_url: result.url,
+      },
+    });
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'public_cf_stream_download_requested',
+        uid,
+        attachmentId,
+        token,
+        serviceId: shareLink.service_id,
+        organizationId: shareLink.service.organization_id,
+        status: result.status,
+      }),
+    );
+
+    return { status: result.status, url: result.url };
+  }
+
   async getDownloadUrl(serviceId: string, attachmentId: string, user: any) {
     const service = await this.assertServiceAccess(serviceId, user, true);
     const attachment = await this.prisma.serviceAttachment.findFirst({

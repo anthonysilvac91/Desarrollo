@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Drawer from "@/components/ui/Drawer";
 import ShareModal from "@/components/ui/ShareModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, FileSpreadsheet, Loader2, Share2, Download, Eye, Play, Video } from "lucide-react";
+import { Calendar, MapPin, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Info, FileText, FileSpreadsheet, Loader2, Share2, Download, Eye, Play, Video, MoreVertical, Trash2, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
 import AssetIcon from "@/components/ui/AssetIcon";
@@ -22,6 +22,9 @@ const DESCRIPTION_CLAMP_THRESHOLD = 160;
 interface ServiceDrawerProps {
   service: Service | null;
   onClose: () => void;
+  onDelete?: (service: Service) => void;
+  onRestore?: () => void;
+  onPermanentDelete?: () => void;
   readOnly?: boolean;
 }
 
@@ -192,11 +195,13 @@ function AttachmentUploadSummary({ service }: { service: Service }) {
   );
 }
 
-export default function ServiceDrawer({ service, onClose, readOnly = false }: ServiceDrawerProps) {
+export default function ServiceDrawer({ service, onClose, onDelete, onRestore, onPermanentDelete, readOnly = false }: ServiceDrawerProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { showToast } = useToast();
   const assetIconId = user?.organization?.default_asset_icon;
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const [mediaTab, setMediaTab] = useState<"all" | "photos" | "videos">("all");
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -248,6 +253,16 @@ export default function ServiceDrawer({ service, onClose, readOnly = false }: Se
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMediaIndex]);
+
+  useEffect(() => {
+    if (!isActionsMenuOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node))
+        setIsActionsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [isActionsMenuOpen]);
 
   if (!service) return <Drawer isOpen={false} onClose={onClose}><div /></Drawer>;
 
@@ -402,7 +417,80 @@ export default function ServiceDrawer({ service, onClose, readOnly = false }: Se
   };
 
   return (
-    <Drawer isOpen={!!service} onClose={onClose} panelClassName="bg-app-bg">
+    <Drawer
+      isOpen={!!service}
+      onClose={onClose}
+      panelClassName="bg-app-bg"
+      closeButtonClassName="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-title active:scale-90 transition-all shrink-0"
+      leftAction={
+        !readOnly && onDelete ? (
+          <div ref={actionsMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsActionsMenuOpen(v => !v)}
+              className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {isActionsMenuOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    onDelete?.(currentService);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                >
+                  <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                  <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : readOnly && (onRestore || onPermanentDelete) ? (
+          <div ref={actionsMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsActionsMenuOpen(v => !v)}
+              className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {isActionsMenuOpen && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+                {onRestore && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onRestore();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+                  >
+                    <RotateCcw className="w-4 h-4 text-brand shrink-0" />
+                    <span className="text-sm font-semibold text-title">{t.trash.actions.restore}</span>
+                  </button>
+                )}
+                {onPermanentDelete && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      onPermanentDelete();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+                  >
+                    <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                    <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : undefined
+      }
+    >
       <div className="flex flex-col min-h-full">
 
         {/* Header */}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Building2, ToggleLeft, ToggleRight, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox, AlertCircle, Wrench } from "lucide-react";
+import { Plus, Building2, Power, Trash2, Pencil, Loader2, ChevronLeft, ChevronRight, Inbox, AlertCircle, Wrench } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import AssetIcon from "@/components/ui/AssetIcon";
 import FiltersBar from "@/components/ui/FiltersBar";
@@ -241,14 +241,14 @@ export default function OwnersPage() {
         <div className="flex items-center justify-center space-x-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); setOwnerToDeactivate(item); }}
-            className={`p-1.5 transition-all rounded-full ${item.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50"}`}
+            className="p-1.5 rounded-full transition-all hover:bg-app-bg"
             title={t.owners.actions.deactivate}
           >
-            {item.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            <Power className="w-4 h-4" style={{ color: item.is_active ? "#f59e0b" : "#22c55e" }} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEditingOwner(item); setIsModalOpen(true); }}
-            className="p-1.5 text-subtitle/40 hover:text-brand transition-colors"
+            className="p-1.5 rounded-full text-brand/50 hover:text-brand hover:bg-brand/10 transition-all"
           >
             <Pencil className="w-4 h-4" />
           </button>

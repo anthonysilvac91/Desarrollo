@@ -48,7 +48,7 @@ const ServiceEvidenceAvatar = ({ item, className, iconClassName }: ServiceEviden
   const imageUrl = imageFailed ? null : getPrimaryEvidenceUrl(item);
 
   return (
-    <div className={`${className} rounded-full overflow-hidden bg-brand/10 flex items-center justify-center shrink-0`}>
+    <div className={`${className} rounded-full overflow-hidden border-2 border-app-bg shadow-sm bg-brand/10 flex items-center justify-center shrink-0`}>
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -87,7 +87,7 @@ const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
     className="bg-white rounded-2xl border border-border-theme/30 shadow-sm p-4 cursor-pointer active:scale-[0.99] transition-all"
   >
     <div className="flex items-center gap-3">
-      <ServiceEvidenceAvatar item={item} className="w-12 h-12" iconClassName="w-5 h-5 text-brand" />
+      <ServiceEvidenceAvatar item={item} className="w-16 h-16" iconClassName="w-6 h-6 text-brand" />
 
       <div className="flex-1 min-w-0">
         <p className="font-bold text-title text-sm leading-tight">{item.title}</p>
@@ -393,7 +393,7 @@ export default function ServicesPage() {
                   className="p-1.5 text-error/40 hover:text-error hover:bg-error/5 rounded-full transition-all"
                   title={t.confirm_modal.delete_service_title}
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             ),
@@ -852,6 +852,7 @@ export default function ServicesPage() {
       <ServiceDrawer
         service={selectedService}
         onClose={() => setSelectedService(null)}
+        onDelete={canDelete ? (svc) => { setSelectedService(null); setServiceToDelete(svc); } : undefined}
       />
 
       <ServiceModal

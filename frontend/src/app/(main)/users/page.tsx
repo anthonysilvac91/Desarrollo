@@ -17,7 +17,7 @@ import { authService } from "@/services/auth.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, ToggleLeft, ToggleRight, ChevronDown, X, ShieldCheck, ShieldUser, HardHat, Eye } from "lucide-react";
+import { Loader2, AlertCircle, Users as UsersIcon, Plus, Mail, Trash2, Pencil, Calendar, ChevronLeft, ChevronRight, Building2, Power, ChevronDown, X, ShieldCheck, ShieldUser, HardHat, Eye } from "lucide-react";
 import { formatDate } from "@/lib/formatDate";
 
 const getInitials = (name: string) =>
@@ -92,7 +92,7 @@ const UserCard = ({ item, t, onClick }: UserCardProps) => (
         </div>
 
         <div className={`flex items-center gap-1 mb-1 text-subtitle/60 ${!item.is_active ? "opacity-40" : ""}`}>
-          <Mail className="w-3 h-3 shrink-0" />
+          <Mail className="w-3 h-3 text-brand shrink-0" />
           <span className="text-xs font-semibold truncate">{item.email}</span>
         </div>
 
@@ -307,7 +307,7 @@ export default function UsersPage() {
       sortValue: (item) => item.role,
       cell: (item) => {
         return (
-          <div className={`inline-flex justify-center w-24 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${getRoleStyle(item.role)}`}>
+          <div className={`inline-flex justify-center ${language === "es" ? "w-28" : "w-24"} py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${getRoleStyle(item.role)}`}>
             {getRoleLabel(item.role, t)}
           </div>
         );
@@ -355,14 +355,14 @@ export default function UsersPage() {
           )}
           <button
             onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
-            className={`p-1.5 transition-all rounded-full ${item.is_active ? 'text-emerald-500 hover:bg-emerald-50' : 'text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50'}`}
+            className="p-1.5 rounded-full transition-all hover:bg-app-bg"
             title={item.is_active ? "Desactivar" : "Activar"}
           >
-            {item.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            <Power className="w-4 h-4" style={{ color: item.is_active ? "#f59e0b" : "#22c55e" }} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEditingUser(item); setIsModalOpen(true); }}
-            className="p-1.5 text-subtitle/40 hover:text-brand transition-colors"
+            className="p-1.5 rounded-full text-brand/50 hover:text-brand hover:bg-brand/10 transition-all"
           >
             <Pencil className="w-4 h-4" />
           </button>

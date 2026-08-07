@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, LogOut, User, ChevronDown, Menu, KeyRound, Settings } from "lucide-react";
+import { Bell, LogOut, User, ChevronDown, Menu, KeyRound, Settings, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -170,6 +170,18 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                       </div>
                       <span className="text-xs font-bold">{t.common.change_password}</span>
                     </button>
+
+                    {canAccess("/trash") && (
+                      <button
+                        onClick={() => { setIsProfileOpen(false); router.push("/trash"); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-subtitle/70 hover:text-brand hover:bg-brand/5 transition-all group md:hidden"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-app-bg flex items-center justify-center shrink-0 group-hover:bg-brand/10 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-xs font-bold">{t.sidebar.trash}</span>
+                      </button>
+                    )}
 
                     {canAccess("/settings") && (
                       <button

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   X, User, Mail, Building2, Eye, EyeOff, ChevronDown, Loader2,
   Send, Lock, Globe, Layers, ShieldCheck, Search, Check, CheckCircle2,
-  Anchor, Info,
+  Anchor, Info, Plus,
 } from "lucide-react";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useToast } from "@/lib/ToastContext";
@@ -92,7 +92,8 @@ function WorkerAccessPanel({
   setSelectedAssetIds: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   const access = t.users.modal.access;
-  const filtered = assets.filter((a) => a.name.toLowerCase().includes(assetSearch.toLowerCase()));
+  const activeAssets = assets.filter((a) => a.is_active);
+  const filtered = activeAssets.filter((a) => a.name.toLowerCase().includes(assetSearch.toLowerCase()));
 
   return (
     <div className="space-y-4">
@@ -122,7 +123,7 @@ function WorkerAccessPanel({
             </div>
             <div className="flex items-center gap-3 shrink-0 text-xs font-bold">
               <span className="text-subtitle/40">{selectedAssetIds.length} {access.assets_selected}</span>
-              <button type="button" onClick={() => setSelectedAssetIds(assets.map((a) => a.id))} className="text-brand">
+              <button type="button" onClick={() => setSelectedAssetIds(activeAssets.map((a) => a.id))} className="text-brand">
                 {access.select_all}
               </button>
               <button type="button" onClick={() => setSelectedAssetIds([])} className="text-subtitle/50">
@@ -158,9 +159,6 @@ function WorkerAccessPanel({
                       <p className="text-sm font-bold text-title truncate">{asset.name}</p>
                       {asset.category && <p className="text-xs text-subtitle/40">{asset.category}</p>}
                     </div>
-                    <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${asset.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
-                      {asset.is_active ? t.common.active : t.common.inactive}
-                    </span>
                   </label>
                 );
               })
@@ -183,16 +181,28 @@ function OwnerAccessPanel({
   ownerId,
   setOwnerId,
   assets,
+  onCreateOwner,
+  onCreateAsset,
 }: {
   t: ReturnType<typeof useLanguage>["t"];
   owners: { id: string; name: string }[];
   ownerId: string;
   setOwnerId: (id: string) => void;
   assets: { id: string; name: string; category?: string; owner_id?: string | null; is_active: boolean }[];
+  onCreateOwner?: (name: string) => void;
+  onCreateAsset?: (name: string) => void;
 }) {
   const access = t.users.modal.access;
   const selectedOwner = owners.find((o) => o.id === ownerId);
   const linkedAssets = assets.filter((a) => a.owner_id === ownerId);
+  const [newAssetName, setNewAssetName] = useState("");
+
+  const handleCreateAsset = () => {
+    const name = newAssetName.trim();
+    if (!name || !onCreateAsset) return;
+    onCreateAsset(name);
+    setNewAssetName("");
+  };
 
   return (
     <div className="space-y-4">
@@ -207,6 +217,7 @@ function OwnerAccessPanel({
         value={ownerId}
         onChange={setOwnerId}
         placeholder={t.users.modal.owner_select_placeholder}
+        onCreate={onCreateOwner}
       />
 
       {selectedOwner && (
@@ -245,6 +256,31 @@ function OwnerAccessPanel({
             ))
           )}
         </div>
+
+        {selectedOwner && onCreateAsset && (
+          <div className="mt-2 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Anchor className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-subtitle/30" />
+              <input
+                type="text"
+                value={newAssetName}
+                onChange={(e) => setNewAssetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAsset(); } }}
+                placeholder={t.assets.modal.name_placeholder}
+                className="w-full pl-9 pr-4 py-2.5 bg-app-bg border border-border-theme/40 rounded-xl text-sm font-medium placeholder:text-subtitle/30 focus:outline-none focus:border-brand transition-all"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleCreateAsset}
+              disabled={!newAssetName.trim()}
+              className="shrink-0 h-10 w-10 rounded-xl bg-brand text-white flex items-center justify-center shadow-sm shadow-brand/20 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 transition-all"
+              aria-label={t.assets.add_new}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-start gap-2 text-xs text-subtitle/40">
@@ -379,6 +415,36 @@ export default function UserModal({ isOpen, onClose, onSuccess, userToEdit }: Us
   if (!isOpen) return null;
 
   const showNameField = isEditMode || loginMethod === "password";
+
+  const handleQuickCreateOwner = async (name: string) => {
+    try {
+      setLoading(true);
+      const newOwner = await ownersService.create({ name });
+      setOwners(prev => [...prev, newOwner]);
+      setFormData(prev => ({ ...prev, owner_id: newOwner.id }));
+      showToast(t.assets.modal.owner_created, "success");
+    } catch (error) {
+      console.error(error);
+      showToast(t.assets.modal.owner_error, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickCreateAsset = async (name: string) => {
+    if (!formData.owner_id) return;
+    try {
+      setLoading(true);
+      const newAsset = await assetsService.create({ name, owner_id: formData.owner_id });
+      setAssets(prev => [...prev, newAsset]);
+      showToast(t.feedback.save_success, "success");
+    } catch (error) {
+      console.error(error);
+      showToast(t.feedback.generic_error, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -721,6 +787,8 @@ export default function UserModal({ isOpen, onClose, onSuccess, userToEdit }: Us
                   ownerId={formData.owner_id}
                   setOwnerId={(id) => setFormData({ ...formData, owner_id: id })}
                   assets={assets}
+                  onCreateOwner={handleQuickCreateOwner}
+                  onCreateAsset={handleQuickCreateAsset}
                 />
               )}
               {(formData.role === "ADMIN" || formData.role === "SUPER_ADMIN") && (

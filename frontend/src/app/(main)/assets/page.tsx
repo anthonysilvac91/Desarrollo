@@ -8,7 +8,7 @@ import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import AssetModal from "@/components/assets/AssetModal";
 import AssetDrawer from "@/components/assets/AssetDrawer";
 import RelationshipDeleteModal from "@/components/ui/RelationshipDeleteModal";
-import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, ToggleLeft, ToggleRight, Wrench, ChevronDown, X, Search, CheckCircle2, MinusCircle, Building2 } from "lucide-react";
+import { Plus, MapPin, ChevronLeft, ChevronRight, Pencil, Trash2, Calendar, Power, Wrench, ChevronDown, X, Search, CheckCircle2, MinusCircle, Building2 } from "lucide-react";
 import KPICard from "@/components/dashboard/KPICard";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import { formatDate } from "@/lib/formatDate";
@@ -54,7 +54,7 @@ const AssetCard = ({ item, canManage, iconId, t, onEdit, onDelete, onToggle, onC
   >
     <div className="flex items-center gap-4 p-4">
       {/* Thumbnail */}
-      <div className={`w-16 h-16 rounded-full overflow-hidden border-2 border-app-bg shadow-sm shrink-0 bg-app-bg flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`}>
+      <div className={`w-16 h-16 rounded-full overflow-hidden border-2 border-app-bg shadow-sm shrink-0 bg-brand/10 flex items-center justify-center ${!item.is_active ? "grayscale opacity-40" : ""}`}>
         <AssetImage src={item.thumbnail_url || ""} alt={item.name} iconId={iconId} />
       </div>
 
@@ -375,14 +375,14 @@ export default function AssetsPage() {
           {canManage && (
             <button
               onClick={(e) => { e.stopPropagation(); handleToggleStatus(item); }}
-              className={`p-1.5 transition-all rounded-full ${item.is_active ? "text-emerald-500 hover:bg-emerald-50" : "text-subtitle/20 hover:text-subtitle/40 hover:bg-gray-50"}`}
+              className="p-1.5 rounded-full transition-all hover:bg-app-bg"
             >
-              {item.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+              <Power className="w-4 h-4" style={{ color: item.is_active ? "#f59e0b" : "#22c55e" }} />
             </button>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); setAssetToEdit(item); setIsModalOpen(true); }}
-            className="p-1.5 text-subtitle/40 hover:text-brand transition-colors"
+            className="p-1.5 rounded-full text-brand/50 hover:text-brand hover:bg-brand/10 transition-all"
           >
             <Pencil className="w-4 h-4" />
           </button>

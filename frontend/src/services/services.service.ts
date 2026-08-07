@@ -158,6 +158,13 @@ export const servicesService = {
     const res = await api.post(`/public/service-shares/${token}/attachments/${attachmentId}/playback-url`);
     return res.data;
   },
+  getPublicVideoDownloadUrl: async (token: string, attachmentId: string): Promise<{
+    status: "inprogress" | "ready" | "error" | "none";
+    url: string | null;
+  }> => {
+    const res = await api.post(`/public/service-shares/${token}/attachments/${attachmentId}/download-url`);
+    return res.data;
+  },
   create: async (data: FormData) => {
     const res = await api.post<Service>("/services", data, {
       headers: { "Content-Type": "multipart/form-data" },

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { usePinchZoom } from "@/hooks/usePinchZoom";
 import Drawer from "@/components/ui/Drawer";
 import { useRouter } from "next/navigation";
-import { MapPin, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus, MoreVertical, Trash2, Power } from "lucide-react";
+import { MapPin, Calendar, Loader2, Maximize2, Wrench, ChevronDown, X, Search, ChevronLeft, ChevronRight, Pencil, Plus, MoreVertical, Trash2, Power, RotateCcw } from "lucide-react";
 import ServiceHistoryCard from "@/components/services/ServiceHistoryCard";
 import { DayPicker, useDayPicker } from "react-day-picker";
 import type { DateRange, MonthCaptionProps } from "react-day-picker";
@@ -28,6 +28,8 @@ interface AssetDrawerProps {
   onClose: () => void;
   onEdit?: (asset: Asset) => void;
   onDelete?: (asset: Asset) => void;
+  onRestore?: () => void;
+  onPermanentDelete?: () => void;
   readOnly?: boolean;
 }
 
@@ -69,7 +71,7 @@ function CalendarCaption({ calendarMonth }: MonthCaptionProps) {
   );
 }
 
-export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDelete, readOnly = false }: AssetDrawerProps) {
+export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDelete, onRestore, onPermanentDelete, readOnly = false }: AssetDrawerProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState<DrawerService | null>(null);
@@ -329,6 +331,47 @@ export default function AssetDrawer({ asset: initialAsset, onClose, onEdit, onDe
               <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
               <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
             </button>
+          </div>
+        )}
+      </div>
+      )}
+      {readOnly && (onRestore || onPermanentDelete) && (
+      <div ref={actionsMenuRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setIsActionsMenuOpen(v => !v)}
+          className="p-4 rounded-full bg-surface shadow-2xl border border-border-theme/20 text-brand active:scale-90 transition-all"
+        >
+          <MoreVertical className="w-5 h-5" />
+        </button>
+        {isActionsMenuOpen && (
+          <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-border-theme/40 z-50 overflow-hidden py-1">
+            {onRestore && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionsMenuOpen(false);
+                  onRestore();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-app-bg transition-colors text-left"
+              >
+                <RotateCcw className="w-4 h-4 text-brand shrink-0" />
+                <span className="text-sm font-semibold text-title">{t.trash.actions.restore}</span>
+              </button>
+            )}
+            {onPermanentDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionsMenuOpen(false);
+                  onPermanentDelete();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-error/5 transition-colors text-left"
+              >
+                <Trash2 className="w-4 h-4 text-error/60 shrink-0" />
+                <span className="text-sm font-semibold text-error/80">{t.common.delete}</span>
+              </button>
+            )}
           </div>
         )}
       </div>
