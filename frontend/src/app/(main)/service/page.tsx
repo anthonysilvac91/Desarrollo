@@ -81,48 +81,79 @@ const AttachmentStatusBadge = ({ item }: { item: Service }) => {
   );
 };
 
-const ServiceCard = ({ item, onClick }: ServiceCardProps) => (
-  <div
-    onClick={onClick}
-    className="bg-white rounded-2xl border border-border-theme/30 shadow-sm p-4 cursor-pointer active:scale-[0.99] transition-all"
+/** Small badge for a worker's own trashed/purged entries — see the Trash
+ *  audit notes in ServiceModal/trash page: only the worker who performed a
+ *  job keeps seeing it here once it's gone from every other view. */
+const TrashStateBadge = ({ purged, t }: { purged: boolean; t: ReturnType<typeof useLanguage>["t"] }) => (
+  <span
+    className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${
+      purged ? "bg-gray-100 text-gray-500 border-gray-200" : "bg-amber-50 text-amber-700 border-amber-100"
+    }`}
   >
-    <div className="flex items-center gap-3">
-      <ServiceEvidenceAvatar item={item} className="w-16 h-16" iconClassName="w-6 h-6 text-brand" />
-
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-title text-sm leading-tight">{item.title}</p>
-        {item.asset?.deleted_at || item.asset?.purged_at ? (
-          <DeletedBadge name={item.asset?.name} className="mt-0.5 truncate" />
-        ) : (
-          <p className="text-xs font-bold text-brand truncate mt-0.5">{item.asset?.name || "---"}</p>
-        )}
-        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
-              <span className="text-[8px] font-black text-brand leading-none">
-                {item.worker?.name ? getInitials(item.worker.name) : "?"}
-              </span>
-            </div>
-            {item.worker?.deleted_at || item.worker?.purged_at ? (
-              <DeletedBadge name={item.worker?.name} />
-            ) : (
-              <span className="text-[11px] text-subtitle/70 font-semibold">{item.worker?.name || "---"}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-brand shrink-0" />
-            <span className="text-[11px] text-subtitle/70 font-semibold">{formatDate(item.created_at)}</span>
-          </div>
-        </div>
-        <div className="mt-2">
-          <AttachmentStatusBadge item={item} />
-        </div>
-      </div>
-
-      <ChevronRightIcon className="w-4 h-4 text-brand shrink-0" />
-    </div>
-  </div>
+    {purged ? t.services.states.trashed_purged : t.services.states.trashed_pending}
+  </span>
 );
+
+const ServiceCard = ({ item, onClick }: ServiceCardProps) => {
+  const { t } = useLanguage();
+  const isTrashed = !!item.deleted_at;
+  const isPurged = !!item.purged_at;
+  const displayTitle = isPurged ? (item.worker_snapshot_title || item.title) : item.title;
+  const displayAssetName = isPurged ? (item.worker_snapshot_asset_name || item.asset?.name) : item.asset?.name;
+
+  return (
+    <div
+      onClick={isPurged ? undefined : onClick}
+      className={`bg-white rounded-2xl border border-border-theme/30 shadow-sm p-4 transition-all ${
+        isPurged ? "opacity-70" : "cursor-pointer active:scale-[0.99]"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        {isPurged ? (
+          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-app-bg shadow-sm bg-app-bg flex items-center justify-center shrink-0">
+            <Wrench className="w-6 h-6 text-subtitle/30" strokeWidth={1.5} />
+          </div>
+        ) : (
+          <ServiceEvidenceAvatar item={item} className="w-16 h-16" iconClassName="w-6 h-6 text-brand" />
+        )}
+
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-title text-sm leading-tight">{displayTitle}</p>
+          {!isPurged && (item.asset?.deleted_at || item.asset?.purged_at) ? (
+            <DeletedBadge name={item.asset?.name} className="mt-0.5 truncate" />
+          ) : (
+            <p className="text-xs font-bold text-brand truncate mt-0.5">{displayAssetName || "---"}</p>
+          )}
+          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            {!isPurged && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                  <span className="text-[8px] font-black text-brand leading-none">
+                    {item.worker?.name ? getInitials(item.worker.name) : "?"}
+                  </span>
+                </div>
+                {item.worker?.deleted_at || item.worker?.purged_at ? (
+                  <DeletedBadge name={item.worker?.name} />
+                ) : (
+                  <span className="text-[11px] text-subtitle/70 font-semibold">{item.worker?.name || "---"}</span>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-brand shrink-0" />
+              <span className="text-[11px] text-subtitle/70 font-semibold">{formatDate(item.created_at)}</span>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+            {isTrashed ? <TrashStateBadge purged={isPurged} t={t} /> : <AttachmentStatusBadge item={item} />}
+          </div>
+        </div>
+
+        {!isPurged && <ChevronRightIcon className="w-4 h-4 text-brand shrink-0" />}
+      </div>
+    </div>
+  );
+};
 
 export default function ServicesPage() {
   const { t, language } = useLanguage();
@@ -160,6 +191,12 @@ export default function ServicesPage() {
   const [mobileAssetSearch, setMobileAssetSearch] = useState("");
   const isMobile = useMediaQuery("(max-width: 1023px)");
 
+  // A worker's own history is scoped to them server-side regardless of this
+  // flag (see ServicesService.findAll) — but only when it's true does that
+  // scoped list keep trashed/purged entries instead of hiding them like
+  // every other view. Never sent for non-worker roles browsing broadly.
+  const isWorkerOwnList = user?.role === "WORKER";
+
   const getQueryParams = () => {
     const params: any = { page, limit };
     if (debouncedSearch) params.search = debouncedSearch;
@@ -170,6 +207,7 @@ export default function ServicesPage() {
         params.endDate = dateFilter.end;
       }
     }
+    if (isWorkerOwnList) params.includeTrashed = true;
     return params;
   };
 
@@ -185,6 +223,7 @@ export default function ServicesPage() {
     }
     if (mobileWorkerFilter) params.worker_id = mobileWorkerFilter;
     if (mobileAssetFilter) params.asset_id = mobileAssetFilter;
+    if (isWorkerOwnList) params.includeTrashed = true;
     return params;
   };
 
@@ -300,21 +339,32 @@ export default function ServicesPage() {
       header: t.services.table.service,
       sortable: true,
       sortValue: (item) => item.title,
-      cell: (item) => (
-        <div className="flex items-center space-x-3">
-          <ServiceEvidenceAvatar
-            item={item}
-            className="w-[52px] h-[52px] border-2 border-surface shadow-sm"
-            iconClassName="w-5 h-5 text-brand"
-          />
-          <div className="min-w-0">
-            <span className="font-bold text-title text-xs">{item.title}</span>
-            <div className="mt-1">
-              <AttachmentStatusBadge item={item} />
+      cell: (item) => {
+        const isTrashed = !!item.deleted_at;
+        const isPurged = !!item.purged_at;
+        const displayTitle = isPurged ? (item.worker_snapshot_title || item.title) : item.title;
+        return (
+          <div className={`flex items-center space-x-3 ${isPurged ? "opacity-60" : ""}`}>
+            {isPurged ? (
+              <div className="w-[52px] h-[52px] rounded-full overflow-hidden border-2 border-surface shadow-sm bg-app-bg flex items-center justify-center shrink-0">
+                <Wrench className="w-5 h-5 text-subtitle/30" strokeWidth={1.5} />
+              </div>
+            ) : (
+              <ServiceEvidenceAvatar
+                item={item}
+                className="w-[52px] h-[52px] border-2 border-surface shadow-sm"
+                iconClassName="w-5 h-5 text-brand"
+              />
+            )}
+            <div className="min-w-0">
+              <span className="font-bold text-title text-xs">{displayTitle}</span>
+              <div className="mt-1">
+                {isTrashed ? <TrashStateBadge purged={isPurged} t={t} /> : <AttachmentStatusBadge item={item} />}
+              </div>
             </div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       key: "asset",
@@ -840,7 +890,7 @@ export default function ServicesPage() {
                 columns={columns}
                 keyExtractor={(item) => item.id}
                 footer={pagination}
-                onRowClick={(item: any) => setSelectedService(item)}
+                onRowClick={(item: Service) => { if (!item.purged_at) setSelectedService(item); }}
                 onSortChange={setActiveSortKey}
                 resetSortTrigger={resetKey}
               />
@@ -852,7 +902,8 @@ export default function ServicesPage() {
       <ServiceDrawer
         service={selectedService}
         onClose={() => setSelectedService(null)}
-        onDelete={canDelete ? (svc) => { setSelectedService(null); setServiceToDelete(svc); } : undefined}
+        onDelete={canDelete && !selectedService?.deleted_at ? (svc) => { setSelectedService(null); setServiceToDelete(svc); } : undefined}
+        readOnly={!!selectedService?.deleted_at}
       />
 
       <ServiceModal

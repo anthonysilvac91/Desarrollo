@@ -485,10 +485,16 @@ export class AssetsService {
       assetWhere.organization_id = user.orgId;
     }
 
+    // Trashed services never show in the asset's own history — same rule
+    // as the main /services list. Trash is only ever visible from the Trash
+    // module itself (or, for a worker's own record of the job, from their
+    // own /services view — see ServicesService.findAll's includeTrashed).
     // EXTERNAL filter moves to DB — avoids loading all services just to discard private ones
-    const servicesWhere: any = isExternalRole(user.role)
-      ? { is_public: true }
-      : {};
+    const servicesWhere: any = {
+      deleted_at: null,
+      purged_at: null,
+      ...(isExternalRole(user.role) ? { is_public: true } : {}),
+    };
 
     const servicesCountWhere: any = { asset_id: id, ...servicesWhere };
     if (user.role !== 'SUPER_ADMIN') {
@@ -622,7 +628,17 @@ export class AssetsService {
     if (user.role !== 'SUPER_ADMIN' && asset.organization_id !== user.orgId) {
       throw new ForbiddenException('No tienes permiso');
     }
-    return this.prisma.asset.update({ where: { id }, data: { is_active } });
+    const updated = await this.prisma.asset.update({
+      where: { id },
+      data: { is_active },
+    });
+    this.realtimeService?.emit({
+      module: 'assets',
+      action: 'updated',
+      entityId: id,
+      organizationId: asset.organization_id,
+    });
+    return updated;
   }
 
   async remove(id: string, user: any, options?: { deleteServices?: boolean }) {
@@ -636,6 +652,21 @@ export class AssetsService {
     }
 
     const deletedAt = new Date();
+    // Fetched individually (not updateMany) because each cascaded service
+    // needs its OWN title frozen into worker_snapshot_title — updateMany
+    // can only write the same value to every matched row.
+    const servicesToCascade = options?.deleteServices
+      ? await this.prisma.service.findMany({
+          where: {
+            asset_id: id,
+            organization_id: asset.organization_id,
+            deleted_at: null,
+            purged_at: null,
+          },
+          select: { id: true, title: true },
+        })
+      : [];
+
     const [updatedAsset] = await this.prisma.$transaction([
       this.prisma.asset.update({
         where: { id },
@@ -645,19 +676,17 @@ export class AssetsService {
           deleted_by_id: user.id,
         },
       }),
-      ...(options?.deleteServices
-        ? [
-            this.prisma.service.updateMany({
-              where: {
-                asset_id: id,
-                organization_id: asset.organization_id,
-                deleted_at: null,
-                purged_at: null,
-              },
-              data: { deleted_at: deletedAt, deleted_by_id: user.id },
-            }),
-          ]
-        : []),
+      ...servicesToCascade.map((s) =>
+        this.prisma.service.update({
+          where: { id: s.id },
+          data: {
+            deleted_at: deletedAt,
+            deleted_by_id: user.id,
+            worker_snapshot_title: s.title,
+            worker_snapshot_asset_name: asset.name,
+          },
+        }),
+      ),
     ]);
 
     this.realtimeService?.emit({

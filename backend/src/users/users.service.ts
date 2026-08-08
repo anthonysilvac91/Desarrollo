@@ -654,6 +654,13 @@ export class UsersService {
       },
     });
 
+    this.realtimeService?.emit({
+      module: 'users',
+      action: 'updated',
+      entityId: updatedUser.id,
+      organizationId: updatedUser.organization_id,
+    });
+
     return this.resolveUserFileUrls(this.mapUserRelations(updatedUser));
   }
 
@@ -896,6 +903,13 @@ export class UsersService {
         );
     }
 
+    this.realtimeService?.emit({
+      module: 'users',
+      action: 'updated',
+      entityId: updatedUser.id,
+      organizationId: user.organization?.id ?? currentUser.orgId ?? null,
+    });
+
     return updatedUser;
   }
 
@@ -916,6 +930,13 @@ export class UsersService {
         deleted_at: new Date(),
         deleted_by_id: currentUser.id,
       },
+    });
+
+    this.realtimeService?.emit({
+      module: 'users',
+      action: 'deleted',
+      entityId: updatedUser.id,
+      organizationId: updatedUser.organization_id,
     });
 
     return updatedUser;

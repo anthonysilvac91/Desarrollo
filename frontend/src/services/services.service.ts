@@ -65,6 +65,13 @@ export interface Service {
   is_public: boolean;
   status: string;
   created_at: string;
+  deleted_at?: string | null;
+  purged_at?: string | null;
+  /** Frozen title/asset name captured when this service was trashed — the
+   *  only thing left to show a worker once purge has anonymized the live
+   *  `title`/`asset.name` and deleted the attachments for good. */
+  worker_snapshot_title?: string | null;
+  worker_snapshot_asset_name?: string | null;
 }
 
 export interface ServiceShareLink {
@@ -121,7 +128,7 @@ export interface UpdateServiceInput {
 }
 
 export const servicesService = {
-  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string; lang?: string }): Promise<Service[] | ServiceListResponse> => {
+  findAll: async (params?: { page?: number; limit?: number; search?: string; worker_id?: string; asset_id?: string; preset?: string; startDate?: string; endDate?: string; lang?: string; includeTrashed?: boolean }): Promise<Service[] | ServiceListResponse> => {
     const res = await api.get("/services", { params });
     return res.data;
   },

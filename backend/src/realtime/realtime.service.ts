@@ -1,7 +1,7 @@
 import { Injectable, MessageEvent } from '@nestjs/common';
 import { Observable, Subject, filter, map } from 'rxjs';
 
-export type RealtimeModule = 'assets' | 'services' | 'users';
+export type RealtimeModule = 'assets' | 'services' | 'users' | 'owners';
 export type RealtimeAction = 'created' | 'updated' | 'deleted';
 
 export interface RealtimeEvent {

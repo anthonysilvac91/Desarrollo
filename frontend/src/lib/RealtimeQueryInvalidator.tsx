@@ -6,13 +6,37 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
 
 type RealtimeEvent = {
-  module: "assets" | "services" | "users";
+  module: "assets" | "services" | "users" | "owners";
   action: "created" | "updated" | "deleted";
   entityId: string;
   organizationId: string | null;
   actorUserId?: string | null;
   emittedAt: string;
 };
+
+// Every query-key prefix any branch below ever invalidates — used for the
+// broad "resync everything relevant" pass after a reconnect, since a
+// dropped SSE connection has no buffer/replay: whatever was emitted while
+// disconnected is otherwise lost for good.
+const ALL_MANAGED_PREFIXES = [
+  "asset",
+  "assets",
+  "assets-mobile",
+  "assets-stats",
+  "assets-owners-list",
+  "services",
+  "services-mobile",
+  "services-stats",
+  "services-workers-list",
+  "owners",
+  "users",
+  "users-stats",
+  "dashboard-stats",
+  "trash",
+  "trash-mobile",
+  "trash-detail",
+  "trash-filter-options",
+];
 
 const rawApiUrl =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -74,10 +98,23 @@ export function RealtimeQueryInvalidator() {
     }
 
     let isActive = true;
+    let hasConnectedBefore = false;
     let reconnectTimer: number | undefined;
     const abortController = new AbortController();
 
     const handleEvent = (event: RealtimeEvent) => {
+      // Trash surfaces create/delete/restore/purge activity across every
+      // entity type, so it refreshes on any event, not just a matching
+      // "module" — it isn't itself an emitting module.
+      if (pathname.startsWith("/trash")) {
+        invalidatePrefixes(queryClient, [
+          "trash",
+          "trash-mobile",
+          "trash-detail",
+          "trash-filter-options",
+        ]);
+      }
+
       if (event.module === "assets") {
         if (pathname.startsWith("/assets")) {
           invalidatePrefixes(queryClient, [
@@ -117,6 +154,22 @@ export function RealtimeQueryInvalidator() {
       if (event.module === "users" && pathname.startsWith("/users")) {
         invalidatePrefixes(queryClient, ["users", "users-stats"]);
       }
+
+      if (event.module === "owners") {
+        if (pathname.startsWith("/owners")) {
+          invalidatePrefixes(queryClient, ["owners"]);
+        }
+        if (pathname.startsWith("/assets")) {
+          invalidatePrefixes(queryClient, [
+            "assets",
+            "assets-mobile",
+            "assets-stats",
+          ]);
+        }
+        if (pathname.startsWith("/dashboard")) {
+          invalidatePrefixes(queryClient, ["dashboard-stats"]);
+        }
+      }
     };
 
     const connect = async () => {
@@ -131,6 +184,16 @@ export function RealtimeQueryInvalidator() {
             `Realtime stream failed with status ${response.status}`,
           );
         }
+
+        // The stream itself is a plain in-memory Subject with no buffer or
+        // replay — anything emitted while we were disconnected is gone.
+        // Treat a *re*connect (not the initial mount) as "assume stale,
+        // refetch everything relevant" instead of trying to catch up
+        // event-by-event.
+        if (hasConnectedBefore) {
+          invalidatePrefixes(queryClient, ALL_MANAGED_PREFIXES);
+        }
+        hasConnectedBefore = true;
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

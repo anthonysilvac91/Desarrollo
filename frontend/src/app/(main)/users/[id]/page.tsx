@@ -37,9 +37,14 @@ const getRoleStyle = (role: string) => {
 
 // ─── Job card adaptada: muestra activo en vez de worker ─────────────────────
 const UserJobCard = ({ job, iconId, onClick }: { job: Service; iconId?: string | null; onClick?: () => void }) => {
+  const { t } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const textRef = React.useRef<HTMLParagraphElement>(null);
+  const isTrashed = !!job.deleted_at;
+  const isPurged = !!job.purged_at;
+  const displayTitle = isPurged ? (job.worker_snapshot_title || job.title) : job.title;
+  const displayAssetName = isPurged ? (job.worker_snapshot_asset_name || job.asset?.name) : job.asset?.name;
 
   React.useEffect(() => {
     if (textRef.current) {
@@ -49,11 +54,13 @@ const UserJobCard = ({ job, iconId, onClick }: { job: Service; iconId?: string |
 
   return (
     <div
-      onClick={onClick}
-      className="group flex flex-col bg-surface rounded-4xl border border-border-theme/40 overflow-hidden hover:border-brand/40 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+      onClick={isPurged ? undefined : onClick}
+      className={`group flex flex-col bg-surface rounded-4xl border border-border-theme/40 overflow-hidden transition-all duration-300 ${
+        isPurged ? "opacity-60" : "hover:border-brand/40 hover:shadow-2xl cursor-pointer"
+      }`}
     >
       <div className="flex-1 p-8">
-        {/* Badges: fecha + activo */}
+        {/* Badges: fecha + activo + estado en papelera */}
         <div className="flex items-center space-x-3 mb-4 flex-wrap gap-y-2">
           <div className="bg-brand/5 px-3 py-1.5 rounded-full flex items-center border border-brand/5">
             <Calendar className="w-3.5 h-3.5 text-brand mr-2" />
@@ -61,23 +68,32 @@ const UserJobCard = ({ job, iconId, onClick }: { job: Service; iconId?: string |
               {formatDate(job.created_at)}
             </span>
           </div>
-          {job.asset?.name && (
+          {displayAssetName && (
             <div className="bg-app-bg px-3 py-1.5 rounded-full flex items-center border border-border-theme/60">
               <AssetIcon iconId={iconId} className="w-3.5 h-3.5 text-subtitle/40 mr-2" />
               <span className="text-[10px] font-black text-subtitle/60 uppercase tracking-wider truncate max-w-[140px]">
-                {job.asset.name}
+                {displayAssetName}
               </span>
             </div>
+          )}
+          {isTrashed && (
+            <span
+              className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                isPurged ? "bg-gray-100 text-gray-500 border-gray-200" : "bg-amber-50 text-amber-700 border-amber-100"
+              }`}
+            >
+              {isPurged ? t.services.states.trashed_purged : t.services.states.trashed_pending}
+            </span>
           )}
         </div>
 
         {/* Título */}
         <h4 className="text-xl font-bold text-title group-hover:text-brand transition-colors tracking-tight mb-3">
-          {job.title}
+          {displayTitle}
         </h4>
 
         {/* Descripción con expand */}
-        {job.description && (
+        {!isPurged && job.description && (
           <div className="relative">
             <p
               ref={textRef}
@@ -139,7 +155,7 @@ export default function UserDetailPage() {
   // Servicios realizados por este usuario
   const { data: servicesData, isLoading: isServicesLoading } = useQuery({
     queryKey: ["services", "by-worker", userId, language],
-    queryFn: () => servicesService.findAll({ worker_id: userId, limit: 100, lang: language }),
+    queryFn: () => servicesService.findAll({ worker_id: userId, limit: 100, lang: language, includeTrashed: true }),
     enabled: !!userId,
     refetchInterval: AUTO_REFETCH_INTERVALS.fast,
     ...AUTO_REFETCH_OPTIONS,
@@ -433,6 +449,7 @@ export default function UserDetailPage() {
       <ServiceDrawer
         service={selectedService}
         onClose={() => setSelectedService(null)}
+        readOnly={!!selectedService?.deleted_at}
       />
     </div>
   );

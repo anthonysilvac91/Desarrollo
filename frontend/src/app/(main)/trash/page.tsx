@@ -7,9 +7,10 @@ import FiltersBar from "@/components/ui/FiltersBar";
 import FilterDropdown from "@/components/ui/FilterDropdown";
 import DataTable, { ColumnDef } from "@/components/ui/DataTable";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import RelationshipDeleteModal from "@/components/ui/RelationshipDeleteModal";
 import { useLanguage } from "@/lib/LanguageContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { trashService, TrashItem } from "@/services/trash.service";
+import { trashService, TrashItem, RestorePreview } from "@/services/trash.service";
 import { useToast } from "@/lib/ToastContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -127,6 +128,8 @@ export default function TrashPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "restore" | "delete"; item: TrashItem } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [detailItem, setDetailItem] = useState<TrashItem | null>(null);
+  const [restoreScopeTarget, setRestoreScopeTarget] = useState<{ item: TrashItem; preview: RestorePreview } | null>(null);
+  const [restoreScopeValue, setRestoreScopeValue] = useState<"asset" | "asset-services" | "owner" | "owner-assets" | "owner-assets-services">("asset");
 
   const [mobileSearch, setMobileSearch] = useState("");
   const [mobileCategoryFilter, setMobileCategoryFilter] = useState("");
@@ -220,6 +223,73 @@ export default function TrashPage() {
     }
   };
 
+  // Assets/owners can have children that were cascade-deleted with them
+  // (same deletion event) — check before restoring so we can offer to bring
+  // those back too, instead of silently leaving them behind in Trash.
+  const handleRestoreClick = async (item: TrashItem) => {
+    if (item.entity_type !== "asset" && item.entity_type !== "owner") {
+      setConfirmAction({ type: "restore", item });
+      return;
+    }
+    try {
+      const preview = await trashService.getRestorePreview(item.entity_type, item.id);
+      const hasChildren = Object.values(preview).some((n) => (n ?? 0) > 0);
+      if (hasChildren) {
+        setRestoreScopeValue(item.entity_type === "asset" ? "asset" : "owner");
+        setRestoreScopeTarget({ item, preview });
+      } else {
+        setConfirmAction({ type: "restore", item });
+      }
+    } catch {
+      setConfirmAction({ type: "restore", item });
+    }
+  };
+
+  const handleRestoreWithScope = async () => {
+    if (!restoreScopeTarget) return;
+    const { item } = restoreScopeTarget;
+    setActionLoading(true);
+    try {
+      if (item.entity_type === "asset") {
+        await trashService.restore("asset", item.id, {
+          restoreServices: restoreScopeValue === "asset-services",
+        });
+        if (restoreScopeValue === "asset-services") {
+          queryClient.invalidateQueries({ queryKey: ["services"] });
+          queryClient.invalidateQueries({ queryKey: ["services-mobile"] });
+        }
+      } else {
+        const restoreAssets = restoreScopeValue !== "owner";
+        const restoreServices = restoreScopeValue === "owner-assets-services";
+        await trashService.restore("owner", item.id, {
+          restoreAssets,
+          restoreServices,
+          restoreUsers: restoreAssets,
+        });
+        if (restoreAssets) {
+          queryClient.invalidateQueries({ queryKey: ["assets"] });
+          queryClient.invalidateQueries({ queryKey: ["assets-mobile"] });
+          queryClient.invalidateQueries({ queryKey: ["users"] });
+        }
+        if (restoreServices) {
+          queryClient.invalidateQueries({ queryKey: ["services"] });
+          queryClient.invalidateQueries({ queryKey: ["services-mobile"] });
+        }
+      }
+      showToast(t.trash.states.restore_success, "success");
+      setMobileItems(prev => prev.filter(i => i.id !== item.id));
+      setDetailItem(prev => (prev?.id === item.id ? null : prev));
+      queryClient.invalidateQueries({ queryKey: ["trash"] });
+      queryClient.invalidateQueries({ queryKey: [item.module] });
+      queryClient.invalidateQueries({ queryKey: [item.entity_type + "s"] });
+    } catch {
+      showToast(t.trash.states.restore_error, "error");
+    } finally {
+      setActionLoading(false);
+      setRestoreScopeTarget(null);
+    }
+  };
+
   const getCategoryLabel = (type: TrashItem["entity_type"]) => {
     return t.trash.categories[type] || type;
   };
@@ -306,7 +376,7 @@ export default function TrashPage() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setConfirmAction({ type: "restore", item });
+                handleRestoreClick(item);
               }}
               className="p-1.5 rounded-full text-brand/40 hover:text-brand hover:bg-brand/10 transition-all"
               title={t.trash.actions.restore}
@@ -694,12 +764,83 @@ export default function TrashPage() {
         />
       )}
 
+      {/* Restore-with-cascade: only shown when the item has children that were deleted with it */}
+      {restoreScopeTarget?.item.entity_type === "asset" && (
+        <RelationshipDeleteModal
+          isOpen
+          onClose={() => setRestoreScopeTarget(null)}
+          onConfirm={handleRestoreWithScope}
+          variant="brand"
+          title={t.trash.relationship_delete.restore_asset_title}
+          description={t.trash.relationship_delete.restore_asset_description.replace(
+            "{count}",
+            String(restoreScopeTarget.preview.services ?? 0),
+          )}
+          options={[
+            {
+              value: "asset",
+              title: t.trash.relationship_delete.restore_asset_only_title,
+              description: t.trash.relationship_delete.restore_asset_only_description.replace(
+                "{count}",
+                String(restoreScopeTarget.preview.services ?? 0),
+              ),
+            },
+            {
+              value: "asset-services",
+              title: t.trash.relationship_delete.restore_asset_services_title,
+              description: t.trash.relationship_delete.restore_asset_services_description.replace(
+                "{count}",
+                String(restoreScopeTarget.preview.services ?? 0),
+              ),
+            },
+          ]}
+          value={restoreScopeValue}
+          onChange={(value) => setRestoreScopeValue(value as typeof restoreScopeValue)}
+          confirmText={t.trash.actions.restore}
+          cancelText={t.common.cancel}
+        />
+      )}
+      {restoreScopeTarget?.item.entity_type === "owner" && (
+        <RelationshipDeleteModal
+          isOpen
+          onClose={() => setRestoreScopeTarget(null)}
+          onConfirm={handleRestoreWithScope}
+          variant="brand"
+          title={t.trash.relationship_delete.restore_owner_title}
+          description={t.trash.relationship_delete.restore_owner_description
+            .replace("{assets}", String(restoreScopeTarget.preview.assets ?? 0))
+            .replace("{services}", String(restoreScopeTarget.preview.services ?? 0))
+            .replace("{users}", String(restoreScopeTarget.preview.users ?? 0))}
+          options={[
+            {
+              value: "owner",
+              title: t.trash.relationship_delete.restore_owner_only_title,
+              description: t.trash.relationship_delete.restore_owner_only_description,
+            },
+            {
+              value: "owner-assets",
+              title: t.trash.relationship_delete.restore_owner_assets_title,
+              description: t.trash.relationship_delete.restore_owner_assets_description,
+            },
+            {
+              value: "owner-assets-services",
+              title: t.trash.relationship_delete.restore_owner_assets_services_title,
+              description: t.trash.relationship_delete.restore_owner_assets_services_description,
+            },
+          ]}
+          value={restoreScopeValue}
+          onChange={(value) => setRestoreScopeValue(value as typeof restoreScopeValue)}
+          confirmText={t.trash.actions.restore}
+          cancelText={t.common.cancel}
+        />
+      )}
+
       {/* Detail drawers (read-only, with restore/permanent-delete actions) */}
       {detailItem?.entity_type === "service" && (
         <ServiceDrawer
           service={detailData ?? null}
           onClose={() => setDetailItem(null)}
-          onRestore={() => setConfirmAction({ type: "restore", item: detailItem })}
+          onRestore={() => handleRestoreClick(detailItem)}
           onPermanentDelete={() => setConfirmAction({ type: "delete", item: detailItem })}
           readOnly
         />
@@ -708,7 +849,7 @@ export default function TrashPage() {
         <AssetDrawer
           asset={detailData ?? null}
           onClose={() => setDetailItem(null)}
-          onRestore={() => setConfirmAction({ type: "restore", item: detailItem })}
+          onRestore={() => handleRestoreClick(detailItem)}
           onPermanentDelete={() => setConfirmAction({ type: "delete", item: detailItem })}
           readOnly
         />
@@ -717,7 +858,7 @@ export default function TrashPage() {
         <OwnerDrawer
           owner={detailData ?? null}
           onClose={() => setDetailItem(null)}
-          onRestore={() => setConfirmAction({ type: "restore", item: detailItem })}
+          onRestore={() => handleRestoreClick(detailItem)}
           onPermanentDelete={() => setConfirmAction({ type: "delete", item: detailItem })}
           readOnly
         />
@@ -726,7 +867,7 @@ export default function TrashPage() {
         <UserDrawer
           user={detailData ?? null}
           onClose={() => setDetailItem(null)}
-          onRestore={() => setConfirmAction({ type: "restore", item: detailItem })}
+          onRestore={() => handleRestoreClick(detailItem)}
           onPermanentDelete={() => setConfirmAction({ type: "delete", item: detailItem })}
           readOnly
         />

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { CreateOwnerDto } from './dto/create-company.dto';
 import { UpdateOwnerDto } from './dto/update-company.dto';
@@ -19,6 +20,7 @@ import { buildOwnerLogoPath } from '../common/files/storage-paths';
 import { randomUUID } from 'crypto';
 import { StoredFileKind } from '@prisma/client';
 import { withOwner } from '../common/compat/owner-role-compat';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @Injectable()
 export class OwnersService {
@@ -27,6 +29,7 @@ export class OwnersService {
     private storageService: StorageService,
     private storageGovernance: StorageGovernanceService,
     private storedFilesService: StoredFilesService,
+    @Optional() private realtimeService?: RealtimeService,
   ) {}
 
   private mapOwnerRelations<T extends Record<string, any>>(
@@ -228,6 +231,12 @@ export class OwnersService {
       }
       throw error;
     }
+    this.realtimeService?.emit({
+      module: 'owners',
+      action: 'created',
+      entityId: owner.id,
+      organizationId: orgId,
+    });
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
@@ -458,6 +467,13 @@ export class OwnersService {
       );
     }
 
+    this.realtimeService?.emit({
+      module: 'owners',
+      action: 'updated',
+      entityId: owner.id,
+      organizationId: orgId,
+    });
+
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }
 
@@ -495,6 +511,21 @@ export class OwnersService {
         data: { is_active: false },
       }),
     ]);
+
+    this.realtimeService?.emit({
+      module: 'owners',
+      action: 'updated',
+      entityId: owner.id,
+      organizationId: orgId,
+    });
+    if (assetsResult.count > 0) {
+      this.realtimeService?.emit({
+        module: 'assets',
+        action: 'updated',
+        entityId: owner.id,
+        organizationId: orgId,
+      });
+    }
 
     return this.resolveOwnerFileUrls(
       {
@@ -534,16 +565,34 @@ export class OwnersService {
       options?.deleteAssets === true || options?.deleteServices === true;
     const deleteServices = options?.deleteServices === true;
     const deletedAt = new Date();
-    const ownerAssetIds = await this.prisma.asset.findMany({
+    const ownerAssets = await this.prisma.asset.findMany({
       where: {
         organization_id: orgId,
         owner_id: id,
         deleted_at: null,
         purged_at: null,
       },
-      select: { id: true },
+      select: { id: true, name: true },
     });
-    const assetIds = ownerAssetIds.map((asset) => asset.id);
+    const assetIds = ownerAssets.map((asset) => asset.id);
+    const assetNameById = new Map(ownerAssets.map((a) => [a.id, a.name]));
+
+    // Fetched individually (not updateMany) because each cascaded service
+    // needs its own title + parent asset name frozen into the
+    // worker_snapshot_* columns — updateMany can only write one shared
+    // value to every matched row.
+    const servicesToCascade =
+      deleteServices && assetIds.length > 0
+        ? await this.prisma.service.findMany({
+            where: {
+              organization_id: orgId,
+              asset_id: { in: assetIds },
+              deleted_at: null,
+              purged_at: null,
+            },
+            select: { id: true, title: true, asset_id: true },
+          })
+        : [];
 
     const [owner] = await this.prisma.$transaction([
       this.prisma.owner.update({
@@ -571,16 +620,33 @@ export class OwnersService {
             }),
           ]
         : []),
-      ...(deleteServices && assetIds.length > 0
+      ...servicesToCascade.map((s) =>
+        this.prisma.service.update({
+          where: { id: s.id },
+          data: {
+            deleted_at: deletedAt,
+            deleted_by_id: deletedById ?? null,
+            worker_snapshot_title: s.title,
+            worker_snapshot_asset_name: assetNameById.get(s.asset_id) ?? null,
+          },
+        }),
+      ),
+      // An EXTERNAL user only exists to view this owner's assets — once the
+      // owner (and its assets) are gone, that account has nothing left to
+      // scope to. ADMIN/WORKER never have owner_id set, so this can't touch
+      // them even without the role filter, but it's kept explicit.
+      ...(deleteAssets
         ? [
-            this.prisma.service.updateMany({
+            this.prisma.user.updateMany({
               where: {
                 organization_id: orgId,
-                asset_id: { in: assetIds },
+                owner_id: id,
+                role: 'EXTERNAL',
                 deleted_at: null,
                 purged_at: null,
               },
               data: {
+                is_active: false,
                 deleted_at: deletedAt,
                 deleted_by_id: deletedById ?? null,
               },
@@ -588,6 +654,35 @@ export class OwnersService {
           ]
         : []),
     ]);
+
+    this.realtimeService?.emit({
+      module: 'owners',
+      action: 'deleted',
+      entityId: id,
+      organizationId: orgId,
+    });
+    if (deleteAssets) {
+      this.realtimeService?.emit({
+        module: 'assets',
+        action: 'deleted',
+        entityId: id,
+        organizationId: orgId,
+      });
+      this.realtimeService?.emit({
+        module: 'users',
+        action: 'deleted',
+        entityId: id,
+        organizationId: orgId,
+      });
+    }
+    if (servicesToCascade.length > 0) {
+      this.realtimeService?.emit({
+        module: 'services',
+        action: 'deleted',
+        entityId: id,
+        organizationId: orgId,
+      });
+    }
 
     return this.resolveOwnerFileUrls(this.mapOwnerRelations(owner), orgId);
   }

@@ -1085,7 +1085,19 @@ export class ServicesService {
   }
 
   async findAll(query: ListServicesQueryDto, user: any) {
-    const whereClause: any = { deleted_at: null, purged_at: null };
+    // A worker's own history is worth keeping even once a service lands in
+    // Trash (or gets purged) — only they can ever see it there (see
+    // ServiceModal-adjacent Trash design notes). Only honored when the
+    // query is already scoped to a single worker — forced to self for role
+    // WORKER, or an explicit worker_id (the admin-viewing-one-worker
+    // history page) — never for an unscoped org-wide browse.
+    const isScopedToSingleWorker = user.role === 'WORKER' || !!query.worker_id;
+    const includeTrashed =
+      query.includeTrashed === 'true' && isScopedToSingleWorker;
+
+    const whereClause: any = includeTrashed
+      ? {}
+      : { deleted_at: null, purged_at: null };
 
     if (user.role !== 'SUPER_ADMIN') {
       whereClause.organization_id = user.orgId;
@@ -1369,6 +1381,13 @@ export class ServicesService {
         editorUserId: actorUserId,
       });
     }
+
+    this.realtimeService?.emit({
+      module: 'services',
+      action: 'updated',
+      entityId: updated.id,
+      organizationId: orgId,
+    });
 
     // attachment_bytes_total/ready are BigInt columns - JSON.stringify() throws
     // on those, so they must be stringified before this reaches the response.
@@ -1812,7 +1831,10 @@ export class ServicesService {
   }
 
   async remove(id: string, user: any) {
-    const service = await this.prisma.service.findUnique({ where: { id } });
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      include: { asset: { select: { name: true } } },
+    });
 
     if (!service || service.deleted_at || (service as any).purged_at) {
       throw new NotFoundException('Service no encontrado');
@@ -1826,7 +1848,21 @@ export class ServicesService {
 
     const updated = await this.prisma.service.update({
       where: { id },
-      data: { deleted_at: new Date(), deleted_by_id: user.id },
+      data: {
+        deleted_at: new Date(),
+        deleted_by_id: user.id,
+        // Frozen before either this service or its asset can be purged —
+        // lets the worker who did the job keep a text-only record later.
+        worker_snapshot_title: service.title,
+        worker_snapshot_asset_name: service.asset.name,
+      },
+    });
+
+    this.realtimeService?.emit({
+      module: 'services',
+      action: 'deleted',
+      entityId: id,
+      organizationId: service.organization_id,
     });
 
     // attachment_bytes_total/ready are BigInt columns - JSON.stringify() throws

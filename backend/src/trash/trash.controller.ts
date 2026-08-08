@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Query,
+  Body,
   UseGuards,
   Request,
   ForbiddenException,
@@ -70,19 +71,53 @@ export class TrashController {
     return this.trashService.findOneDetail(entityType, id, req.user);
   }
 
-  @Post(':entityType/:id/restore')
-  @ApiOperation({ summary: 'Restaurar un elemento de la papelera' })
-  restore(
+  @Get(':entityType/:id/restore-preview')
+  @ApiOperation({
+    summary:
+      'Contar los hijos que se restaurarían junto a este elemento (mismo evento de borrado)',
+  })
+  getRestorePreview(
     @Param('entityType') entityType: string,
     @Param('id') id: string,
     @Request() req: any,
   ) {
     if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       throw new ForbiddenException(
+        'Solo administradores pueden acceder a la papelera',
+      );
+    }
+    return this.trashService.getRestorePreview(
+      entityType,
+      id,
+      req.user.orgId,
+    );
+  }
+
+  @Post(':entityType/:id/restore')
+  @ApiOperation({ summary: 'Restaurar un elemento de la papelera' })
+  restore(
+    @Param('entityType') entityType: string,
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body()
+    body:
+      | {
+          restoreAssets?: boolean;
+          restoreServices?: boolean;
+          restoreUsers?: boolean;
+        }
+      | undefined,
+  ) {
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
+      throw new ForbiddenException(
         'Solo administradores pueden restaurar elementos',
       );
     }
-    return this.trashService.restore(entityType, id, req.user.orgId);
+    return this.trashService.restore(entityType, id, req.user.orgId, {
+      restoreAssets: body?.restoreAssets === true,
+      restoreServices: body?.restoreServices === true,
+      restoreUsers: body?.restoreUsers === true,
+    });
   }
 
   @Delete(':entityType/:id')

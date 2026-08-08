@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, RotateCcw, X } from "lucide-react";
 
 export interface RelationshipDeleteOption {
   value: string;
@@ -20,6 +20,8 @@ interface RelationshipDeleteModalProps {
   onConfirm: () => void;
   confirmText: string;
   cancelText: string;
+  /** "error" (default) for destructive delete flows, "brand" for restore. */
+  variant?: "error" | "brand";
 }
 
 export default function RelationshipDeleteModal({
@@ -33,8 +35,22 @@ export default function RelationshipDeleteModal({
   onConfirm,
   confirmText,
   cancelText,
+  variant = "error",
 }: RelationshipDeleteModalProps) {
   if (!isOpen) return null;
+
+  const Icon = variant === "brand" ? RotateCcw : AlertTriangle;
+  const iconWrapClass = variant === "brand"
+    ? "w-16 h-16 rounded-2xl bg-brand/10 text-brand flex items-center justify-center mb-6 ring-8 ring-white shadow-sm"
+    : "w-16 h-16 rounded-2xl bg-error/10 text-error flex items-center justify-center mb-6 ring-8 ring-white shadow-sm";
+  const optionSelectedClass = variant === "brand" ? "border-brand/40 bg-brand/5" : "border-error/40 bg-error/5";
+  const optionUnselectedClass = variant === "brand"
+    ? "border-border-theme/40 bg-app-bg/40 hover:border-brand/20 hover:bg-brand/5"
+    : "border-border-theme/40 bg-app-bg/40 hover:border-error/20 hover:bg-error/5";
+  const radioSelectedClass = variant === "brand" ? "border-brand bg-brand" : "border-error bg-error";
+  const confirmButtonClass = variant === "brand"
+    ? "flex-1 px-6 py-4 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 bg-brand text-white hover:bg-brand/90 shadow-brand/20"
+    : "flex-1 px-6 py-4 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 bg-error text-white hover:bg-error/90 shadow-error/20";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -45,8 +61,8 @@ export default function RelationshipDeleteModal({
 
       <div className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl border border-border-theme/50 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         <div className="p-8 pb-5 flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-2xl bg-error/10 text-error flex items-center justify-center mb-6 ring-8 ring-white shadow-sm">
-            <AlertTriangle className="w-8 h-8" />
+          <div className={iconWrapClass}>
+            <Icon className="w-8 h-8" />
           </div>
           <h3 className="text-2xl font-black text-title tracking-tight mb-3">{title}</h3>
           <p className="text-subtitle/70 text-[15px] leading-relaxed font-medium px-4">
@@ -63,14 +79,12 @@ export default function RelationshipDeleteModal({
                 type="button"
                 onClick={() => onChange(option.value)}
                 className={`w-full flex items-start gap-3 rounded-2xl border p-4 text-left transition-all ${
-                  selected
-                    ? "border-error/40 bg-error/5"
-                    : "border-border-theme/40 bg-app-bg/40 hover:border-error/20 hover:bg-error/5"
+                  selected ? optionSelectedClass : optionUnselectedClass
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                    selected ? "border-error bg-error" : "border-subtitle/20 bg-white"
+                    selected ? radioSelectedClass : "border-subtitle/20 bg-white"
                   }`}
                 >
                   {selected && <span className="h-2 w-2 rounded-full bg-white" />}
@@ -98,7 +112,7 @@ export default function RelationshipDeleteModal({
               onConfirm();
               onClose();
             }}
-            className="flex-1 px-6 py-4 rounded-2xl text-sm font-black transition-all shadow-lg active:scale-95 bg-error text-white hover:bg-error/90 shadow-error/20"
+            className={confirmButtonClass}
           >
             {confirmText}
           </button>

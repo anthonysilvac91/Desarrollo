@@ -22,4 +22,7 @@ export class ListServicesQueryDto extends PaginationQueryDto {
   @IsIn(['es', 'en'])
   @IsOptional()
   lang?: string;
+
+  @IsOptional()
+  includeTrashed?: string;
 }

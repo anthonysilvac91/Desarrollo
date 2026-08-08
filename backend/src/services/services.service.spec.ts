@@ -76,6 +76,8 @@ const buildService = (overrides: Partial<Service> = {}): Service => ({
   deleted_by_id: null,
   purged_at: null,
   purged_by_id: null,
+  worker_snapshot_title: null,
+  worker_snapshot_asset_name: null,
   created_at: testDate,
   updated_at: testDate,
   ...overrides,

@@ -19,6 +19,18 @@ export interface TrashFilterOptions {
   users: Array<{ id: string; name: string }>;
 }
 
+export interface RestorePreview {
+  assets?: number;
+  services?: number;
+  users?: number;
+}
+
+export interface RestoreOptions {
+  restoreAssets?: boolean;
+  restoreServices?: boolean;
+  restoreUsers?: boolean;
+}
+
 export const trashService = {
   findAll: async (params?: { search?: string; entity_type?: string; deleted_by_id?: string; page?: number; limit?: number }): Promise<TrashResponse> => {
     const res = await api.get("/trash", { params });
@@ -35,8 +47,13 @@ export const trashService = {
     return res.data;
   },
 
-  restore: async (entityType: string, id: string): Promise<any> => {
-    const res = await api.post(`/trash/${entityType}/${id}/restore`);
+  getRestorePreview: async (entityType: string, id: string): Promise<RestorePreview> => {
+    const res = await api.get(`/trash/${entityType}/${id}/restore-preview`);
+    return res.data;
+  },
+
+  restore: async (entityType: string, id: string, options?: RestoreOptions): Promise<any> => {
+    const res = await api.post(`/trash/${entityType}/${id}/restore`, options);
     return res.data;
   },
 

@@ -332,6 +332,12 @@ model Service {
   deleted_by_id            String?
   purged_at                DateTime?
   purged_by_id             String?
+  /// Frozen copy of `title`/asset name, captured the moment this service
+  /// entered the trash (before either it or its asset could be purged and
+  /// anonymized). Lets the worker who performed it keep a text-only record
+  /// after a permanent delete, once `title`/`attachments` are gone for good.
+  worker_snapshot_title      String?
+  worker_snapshot_asset_name String?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
