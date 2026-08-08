@@ -13,7 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { User } from "@/types/auth";
 import { isSafeInternalPath } from "@/lib/safe-path";
-import { isAlwaysPublicPath } from "@/lib/publicRoutes";
+import { isAlwaysPublicPath, isGuestOnlyPath } from "@/lib/publicRoutes";
 
 interface AuthContextType {
   user: User | null;
@@ -39,20 +39,6 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/service": ["SUPER_ADMIN", "ADMIN", "WORKER", "EXTERNAL"],
   "/trash": ["SUPER_ADMIN", "ADMIN"],
 };
-
-// Guest-only routes: shown when logged out, but redirect away to the
-// dashboard if the viewer is already authenticated (no reason to see the
-// login form again). This is distinct from isAlwaysPublicPath (e.g.
-// /share/...), which must render the same way for everyone regardless of
-// auth state — a logged-in admin previewing their own share link should
-// see the shared content, not get bounced to /dashboard.
-const isGuestOnlyRoute = (path: string): boolean =>
-  path === "/login" ||
-  path === "/" ||
-  path === "/forgot-password" ||
-  path === "/reset-password" ||
-  path === "/register" ||
-  path === "/signup";
 
 const getServerMessage = (error: unknown): string => {
   if (
@@ -177,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // everyone — never redirect based on auth state, logged in or not.
     if (isAlwaysPublicPath(pathname)) return;
 
-    const isPublicPath = isGuestOnlyRoute(pathname);
+    const isPublicPath = isGuestOnlyPath(pathname);
 
     if (!user && !isPublicPath) {
       router.push("/login");
